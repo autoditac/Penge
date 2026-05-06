@@ -37,7 +37,7 @@ just docs          # serve docs locally
 
 ## Layout
 
-```
+```text
 apps/        # ingestion workers, simulation engine, web UI, MCP server
 dbt/         # analytics models (staging → marts)
 migrations/  # Alembic migrations for Postgres

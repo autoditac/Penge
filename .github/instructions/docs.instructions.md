@@ -12,7 +12,7 @@ applyTo: "docs/**"
 
 ## Layout
 
-```
+```text
 docs/
   index.md
   architecture/        # C4 + sequence diagrams

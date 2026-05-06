@@ -1,0 +1,43 @@
+name: Bug
+description: Something is wrong.
+title: "fix: "
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: ["ingest", "sim", "tax", "vault", "mcp", "web", "infra", "docs", "dbt"]
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment / version / logs

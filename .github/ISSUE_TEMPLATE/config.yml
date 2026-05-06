@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question / Discussion
+    url: https://github.com/autoditac/Penge/discussions
+    about: For questions and discussions, please open a discussion (once enabled).

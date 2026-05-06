@@ -1,0 +1,53 @@
+[project]
+name = "penge"
+version = "0.0.0"
+description = "Private personal-finance & FIRE-modeling platform"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+authors = [{ name = "autoditac" }]
+dependencies = []
+
+[dependency-groups]
+dev = [
+  "ruff>=0.7",
+  "mypy>=1.13",
+  "pytest>=8.3",
+  "pytest-cov>=5.0",
+  "pre-commit>=4.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+  "E", "F", "W",          # pycodestyle / pyflakes
+  "I",                    # isort
+  "B",                    # bugbear
+  "UP",                   # pyupgrade
+  "SIM",                  # simplify
+  "RUF",                  # ruff-specific
+  "TID",                  # tidy imports
+  "S",                    # bandit
+  "PL",                   # pylint
+]
+ignore = ["PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101", "PLR2004"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers --strict-config"
+testpaths = ["tests"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

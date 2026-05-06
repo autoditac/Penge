@@ -1,0 +1,9 @@
+# Default code owner for the whole repo
+*       @autoditac
+
+# Agent customization & engineering rules require extra care
+.github/                        @autoditac
+AGENTS.md                       @autoditac
+CONTRIBUTING.md                 @autoditac
+SECURITY.md                     @autoditac
+docs/decisions/                 @autoditac

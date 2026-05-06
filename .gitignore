@@ -1,0 +1,64 @@
+# Local data — never commit
+data/
+*.duckdb
+*.duckdb.wal
+*.parquet
+*.csv
+*.xlsx
+*.ods
+*.pdf
+!docs/**/*.pdf
+!tests/**/fixtures/**
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.age
+secrets/
+!secrets/*.enc.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.egg-info/
+dist/
+build/
+
+# Node / TS
+node_modules/
+.pnpm-store/
+*.tsbuildinfo
+.next/
+.turbo/
+
+# dbt
+dbt_packages/
+target/
+logs/
+
+# Editor / OS
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.DS_Store
+Thumbs.db
+*.swp
+
+# Misc
+*.log
+.cache/
+.direnv/

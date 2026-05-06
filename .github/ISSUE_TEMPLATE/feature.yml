@@ -1,0 +1,47 @@
+name: Feature
+description: A new capability of the platform.
+title: "feat: "
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: One paragraph describing the user-visible outcome when this is done.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Verifiable bullet points. The PR closing this issue must satisfy each of them.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: dropdown
+    id: phase
+    attributes:
+      label: Phase
+      options: ["0 — Foundations", "1 — Ingestion & Net-Worth", "2 — FIRE & Scenarios", "3 — DK Lagerbeskatning", "4 — Document Vault & LLM", "5 — Polish & Automation"]
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: ["ingest", "sim", "tax", "vault", "mcp", "web", "infra", "docs", "dbt"]
+    validations:
+      required: true
+  - type: dropdown
+    id: effort
+    attributes:
+      label: Effort
+      options: ["S (≤ ½ day)", "M (½–2 days)", "L (> 2 days, consider splitting)"]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / context / links

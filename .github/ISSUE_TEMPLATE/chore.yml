@@ -1,0 +1,24 @@
+name: Chore
+description: Maintenance, refactor, build, or process change with no user-visible feature.
+title: "chore: "
+labels: ["type:chore"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: ["ingest", "sim", "tax", "vault", "mcp", "web", "infra", "docs", "dbt"]
+    validations:
+      required: true

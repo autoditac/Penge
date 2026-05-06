@@ -1,0 +1,28 @@
+name: ADR
+description: Propose an Architecture Decision Record.
+title: "docs(adr): "
+labels: ["type:adr"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Why are we deciding this now? What forces are in play?
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options under consideration
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Initial recommendation (optional)
+  - type: textarea
+    id: consequences
+    attributes:
+      label: Anticipated consequences (good and bad)
+    validations:
+      required: true

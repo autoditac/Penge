@@ -1,0 +1,95 @@
+# Continuous Integration
+#
+# NOTE: actions are currently pinned by major version for the bootstrap phase.
+# Follow-up issue tracks pinning every action by full commit SHA before merging
+# any production code (see SECURITY.md).
+
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: Conventional Commit PR title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            docs
+            chore
+            refactor
+            test
+            build
+            ci
+            perf
+            revert
+          requireScope: false
+
+  lint-markdown:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: DavidAnson/markdownlint-cli2-action@v18
+        with:
+          globs: |
+            **/*.md
+            !**/node_modules/**
+            !**/CHANGELOG.md
+
+  yaml-lint:
+    name: YAML lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx install yamllint
+      - run: yamllint -s .
+
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  bootstrap-smoke:
+    name: Bootstrap smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify required files
+        run: |
+          set -euo pipefail
+          for f in README.md CONTRIBUTING.md SECURITY.md AGENTS.md \
+                   .github/copilot-instructions.md \
+                   .github/PULL_REQUEST_TEMPLATE.md \
+                   .github/CODEOWNERS \
+                   .github/dependabot.yml \
+                   .gitignore .editorconfig; do
+            if [ ! -f "$f" ]; then
+              echo "missing: $f"; exit 1
+            fi
+          done
+          echo "Bootstrap layout OK"

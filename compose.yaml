@@ -1,0 +1,37 @@
+# docker-compose for local development.
+# Phase 0 brings up Postgres + Adminer; further services land in later phases.
+#
+# Image digests are pinned. Bumps go through Dependabot.
+
+name: penge
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    # NOTE: digest above is a placeholder; Phase 0 follow-up issue replaces it
+    # with the real digest pulled in CI.
+    container_name: penge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-penge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-penge}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-penge}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:5-standalone@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    container_name: penge-adminer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy

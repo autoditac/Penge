@@ -22,7 +22,7 @@ This repository is a private personal project, but it is run with professional-g
 
 We use [Conventional Commits](https://www.conventionalcommits.org/) and `commitlint`:
 
-```
+```text
 <type>(<scope>)?: <subject>
 
 <body>

@@ -1,5 +1,11 @@
 name: dependency-review
 
+# NOTE: actions/dependency-review-action requires GitHub Advanced Security
+# on private repositories. While Penge is private and GHAS is not enabled,
+# this job is best-effort: it runs but does not block PR merges.
+# Re-evaluate when the repo is made public or GHAS is enabled — see the
+# tracking issue in the repo backlog.
+
 on:
   pull_request:
 
@@ -10,8 +16,10 @@ permissions:
 jobs:
   review:
     runs-on: ubuntu-latest
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/dependency-review-action@v4
+        continue-on-error: true
         with:
           fail-on-severity: high

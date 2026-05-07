@@ -100,3 +100,38 @@ jobs:
             fi
           done
           echo "Bootstrap layout OK"
+
+  alembic-roundtrip:
+    name: Alembic round-trip
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        # postgres:17-alpine — same digest pinned in compose.yaml.
+        image: postgres:17-alpine@sha256:c7526c0f6c3f30260a563d7bcf8ad778effac59a44f8ffa86678c35418338609
+        env:
+          POSTGRES_USER: penge
+          POSTGRES_PASSWORD: penge
+          POSTGRES_DB: penge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U penge"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://penge:penge@localhost:5432/penge
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+      - name: Install db deps
+        run: uv sync --group db --frozen
+      - name: alembic upgrade head
+        run: uv run --group db alembic upgrade head
+      - name: alembic downgrade base
+        run: uv run --group db alembic downgrade base
+      - name: alembic upgrade head (idempotency check)
+        run: uv run --group db alembic upgrade head

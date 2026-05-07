@@ -1,0 +1,39 @@
+# dbt project for Penge
+#
+# This project sits on top of the operational Postgres schema created
+# by Alembic (migrations/versions/*) and produces analytics-ready
+# staging views and marts under the `analytics` schema.
+#
+# Conventions:
+#   - models/staging/ — 1:1 cleaned views over raw operational tables.
+#   - models/marts/   — business-logic models (net worth, cash flow,
+#                       tax projections, etc.).
+#
+# Source schema is `public` (Alembic default); target schema is
+# `analytics`. Both live in the same database.
+
+name: penge
+version: 1.0.0
+config-version: 2
+
+profile: penge
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  penge:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts

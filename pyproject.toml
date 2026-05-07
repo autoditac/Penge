@@ -29,6 +29,11 @@ http = [
   "httpx>=0.27",
   "pydantic>=2.7",
 ]
+dbt = [
+  # dbt-postgres pulls in a matching dbt-core. Allow 1.9.x and 1.10.x;
+  # bump the floor when we adopt features that need a newer minor.
+  "dbt-postgres>=1.9,<2.0",
+]
 
 [tool.ruff]
 line-length = 100

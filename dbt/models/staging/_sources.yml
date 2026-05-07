@@ -1,0 +1,32 @@
+# Raw operational tables — populated by Alembic migrations and by the
+# Python ingestion connectors (penge.ingest.*). Each connector PR should
+# extend this file with the freshness/quality tests it can guarantee.
+
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      Operational tables created by Alembic. Read-only from dbt's
+      perspective — never write back to public.*.
+    database: "{{ env_var('PGDATABASE', 'penge') }}"
+    schema: public
+    tables:
+      - name: entity
+        description: Owner of accounts and documents (person, household).
+      - name: account
+        description: Bank, broker, pension, or crypto account.
+      - name: instrument
+        description: Tradable asset (equity, ETF, bond, fund, crypto, cash).
+      - name: transaction
+        description: Ledger entry on an account; the canonical event.
+      - name: holding_snapshot
+        description: Point-in-time portfolio holding per account.
+      - name: price_history
+        description: Daily close per instrument.
+      - name: fx_rate
+        description: Per-day base/quote exchange rates (ECB-style).
+      - name: document
+        description: Statements, tax forms, salary slips, invoices.
+      - name: tax_lot
+        description: Per-lot accounting tying open and close transactions.

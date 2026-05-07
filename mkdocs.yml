@@ -56,6 +56,8 @@ nav:
       - connectors/index.md
       - "ECB daily FX rates": connectors/ecb_fx.md
       - "GoCardless (PSD2)": connectors/gocardless.md
+  - Analytics:
+      - "dbt": dbt.md
   - Tax:
       - DK: tax/dk.md
       - DE: tax/de.md

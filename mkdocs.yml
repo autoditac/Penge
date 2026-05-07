@@ -54,6 +54,7 @@ nav:
       - architecture/index.md
   - Connectors:
       - connectors/index.md
+      - "ECB daily FX rates": connectors/ecb_fx.md
   - Tax:
       - DK: tax/dk.md
       - DE: tax/de.md

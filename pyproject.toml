@@ -73,8 +73,8 @@ testpaths = ["tests"]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# This pyproject is the monorepo root, not a publishable package — there is
-# no `penge/` source dir to ship. Tell uv not to try installing the project
-# itself when running `uv sync` for dev/docs groups.
-[tool.uv]
-package = false
+[tool.hatch.build.targets.wheel]
+packages = ["src/penge"]
+
+[project.scripts]
+penge-ecb-fx = "penge.ingest.ecb_fx.__main__:main"

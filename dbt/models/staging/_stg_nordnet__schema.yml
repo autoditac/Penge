@@ -1,0 +1,52 @@
+version: 2
+
+models:
+  - name: stg_nordnet__transactions
+    description: >
+      Nordnet-only view over `raw.transaction`, joined to `raw.account`
+      to filter on `provider = 'nordnet'`. See ADR-0008 for the
+      canonical kind/account vocabulary used downstream.
+    columns:
+      - name: transaction_id
+        description: Primary key from `raw.transaction`.
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: FK to `raw.account.id`.
+        data_tests:
+          - not_null
+      - name: ts
+        description: Booking timestamp.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Canonical transaction kind (see ADR-0008).
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - buy
+                - sell
+                - dividend
+                - deposit
+                - withdrawal
+                - internal_transfer
+                - cash_interest
+                - tax_ask_charge
+                - tax_ask_payment
+      - name: account_kind
+        description: Account kind from `raw.account.kind`.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - aktiedepot
+                - aktiesparekonto
+                - opsparingskonto
+      - name: provider
+        description: Always `nordnet` in this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["nordnet"]

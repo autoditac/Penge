@@ -28,6 +28,7 @@ db = [
 http = [
   "httpx>=0.27",
   "pydantic>=2.7",
+  "pyyaml>=6.0",
 ]
 dbt = [
   # dbt-postgres pulls in a matching dbt-core. Allow 1.9.x and 1.10.x;

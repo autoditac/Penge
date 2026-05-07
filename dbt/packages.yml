@@ -1,0 +1,6 @@
+# dbt package dependencies.
+#
+# Empty for now. Add dbt-utils (or similar) the first time a model
+# actually needs it; reviewers should reject "just-in-case" additions.
+
+packages: []

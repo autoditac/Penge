@@ -1,0 +1,21 @@
+# dbt connection profile for Penge.
+#
+# All values are env-var driven so this file can be committed safely.
+# Local dev: source .env (or just rely on the compose Postgres defaults).
+# CI: the workflow exports the matching PG* vars from the postgres
+# service container.
+
+penge:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
+      user: "{{ env_var('PGUSER', 'penge') }}"
+      password: "{{ env_var('PGPASSWORD', 'penge') }}"
+      dbname: "{{ env_var('PGDATABASE', 'penge') }}"
+      schema: analytics
+      threads: 4
+      sslmode: "{{ env_var('PGSSLMODE', 'prefer') }}"
+      connect_timeout: 10

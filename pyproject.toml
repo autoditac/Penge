@@ -88,3 +88,4 @@ packages = ["src/penge"]
 
 [project.scripts]
 penge-ecb-fx = "penge.ingest.ecb_fx.__main__:main"
+penge-nordnet = "penge.ingest.nordnet.__main__:main"

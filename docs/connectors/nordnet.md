@@ -94,8 +94,44 @@ cash  = derive_cash_balances(txns)                    # per (account, ccy)
 hld   = parse_holdings_file("Depotoversigt for kontonummer 60109543, 7.5.2026.csv")
 ```
 
-The parser is pure (no DB writes); the database loader is a
-separate module shipping in a follow-up PR.
+The parser is pure (no DB writes). To upsert into Postgres use
+the `penge-nordnet` CLI or the `load_files` API:
+
+```python
+from sqlalchemy import create_engine
+
+from penge.ingest.nordnet import load_accounts_config, load_files
+
+engine = create_engine("postgresql+psycopg://...")
+result = load_files(
+    engine,
+    transactions_csv="20260507-nordnet-transactions-and-notes-export.csv",
+    holdings_csvs=[
+        "Depotoversigt for kontonummer 60109543, 7.5.2026.csv",
+        "Depotoversigt for kontonummer 60183456, 7.5.2026.csv",
+    ],
+    accounts_config=load_accounts_config("config/nordnet-accounts.yaml"),
+)
+print(result)  # entities=1 accounts=6 instruments=N transactions=N holding_snapshots=N
+```
+
+All writes happen in a single transaction and are idempotent —
+re-running the same export only updates `updated_at` columns.
+
+## CLI
+
+After `uv sync`:
+
+```sh
+penge-nordnet \
+    --transactions 20260507-nordnet-transactions-and-notes-export.csv \
+    --holdings "Depotoversigt for kontonummer 60109543, 7.5.2026.csv" \
+    --holdings "Depotoversigt for kontonummer 60183456, 7.5.2026.csv" \
+    --accounts-config config/nordnet-accounts.yaml
+```
+
+The CLI reads `DATABASE_URL` (or the assembled `POSTGRES_*` set,
+matching `penge-ecb-fx`).
 
 ## dbt staging
 

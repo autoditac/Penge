@@ -1,0 +1,103 @@
+# Release-time supply-chain attestations.
+#
+# Triggers on `release: { types: [published] }`, so it runs after
+# release-please's draft is promoted to published (manually or via the
+# release-please-action's auto-publish). Also exposes `workflow_dispatch`
+# so the wiring can be smoke-tested without cutting a real tag.
+#
+# What it does today (Phase 0):
+#
+# - Generates an SPDX SBOM of the repository source tree using anchore/
+#   sbom-action (syft).
+# - Uploads the SBOM as a workflow artifact.
+# - Attaches the SBOM file to the GitHub release.
+# - Generates a SLSA build-provenance attestation for the SBOM via
+#   actions/attest-build-provenance (uses the OIDC token that GitHub
+#   issues to the workflow).
+#
+# What it will do once apps exist:
+#
+# - The `images` job below is currently a stub with an empty matrix. When
+#   the first app ships (with a Containerfile), add it to the matrix:
+#       app: [ingest, api, ...]
+#   and the job will build, scan, push to ghcr.io/<owner>/<repo>/<app>,
+#   attach an image SBOM, and emit per-image build provenance.
+#
+# Permissions rationale:
+#
+# - contents: write          — attach SBOM file to the release
+# - id-token: write          — sigstore OIDC for attestations
+# - attestations: write      — write to the attestations API
+# - packages: write          — push images to GHCR (future images job)
+
+name: release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  source-sbom:
+    name: Source SBOM + provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Generate SPDX SBOM (source tree)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          path: .
+          format: spdx-json
+          artifact-name: penge-source-sbom.spdx.json
+          output-file: penge-source-sbom.spdx.json
+          # Don't auto-attach to the release here; we do it in the next
+          # step so we control the file name and can add the attestation
+          # alongside it.
+          upload-release-assets: false
+          upload-artifact: true
+
+      - name: Attest build provenance for SBOM
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: penge-source-sbom.spdx.json
+
+      - name: Attach SBOM to GitHub release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
+        with:
+          files: penge-source-sbom.spdx.json
+          fail_on_unmatched_files: true
+
+  images:
+    name: Image build + SBOM + provenance
+    # Empty matrix → job is skipped today. Re-enable by listing real app
+    # names once Containerfiles land. Each entry must have a matching
+    # `apps/<name>/Containerfile` (or equivalent path the build step uses).
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: []
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      # Real steps land with the first app; tracked in the issue thread.

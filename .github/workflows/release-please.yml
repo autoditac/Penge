@@ -1,0 +1,38 @@
+# release-please drives versioning + changelog from Conventional Commit history.
+# On every push to main it opens (or updates) a "release PR" that, when merged,
+# bumps versions in pyproject.toml, updates CHANGELOG.md, creates a v* tag, and
+# drafts a GitHub Release.
+#
+# Config: release-please-config.json + .release-please-manifest.json (root).
+# Phase-0 stance: draft releases (manual flip), no real publish artefacts yet.
+# Image build / SBOM / provenance attach to the v* tag from the release workflow
+# in a follow-up issue (#8).
+#
+# All third-party actions are pinned to a full commit SHA; Dependabot keeps
+# both the SHA and the trailing version comment in sync.
+
+name: release-please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write          # tags + GitHub Release draft + commits to release PR
+  pull-requests: write     # opens / updates the release PR
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        with:
+          # GITHUB_TOKEN is sufficient for same-repo PR/release/tag operations.
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

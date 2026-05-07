@@ -1,0 +1,36 @@
+# Nordnet account → entity mapping (sample).
+#
+# Copy this file to `config/nordnet-accounts.yaml` and fill in your
+# real account numbers. The real file is gitignored; only this
+# sample is committed.
+#
+# `kind` must be one of the values from ADR-0008:
+#   - aktiedepot          (AKT in the Nordnet UI badge)
+#   - aktiesparekonto     (ASK)
+#   - opsparingskonto     (OPS)
+#
+# `entity` is the local entity name; the loader is responsible for
+# mapping it to an `entity.id` in Postgres. Unknown entities should
+# be reported as a hard error rather than silently created.
+
+accounts:
+  - number: "99999990"
+    entity: "Example Owner A"
+    kind: aktiedepot
+    currency: DKK
+    name: "Aktiedepot"
+  - number: "99999991"
+    entity: "Example Owner A"
+    kind: aktiesparekonto
+    currency: DKK
+    name: "Aktiesparekonto"
+  - number: "99999992"
+    entity: "Example Owner A"
+    kind: opsparingskonto
+    currency: DKK
+    name: "Opsparingskonto"
+  - number: "99999993"
+    entity: "Example Owner B"
+    kind: aktiedepot
+    currency: DKK
+    name: "Aktiedepot (PoA)"

@@ -65,3 +65,7 @@ Thumbs.db
 
 # MkDocs build output (deployed via gh-pages branch in CI; see workflows/docs.yml)
 site/
+
+# Local connector configs — only the *.example.yaml templates are committed.
+/config/*.yaml
+!/config/*.example.yaml

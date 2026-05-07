@@ -42,6 +42,28 @@ lint:
 test:
     @echo "no tests yet — see Phase 1+ backlog"
 
+# --- Migrations ---------------------------------------------------------------
+
+# Apply all migrations against the local Postgres (compose must be up).
+migrate-up:
+    uv run --group db alembic upgrade head
+
+# Roll all migrations back. Round-trips the schema; CI runs this on
+# every PR (see .github/workflows/ci.yml :: alembic-roundtrip).
+migrate-down:
+    uv run --group db alembic downgrade base
+
+# upgrade head -> downgrade base -> upgrade head: the gate the
+# migrations.instructions.md hard rule #1 demands.
+migrate-roundtrip:
+    uv run --group db alembic upgrade head
+    uv run --group db alembic downgrade base
+    uv run --group db alembic upgrade head
+
+# Create a new migration. Usage: just migrate-new "add foo column"
+migrate-new MSG:
+    uv run --group db alembic revision -m "{{MSG}}" --autogenerate
+
 # --- Docs ---------------------------------------------------------------------
 
 docs:

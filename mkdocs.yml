@@ -67,6 +67,7 @@ nav:
       - "ADR-0004 EUR and DKK shown in parallel": decisions/0004-eur-and-dkk-shown-in-parallel.md
       - "ADR-0005 LLM access via MCP only": decisions/0005-llm-access-via-mcp-only.md
       - "ADR-0006 Trunk-based + Conventional Commits + ADRs": decisions/0006-trunk-based-conventional-commits-adrs.md
+      - "ADR-0007 Initial relational data model": decisions/0007-initial-relational-data-model.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

@@ -20,6 +20,11 @@ docs = [
   "mkdocs-material>=9.5",
   "pymdown-extensions>=10.7",
 ]
+db = [
+  "alembic>=1.13",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]>=3.2",
+]
 
 [tool.ruff]
 line-length = 100
@@ -41,12 +46,24 @@ ignore = ["PLR0913"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101", "PLR2004"]
+# Migrations are autogenerate-friendly scripts; don't penalise them for
+# size, magic numbers, or the boilerplate alembic emits.
+"migrations/**" = ["PLR0913", "PLR0915", "PLR2004", "S608"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 warn_unused_ignores = true
 warn_redundant_casts = true
+
+# Alembic + SQLAlchemy 2.x have rich generic type stubs that --strict
+# combined with --ignore-missing-imports doesn't cope with cleanly. The
+# migration files are gated by the alembic-roundtrip CI job (real
+# upgrade + downgrade against Postgres), which is a stronger correctness
+# signal than mypy strict here.
+[[tool.mypy.overrides]]
+module = "migrations.*"
+ignore_errors = true
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --strict-config"

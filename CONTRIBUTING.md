@@ -93,6 +93,29 @@ just docs        # serve mkdocs locally on :8000
 - Local secrets in `.env` (gitignored); commit `.env.example` with safe defaults.
 - Shared secrets are encrypted with `sops` + `age`; the `age` private key lives outside the repo.
 
+## Pre-commit hooks
+
+`just bootstrap` installs the toolchain and runs `pre-commit install --install-hooks && pre-commit install --hook-type commit-msg`. The configured hooks (see `.pre-commit-config.yaml`) are:
+
+| Hook | Scope | Notes |
+|---|---|---|
+| `pre-commit-hooks` | all | large-files, merge-conflict, yaml/toml/json, trailing-whitespace, EOL, private-key, no-submodules |
+| `gitleaks` | all | secret scan; same binary version as CI |
+| `ruff` + `ruff-format` | Python | lint + format, fix on commit |
+| `mypy --strict` | Python | type-check; activates once Python sources land |
+| `sqlfluff-lint` | SQL | postgres dialect; refined via `.sqlfluff` in dbt phase |
+| `prettier` | TS/TSX/JSON | markdown intentionally excluded — owned by `markdownlint` |
+| `eslint` | TS/TSX | activates once the MCP TS workspace ships `eslint.config.js` |
+| `markdownlint-cli2` | Markdown | uses `.markdownlint.jsonc`; same config as CI |
+| `yamllint` | YAML | strict mode |
+| `commitlint` | commit-msg | enforces Conventional Commits via `@commitlint/config-conventional` |
+
+Run them all manually:
+
+```bash
+pre-commit run --all-files
+```
+
 ## Reviewing your own work (solo mode)
 
 Until a co-maintainer joins, you are both author and reviewer. The discipline:

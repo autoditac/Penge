@@ -3,5 +3,8 @@
   "MD013": false,
   "MD033": false,
   "MD041": false,
-  "MD024": { "siblings_only": true }
+  "MD024": { "siblings_only": true },
+  // MD060 (table-column-style) is purely cosmetic and conflicts with
+  // hand-edited tables. Re-enable once we own a markdown formatter pass.
+  "MD060": false
 }

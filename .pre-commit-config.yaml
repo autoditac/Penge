@@ -10,6 +10,9 @@ repos:
         args: [--maxkb=512]
       - id: check-merge-conflict
       - id: check-yaml
+        # mkdocs.yml uses pymdownx custom tags that PyYAML cannot resolve
+        # without `--unsafe`; yamllint covers it instead.
+        exclude: ^mkdocs\.yml$
       - id: check-toml
       - id: check-json
       - id: end-of-file-fixer
@@ -31,8 +34,41 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.42.0
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.20.2
+    hooks:
+      - id: mypy
+        args: [--strict, --ignore-missing-imports]
+        # Runs only when staged files include Python sources. No deps yet —
+        # add `additional_dependencies` here once we have third-party stubs
+        # we want type-checked (sqlalchemy[mypy], pydantic, etc.).
+
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 4.1.0
+    hooks:
+      - id: sqlfluff-lint
+        # dbt-style dialect; refine in dbt phase via .sqlfluff config.
+        args: [--dialect, postgres]
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.8.3
+    hooks:
+      - id: prettier
+        # Limit to TS/TSX/JSON for now. Markdown is owned by markdownlint
+        # (formatting conflicts otherwise); YAML by yamllint. Re-scope once
+        # the TS workspace and shared prettier config land.
+        types_or: [ts, tsx, json]
+
+  - repo: https://github.com/pre-commit/mirrors-eslint
+    rev: v10.3.0
+    hooks:
+      - id: eslint
+        types_or: [ts, tsx]
+        # Activates once the MCP TS workspace ships its eslint.config.js.
+        # Until then this hook is a no-op (no matching files).
+
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.22.1
     hooks:
       - id: markdownlint-cli2
         args: ["--config", ".markdownlint.jsonc"]

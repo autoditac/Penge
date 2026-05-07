@@ -25,6 +25,10 @@ db = [
   "sqlalchemy>=2.0",
   "psycopg[binary]>=3.2",
 ]
+http = [
+  "httpx>=0.27",
+  "pydantic>=2.7",
+]
 
 [tool.ruff]
 line-length = 100

@@ -67,7 +67,7 @@ validates the project is parseable and the warehouse is reachable.
 
 ## CI
 
-The [`dbt`](../../.github/workflows/dbt.yml) workflow runs the same
+The [`dbt` workflow](https://github.com/autoditac/Penge/blob/main/.github/workflows/dbt.yml) runs the same
 `alembic upgrade head` → `dbt deps` → `dbt parse` → `dbt build`
 sequence against an ephemeral Postgres on every PR that touches
 `dbt/`, `migrations/`, `pyproject.toml`, `uv.lock`, or the workflow

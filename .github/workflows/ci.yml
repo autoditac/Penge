@@ -135,3 +135,17 @@ jobs:
         run: uv run --group db alembic downgrade base
       - name: alembic upgrade head (idempotency check)
         run: uv run --group db alembic upgrade head
+
+  pytest:
+    name: pytest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+      - name: Install dev + db deps
+        run: uv sync --group dev --group db --frozen
+      - name: Run tests
+        run: uv run --group dev --group db pytest

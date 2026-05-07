@@ -62,3 +62,6 @@ Thumbs.db
 *.log
 .cache/
 .direnv/
+
+# MkDocs build output (deployed via gh-pages branch in CI; see workflows/docs.yml)
+site/

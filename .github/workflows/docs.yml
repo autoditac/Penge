@@ -1,0 +1,64 @@
+# Build the MkDocs Material site on every PR (--strict, as a quality gate)
+# and deploy to GitHub Pages on tags.
+#
+# All third-party actions are pinned to a full commit SHA; Dependabot keeps
+# both the SHA and the trailing version comment in sync.
+
+name: docs
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (mkdocs --strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install docs deps
+        run: uv sync --only-group docs
+
+      - name: mkdocs build --strict
+        run: uv run mkdocs build --strict
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # gh-deploy pushes to the gh-pages branch
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0  # gh-deploy needs full history to fast-forward gh-pages
+
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Install docs deps
+        run: uv sync --only-group docs
+
+      - name: Configure git identity
+        run: |
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+
+      - name: mkdocs gh-deploy
+        run: uv run mkdocs gh-deploy --force --no-jekyll

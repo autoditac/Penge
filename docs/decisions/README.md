@@ -4,7 +4,7 @@ This directory captures the **why** behind significant decisions in Penge.
 
 ## When to write one
 
-See the [`write-adr` skill](../../.github/skills/write-adr/SKILL.md). Roughly: any change that adds/replaces a service, library, or external dependency, alters the data model, changes a tax-rule interpretation, alters an integration pattern, or affects a security boundary.
+See the [`write-adr` skill](https://github.com/autoditac/Penge/blob/main/.github/skills/write-adr/SKILL.md). Roughly: any change that adds/replaces a service, library, or external dependency, alters the data model, changes a tax-rule interpretation, alters an integration pattern, or affects a security boundary.
 
 ## Format
 

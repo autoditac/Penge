@@ -7,9 +7,9 @@ name: penge
 
 services:
   postgres:
-    image: postgres:17-alpine@sha256:0000000000000000000000000000000000000000000000000000000000000000
-    # NOTE: digest above is a placeholder; Phase 0 follow-up issue replaces it
-    # with the real digest pulled in CI.
+    # postgres:17-alpine — digest resolved 2026-05-06 via skopeo inspect.
+    # Dependabot (docker ecosystem in .github/dependabot.yml) keeps this in sync.
+    image: postgres:17-alpine@sha256:c7526c0f6c3f30260a563d7bcf8ad778effac59a44f8ffa86678c35418338609
     container_name: penge-postgres
     restart: unless-stopped
     environment:
@@ -27,7 +27,8 @@ services:
       retries: 5
 
   adminer:
-    image: adminer:5-standalone@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    # adminer:5-standalone — digest resolved 2026-05-06 via skopeo inspect.
+    image: adminer:5-standalone@sha256:41898b976011fd87f2d3037366ad97f7d89fddfebc8aa8b3a7d77d0c465aa37b
     container_name: penge-adminer
     restart: unless-stopped
     ports:

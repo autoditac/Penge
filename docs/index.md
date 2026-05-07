@@ -12,4 +12,4 @@ Private personal-finance & FIRE-modeling platform for a DK/DE household.
 
 ## Status
 
-Phase 0 — Foundations. See repository [README](../README.md) and the [project backlog](https://github.com/users/autoditac/projects).
+Phase 0 — Foundations. See the [repository README](https://github.com/autoditac/Penge#readme) and the [project backlog](https://github.com/users/autoditac/projects).

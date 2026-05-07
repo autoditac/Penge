@@ -87,6 +87,18 @@ just lint        # ruff + mypy + eslint + sqlfluff + dbt parse
 just docs        # serve mkdocs locally on :8000
 ```
 
+## Documentation site
+
+The docs site uses [MkDocs Material](https://squidfunk.github.io/mkdocs-material/). Sources live under `docs/`; build config in `mkdocs.yml`.
+
+```bash
+uv sync --group docs            # install mkdocs + extensions
+uv run mkdocs serve             # local preview on :8000
+uv run mkdocs build --strict    # what CI runs on every PR
+```
+
+The `docs` workflow builds `--strict` on every PR (broken links / orphan pages fail the build) and deploys to GitHub Pages on tag pushes (`v*`) by pushing to the `gh-pages` branch. The Pages site must be configured (one-time, in repo settings) to serve from the `gh-pages` branch root.
+
 ## Secrets
 
 - Never commit plaintext secrets. `gitleaks` runs in pre-commit and CI.

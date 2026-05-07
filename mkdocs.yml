@@ -61,5 +61,12 @@ nav:
       - runbook/monthly.md
   - Decisions:
       - decisions/README.md
+      - "ADR-0001 Self-hosted Postgres + DuckDB stack": decisions/0001-self-hosted-postgres-duckdb-stack.md
+      - "ADR-0002 Custom monorepo over off-the-shelf PFM": decisions/0002-custom-monorepo-over-off-the-shelf-pfm.md
+      - "ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)": decisions/0003-hybrid-ingestion-psd2-and-csv-pdf.md
+      - "ADR-0004 EUR and DKK shown in parallel": decisions/0004-eur-and-dkk-shown-in-parallel.md
+      - "ADR-0005 LLM access via MCP only": decisions/0005-llm-access-via-mcp-only.md
+      - "ADR-0006 Trunk-based + Conventional Commits + ADRs": decisions/0006-trunk-based-conventional-commits-adrs.md
+      - "ADR template": decisions/adr-template.md
 
 strict: true

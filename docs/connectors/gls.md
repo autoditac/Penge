@@ -3,7 +3,7 @@
 GLS Bank exposes account data through the European PSD2 AISP API.
 Penge consumes this via [Enable Banking](https://enablebanking.com/),
 which acts as a regulated AISP aggregator. The transport client is
-generic ([penge.ingest.enablebanking][]) and is shared with the
+generic (`penge.ingest.enablebanking`) and is shared with the
 EBank (#15) and Lunar (#16) connectors; this page covers the
 GLS-specific glue.
 

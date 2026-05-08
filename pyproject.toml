@@ -51,6 +51,11 @@ prices = [
   "yfinance>=0.2.40",
   "pandas>=2.2",
 ]
+manual = [
+  # Manual-entry CLI (issue #20). typer wraps argparse with subcommand
+  # ergonomics; sqlalchemy is pulled in via the `db` group at runtime.
+  "typer>=0.12",
+]
 
 [tool.ruff]
 line-length = 100
@@ -110,6 +115,13 @@ ignore_missing_imports = true
 module = ["yfinance", "yfinance.*"]
 ignore_missing_imports = true
 
+# Typer's decorator typing trips ``untyped-decorator`` under --strict
+# even though it ships stubs. The CLI surface in ``penge.manual`` is
+# the only consumer.
+[[tool.mypy.overrides]]
+module = ["penge.manual.__main__"]
+disallow_untyped_decorators = false
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests"]
@@ -125,4 +137,5 @@ packages = ["src/penge"]
 penge-ecb-fx = "penge.ingest.ecb_fx.__main__:main"
 penge-nordnet = "penge.ingest.nordnet.__main__:main"
 penge-prices = "penge.ingest.prices.__main__:main"
+penge-manual = "penge.manual.__main__:app"
 penge-web = "penge.web.__main__:main"

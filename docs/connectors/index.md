@@ -10,4 +10,4 @@ Planned sources:
 - Nordnet (CSV)
 - PFA (PDF + CSV)
 - Growney (CSV)
-- Manual entries (cash, real estate)
+- Manual entries (cash, real estate) — see [connectors/manual.md](manual.md)

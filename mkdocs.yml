@@ -57,6 +57,7 @@ nav:
       - "ECB daily FX rates": connectors/ecb_fx.md
       - "GoCardless (PSD2)": connectors/gocardless.md
       - "Nordnet (DK CSV)": connectors/nordnet.md
+      - "Manual entries": connectors/manual.md
   - Analytics:
       - "dbt": dbt.md
   - Tax:

@@ -64,6 +64,7 @@ nav:
       - DE: tax/de.md
   - Runbook:
       - runbook/monthly.md
+      - "Web dashboard": runbook/web.md
   - Decisions:
       - decisions/README.md
       - "ADR-0001 Self-hosted Postgres + DuckDB stack": decisions/0001-self-hosted-postgres-duckdb-stack.md

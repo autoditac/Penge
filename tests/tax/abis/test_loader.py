@@ -1,14 +1,16 @@
 """Loader integration tests for the ABIS list ingestor.
 
-Gated on ``PENGE_TEST_DATABASE_URL``. Runs the migrations forward,
-seeds a couple of ``instrument`` rows, runs the loader, and asserts
-the operational + audit tables converge to the expected state.
+Gated on ``PENGE_TEST_DATABASE_URL`` (or ``DATABASE_URL``). The
+fixture pattern follows ``tests/ingest/nordnet/test_loader.py``:
+``alembic upgrade head`` runs once per session, then each test
+truncates the relevant tables before running.
 """
 
 from __future__ import annotations
 
 import codecs
 import os
+import subprocess
 import uuid
 from collections.abc import Iterator
 from pathlib import Path
@@ -27,45 +29,46 @@ from penge.tax.abis import (
 )
 from tests.tax.abis.fixtures import ABIS_CSV_FIXTURE_TEXT
 
-DB_URL = os.environ.get("PENGE_TEST_DATABASE_URL")
+_DB_URL = os.environ.get("PENGE_TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
 
 pytestmark = pytest.mark.skipif(
-    DB_URL is None,
-    reason="PENGE_TEST_DATABASE_URL is not set; loader tests need a live Postgres.",
+    _DB_URL is None,
+    reason="set PENGE_TEST_DATABASE_URL or DATABASE_URL to run loader tests",
 )
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
-@pytest.fixture  # type: ignore[untyped-decorator]
-def engine(tmp_path: Path) -> Iterator[Engine]:
-    """Apply migrations, hand back an engine, drop schema afterwards.
 
-    Each test runs in its own schema so they cannot collide.
-    """
-    assert DB_URL is not None
-    schema = f"abis_test_{uuid.uuid4().hex[:12]}"
-    eng = create_engine(DB_URL)
-    with eng.begin() as conn:
-        conn.execute(text(f'CREATE SCHEMA "{schema}"'))
-    # Run alembic against this schema.
-    test_url = f"{DB_URL}?options=-csearch_path%3D{schema}"
-    test_eng = create_engine(test_url)
-    _alembic_upgrade(test_url)
+@pytest.fixture(scope="session")  # type: ignore[untyped-decorator]
+def engine() -> Iterator[Engine]:
+    """Engine pointed at the test DB; runs ``alembic upgrade head`` once."""
+    assert _DB_URL is not None
+    eng = create_engine(_DB_URL)
+    env = {**os.environ, "DATABASE_URL": _DB_URL}
+    subprocess.run(  # noqa: S603
+        ["alembic", "upgrade", "head"],  # noqa: S607
+        cwd=REPO_ROOT,
+        env=env,
+        check=True,
+    )
     try:
-        yield test_eng
+        yield eng
     finally:
-        test_eng.dispose()
-        with eng.begin() as conn:
-            conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         eng.dispose()
 
 
-def _alembic_upgrade(database_url: str) -> None:
-    from alembic import command
-    from alembic.config import Config
-
-    cfg = Config(str(Path(__file__).resolve().parents[3] / "alembic.ini"))
-    cfg.set_main_option("sqlalchemy.url", database_url)
-    command.upgrade(cfg, "head")
+@pytest.fixture(autouse=True)  # type: ignore[untyped-decorator]
+def _truncate(engine: Engine) -> Iterator[None]:
+    """Wipe ABIS-touching tables before each test."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "TRUNCATE TABLE instrument_dk_abis_listing, holding_snapshot, "
+                "transaction, instrument, account, entity "
+                "RESTART IDENTITY CASCADE"
+            )
+        )
+    yield
 
 
 @pytest.fixture  # type: ignore[untyped-decorator]
@@ -123,7 +126,7 @@ def test_load_abis_csv_clears_treatment_for_delisted_isin(
 ) -> None:
     _seed_instrument(engine, isin="XX0000000004", name="Delisted")
     load_abis_csv(engine, csv_path=fixture_csv)
-    # Most recent year (2025) is "not registered" → NULL/NULL.
+    # Most recent year (2025) is "not registered" -> NULL/NULL.
     assert _treatment(engine, "XX0000000004") == (None, None)
 
 

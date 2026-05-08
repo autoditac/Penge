@@ -129,3 +129,15 @@ ingest-lunar *FLAGS:
 #   just ingest-growney --entity-name "Your Name" path/to/q1.pdf path/to/q2.pdf
 ingest-growney *FLAGS:
     uv run --group db --group http --group parsers penge-growney {{FLAGS}}
+
+# --- Skat ABIS list (Aktiebaserede Investeringsselskaber) -----------------
+#
+# Forward all flags to the penge-abis CLI. Subcommands:
+#   ingest <csv>                            — parse + reconcile a Skat CSV
+#   override --isin X --treatment <T>       — sticky manual decision
+#   override --isin X --clear               — drop a manual decision
+# Examples:
+#   just ingest-abis ingest data/abis-listen-2020-2025.csv
+#   just ingest-abis override --isin DE0002635281 --treatment lagerbeskatning
+ingest-abis *FLAGS:
+    uv run --group db penge-abis {{FLAGS}}

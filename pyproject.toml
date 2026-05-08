@@ -43,6 +43,13 @@ web = [
   "pandas>=2.2",
   "plotly>=5.24",
 ]
+prices = [
+  # Instrument price loader (issue #22). yfinance pulls in pandas /
+  # numpy transitively; we depend on the same `pandas` floor as the
+  # `web` group so installing both groups stays consistent.
+  "yfinance>=0.2.40",
+  "pandas>=2.2",
+]
 
 [tool.ruff]
 line-length = 100
@@ -94,6 +101,14 @@ ignore_errors = true
 module = ["streamlit", "streamlit.*", "plotly", "plotly.*"]
 ignore_missing_imports = true
 
+# yfinance ships no type stubs; pandas stubs exist (`pandas-stubs`)
+# but conflict with --strict in places we don't care about for the
+# narrow surface used by the price loader. The loader's pure pieces
+# (resolve_yahoo_symbol, cross_check) are still strict.
+[[tool.mypy.overrides]]
+module = ["yfinance", "yfinance.*", "pandas", "pandas.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests"]
@@ -108,4 +123,5 @@ packages = ["src/penge"]
 [project.scripts]
 penge-ecb-fx = "penge.ingest.ecb_fx.__main__:main"
 penge-nordnet = "penge.ingest.nordnet.__main__:main"
+penge-prices = "penge.ingest.prices.__main__:main"
 penge-web = "penge.web.__main__:main"

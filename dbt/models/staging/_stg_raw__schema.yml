@@ -1,0 +1,432 @@
+version: 2
+
+models:
+  - name: stg_raw__entity
+    description: >
+      Pass-through view of `raw.entity`. Owners of accounts and
+      documents (persons, households).
+    columns:
+      - name: entity_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: name
+        description: Display name.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Entity kind (e.g. `person`, `household`).
+        data_tests:
+          - not_null
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Last-updated timestamp (UTC).
+        data_tests:
+          - not_null
+
+  - name: stg_raw__account
+    description: >
+      Pass-through view of `raw.account`. Bank, broker, pension,
+      cash, or crypto accounts.
+    columns:
+      - name: account_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: entity_id
+        description: Owning entity.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__entity')
+              field: entity_id
+      - name: provider
+        description: Source provider slug (e.g. `nordnet`, `lunar`).
+        data_tests:
+          - not_null
+      - name: external_id
+        description: Provider-side account identifier; nullable for manual entries.
+      - name: name
+        description: Human-readable account name.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Account kind (e.g. `aktiedepot`, `aktiesparekonto`).
+        data_tests:
+          - not_null
+      - name: currency
+        description: ISO-4217 account currency.
+        data_tests:
+          - not_null
+      - name: iban
+        description: IBAN where applicable; null for brokerage / crypto.
+      - name: opened_at
+        description: Account opening timestamp.
+      - name: closed_at
+        description: Account closure timestamp; null while active.
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Last-updated timestamp (UTC).
+        data_tests:
+          - not_null
+
+  - name: stg_raw__instrument
+    description: >
+      Pass-through view of `raw.instrument`. Tradable assets
+      (equity, ETF, bond, fund, crypto) plus synthetic cash
+      instruments (`kind = 'cash'`, see ADR-0008).
+    columns:
+      - name: instrument_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: isin
+        description: ISO-6166 ISIN; null for crypto and cash.
+      - name: ticker
+        description: Exchange ticker; nullable.
+      - name: mic
+        description: ISO-10383 MIC for the listing exchange; nullable.
+      - name: name
+        description: Display name.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Instrument kind (e.g. `equity`, `etf`, `bond`, `fund`, `crypto`, `cash`).
+        data_tests:
+          - not_null
+      - name: currency
+        description: Instrument-native currency.
+        data_tests:
+          - not_null
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Last-updated timestamp (UTC).
+        data_tests:
+          - not_null
+
+  - name: stg_raw__transaction
+    description: >
+      Pass-through view of `raw.transaction` across all providers.
+      Money columns are renamed with explicit `_native` suffixes so
+      downstream marts make the FX-conversion boundary visible.
+    columns:
+      - name: transaction_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: Account on which the transaction was booked.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__account')
+              field: account_id
+      - name: instrument_id
+        description: Instrument; null for pure cash movements (e.g. interest).
+        data_tests:
+          - relationships:
+              to: ref('stg_raw__instrument')
+              field: instrument_id
+      - name: ts
+        description: Booking timestamp (UTC).
+        data_tests:
+          - not_null
+      - name: value_date
+        description: Settlement / value date; nullable.
+      - name: kind
+        description: Canonical transaction kind (see ADR-0008).
+        data_tests:
+          - not_null
+      - name: quantity
+        description: Signed quantity in instrument units; null for non-instrument cashflows.
+      - name: price_amount_native
+        description: Per-unit price in the account's currency.
+      - name: amount_native
+        description: Net booking amount in the account's currency.
+        data_tests:
+          - not_null
+      - name: fee_amount_native
+        description: Fees in the account's currency (defaults to 0).
+      - name: tax_amount_native
+        description: Withholding/source tax in the account's currency (defaults to 0).
+      - name: fx_rate
+        description: FX rate stamped at booking time when the underlying is foreign-currency.
+      - name: counterparty
+        description: Free-form counterparty / description string.
+      - name: description
+        description: Free-form provider description.
+      - name: external_id
+        description: Provider-side transaction identifier; required for idempotent re-ingest.
+      - name: raw
+        description: Original payload (JSONB) for forensic replay.
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+
+  - name: stg_raw__holding_snapshot
+    description: >
+      Pass-through view of `raw.holding_snapshot`. Point-in-time
+      portfolio holding per (account, instrument). Cash is materialised
+      as `instrument.kind = 'cash'` synthetic instruments.
+    columns:
+      - name: holding_snapshot_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: Account holding the position.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__account')
+              field: account_id
+      - name: instrument_id
+        description: Instrument held.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__instrument')
+              field: instrument_id
+      - name: as_of
+        description: Snapshot date.
+        data_tests:
+          - not_null
+      - name: quantity
+        description: Signed holding quantity in instrument units.
+        data_tests:
+          - not_null
+      - name: price_amount_native
+        description: Per-unit price at snapshot in the instrument's currency.
+      - name: market_value_native
+        description: Position market value at snapshot in the instrument's currency.
+      - name: cost_basis_native
+        description: Aggregate cost basis in the instrument's currency.
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - account_id
+            - instrument_id
+            - as_of
+
+  - name: stg_raw__price_history
+    description: >
+      Pass-through view of `raw.price_history`. Daily close per
+      instrument in the instrument's currency. Sparse on
+      weekends/holidays.
+    columns:
+      - name: price_history_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: instrument_id
+        description: Priced instrument.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__instrument')
+              field: instrument_id
+      - name: as_of
+        description: Closing-price date.
+        data_tests:
+          - not_null
+      - name: close_amount_native
+        description: Closing price in the instrument's currency.
+        data_tests:
+          - not_null
+      - name: currency
+        description: ISO-4217 currency of the close price.
+        data_tests:
+          - not_null
+      - name: price_source
+        description: Provider slug for the price (e.g. `yfinance`, `nordnet`).
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - instrument_id
+            - as_of
+
+  - name: stg_raw__fx_rate
+    description: >
+      Pass-through view of `raw.fx_rate`. ECB-style daily rates,
+      one row per (date, base, quote). The penge convention is
+      `base_ccy = 'EUR'`.
+    columns:
+      - name: fx_rate_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: as_of
+        description: Rate-date.
+        data_tests:
+          - not_null
+      - name: base_ccy
+        description: ISO-4217 base currency.
+        data_tests:
+          - not_null
+      - name: quote_ccy
+        description: ISO-4217 quote currency.
+        data_tests:
+          - not_null
+      - name: rate
+        description: Rate expressed as `1 base = rate quote`.
+        data_tests:
+          - not_null
+      - name: rate_source
+        description: Provider slug (e.g. `ecb`).
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - as_of
+            - base_ccy
+            - quote_ccy
+
+  - name: stg_raw__document
+    description: >
+      Pass-through view of `raw.document`. Statements, tax forms,
+      salary slips, invoices. Deduped by `sha256` for idempotent
+      ingestion.
+    columns:
+      - name: document_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: entity_id
+        description: Owning entity.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__entity')
+              field: entity_id
+      - name: account_id
+        description: Account the document belongs to; nullable for entity-level docs.
+        data_tests:
+          - relationships:
+              to: ref('stg_raw__account')
+              field: account_id
+      - name: kind
+        description: Document kind (e.g. `statement`, `tax_form`, `salary_slip`).
+        data_tests:
+          - not_null
+      - name: issued_at
+        description: Issue date as printed on the document.
+      - name: title
+        description: Display title.
+        data_tests:
+          - not_null
+      - name: storage_uri
+        description: URI to the underlying file in object storage.
+        data_tests:
+          - not_null
+      - name: sha256
+        description: SHA-256 of the file contents; unique across the table.
+        data_tests:
+          - not_null
+          - unique
+      - name: bytes
+        description: File size in bytes.
+      - name: mime
+        description: MIME type as detected at ingest.
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+
+  - name: stg_raw__tax_lot
+    description: >
+      Pass-through view of `raw.tax_lot`. Per-lot accounting tying
+      open and close transactions. Open lots have null
+      `close_transaction_id` / `closed_at` / `proceeds_amount_native` /
+      `realized_gain_amount_native`.
+    columns:
+      - name: tax_lot_id
+        description: Surrogate primary key (UUID).
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: Account holding the lot.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__account')
+              field: account_id
+      - name: instrument_id
+        description: Instrument held in the lot.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__instrument')
+              field: instrument_id
+      - name: open_transaction_id
+        description: Transaction that opened the lot.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__transaction')
+              field: transaction_id
+      - name: close_transaction_id
+        description: Transaction that closed the lot; null while open.
+        data_tests:
+          - relationships:
+              to: ref('stg_raw__transaction')
+              field: transaction_id
+      - name: opened_at
+        description: Lot open timestamp (UTC).
+        data_tests:
+          - not_null
+      - name: closed_at
+        description: Lot close timestamp; null while open.
+      - name: quantity
+        description: Lot quantity in instrument units.
+        data_tests:
+          - not_null
+      - name: cost_basis_native
+        description: Lot cost basis in the instrument's currency.
+        data_tests:
+          - not_null
+      - name: proceeds_amount_native
+        description: Lot proceeds in the instrument's currency; null while open.
+      - name: realized_gain_amount_native
+        description: Realised gain in the instrument's currency; null while open.
+      - name: method
+        description: Lot-matching method (e.g. `gennemsnitsmetoden`, `fifo`).
+        data_tests:
+          - not_null
+      - name: created_at
+        description: Row creation timestamp (UTC).
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Last-updated timestamp (UTC).
+        data_tests:
+          - not_null

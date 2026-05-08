@@ -1,6 +1,7 @@
 # dbt package dependencies.
 #
-# Empty for now. Add dbt-utils (or similar) the first time a model
-# actually needs it; reviewers should reject "just-in-case" additions.
+# Pinned to minor versions per .github/instructions/sql-dbt.instructions.md.
 
-packages: []
+packages:
+  - package: dbt-labs/dbt_utils
+    version: [">=1.3.0", "<1.4.0"]

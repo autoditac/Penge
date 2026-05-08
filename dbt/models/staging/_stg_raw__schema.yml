@@ -154,7 +154,7 @@ models:
         description: Signed quantity in instrument units; null for non-instrument cashflows.
       - name: price_amount_native
         description: Per-unit price in the account's currency.
-      - name: amount_native
+      - name: net_amount_native
         description: Net booking amount in the account's currency.
         data_tests:
           - not_null
@@ -212,9 +212,9 @@ models:
           - not_null
       - name: price_amount_native
         description: Per-unit price at snapshot in the instrument's currency.
-      - name: market_value_native
+      - name: market_value_amount_native
         description: Position market value at snapshot in the instrument's currency.
-      - name: cost_basis_native
+      - name: cost_basis_amount_native
         description: Aggregate cost basis in the instrument's currency.
       - name: created_at
         description: Row creation timestamp (UTC).
@@ -410,7 +410,7 @@ models:
         description: Lot quantity in instrument units.
         data_tests:
           - not_null
-      - name: cost_basis_native
+      - name: cost_basis_amount_native
         description: Lot cost basis in the instrument's currency.
         data_tests:
           - not_null

@@ -6,24 +6,20 @@
 -- `sha256` for idempotent ingestion. `account_id` is nullable —
 -- documents may attach only to an entity (e.g. annual tax letters).
 
-with source as (
+with final as (
     select
-        id as document_id,
-        entity_id,
-        account_id,
-        kind,
-        issued_at,
-        title,
-        storage_uri,
-        sha256,
-        bytes,
-        mime,
-        created_at
-    from {{ source('raw', 'document') }}
-),
-
-final as (
-    select * from source
+        d.id as document_id,
+        d.entity_id,
+        d.account_id,
+        d.kind,
+        d.issued_at,
+        d.title,
+        d.storage_uri,
+        d.sha256,
+        d.bytes,
+        d.mime,
+        d.created_at
+    from {{ source('raw', 'document') }} as d
 )
 
 select * from final

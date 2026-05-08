@@ -6,18 +6,14 @@
 -- joins read naturally. No business logic — see ADR-0008 for the
 -- canonical schema.
 
-with source as (
+with final as (
     select
-        id as entity_id,
-        name,
-        kind,
-        created_at,
-        updated_at
-    from {{ source('raw', 'entity') }}
-),
-
-final as (
-    select * from source
+        e.id as entity_id,
+        e.name,
+        e.kind,
+        e.created_at,
+        e.updated_at
+    from {{ source('raw', 'entity') }} as e
 )
 
 select * from final

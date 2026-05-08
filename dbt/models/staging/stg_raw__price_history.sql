@@ -6,20 +6,16 @@
 -- currency (column `currency`). Sparse on weekends/holidays — marts
 -- that need a daily series should forward-fill via a date spine.
 
-with source as (
+with final as (
     select
-        id as price_history_id,
-        instrument_id,
-        as_of,
-        close as close_amount_native,
-        currency,
-        source as price_source,
-        created_at
-    from {{ source('raw', 'price_history') }}
-),
-
-final as (
-    select * from source
+        p.id as price_history_id,
+        p.instrument_id,
+        p.as_of,
+        p.close as close_amount_native,
+        p.currency,
+        p.source as price_source,
+        p.created_at
+    from {{ source('raw', 'price_history') }} as p
 )
 
 select * from final

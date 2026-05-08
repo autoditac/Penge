@@ -7,22 +7,18 @@
 -- (`account_id`, `instrument_id`, `as_of`) is enforced upstream by
 -- a Postgres unique constraint and re-asserted as a dbt test below.
 
-with source as (
+with final as (
     select
-        id as holding_snapshot_id,
-        account_id,
-        instrument_id,
-        as_of,
-        quantity,
-        price as price_amount_native,
-        market_value as market_value_native,
-        cost_basis as cost_basis_native,
-        created_at
-    from {{ source('raw', 'holding_snapshot') }}
-),
-
-final as (
-    select * from source
+        h.id as holding_snapshot_id,
+        h.account_id,
+        h.instrument_id,
+        h.as_of,
+        h.quantity,
+        h.price as price_amount_native,
+        h.market_value as market_value_amount_native,
+        h.cost_basis as cost_basis_amount_native,
+        h.created_at
+    from {{ source('raw', 'holding_snapshot') }} as h
 )
 
 select * from final

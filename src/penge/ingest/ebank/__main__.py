@@ -176,7 +176,7 @@ def _cmd_sync(args: argparse.Namespace, client: Client) -> int:
         return 2
 
     # Lazy DB import so --help / link / authorize don't need psycopg.
-    from sqlalchemy import create_engine
+    from sqlalchemy import create_engine  # noqa: PLC0415
 
     engine = create_engine(_database_url())
     date_from = (datetime.now(UTC) - timedelta(days=args.days)).date()

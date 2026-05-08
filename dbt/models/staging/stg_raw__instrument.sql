@@ -6,22 +6,18 @@
 -- modelled as a synthetic instrument with `kind = 'cash'` per
 -- ADR-0008.
 
-with source as (
+with final as (
     select
-        id as instrument_id,
-        isin,
-        ticker,
-        mic,
-        name,
-        kind,
-        currency,
-        created_at,
-        updated_at
-    from {{ source('raw', 'instrument') }}
-),
-
-final as (
-    select * from source
+        i.id as instrument_id,
+        i.isin,
+        i.ticker,
+        i.mic,
+        i.name,
+        i.kind,
+        i.currency,
+        i.created_at,
+        i.updated_at
+    from {{ source('raw', 'instrument') }} as i
 )
 
 select * from final

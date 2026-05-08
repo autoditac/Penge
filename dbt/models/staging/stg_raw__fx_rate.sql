@@ -6,20 +6,16 @@
 -- weekends/holidays; the no-gap invariant is enforced by the
 -- `mart_net_worth_daily__no_fx_gaps` custom test.
 
-with source as (
+with final as (
     select
-        id as fx_rate_id,
-        as_of,
-        base_ccy,
-        quote_ccy,
-        rate,
-        source as rate_source,
-        created_at
-    from {{ source('raw', 'fx_rate') }}
-),
-
-final as (
-    select * from source
+        f.id as fx_rate_id,
+        f.as_of,
+        f.base_ccy,
+        f.quote_ccy,
+        f.rate,
+        f.source as rate_source,
+        f.created_at
+    from {{ source('raw', 'fx_rate') }} as f
 )
 
 select * from final

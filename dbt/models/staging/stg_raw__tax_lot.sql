@@ -8,27 +8,23 @@
 -- method (e.g. `gennemsnitsmetoden`, `fifo`) so reports can verify
 -- the correct regime was applied.
 
-with source as (
+with final as (
     select
-        id as tax_lot_id,
-        account_id,
-        instrument_id,
-        open_transaction_id,
-        close_transaction_id,
-        opened_at,
-        closed_at,
-        quantity,
-        cost_basis as cost_basis_native,
-        proceeds as proceeds_amount_native,
-        realized_gain as realized_gain_amount_native,
-        method,
-        created_at,
-        updated_at
-    from {{ source('raw', 'tax_lot') }}
-),
-
-final as (
-    select * from source
+        l.id as tax_lot_id,
+        l.account_id,
+        l.instrument_id,
+        l.open_transaction_id,
+        l.close_transaction_id,
+        l.opened_at,
+        l.closed_at,
+        l.quantity,
+        l.cost_basis as cost_basis_amount_native,
+        l.proceeds as proceeds_amount_native,
+        l.realized_gain as realized_gain_amount_native,
+        l.method,
+        l.created_at,
+        l.updated_at
+    from {{ source('raw', 'tax_lot') }} as l
 )
 
 select * from final

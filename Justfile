@@ -108,3 +108,15 @@ ingest-gls *FLAGS:
 #   just ingest-ebank sync --entity-name "Your Name" --days 365
 ingest-ebank *FLAGS:
     uv run --group db --group http --group enablebanking penge-ebank {{FLAGS}}
+
+# --- Lunar (Enable Banking PSD2) -------------------------------------------
+#
+# Forward all flags to the penge-lunar CLI. Subcommands: link, authorize, sync.
+# Examples:
+#   just ingest-lunar link --redirect-url http://localhost:8765/callback
+#   just ingest-lunar authorize --code <CODE>
+#   just ingest-lunar sync --entity-name "Your Name" --days 365
+# Aktiesparekonto subaccounts are auto-tagged with
+# account.dk_tax_treatment = 'aktiesparekonto'.
+ingest-lunar *FLAGS:
+    uv run --group db --group http --group enablebanking penge-lunar {{FLAGS}}

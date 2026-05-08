@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: stg_lunar__transactions
+    description: >
+      Lunar-only view over `raw.transaction`, joined to `raw.account`
+      to filter on `provider = 'lunar'`. The loader maps Berlin Group
+      fields (entry_reference, credit_debit_indicator,
+      transaction_amount.amount, remittance_information, booking_date)
+      to the canonical Penge schema; see
+      `docs/connectors/lunar.md` for the full mapping table. The
+      additional `dk_tax_treatment` column propagates the Lunar
+      Aktiesparekonto tag set by the loader.
+    columns:
+      - name: transaction_id
+        description: Primary key from `raw.transaction`.
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: FK to `raw.account.id`.
+        data_tests:
+          - not_null
+      - name: ts
+        description: Booking date promoted to UTC midnight.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Canonical transaction kind (CRDT→deposit, DBIT→withdrawal).
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - deposit
+                - withdrawal
+                - internal_transfer
+                - fee
+                - cash_interest
+      - name: amount
+        description: Signed amount in account currency.
+        data_tests:
+          - not_null
+      - name: external_id
+        description: Berlin Group `entry_reference` (or `transaction_id` fallback).
+        data_tests:
+          - not_null
+      - name: provider
+        description: Always `lunar` in this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - lunar
+      - name: dk_tax_treatment
+        description: >
+          Danish tax regime tag (e.g. `aktiesparekonto`) set on the
+          `account` row by the Lunar connector for ASK subaccounts;
+          NULL for regular Lunar accounts.
+        data_tests:
+          - accepted_values:
+              values:
+                - aktiesparekonto
+              config:
+                where: "dk_tax_treatment is not null"

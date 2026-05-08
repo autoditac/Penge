@@ -58,6 +58,7 @@ nav:
       - "GoCardless (PSD2)": connectors/gocardless.md
       - "GLS Bank (Enable Banking)": connectors/gls.md
       - "Evangelische Bank (Enable Banking)": connectors/evangelische-bank.md
+      - "Lunar (Enable Banking)": connectors/lunar.md
       - "Nordnet (DK CSV)": connectors/nordnet.md
       - "Manual entries": connectors/manual.md
   - Analytics:

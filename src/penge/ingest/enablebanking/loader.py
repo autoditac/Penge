@@ -74,6 +74,7 @@ def load_account(
     iban: str | None = None,
     date_from: date | None = None,
     date_to: date | None = None,
+    dk_tax_treatment: str | None = None,
 ) -> LoadResult:
     """Pull transactions + balance for one Enable Banking account and persist.
 
@@ -85,6 +86,11 @@ def load_account(
     ``provider`` is the canonical Penge provider slug
     (e.g. ``"gls"``, ``"ebank"``, ``"lunar"``) and is stored verbatim
     on the ``account`` row.
+
+    ``dk_tax_treatment`` tags the account with a Danish tax regime
+    when applicable (e.g. ``"aktiesparekonto"`` for Lunar ASK
+    subaccounts). ``None`` leaves the column unset / clears it on
+    re-sync so a mistagged account can be corrected upstream.
     """
     txns = client.get_account_transactions(
         account_uid,
@@ -103,6 +109,7 @@ def load_account(
         account_name=account_name,
         currency=currency,
         iban=iban,
+        dk_tax_treatment=dk_tax_treatment,
     )
 
 
@@ -117,6 +124,7 @@ def _persist(
     account_name: str,
     currency: str,
     iban: str | None,
+    dk_tax_treatment: str | None,
 ) -> LoadResult:
     tables = _reflect(engine)
     with engine.begin() as conn:
@@ -130,6 +138,7 @@ def _persist(
             name=account_name,
             currency=currency,
             iban=iban,
+            dk_tax_treatment=dk_tax_treatment,
         )
         instrument_id = _get_or_create_cash_instrument(
             conn,
@@ -201,6 +210,7 @@ def _get_or_create_account(
     name: str,
     currency: str,
     iban: str | None,
+    dk_tax_treatment: str | None,
 ) -> str:
     """Upsert the account keyed on ``(provider, external_id)``."""
     stmt = pg_insert(account).values(
@@ -211,6 +221,7 @@ def _get_or_create_account(
         kind=ACCOUNT_KIND,
         currency=currency,
         iban=iban,
+        dk_tax_treatment=dk_tax_treatment,
     )
     # Refresh metadata on conflict so renames / IBAN updates / currency
     # corrections from upstream propagate to existing rows.
@@ -221,6 +232,7 @@ def _get_or_create_account(
             "name": stmt.excluded.name,
             "currency": stmt.excluded.currency,
             "iban": stmt.excluded.iban,
+            "dk_tax_treatment": stmt.excluded.dk_tax_treatment,
             "updated_at": func.now(),
         },
     )

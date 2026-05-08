@@ -1,0 +1,115 @@
+version: 2
+
+models:
+  - name: stg_pfa__transactions
+    description: >
+      PFA-only view over `raw.transaction`, joined to `raw.account`
+      to filter on `provider = 'pfa'`. The PFA loader posts one
+      summary transaction per non-zero financial-summary line per
+      scheme (contribution, return, fee, PAL-skat). All amounts
+      are DKK; fees and PAL-skat are stored as negative amounts.
+      The `external_id` column is a stable
+      `pfa:<sha256-hex16>` hash synthesised by
+      `penge.ingest.pfa.parser.synthesize_external_id`.
+    columns:
+      - name: transaction_id
+        description: Primary key from `raw.transaction`.
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: FK to `raw.account.id`.
+        data_tests:
+          - not_null
+      - name: ts
+        description: Statement period_to promoted to UTC midnight.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Canonical transaction kind.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - deposit
+                - withdrawal
+                - dividend
+                - fee
+                - tax
+      - name: amount
+        description: Signed amount in DKK.
+        data_tests:
+          - not_null
+      - name: external_id
+        description: Synthesised `pfa:<sha256-hex16>` deterministic id.
+        data_tests:
+          - not_null
+      - name: provider
+        description: Always `pfa` in this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - pfa
+      - name: account_kind
+        description: PFA scheme regime — Aldersopsparing, Ratepension or Livrente.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - aldersopsparing
+                - ratepension
+                - livrente
+      - name: account_currency
+        description: Account currency; always DKK for PFA schemes.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - DKK
+
+  - name: stg_pfa__holdings
+    description: >
+      PFA-only view over `raw.holding_snapshot`, joined to
+      `raw.account` and `raw.instrument`. One row per
+      `Investeringsprofil` line per statement period.
+    columns:
+      - name: holding_snapshot_id
+        description: Primary key from `raw.holding_snapshot`.
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: FK to `raw.account.id`.
+        data_tests:
+          - not_null
+      - name: instrument_id
+        description: FK to `raw.instrument.id`.
+        data_tests:
+          - not_null
+      - name: as_of
+        description: Statement as-of date.
+        data_tests:
+          - not_null
+      - name: market_value
+        description: Market value in DKK.
+        data_tests:
+          - not_null
+      - name: provider
+        description: Always `pfa` in this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - pfa
+      - name: account_currency
+        description: Account currency; always DKK for PFA schemes.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - DKK
+      - name: instrument_ticker
+        description: PFA fund ticker (`PFA:<slug>`).
+        data_tests:
+          - not_null

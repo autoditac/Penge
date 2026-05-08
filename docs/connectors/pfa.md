@@ -32,7 +32,8 @@ so a single PFA policy with three schemes yields three rows in
 ## Scheme summary mapping
 
 Each non-zero line of the per-scheme financial summary is posted
-as one `transaction` row dated on `period_to`:
+as one `transaction` row dated on `period_to` (or `as_of` when
+`period_to` is missing from the statement):
 
 | PFA label | Penge `transaction.kind` | Sign |
 |---|---|---|

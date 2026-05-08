@@ -22,7 +22,10 @@ models:
         data_tests:
           - not_null
       - name: ts
-        description: Statement period_to promoted to UTC midnight.
+        description: >
+          Statement `period_to` promoted to UTC midnight. The PFA
+          loader falls back to `as_of` (also UTC midnight) when a
+          parsed statement has no `period_to`.
         data_tests:
           - not_null
       - name: kind

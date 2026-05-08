@@ -1,6 +1,6 @@
 # 0009 — ABIS list ingestion and `instrument.dk_tax_treatment`
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2026-05-08
 - **Deciders:** @autoditac
 - **Tags:** tax, ingest, data-model

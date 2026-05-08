@@ -18,6 +18,7 @@ import sys
 from collections.abc import Sequence
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import URL
 
 from penge.tax.abis.constants import TREATMENT_VALUES
 from penge.tax.abis.loader import (
@@ -30,6 +31,12 @@ log = logging.getLogger("penge.tax.abis")
 
 
 def _build_database_url() -> str:
+    """Assemble a SQLAlchemy URL.
+
+    Checks ``DATABASE_URL`` first; falls back to ``POSTGRES_*``. Uses
+    :meth:`sqlalchemy.engine.URL.create` so reserved characters in
+    the username or password are escaped correctly.
+    """
     url = os.environ.get("DATABASE_URL")
     if url:
         return url
@@ -40,7 +47,16 @@ def _build_database_url() -> str:
     db = os.environ.get("POSTGRES_DB")
     if not (user and password and db):
         raise SystemExit("DATABASE_URL is unset and POSTGRES_USER/PASSWORD/DB are not all set")
-    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db}"
+    return str(
+        URL.create(
+            drivername="postgresql+psycopg",
+            username=user,
+            password=password,
+            host=host,
+            port=int(port),
+            database=db,
+        ).render_as_string(hide_password=False)
+    )
 
 
 def _build_parser() -> argparse.ArgumentParser:

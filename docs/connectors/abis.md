@@ -5,8 +5,11 @@ enumerates the ISINs whose distributions and gains fall under
 **lagerbeskatning** (mark-to-market taxation, § 19 LL). Every
 December Skat issues an updated CSV covering the rolling
 6-year window. Penge keeps a local copy of the list and uses it
-to pre-classify each instrument as `lagerbeskatning` or
-`realisation` for the DK tax engine.
+to classify each matching instrument as `lagerbeskatning` (when
+on the list) or to leave `dk_tax_treatment = NULL` (when off the
+list) so the user is forced to review the case manually. The
+`realisation` value is only ever written via the manual-override
+CLI; the loader never sets it on its own.
 
 This connector is the **only** sanctioned write path for the
 `instrument.dk_tax_treatment` column. See ADR-0009 for the

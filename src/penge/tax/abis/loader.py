@@ -236,28 +236,37 @@ def _upsert_listings(
     instrument_ids_by_isin: dict[str, str],
     source_file: str | None,
 ) -> int:
-    n = 0
+    """Bulk-upsert one row per matched (instrument, tax_year).
+
+    Single statement to avoid per-row round-trips for multi-thousand
+    observation imports.
+    """
+    payload: list[dict[str, object]] = []
     for obs in observations:
         instrument_id = instrument_ids_by_isin.get(obs.isin)
         if instrument_id is None:
             continue
-        stmt = pg_insert(listing).values(
-            instrument_id=instrument_id,
-            tax_year=obs.tax_year,
-            listed=obs.listed,
-            source_file=source_file,
+        payload.append(
+            {
+                "instrument_id": instrument_id,
+                "tax_year": obs.tax_year,
+                "listed": obs.listed,
+                "source_file": source_file,
+            }
         )
-        stmt = stmt.on_conflict_do_update(
-            constraint="ux_instrument_dk_abis_listing__instrument_id_tax_year",
-            set_={
-                "listed": stmt.excluded.listed,
-                "source_file": stmt.excluded.source_file,
-                "imported_at": func.now(),
-            },
-        )
-        conn.execute(stmt)
-        n += 1
-    return n
+    if not payload:
+        return 0
+    stmt = pg_insert(listing).values(payload)
+    stmt = stmt.on_conflict_do_update(
+        constraint="ux_instrument_dk_abis_listing__instrument_id_tax_year",
+        set_={
+            "listed": stmt.excluded.listed,
+            "source_file": stmt.excluded.source_file,
+            "imported_at": func.now(),
+        },
+    )
+    conn.execute(stmt)
+    return len(payload)
 
 
 def _refresh_treatments(

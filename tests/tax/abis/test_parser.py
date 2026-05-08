@@ -95,8 +95,8 @@ def test_parse_abis_csv_keeps_share_classes_separate(fixture_csv: Path) -> None:
     assert {r.shareclass for r in rows} == {"Class A", "Class B"}
 
 
-def test_records_to_observations_unions_share_classes() -> None:
-    records = parse_abis_csv_string(ABIS_CSV_FIXTURE_TEXT)
+def test_records_to_observations_unions_share_classes(tmp_path: Path) -> None:
+    records = _parse_fixture_text(tmp_path, ABIS_CSV_FIXTURE_TEXT)
     observations = _records_to_observations(list(records))
     obs_for_3 = [o for o in observations if o.isin == "XX0000000003"]
     listed_years = {o.tax_year for o in obs_for_3 if o.listed}
@@ -108,8 +108,10 @@ def test_records_to_observations_unions_share_classes() -> None:
     assert unlisted_years == {2020, 2021, 2022, 2023}
 
 
-def test_records_to_observations_emits_only_unlisted_for_delisted_isins() -> None:
-    records = parse_abis_csv_string(ABIS_CSV_FIXTURE_TEXT)
+def test_records_to_observations_emits_only_unlisted_for_delisted_isins(
+    tmp_path: Path,
+) -> None:
+    records = _parse_fixture_text(tmp_path, ABIS_CSV_FIXTURE_TEXT)
     observations = _records_to_observations(list(records))
     obs_for_4 = [o for o in observations if o.isin == "XX0000000004"]
     assert obs_for_4
@@ -127,11 +129,12 @@ def test_parse_abis_csv_rejects_misaligned_header(tmp_path: Path) -> None:
 # --- helpers ---------------------------------------------------------------
 
 
-def parse_abis_csv_string(text: str, tmp_path: Path | None = None) -> tuple:  # type: ignore[type-arg]
-    """Parse the fixture text via a temporary file."""
-    import tempfile
+def _parse_fixture_text(tmp_path: Path, text: str) -> tuple:  # type: ignore[type-arg]
+    """Parse the fixture text via a tmp_path-backed CSV file.
 
-    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False, encoding="utf-8") as f:
-        f.write(text)
-        path = Path(f.name)
+    The file is created under pytest's ``tmp_path`` so it is cleaned
+    up automatically at the end of the test.
+    """
+    path = tmp_path / "abis_fixture.csv"
+    path.write_text(text, encoding="utf-8")
     return parse_abis_csv(path)

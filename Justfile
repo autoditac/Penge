@@ -99,3 +99,12 @@ manual-mark-property *FLAGS:
 ingest-gls *FLAGS:
     uv run --group db --group http --group enablebanking penge-gls {{FLAGS}}
 
+# --- Evangelische Bank (Enable Banking PSD2) -------------------------------
+#
+# Forward all flags to the penge-ebank CLI. Subcommands: link, authorize, sync.
+# Examples:
+#   just ingest-ebank link --redirect-url http://localhost:8765/callback
+#   just ingest-ebank authorize --code <CODE>
+#   just ingest-ebank sync --entity-name "Your Name" --days 365
+ingest-ebank *FLAGS:
+    uv run --group db --group http --group enablebanking penge-ebank {{FLAGS}}

@@ -7,8 +7,12 @@ Enable Banking. The transport client lives in
 canonical ``transaction`` and ``holding_snapshot`` tables.
 """
 
+from penge.ingest.enablebanking.mapping import (
+    balance_to_market_value,
+    transaction_to_row,
+)
+
 from .loader import LoadResult, load_account
-from .mapping import balance_to_market_value, transaction_to_row
 
 __all__ = [
     "LoadResult",

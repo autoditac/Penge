@@ -53,7 +53,7 @@ class ClientConfig:
     """
 
     application_id: str  # the ``kid`` in the JWT header
-    private_key_pem: str  # full ``-----BEGIN RSA PRIVATE KEY-----`` body
+    private_key_pem: str  # PEM-encoded RSA private key (PKCS#1 or PKCS#8)
     base_url: str = DEFAULT_BASE_URL
 
     @classmethod
@@ -159,7 +159,7 @@ class Client:
             "iat": iat,
             "exp": exp,
         }
-        token = pyjwt.encode(
+        token: str = pyjwt.encode(
             payload,
             self._config.private_key_pem,
             algorithm="RS256",
@@ -249,9 +249,7 @@ class Client:
 
     def get_session(self, session_id: str) -> GetSessionResponse:
         """``GET /sessions/{id}``."""
-        return self._parse(
-            GetSessionResponse, self._request("GET", f"/sessions/{session_id}")
-        )
+        return self._parse(GetSessionResponse, self._request("GET", f"/sessions/{session_id}"))
 
     def get_account_balances(self, account_uid: str) -> BalancesResponse:
         """``GET /accounts/{uid}/balances``."""

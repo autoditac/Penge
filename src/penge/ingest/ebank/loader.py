@@ -1,8 +1,8 @@
-"""GLS Bank → Postgres loader (thin wrapper).
+"""Evangelische Bank → Postgres loader (thin wrapper).
 
 The actual upsert logic lives in
 :mod:`penge.ingest.enablebanking.loader`. This module fixes the
-provider slug to ``"gls"`` so callers don't have to.
+provider slug to ``"ebank"`` so callers don't have to.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
     from penge.ingest.enablebanking.client import Client
 
-PROVIDER = "gls"
+PROVIDER = "ebank"
 
 
 def load_account(
@@ -33,7 +33,7 @@ def load_account(
     date_from: date | None = None,
     date_to: date | None = None,
 ) -> LoadResult:
-    """Pull transactions + balance for one GLS account and persist."""
+    """Pull transactions + balance for one Evangelische Bank account and persist."""
     return _load_account(
         engine,
         provider=PROVIDER,

@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: stg_growney__transactions
+    description: >
+      Growney / Sutor Bank-only view over `raw.transaction`, joined
+      to `raw.account` to filter on `provider = 'growney'`. The
+      loader maps the Sutor "Transaktion" column to the canonical
+      kind vocabulary (Einzahlung→deposit, Auszahlung→withdrawal,
+      Kauf→buy, Verkauf→sell, Ausschüttung→dividend, Gebühr→fee)
+      and signs Betrag (netto) accordingly. The `external_id`
+      column is a stable hash synthesised by
+      `penge.ingest.growney.parser.synthesize_external_id` because
+      Sutor exports do not carry transaction ids.
+    columns:
+      - name: transaction_id
+        description: Primary key from `raw.transaction`.
+        data_tests:
+          - not_null
+          - unique
+      - name: account_id
+        description: FK to `raw.account.id`.
+        data_tests:
+          - not_null
+      - name: ts
+        description: Buchungsdatum promoted to UTC midnight.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Canonical transaction kind.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - buy
+                - sell
+                - deposit
+                - withdrawal
+                - dividend
+                - fee
+      - name: amount
+        description: Signed Betrag (netto) in EUR.
+        data_tests:
+          - not_null
+      - name: external_id
+        description: Synthesised `growney:<sha256-hex16>` deterministic id.
+        data_tests:
+          - not_null
+      - name: provider
+        description: Always `growney` in this model.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - growney
+      - name: account_currency
+        description: Account currency; always EUR for Sutor depots.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values:
+                - EUR

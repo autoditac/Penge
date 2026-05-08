@@ -59,6 +59,7 @@ nav:
       - "GLS Bank (Enable Banking)": connectors/gls.md
       - "Evangelische Bank (Enable Banking)": connectors/evangelische-bank.md
       - "Lunar (Enable Banking)": connectors/lunar.md
+      - "Growney / Sutor Bank (PDF)": connectors/growney.md
       - "Nordnet (DK CSV)": connectors/nordnet.md
       - "Manual entries": connectors/manual.md
   - Analytics:

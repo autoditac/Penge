@@ -9,13 +9,9 @@ correct provider slug and forwards arguments unchanged.
 from __future__ import annotations
 
 from datetime import date
-from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 from penge.ingest.ebank.loader import PROVIDER, load_account
-
-if TYPE_CHECKING:
-    pass
 
 
 def test_provider_slug_is_ebank() -> None:

@@ -1,11 +1,15 @@
 """GoCardless Bank Account Data (PSD2) API client.
 
-This is a *base* client only — it covers token management, institution
-discovery, requisition creation, and the read-only account endpoints
-(transactions, balances, details, metadata). Higher-level normalisation
-into the Penge transaction model lives elsewhere.
+.. deprecated::
+    GoCardless paused new Bank Account Data signups in early 2026. New
+    Penge connectors target :mod:`penge.ingest.enablebanking` instead
+    (issues #14 GLS, #15 EBank, #16 Lunar). This module is retained for
+    grandfathered credentials and as a historical reference; expect
+    no new development.
 
-See ``docs/connectors/gocardless.md`` for the human consent runbook.
+Transport-only client: token management, institution discovery,
+requisition creation, and the read-only account endpoints
+(transactions, balances, details, metadata).
 """
 
 from penge.ingest.gocardless.client import Client, ClientError, TokenCache

@@ -56,6 +56,12 @@ manual = [
   # ergonomics; sqlalchemy is pulled in via the `db` group at runtime.
   "typer>=0.12",
 ]
+enablebanking = [
+  # Enable Banking PSD2 connector backbone (issues #14 GLS, #15 EBank,
+  # #16 Lunar). pyjwt[crypto] pulls in cryptography for RS256 signing.
+  # httpx and pydantic come from the `http` group at runtime.
+  "pyjwt[crypto]>=2.8",
+]
 
 [tool.ruff]
 line-length = 100
@@ -139,3 +145,4 @@ penge-nordnet = "penge.ingest.nordnet.__main__:main"
 penge-prices = "penge.ingest.prices.__main__:main"
 penge-manual = "penge.manual.__main__:app"
 penge-web = "penge.web.__main__:main"
+penge-gls = "penge.ingest.gls.__main__:main"

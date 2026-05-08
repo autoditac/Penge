@@ -88,3 +88,14 @@ manual-add-balance *FLAGS:
 #       --property "Nederbyvej 36 (DK)" --currency DKK --valuation 4500000
 manual-mark-property *FLAGS:
     uv run --group db --group manual penge-manual mark-property {{FLAGS}}
+
+# --- GLS Bank (Enable Banking PSD2) ------------------------------------------
+
+# Forward all flags to the penge-gls CLI. Subcommands: link, authorize, sync.
+# Example:
+#   just ingest-gls link --redirect-url http://localhost:8765/callback
+#   just ingest-gls authorize --code <CODE>
+#   just ingest-gls sync --entity-name "Your Name" --days 365
+ingest-gls *FLAGS:
+    uv run --group db --group http --group enablebanking penge-gls {{FLAGS}}
+

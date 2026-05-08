@@ -105,7 +105,7 @@ def test_load_account_explicit_dk_tax_treatment_wins() -> None:
             entity_name="Account Holder",
             account_name="Lunar Aktiesparekonto",
             product="Aktiesparekonto",
-            dk_tax_treatment="",  # bypass detection
+            autodetect_dk_tax_treatment=False,  # bypass detection
         )
     assert delegate.call_args.kwargs["dk_tax_treatment"] is None
 

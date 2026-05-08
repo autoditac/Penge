@@ -48,18 +48,28 @@ def load_account(
     date_to: date | None = None,
     product: str | None = None,
     dk_tax_treatment: str | None = None,
+    autodetect_dk_tax_treatment: bool = True,
 ) -> LoadResult:
     """Pull transactions + balance for one Lunar account and persist.
 
-    If ``dk_tax_treatment`` is not given explicitly, it is inferred
-    from ``product`` / ``account_name`` via :func:`is_aktiesparekonto`.
-    Pass ``dk_tax_treatment=""`` to force ``None`` and bypass detection
-    (e.g. in tests).
+    Aktiesparekonto auto-detection:
+    - If ``dk_tax_treatment`` is given explicitly (including ``None``
+      when ``autodetect_dk_tax_treatment=False``), it is used as-is.
+    - Otherwise, when ``autodetect_dk_tax_treatment`` is ``True`` (the
+      default) and ``dk_tax_treatment`` is ``None``, the value is
+      inferred from ``product`` / ``account_name`` via
+      :func:`is_aktiesparekonto`.
+
+    Pass ``autodetect_dk_tax_treatment=False`` to bypass detection
+    (e.g. in tests) and store whatever ``dk_tax_treatment`` is given
+    (``None`` by default).
     """
-    if dk_tax_treatment is None and is_aktiesparekonto(product=product, name=account_name):
+    if (
+        dk_tax_treatment is None
+        and autodetect_dk_tax_treatment
+        and is_aktiesparekonto(product=product, name=account_name)
+    ):
         dk_tax_treatment = DK_TAX_AKTIESPAREKONTO
-    elif dk_tax_treatment == "":
-        dk_tax_treatment = None
 
     return _load_account(
         engine,

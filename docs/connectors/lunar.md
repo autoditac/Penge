@@ -114,10 +114,12 @@ preferring balance types in this order: `CLBD` (closing booked) → `ITBD`
 
 ## Currency
 
-Lunar accounts are denominated in **DKK** by default. The CLI
-defaults `currency` to DKK; override with `--currency` if a specific
-subaccount is in EUR or another currency (Lunar offers multi-currency
-sub-wallets to some customers).
+Lunar accounts are denominated in **DKK** by default. The CLI uses the
+currency Enable Banking reports per account (Berlin Group `currency`
+field) and falls back to DKK if Enable Banking does not return one.
+There is no `--currency` override flag; if you need to coerce a
+specific subaccount to a different currency, call
+`penge.ingest.lunar.load_account(..., currency=...)` directly.
 
 ## Idempotency
 

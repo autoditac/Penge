@@ -8,6 +8,7 @@ Python and unit-testable in isolation.
 from __future__ import annotations
 
 import logging
+import math
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass
 from datetime import date
@@ -119,6 +120,8 @@ def resolve_yahoo_symbol(
     """
     if ticker:
         clean = ticker.strip()
+        if not clean:
+            return None
         if "." in clean:
             return clean
         if mic and mic in MIC_TO_YAHOO_SUFFIX:
@@ -197,10 +200,14 @@ def fetch_history(
         # ``ts`` is a pandas Timestamp; ``.date()`` strips tz/time.
         as_of = ts.date()
         try:
-            close_dec = Decimal(repr(float(close)))
+            close_float = float(close)
         except (TypeError, ValueError):
             log.warning("could not coerce close=%r for %s on %s", close, symbol, as_of)
             continue
+        if not math.isfinite(close_float):
+            log.warning("skipping non-finite close=%r for %s on %s", close, symbol, as_of)
+            continue
+        close_dec = Decimal(repr(close_float))
         yield ParsedPrice(
             instrument_id=instrument_id,
             as_of=as_of,

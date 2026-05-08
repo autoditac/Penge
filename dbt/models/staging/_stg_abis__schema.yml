@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: stg_abis__listings
+    description: >
+      Per-instrument, per-tax-year view over the
+      `instrument_dk_abis_listing` audit table. Each row records that
+      Skat's ABIS list (Aktiebaserede Investeringsselskaber) either
+      includes (`listed = true`) or excludes (`listed = false`) the
+      ISIN for that tax year. See `docs/connectors/abis.md` and
+      ADR-0009 for the full specification.
+    columns:
+      - name: listing_id
+        description: Primary key from `raw.instrument_dk_abis_listing`.
+        data_tests:
+          - not_null
+          - unique
+      - name: instrument_id
+        description: FK to `raw.instrument.id`.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__instrument')
+              field: instrument_id
+      - name: tax_year
+        description: Calendar tax year the observation is for.
+        data_tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 2000
+              max_value: 2100
+      - name: listed
+        description: True iff Skat included the ISIN in the ABIS list for `tax_year`.
+        data_tests:
+          - not_null
+      - name: source_file
+        description: Filename of the ABIS CSV that produced this row, when available.
+      - name: imported_at
+        description: Timestamp of the most recent reconciling import for this row.
+        data_tests:
+          - not_null

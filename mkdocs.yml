@@ -61,6 +61,7 @@ nav:
       - "Lunar (Enable Banking)": connectors/lunar.md
       - "Growney / Sutor Bank (PDF)": connectors/growney.md
       - "Nordnet (DK CSV)": connectors/nordnet.md
+      - "Skat ABIS list": connectors/abis.md
       - "Manual entries": connectors/manual.md
   - Analytics:
       - "dbt": dbt.md
@@ -70,6 +71,7 @@ nav:
   - Runbook:
       - runbook/monthly.md
       - "Web dashboard": runbook/web.md
+      - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
   - Decisions:
       - decisions/README.md
       - "ADR-0001 Self-hosted Postgres + DuckDB stack": decisions/0001-self-hosted-postgres-duckdb-stack.md
@@ -80,6 +82,7 @@ nav:
       - "ADR-0006 Trunk-based + Conventional Commits + ADRs": decisions/0006-trunk-based-conventional-commits-adrs.md
       - "ADR-0007 Initial relational data model": decisions/0007-initial-relational-data-model.md
       - "ADR-0008 Nordnet account modelling": decisions/0008-nordnet-account-modelling.md
+      - "ADR-0009 ABIS list & instrument tax treatment": decisions/0009-abis-list-and-instrument-tax-treatment.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

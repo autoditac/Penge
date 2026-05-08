@@ -30,3 +30,9 @@ sources:
         description: Statements, tax forms, salary slips, invoices.
       - name: tax_lot
         description: Per-lot accounting tying open and close transactions.
+      - name: instrument_dk_abis_listing
+        description: >
+          Audit trail of Skat ABIS-list (Aktiebaserede
+          Investeringsselskaber) memberships per ISIN per tax year.
+          Populated by the `penge-abis ingest` CLI; one row per
+          observation. See ADR-0009.

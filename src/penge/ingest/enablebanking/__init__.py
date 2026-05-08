@@ -9,6 +9,13 @@ Reference: https://enablebanking.com/docs/api/reference/
 """
 
 from .client import Client, ClientConfig
+from .loader import LoadResult, load_account
+from .mapping import (
+    balance_to_market_value,
+    external_id,
+    transaction_kind,
+    transaction_to_row,
+)
 from .models import (
     AccountResource,
     Aspsp,
@@ -28,7 +35,13 @@ __all__ = [
     "BalancesResponse",
     "Client",
     "ClientConfig",
+    "LoadResult",
     "StartAuthorizationResponse",
     "Transaction",
     "TransactionsResponse",
+    "balance_to_market_value",
+    "external_id",
+    "load_account",
+    "transaction_kind",
+    "transaction_to_row",
 ]

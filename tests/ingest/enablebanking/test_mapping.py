@@ -7,19 +7,19 @@ from decimal import Decimal
 
 import pytest
 
+from penge.ingest.enablebanking.mapping import (
+    balance_to_market_value,
+    external_id,
+    signed_amount,
+    transaction_kind,
+    transaction_to_row,
+)
 from penge.ingest.enablebanking.models import (
     Amount,
     Balance,
     BalancesResponse,
     PartyIdentification,
     Transaction,
-)
-from penge.ingest.gls.mapping import (
-    balance_to_market_value,
-    external_id,
-    signed_amount,
-    transaction_kind,
-    transaction_to_row,
 )
 
 

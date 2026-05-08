@@ -19,8 +19,8 @@ Account currency: `EUR`. Source format: **PDF** (Depotauszug emitted by Sutor Ba
 | `Umsätze vom … bis … in EUR` (transactions table) | `transaction` rows |
 | Header line `"<strategy>" Nr. <depot> / IBAN: <iban>` | `account` row (one per depot) |
 
-The header line is parsed by [`DEPOT_HEADER_RE`](../../src/penge/ingest/growney/constants.py)
-and the per-quarter window by `PERIOD_RE`.
+The header line is parsed by `DEPOT_HEADER_RE` and the per-quarter window
+by `PERIOD_RE` in `penge.ingest.growney.constants`.
 
 ## Transaction kind mapping
 
@@ -63,7 +63,7 @@ make ingest idempotent the loader synthesises a stable id by
 hashing `(depot_number, bookkeeping_date, value_date, sutor_type,
 isin, quantity, net_amount_eur, description)` with sha256 and
 prefixing the first 16 hex chars with `growney:`. See
-[`synthesize_external_id`](../../src/penge/ingest/growney/parser.py).
+`synthesize_external_id` in `penge.ingest.growney.parser`.
 
 ## CLI
 

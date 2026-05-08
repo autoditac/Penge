@@ -164,6 +164,6 @@ jobs:
         with:
           enable-cache: true
       - name: Install dev + db deps
-        run: uv sync --group dev --group db --group http --group web --group manual --group enablebanking --frozen
+        run: uv sync --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --frozen
       - name: Run tests
-        run: uv run --group dev --group db --group http --group web --group manual --group enablebanking pytest
+        run: uv run --group dev --group db --group http --group web --group manual --group enablebanking --group parsers pytest

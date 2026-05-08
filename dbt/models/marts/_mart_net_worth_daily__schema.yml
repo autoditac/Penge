@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: mart_net_worth_daily
+    description: >
+      Daily net-worth time series per account, in the account currency,
+      EUR, and DKK. Forward-fills the latest known holding_snapshot per
+      (account, instrument) onto a daily date spine and converts using
+      the snapshot-date ECB FX rate (also forward-filled across
+      weekends/holidays).
+    columns:
+      - name: entity_id
+        description: Owning entity, copied from `raw.account.entity_id`.
+        data_tests:
+          - not_null
+          - relationships:
+              to: source('raw', 'entity')
+              field: id
+      - name: account_id
+        description: Account the balance is reported for.
+        data_tests:
+          - not_null
+          - relationships:
+              to: source('raw', 'account')
+              field: id
+      - name: account_currency
+        description: ISO 4217 currency of the underlying account.
+        data_tests:
+          - not_null
+      - name: as_of
+        description: Calendar date of the daily balance.
+        data_tests:
+          - not_null
+      - name: balance_acct_ccy
+        description: Net worth on `as_of`, denominated in `account_currency`.
+        data_tests:
+          - not_null
+      - name: balance_eur
+        description: >
+          Net worth on `as_of` converted to EUR via the snapshot-date
+          ECB rate `fx_rate(base='EUR', quote=account_currency)`, with
+          weekend/holiday forward-fill. Equals `balance_acct_ccy` when
+          the account currency is already EUR.
+      - name: balance_dkk
+        description: >
+          Net worth on `as_of` converted to DKK via EUR as the bridge
+          currency (`account_currency → EUR → DKK`).

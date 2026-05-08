@@ -23,7 +23,8 @@ dbt/
   `stg_<source>__<table>.sql` file per raw table we actually use,
   plus a sibling `schema.yml` with column tests.
 - `models/marts/` — business-logic models materialised as tables.
-  `mart_net_worth_daily` (issue #24) is the first.
+  `mart_net_worth_daily` (issue #24) is the first; see
+  [Marts](#marts) below.
 
 ## Connection
 
@@ -103,5 +104,50 @@ echo "packages:
 uv run --group dbt dbt deps --project-dir dbt --profiles-dir dbt
 ```
 
-Reviewers should reject speculative additions; only add a package
+Reviewers should reject speculative additions; only a
+
+## Marts
+
+### `mart_net_worth_daily`
+
+Daily net-worth time series at account / entity level, in three
+currencies in parallel: account currency, EUR, and DKK
+(per [ADR-0004](decisions/0004-eur-and-dkk-shown-in-parallel.md)).
+
+**Grain.** One row per `(account_id, as_of)`.
+
+**Mechanics.**
+
+1. Build a daily date spine spanning the active range of
+   `raw.holding_snapshot` (`min(as_of)` … `max(as_of)`).
+2. For every `(account, instrument)` pair ever observed,
+   forward-fill the most recent `market_value` snapshot at-or-before
+   each spine date. Cash is materialised as `instrument.kind =
+   'cash'` synthetic instruments with `quantity = saldo`,
+   `price = 1` per [ADR-0008](decisions/0008-nordnet-account-modelling.md),
+   so the same panel covers cash and securities uniformly.
+3. Sum per `(account_id, as_of)` to derive the account-currency
+   balance.
+4. Convert to EUR and DKK using the snapshot-date ECB FX rate
+   (`raw.fx_rate`, `base_ccy = 'EUR'`), forward-filled across
+   weekends/holidays so every spine date has a non-null rate
+   whenever the source has at least one rate at-or-before it.
+
+**Columns.** `entity_id`, `account_id`, `account_currency`,
+`as_of`, `balance_acct_ccy`, `balance_eur`, `balance_dkk`. See
+`dbt/models/marts/_mart_net_worth_daily__schema.yml` for column
+docs and tests.
+
+**Custom tests.**
+
+- `mart_net_worth_daily__monotonic_date_index` — per `account_id`,
+  the set of `as_of` dates between `min(as_of)` and `max(as_of)`
+  must form a contiguous daily series.
+- `mart_net_worth_daily__no_fx_gaps` — every row with a non-null
+  `balance_acct_ccy` must also have non-null `balance_eur` and
+  `balance_dkk`.
+
+**v1 scope.** Balance time series only. Per-transaction cashflow
+FX attribution (using `transaction.fx_rate` at booking time) is
+out of scope here and will land with the cashflow mart.dd a package
 when a specific model needs a specific macro from it.

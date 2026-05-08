@@ -14,7 +14,6 @@ import plotly.express as px
 import streamlit as st
 
 from penge.web.data import balance_column
-from penge.web.mask import mask_account_name
 
 
 def render(
@@ -22,7 +21,6 @@ def render(
     accounts: pd.DataFrame,
     *,
     currency: str,
-    reveal: bool,
 ) -> None:
     """Render three side-by-side allocation pies: entity, currency, account kind."""
     st.header(f"Allocation — {currency}")
@@ -39,9 +37,6 @@ def render(
         return
 
     enriched = snapshot.merge(accounts, on="account_id", how="left")
-    enriched["account_label"] = enriched["account_name"].apply(
-        lambda name: mask_account_name(name, reveal=reveal)
-    )
 
     col_entity, col_currency, col_kind = st.columns(3)
     col_entity.plotly_chart(

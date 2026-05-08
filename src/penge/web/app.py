@@ -16,6 +16,7 @@ KPIs.
 
 from __future__ import annotations
 
+import logging
 from datetime import date, timedelta
 
 import pandas as pd
@@ -23,6 +24,8 @@ import streamlit as st
 
 from penge.web import data as data_layer
 from penge.web.views import allocation, drilldown, kpi, timeseries
+
+log = logging.getLogger("penge.web")
 
 # 5-minute TTL: refresh on a sensible cadence without forcing manual
 # reloads after every loader run.
@@ -33,6 +36,9 @@ CACHE_TTL_SECONDS = 300
 DEFAULT_LOOKBACK_DAYS = 365 * 3
 
 
+# Streamlit ships partial type stubs; ``st.cache_data`` is typed as an
+# untyped decorator under --strict mypy. Suppressed locally rather than
+# globally so a future stub upgrade re-enables the check.
 @st.cache_data(ttl=CACHE_TTL_SECONDS, show_spinner="Loading net-worth panel…")  # type: ignore[untyped-decorator]
 def _load_net_worth(since: date) -> pd.DataFrame:
     return data_layer.fetch_net_worth_daily(since)
@@ -71,8 +77,12 @@ def main() -> None:
     try:
         panel = _load_net_worth(since)
         accounts = _load_accounts()
-    except Exception as exc:
-        st.error(f"Could not load data from the database: {exc}")
+    except Exception:
+        # The exception message can include the DSN (host, db, sometimes
+        # password) for SQLAlchemy connection errors. Log the full
+        # traceback server-side and show a generic message in the UI.
+        log.exception("Failed to load dashboard data")
+        st.error("Could not load data from the database. " "See the server log for details.")
         st.info(
             "Check that Postgres is reachable and the marts have been "
             "built (`uv run --group dbt dbt build`)."
@@ -84,7 +94,7 @@ def main() -> None:
     elif view == "Time series":
         timeseries.render(panel, currency=currency)
     elif view == "Allocation":
-        allocation.render(panel, accounts, currency=currency, reveal=reveal)
+        allocation.render(panel, accounts, currency=currency)
     else:
         drilldown.render(panel, accounts, currency=currency, reveal=reveal)
 

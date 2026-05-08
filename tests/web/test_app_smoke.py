@@ -82,6 +82,9 @@ def _fake_accounts() -> pd.DataFrame:
     )
 
 
+# pytest's @fixture / @parametrize decorators are typed loosely; under
+# strict mypy they trip ``untyped-decorator``. Same pattern is used in
+# tests/ingest/nordnet/test_loader.py.
 @pytest.fixture(autouse=True)  # type: ignore[untyped-decorator]
 def _patch_data(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace DB fetchers with deterministic in-memory frames.
@@ -97,7 +100,7 @@ def _patch_data(monkeypatch: pytest.MonkeyPatch) -> None:
     st.cache_data.clear()
 
 
-@pytest.mark.parametrize(  # type: ignore[untyped-decorator]
+@pytest.mark.parametrize(  # type: ignore[untyped-decorator]  # pytest decorator is untyped under strict mypy
     "view",
     ["KPI", "Time series", "Allocation", "Account drill-down"],
 )

@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import os
 
+from sqlalchemy.engine import URL
+
 
 def database_url() -> str:
     """Return the SQLAlchemy URL for the Penge Postgres instance.
@@ -17,14 +19,19 @@ def database_url() -> str:
     Checks ``DATABASE_URL`` first; falls back to assembling a URL from
     ``POSTGRES_USER`` / ``POSTGRES_PASSWORD`` / ``POSTGRES_HOST`` /
     ``POSTGRES_PORT`` / ``POSTGRES_DB`` (same defaults as
-    ``compose.yaml``).
+    ``compose.yaml``). Uses :meth:`sqlalchemy.engine.URL.create` so
+    reserved characters in the username or password are escaped
+    correctly.
     """
     url = os.environ.get("DATABASE_URL")
     if url:
         return url
-    user = os.environ.get("POSTGRES_USER", "penge")
-    password = os.environ.get("POSTGRES_PASSWORD", "")
-    host = os.environ.get("POSTGRES_HOST", "localhost")
-    port = os.environ.get("POSTGRES_PORT", "5432")
-    db = os.environ.get("POSTGRES_DB", "penge")
-    return f"postgresql+psycopg://{user}:{password}@{host}:{port}/{db}"
+    rendered = URL.create(
+        drivername="postgresql+psycopg",
+        username=os.environ.get("POSTGRES_USER", "penge"),
+        password=os.environ.get("POSTGRES_PASSWORD") or None,
+        host=os.environ.get("POSTGRES_HOST", "localhost"),
+        port=int(os.environ.get("POSTGRES_PORT", "5432")),
+        database=os.environ.get("POSTGRES_DB", "penge"),
+    ).render_as_string(hide_password=False)
+    return str(rendered)

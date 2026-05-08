@@ -79,7 +79,7 @@ auth at a Caddy reverse proxy:
 penge.example.internal {
     basic_auth {
         # bcrypt hash; generate with `caddy hash-password`.
-        rouven $2a$14$REDACTED
+        admin $2a$14$REDACTED
     }
     reverse_proxy 127.0.0.1:8501
 }

@@ -4,8 +4,10 @@ This is the v1 skeleton (issue #25). It renders four views against the
 loaded data:
 
 - KPI: today's net worth in EUR / DKK with MoM and YoY deltas.
-- Time series: stacked area by asset class.
-- Allocation: pie charts by entity, currency, and tax treatment.
+- Time series: stacked area grouped by account currency. Asset-class
+  grouping is a follow-up — the v1 mart does not yet expose
+  ``instrument.kind``.
+- Allocation: pie charts by entity, currency, and account kind.
 - Account drill-down: per-account balance over time, with masked
   identifiers by default.
 

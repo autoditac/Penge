@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
+from decimal import ROUND_HALF_EVEN, Decimal
 from functools import lru_cache
 from typing import TYPE_CHECKING
 
@@ -134,6 +135,12 @@ def latest_total(panel: pd.DataFrame, currency: str) -> float | None:
 
     ``currency`` must be ``"EUR"`` or ``"DKK"``. Returns ``None`` if the
     panel is empty or the column has no non-null rows.
+
+    Money columns are persisted as ``Numeric(20, 4)`` (ADR-0007); pandas
+    coerces them to ``float`` on read. Sums are quantized to cents
+    before being returned so KPI display does not show binary-float
+    artifacts (``1234.5600000001``). Cent-level precision on totals up
+    to ~10¹⁴ is well inside float64's 15-digit envelope.
     """
     column = balance_column(currency)
     if panel.empty or column not in panel.columns:
@@ -142,7 +149,7 @@ def latest_total(panel: pd.DataFrame, currency: str) -> float | None:
     snapshot = panel.loc[panel["as_of"] == latest_date, column].dropna()
     if snapshot.empty:
         return None
-    return float(snapshot.sum())
+    return _quantize_cents(snapshot.sum())
 
 
 def delta_pct(panel: pd.DataFrame, currency: str, *, days_back: int) -> float | None:
@@ -177,3 +184,17 @@ def balance_column(currency: str) -> str:
         return "balance_dkk"
     msg = f"unsupported display currency: {currency!r} (expected EUR or DKK)"
     raise ValueError(msg)
+
+
+_CENT = Decimal("0.01")
+
+
+def _quantize_cents(value: float) -> float:
+    """Quantize a float to two decimal places using banker's rounding.
+
+    Money columns are persisted as ``Numeric(20, 4)`` (ADR-0007); pandas
+    coerces them to ``float`` on read. Quantizing the displayed sum
+    avoids binary-float artifacts in the UI without rewriting the chart
+    pipeline (Plotly expects float).
+    """
+    return float(Decimal(repr(float(value))).quantize(_CENT, rounding=ROUND_HALF_EVEN))

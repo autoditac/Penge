@@ -26,6 +26,7 @@ from .loader import (
     DISCREPANCY_THRESHOLD,
     Instrument,
     list_instruments,
+    resolve_yahoo_symbol,
     run,
 )
 
@@ -88,7 +89,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dry-run",
         action="store_true",
-        help="resolve symbols and exit; skip network + DB writes",
+        help=(
+            "connect to the DB read-only, list instruments and resolve "
+            "Yahoo symbols, then exit; skip yfinance fetch and DB writes"
+        ),
     )
     p.add_argument("-v", "--verbose", action="store_true")
     return p
@@ -100,8 +104,14 @@ def _build_nordnet_reference(
 ) -> dict[UUID, Decimal]:
     """Build an instrument-id → Seneste kurs mapping from holdings CSVs.
 
-    Instruments are matched by ISIN. Holdings rows lacking ``isin`` or
-    ``last_price`` are skipped silently.
+    Matching strategy: when a holdings row exposes an ``isin`` it is
+    matched against the instrument table by ISIN; otherwise we fall
+    back to an exact ``name`` match (Nordnet's *Depotoversigt* CSV
+    omits ISIN today, so name is the common path). Holdings rows that
+    cannot be matched, or that lack ``last_price``, are skipped
+    silently. Name matching is exact and case-sensitive, so genuine
+    name collisions across different instruments will pick whichever
+    row appears first in the instrument list.
     """
     if not holdings_paths:
         return {}
@@ -141,15 +151,33 @@ def main(argv: list[str] | None = None) -> int:
 
     start = date.today() - timedelta(days=30) if args.last_30d else args.since
 
-    if args.dry_run:
-        log.info("dry-run: would fetch from %s; not contacting yfinance or DB", start)
-        return 0
-
-    # Lazy import so ``--help`` / ``--dry-run`` work without DB drivers.
+    # Lazy import so ``--help`` works without DB drivers installed.
     from sqlalchemy import create_engine
 
     engine = create_engine(_database_url())
     instruments = list_instruments(engine)
+
+    if args.dry_run:
+        resolved = 0
+        for inst in instruments:
+            symbol = resolve_yahoo_symbol(ticker=inst.ticker, mic=inst.mic, isin=inst.isin)
+            if symbol is not None:
+                resolved += 1
+            log.info(
+                "dry-run: instrument=%s ticker=%r mic=%r -> symbol=%r",
+                inst.name,
+                inst.ticker,
+                inst.mic,
+                symbol,
+            )
+        log.info(
+            "dry-run: would fetch from %s; instruments_seen=%d resolved=%d",
+            start,
+            len(instruments),
+            resolved,
+        )
+        return 0
+
     reference = _build_nordnet_reference(args.nordnet_holdings, instruments)
     log.info(
         "loading prices for %d instruments (%d cross-check refs)",

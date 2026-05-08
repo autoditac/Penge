@@ -58,6 +58,13 @@ def test_resolve_strips_whitespace_on_ticker() -> None:
     assert resolve_yahoo_symbol(ticker="  AAPL  ", mic="XNAS") == "AAPL"
 
 
+def test_resolve_returns_none_for_whitespace_only_ticker() -> None:
+    # After ``.strip()`` the ticker is empty; we must not return a
+    # bare suffix like ``.CO`` or an empty string.
+    assert resolve_yahoo_symbol(ticker="   ", mic="XCSE") is None
+    assert resolve_yahoo_symbol(ticker="\t\n", mic="XNAS") is None
+
+
 def test_mic_table_only_contains_uppercase_mics() -> None:
     # Defensive: callers feed us instrument.mic verbatim, which is
     # CHAR(4) uppercase per the schema.
@@ -129,6 +136,7 @@ def test_parsed_price_is_immutable() -> None:
     import dataclasses
 
     with pytest.raises(dataclasses.FrozenInstanceError):
+        # Intentional mutation of a frozen dataclass to assert immutability.
         p.close = Decimal("0")  # type: ignore[misc]
 
 

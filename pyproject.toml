@@ -15,6 +15,7 @@ dev = [
   "pytest>=8.3",
   "pytest-cov>=5.0",
   "pre-commit>=4.0",
+  "pandas-stubs>=2.2",
 ]
 docs = [
   "mkdocs-material>=9.5",
@@ -101,12 +102,12 @@ ignore_errors = true
 module = ["streamlit", "streamlit.*", "plotly", "plotly.*"]
 ignore_missing_imports = true
 
-# yfinance ships no type stubs; pandas stubs exist (`pandas-stubs`)
-# but conflict with --strict in places we don't care about for the
-# narrow surface used by the price loader. The loader's pure pieces
-# (resolve_yahoo_symbol, cross_check) are still strict.
+# yfinance ships no type stubs. pandas types are picked up via
+# ``pandas-stubs`` in the dev group; we only need to silence yfinance
+# here. The loader's pure pieces (resolve_yahoo_symbol, cross_check)
+# remain strictly typed.
 [[tool.mypy.overrides]]
-module = ["yfinance", "yfinance.*", "pandas", "pandas.*"]
+module = ["yfinance", "yfinance.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

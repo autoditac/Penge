@@ -5,8 +5,10 @@ Given a transaction CSV path, zero-or-more holdings CSV paths and an
 tables (``entity``, ``account``, ``instrument``, ``transaction``,
 ``holding_snapshot``).
 
-Idempotent — re-running with the same inputs is a no-op (apart from
-``updated_at`` ticks).
+Idempotent — re-running with the same inputs converges to the
+same database state. ``ON CONFLICT DO UPDATE`` is used on the
+canonical natural keys, so business columns may be overwritten
+but row identity is preserved.
 
 Internal-transfer rows (per ADR-0008) are written on **both** sides
 of the transfer with ``kind='internal_transfer'`` and the
@@ -221,7 +223,7 @@ def _upsert_entities(conn: Connection, entity: Table, cfg: AccountsConfig) -> di
     distinct_names = sorted({a.entity for a in cfg.accounts})
     for name in distinct_names:
         existing = conn.execute(
-            select(entity.c.id).where(entity.c.name == name).limit(1)
+            select(entity.c.id).where(entity.c.name == name, entity.c.kind == "person").limit(1)
         ).scalar_one_or_none()
         if existing is not None:
             out[name] = str(existing)
@@ -407,7 +409,7 @@ def _upsert_transactions(
         instrument_id: str | None = None
         if t.isin and t.isin in instrument_ids_by_isin:
             instrument_id = instrument_ids_by_isin[t.isin]
-        ts = _to_naive_utc(t.bookkeeping_date)
+        ts = _to_utc_datetime(t.bookkeeping_date)
 
         counterparty: str | None = None
         if t.canonical_kind == TXN_KIND_INTERNAL_TRANSFER and t.counter_account:
@@ -566,8 +568,8 @@ def _holding_payload(
 # --------------------------------------------------------------------------- #
 
 
-def _to_naive_utc(d: object) -> datetime:
-    """Coerce a ``date`` to a UTC ``datetime`` for ``transaction.ts``.
+def _to_utc_datetime(d: object) -> datetime:
+    """Coerce a ``date`` to a timezone-aware UTC ``datetime`` for ``transaction.ts``.
 
     Nordnet exports day-precision booking dates; we anchor those at
     midnight UTC to give downstream marts a stable timestamp.

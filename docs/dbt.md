@@ -142,6 +142,10 @@ docs and tests.
 
 **Custom tests.**
 
+- `mart_net_worth_daily__unique_grain` — asserts exactly one row
+  per `(account_id, as_of)` (the documented grain), so a join
+  regression that duplicates rows can't silently double-count
+  balances.
 - `mart_net_worth_daily__monotonic_date_index` — per `account_id`,
   the set of `as_of` dates between `min(as_of)` and `max(as_of)`
   must form a contiguous daily series.

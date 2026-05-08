@@ -72,3 +72,19 @@ docs:
 
 docs-build:
     mkdocs build --strict
+
+# --- Manual entry ------------------------------------------------------------
+
+# Record a cash-account balance. All flags forwarded to penge-manual add-balance.
+# Example:
+#   just manual-add-balance --entity Rouven --account "DKB Tagesgeld" \
+#       --currency EUR --balance 12345.67
+manual-add-balance *FLAGS:
+    uv run --group db --group manual penge-manual add-balance {{FLAGS}}
+
+# Record a real-estate valuation. Flags forwarded to penge-manual mark-property.
+# Example:
+#   just manual-mark-property --entity Rouven --account "Nederbyvej 36" \
+#       --property "Nederbyvej 36 (DK)" --currency DKK --valuation 4500000
+manual-mark-property *FLAGS:
+    uv run --group db --group manual penge-manual mark-property {{FLAGS}}

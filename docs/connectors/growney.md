@@ -1,7 +1,9 @@
 # Growney / Sutor Bank Depotauszug
 
-Provider slug: `growney`. Account kind: `aktiedepot` (German Wertpapierdepot).
-Account currency: `EUR`. Source format: **PDF** (Depotauszug emitted by Sutor Bank).
+Provider slug: `growney`.
+Account kind: `aktiedepot` (German Wertpapierdepot).
+Account currency: `EUR`.
+Source format: **PDF** (Depotauszug emitted by Sutor Bank).
 
 > Issue [#19](https://github.com/autoditac/Penge/issues/19) originally
 > requested a "Growney CSV parser". Growney itself does not export

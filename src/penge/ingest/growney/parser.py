@@ -83,7 +83,9 @@ def parse_depotauszug(pdf_path: str | Path) -> ParsedDepotauszug:
                     holdings_rows.extend(rows[1:])
                 elif "Buchungs" in header and "Wertstellung" in header:
                     transactions_rows.extend(_skip_transaction_header_rows(rows))
-            cash_balance_eur = _extract_cash_balance(page_text) or cash_balance_eur
+            page_cash = _extract_cash_balance(page_text)
+            if page_cash is not None:
+                cash_balance_eur = page_cash
     full_text = "\n".join(full_text_parts)
     metadata = _parse_metadata(full_text)
     holdings = parse_holdings_rows(holdings_rows)
@@ -148,16 +150,23 @@ def parse_holdings_rows(rows: Sequence[Sequence[str | None]]) -> tuple[ParsedHol
 
     out: list[ParsedHolding] = []
     for row in rows:
-        cells = [c for c in row if c is not None and c.strip()]
-        if not cells:
-            continue
-        # Skip section labels Sutor injects, e.g. a single-cell row "Fonds"
-        # or footnote rows like "* Währungskurs: 1,1498 US$".
+        # Pad rows that pdfplumber returned shorter than the canonical
+        # header so positional access never silently misaligns.
+        cells: list[str | None] = list(row)
         if len(cells) < len(HOLDINGS_HEADERS):
             continue
+        # Skip section labels Sutor injects (e.g. a single "Fonds" cell
+        # repeated across the row) or footnote rows like
+        # "* Währungskurs: 1,1498 US$" by requiring an ISIN at the
+        # ISIN column position.
         if not _looks_like_isin(cells[1]):
             continue
-        out.append(_row_to_holding(cells))
+        if any(c is None or not c.strip() for c in cells[: len(HOLDINGS_HEADERS)]):
+            # A real holding row has every column populated;
+            # short-circuit anything Sutor might have wrapped
+            # (e.g. a continuation line of a too-long Investment name).
+            continue
+        out.append(_row_to_holding([str(c) for c in cells[: len(HOLDINGS_HEADERS)]]))
     return tuple(out)
 
 

@@ -130,6 +130,17 @@ ingest-lunar *FLAGS:
 ingest-growney *FLAGS:
     uv run --group db --group http --group parsers penge-growney {{FLAGS}}
 
+# --- PFA pension Pensionsoversigt -----------------------------------------
+#
+# Forward all flags to the penge-pfa CLI. PFA mails an annual
+# Pensionsoversigt PDF; the connector parses it via pdfplumber
+# and falls back to Tesseract OCR (lang=dan+deu) for scanned
+# image-only PDFs. Pass --no-ocr to disable the OCR fallback.
+# Examples:
+#   just ingest-pfa --entity-name "Your Name" path/to/pensionsoversigt-2025.pdf
+ingest-pfa *FLAGS:
+    uv run --group db --group http --group parsers --group ocr penge-pfa {{FLAGS}}
+
 # --- Skat ABIS list (Aktiebaserede Investeringsselskaber) -----------------
 #
 # Forward all flags to the penge-abis CLI. Subcommands:

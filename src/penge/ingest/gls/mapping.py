@@ -118,10 +118,18 @@ def balance_to_market_value(
     for b in balances.balances:
         if b.balance_type in by_type:
             continue
-        by_type[b.balance_type] = (b.balance_amount.amount, b.reference_date)
+        ref = b.reference_date or (
+            b.last_change_date_time.date() if b.last_change_date_time else None
+        )
+        by_type[b.balance_type] = (b.balance_amount.amount, ref)
 
     for preferred in _BALANCE_PREFERENCE:
         if preferred in by_type:
             amount, ref = by_type[preferred]
-            return amount, ref or date.today()
+            if ref is None:
+                # No stable valuation date in the payload — refuse to
+                # synthesise one from wall-clock time, since that would
+                # break idempotency across days.
+                return None
+            return amount, ref
     return None

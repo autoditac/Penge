@@ -26,7 +26,7 @@ from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import MetaData, Table, select
+from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from penge.ingest.gls.mapping import (
@@ -204,7 +204,18 @@ def _get_or_create_account(
         currency=currency,
         iban=iban,
     )
-    stmt = stmt.on_conflict_do_nothing(constraint="ux_account__provider_external_id")
+    # Refresh metadata on conflict so renames / IBAN updates / currency
+    # corrections from upstream propagate to existing rows.
+    stmt = stmt.on_conflict_do_update(
+        constraint="ux_account__provider_external_id",
+        set_={
+            "entity_id": stmt.excluded.entity_id,
+            "name": stmt.excluded.name,
+            "currency": stmt.excluded.currency,
+            "iban": stmt.excluded.iban,
+            "updated_at": func.now(),
+        },
+    )
     conn.execute(stmt)
     account_id = conn.execute(
         select(account.c.id)
@@ -262,7 +273,12 @@ def _upsert_transactions(
     payload: list[dict[str, object]] = []
     for t in transactions:
         if external_id(t) is None:
-            log.warning("skipping GLS transaction without stable id: %s", t)
+            # Avoid logging the full Transaction model: it can contain
+            # counterparty names, IBANs, and amounts (PII).
+            log.warning(
+                "skipping GLS transaction without stable id (booking_date=%s)",
+                t.booking_date,
+            )
             continue
         payload.append(
             transaction_to_row(t, account_id=account_id, instrument_id=instrument_id)

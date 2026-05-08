@@ -70,6 +70,18 @@ def test_balance_entry_rejects_negative_balance() -> None:
         )
 
 
+def test_balance_entry_rejects_non_finite_balance() -> None:
+    for bad in (Decimal("NaN"), Decimal("Infinity"), Decimal("-Infinity")):
+        with pytest.raises(ValueError, match="balance must be a finite decimal"):
+            BalanceEntry(
+                entity="Rouven",
+                account_name="DKB",
+                currency="EUR",
+                as_of=date(2026, 5, 8),
+                balance=bad,
+            )
+
+
 def test_balance_entry_rejects_non_iso_currency() -> None:
     with pytest.raises(ValueError, match="3-letter ISO code"):
         BalanceEntry(

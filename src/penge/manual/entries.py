@@ -27,6 +27,8 @@ def _validate_non_empty(field: str, value: str) -> str:
 
 
 def _validate_non_negative(field: str, value: Decimal) -> Decimal:
+    if not value.is_finite():
+        raise ValueError(f"{field} must be a finite decimal, got {value}")
     if value < 0:
         raise ValueError(f"{field} must be >= 0, got {value}")
     return value

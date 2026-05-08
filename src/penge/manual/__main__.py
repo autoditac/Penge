@@ -107,6 +107,8 @@ def add_balance(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    if entry.note:
+        log.info("manual cash balance note: %s", entry.note)
     record_cash_balance(_engine(), entry)
     typer.echo(f"recorded balance: {entry.account_name} {entry.balance} {entry.currency}")
 
@@ -137,16 +139,22 @@ def mark_property(
         )
     except ValueError as exc:
         raise typer.BadParameter(str(exc)) from exc
+    if entry.note:
+        log.info("manual property note: %s", entry.note)
     record_property_value(_engine(), entry)
     typer.echo(f"recorded property: {entry.property_name} {entry.valuation} {entry.currency}")
 
 
 def main(argv: list[str] | None = None) -> int:
-    # Provide a Click-style entry compatible with __main__:app and tests.
+    # Standalone mode lets Click/Typer format usage errors cleanly and
+    # set the exit code itself; we just translate SystemExit to an int.
     try:
-        app(args=argv, standalone_mode=False)
-    except typer.Exit as exc:  # pragma: no cover - CLI plumbing
-        return int(exc.exit_code)
+        app(args=argv)
+    except SystemExit as exc:  # pragma: no cover - CLI plumbing
+        code = exc.code
+        if isinstance(code, int):
+            return code
+        return 0 if code is None else 1
     return 0
 
 

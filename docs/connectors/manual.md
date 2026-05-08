@@ -53,8 +53,9 @@ just manual-mark-property --entity Rouven --account "Nederbyvej 36" \
 ```
 
 Both subcommands accept an optional `--as-of YYYY-MM-DD` (defaults to
-today) and an optional `--note` (free-form text, currently logged but
-not persisted — a follow-up may move it onto a dedicated column).
+today) and an optional `--note` (free-form text). When provided, the
+note is emitted via the `penge.manual` logger; it is **not** persisted
+to the database — a follow-up may move it onto a dedicated column.
 
 ## Validation
 

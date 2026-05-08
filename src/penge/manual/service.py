@@ -70,36 +70,34 @@ def _get_or_create_account(
     kind: str,
     currency: str,
 ) -> str:
-    """Get-or-create a manual-provider account keyed by (entity, name).
+    """Get-or-create a manual-provider account keyed by ``(entity, name)``.
 
     The schema's unique constraint is on ``(provider, external_id)``;
-    we use the human account name as ``external_id`` so manual entries
-    are stable across runs.
+    we use ``f"{entity_id}:{account_name}"`` as ``external_id`` so manual
+    entries are stable across runs and disambiguated per owner. Concurrent
+    calls are handled via a Postgres ``ON CONFLICT DO NOTHING`` upsert
+    followed by a SELECT, mirroring the Nordnet loader.
     """
     external_id = f"{entity_id}:{account_name}"
-    existing = conn.execute(
+    stmt = pg_insert(account_table).values(
+        entity_id=entity_id,
+        provider=PROVIDER,
+        external_id=external_id,
+        name=account_name,
+        kind=kind,
+        currency=currency,
+    )
+    stmt = stmt.on_conflict_do_nothing(constraint="ux_account__provider_external_id")
+    conn.execute(stmt)
+    account_id = conn.execute(
         select(account_table.c.id)
         .where(
             account_table.c.provider == PROVIDER,
             account_table.c.external_id == external_id,
         )
         .limit(1)
-    ).scalar_one_or_none()
-    if existing is not None:
-        return str(existing)
-    new_id = conn.execute(
-        account_table.insert()
-        .values(
-            entity_id=entity_id,
-            provider=PROVIDER,
-            external_id=external_id,
-            name=account_name,
-            kind=kind,
-            currency=currency,
-        )
-        .returning(account_table.c.id)
     ).scalar_one()
-    return str(new_id)
+    return str(account_id)
 
 
 def _get_or_create_instrument(
@@ -152,7 +150,12 @@ def _upsert_holding_snapshot(
     )
     stmt = stmt.on_conflict_do_update(
         constraint="ux_holding_snapshot__account_instrument_as_of",
-        set_={"market_value": stmt.excluded.market_value},
+        set_={
+            "quantity": stmt.excluded.quantity,
+            "market_value": stmt.excluded.market_value,
+            "price": None,
+            "cost_basis": None,
+        },
     )
     conn.execute(stmt)
 

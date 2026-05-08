@@ -62,6 +62,14 @@ enablebanking = [
   # httpx and pydantic come from the `http` group at runtime.
   "pyjwt[crypto]>=2.8",
 ]
+parsers = [
+  # PDF parsing for the Growney / Sutor Bank Depotauszug connector
+  # (issue #19). pdfplumber's text + table extractors are deterministic
+  # against pinned PDF inputs. reportlab is only used to generate the
+  # synthetic test fixtures under tests/ingest/growney/fixtures/.
+  "pdfplumber>=0.11",
+  "reportlab>=4.2",
+]
 
 [tool.ruff]
 line-length = 100
@@ -148,3 +156,4 @@ penge-web = "penge.web.__main__:main"
 penge-gls = "penge.ingest.gls.__main__:main"
 penge-ebank = "penge.ingest.ebank.__main__:main"
 penge-lunar = "penge.ingest.lunar.__main__:main"
+penge-growney = "penge.ingest.growney.__main__:main"

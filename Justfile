@@ -120,3 +120,12 @@ ingest-ebank *FLAGS:
 # account.dk_tax_treatment = 'aktiesparekonto'.
 ingest-lunar *FLAGS:
     uv run --group db --group http --group enablebanking penge-lunar {{FLAGS}}
+
+# --- Growney / Sutor Bank Depotauszug --------------------------------------
+#
+# Forward all flags to the penge-growney CLI. Sutor Bank is the
+# regulated custodian behind the Growney robo-advisor and emits
+# the data as quarterly Depotauszug PDFs (no CSV export). Examples:
+#   just ingest-growney --entity-name "Your Name" path/to/q1.pdf path/to/q2.pdf
+ingest-growney *FLAGS:
+    uv run --group db --group http --group parsers penge-growney {{FLAGS}}

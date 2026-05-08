@@ -35,6 +35,14 @@ dbt = [
   # bump the floor when we adopt features that need a newer minor.
   "dbt-postgres>=1.9,<2.0",
 ]
+web = [
+  # Streamlit dashboard (issue #25). pandas is required by Streamlit's
+  # native dataframe / chart helpers; plotly drives the time-series and
+  # allocation charts. The DB driver is pulled in via the `db` group.
+  "streamlit>=1.39",
+  "pandas>=2.2",
+  "plotly>=5.24",
+]
 
 [tool.ruff]
 line-length = 100
@@ -59,6 +67,10 @@ ignore = ["PLR0913"]
 # Migrations are autogenerate-friendly scripts; don't penalise them for
 # size, magic numbers, or the boilerplate alembic emits.
 "migrations/**" = ["PLR0913", "PLR0915", "PLR2004", "S608"]
+# Streamlit apps are top-level scripts; magic numbers are common in
+# chart layout. The DB query layer (penge.web.data) is still linted
+# normally and uses parameterised SQLAlchemy `text()`.
+"src/penge/web/**" = ["PLR2004"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -75,6 +87,13 @@ warn_redundant_casts = true
 module = "migrations.*"
 ignore_errors = true
 
+# Streamlit and Plotly do not ship strict-friendly stubs. The web layer
+# is a thin presentation skeleton over typed data helpers; the typed
+# data layer (`penge.web.data`, `penge.web.mask`) is still strict.
+[[tool.mypy.overrides]]
+module = ["streamlit", "streamlit.*", "plotly", "plotly.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers --strict-config"
 testpaths = ["tests"]
@@ -89,3 +108,4 @@ packages = ["src/penge"]
 [project.scripts]
 penge-ecb-fx = "penge.ingest.ecb_fx.__main__:main"
 penge-nordnet = "penge.ingest.nordnet.__main__:main"
+penge-web = "penge.web.__main__:main"

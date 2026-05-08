@@ -27,7 +27,10 @@ deployment-specific; see the loader runbook in a follow-up PR).
 ## Account-mapping config
 
 Real exports contain account numbers but no owner identity. The
-parser looks them up in a YAML file:
+loader looks them up in a YAML file (loaded via
+`load_accounts_config()`); the parser itself is account-agnostic
+and only consumes the resulting mapping when it needs to
+reclassify internal transfers:
 
 ```text
 config/nordnet-accounts.yaml          # gitignored real config
@@ -63,14 +66,15 @@ reconcile the running balance — see ADR-0008 for the rationale.
 | `KØBT`                     | `buy`                         |
 | `SOLGT`                    | `sell`                        |
 | `UDBYTTE`                  | `dividend`                    |
-| `INDBETALING`              | `deposit` *or* `internal_transfer` (1) |
+| `INDBETALING`              | `deposit`                     |
 | `HÆVNING`                  | `withdrawal` *or* `internal_transfer` (1) |
 | `INDSÆTTELSE`              | `deposit` *or* `internal_transfer` (1) |
 | `KREDITRENTE`              | `cash_interest`               |
 | `AFKASTSKAT ASK`           | `tax_ask_charge`              |
 | `SKATTEINDBETALING ASK`    | `tax_ask_payment`             |
 
-(1) The parser inspects `Transaktionstekst`; if it matches
+(1) For `HÆVNING` and `INDSÆTTELSE` the parser inspects
+`Transaktionstekst`; if it matches
 `Internal (from\|to) <kontonummer>` the row is reclassified as
 `internal_transfer` and the counter-account is preserved on the
 parsed record. The loader is then responsible for deduping the
@@ -123,7 +127,7 @@ re-running the same export only updates `updated_at` columns.
 After `uv sync`:
 
 ```sh
-penge-nordnet \
+uv run --group db penge-nordnet \
     --transactions 20260507-nordnet-transactions-and-notes-export.csv \
     --holdings "Depotoversigt for kontonummer 60109543, 7.5.2026.csv" \
     --holdings "Depotoversigt for kontonummer 60183456, 7.5.2026.csv" \

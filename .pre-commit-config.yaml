@@ -39,9 +39,12 @@ repos:
     hooks:
       - id: mypy
         args: [--strict, --ignore-missing-imports]
-        # Runs only when staged files include Python sources. No deps yet —
-        # add `additional_dependencies` here once we have third-party stubs
-        # we want type-checked (sqlalchemy[mypy], pydantic, etc.).
+        # Stubs for third-party libraries we type-check against.
+        # Keep this list minimal; add only when a new dep introduces
+        # genuine type-check coverage gaps.
+        additional_dependencies:
+          - pydantic
+          - types-PyYAML
 
   - repo: https://github.com/sqlfluff/sqlfluff
     rev: 4.1.0

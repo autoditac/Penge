@@ -3,8 +3,9 @@
 Penge uses [dbt](https://docs.getdbt.com/) for analytics modelling
 on top of the operational Postgres schema produced by Alembic. dbt
 sits **read-only** on the `public` schema and writes its own
-artefacts into the `staging` and `marts` schemas inside the same
-database.
+artefacts into the `analytics_staging` and `analytics_marts`
+schemas inside the same database (target schema `analytics` plus
+dbt's per-folder `+schema:` suffixes — see [Conventions](#conventions)).
 
 ## Layout
 
@@ -21,7 +22,7 @@ dbt/
 
 - `models/staging/` — 1:1 cleaned views over raw tables. One
   `stg_<source>__<table>.sql` file per raw table we actually use,
-  plus a sibling `schema.yml` with column tests.
+  plus a sibling `_<source>__schema.yml` with column tests.
 - `models/marts/` — business-logic models materialised as tables.
   `mart_net_worth_daily` (issue #24) is the first; see
   [Marts](#marts) below.
@@ -92,8 +93,8 @@ build time.
   preferred over subqueries. A `.sqlfluff` config will land
   alongside the first model.
 - **Tests**: every staging model declares `not_null` on its primary
-  key in `_schema.yml`. Mart-level invariants get bespoke
-  `tests/` SQL.
+  key in its sibling `_<model>__schema.yml`. Mart-level invariants
+  get bespoke `tests/` SQL.
 
 ## Adding a package
 
@@ -104,7 +105,8 @@ echo "packages:
 uv run --group dbt dbt deps --project-dir dbt --profiles-dir dbt
 ```
 
-Reviewers should reject speculative additions; only a
+Reviewers should reject speculative additions; only add a package
+when a specific model needs a specific macro from it.
 
 ## Marts
 
@@ -149,5 +151,4 @@ docs and tests.
 
 **v1 scope.** Balance time series only. Per-transaction cashflow
 FX attribution (using `transaction.fx_rate` at booking time) is
-out of scope here and will land with the cashflow mart.dd a package
-when a specific model needs a specific macro from it.
+out of scope here and will land with the cashflow mart.

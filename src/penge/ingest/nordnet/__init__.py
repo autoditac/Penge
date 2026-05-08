@@ -1,12 +1,14 @@
 """Nordnet (Denmark) CSV ingest connector.
 
 Parses Nordnet's transaction and holdings CSV exports for the DK
-locale into typed canonical records. See ADR-0008 for the data
-modelling rules (account kinds, multi-currency cash, ASK tax).
+locale into typed canonical records and upserts them into the
+operational Postgres schema. See ADR-0008 for the data modelling
+rules (account kinds, multi-currency cash, ASK tax).
 
-This module is parse-only; loading parsed records into Postgres is
-the responsibility of a follow-up loader (analogous to
-`penge.ingest.ecb_fx.upsert`).
+The package exposes both a parse-only API (``parse_transactions``,
+``parse_holdings_file``, ``derive_cash_balances``) and a loader
+(``load_files``, ``load_records``) backed by the ``penge-nordnet``
+CLI entrypoint.
 """
 
 from penge.ingest.nordnet.config import AccountConfig, AccountsConfig, load_accounts_config

@@ -116,9 +116,10 @@ Because Nordnet does not export the Valutakonto, the most recent
 non-DKK `Saldo` per `(account, currency)` from the transaction CSV
 is the authoritative source. The Nordnet loader emits one
 `holding_snapshot` row per `(account_id, CASH:<CCY>, as_of_date)`
-where `as_of_date` is the value date of that latest transaction
-and `quantity == amount == latest Saldo`. The basisvaluta cash
-position is derived from the same column with no special-casing.
+where `as_of_date` is the value date of that latest transaction,
+`quantity == latest Saldo`, and `market_value == latest Saldo`
+(price = 1 in the cash currency). The basisvaluta cash position
+is derived from the same column with no special-casing.
 
 ### ASK tax event preservation
 
@@ -157,9 +158,10 @@ losing the audit trail.
 ### Negative
 
 - Cash quantities are stored in `holding_snapshot.quantity`
-  (`Numeric(28, 8)`) rather than in a money column, costing four
-  digits of decimal precision relative to `Numeric(20, 4)`. Still
-  more than enough for cash.
+  (`Numeric(28, 8)`) rather than in a money column
+  (`Numeric(20, 4)`). The chosen type has more decimal places
+  than needed for cash, but reusing the existing column avoids a
+  schema migration and keeps the holdings union uniform.
 - The synthetic `CASH:<CCY>` rows in `instrument` are not real
   tradable assets; downstream views must filter them out where a
   "tradable instrument" sense is meant. Mitigation: dbt staging
@@ -202,4 +204,5 @@ sweep accounts, money-market funds) that securities don't share.
 - Issue #17 — Nordnet CSV parser
 - Issue #24 — `mart_net_worth_daily`
 - Issue #36 — DK Lagerbeskatning calculator
-- Repo memory: `nordnet-csv-schema.md` — column-level CSV schema
+- [`docs/connectors/nordnet.md`](../connectors/nordnet.md) —
+  column-level CSV schema and parser behaviour

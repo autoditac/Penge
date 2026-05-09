@@ -453,7 +453,7 @@ def parse_pensionsoversigt(
         extracted_via = "ocr"
 
     policy_number, as_of, period_from, period_to = _parse_metadata(text)
-    schemes = _build_schemes(tables, holdings_tables=tables)
+    schemes = _build_schemes(tables)
     return ParsedPensionsoversigt(
         policy_number=policy_number,
         as_of=as_of,
@@ -516,26 +516,74 @@ def _extract_text_and_tables_via_ocr(
     tables: list[list[list[str | None]]] = []
     images = pdf2image.convert_from_path(str(pdf_path), dpi=300)
     for image in images:
-        page_text = pytesseract.image_to_string(image, lang="dan+deu")
-        text_parts.append(page_text)
-        rows = _ocr_words_to_rows(
-            pytesseract.image_to_data(
-                image,
-                lang="dan+deu",
-                output_type=pytesseract.Output.DICT,
-            )
+        # Single OCR pass per page: the TSV contains every word's
+        # text plus its bounding box, so we use it both to rebuild
+        # ``page_text`` and to recover row structure.
+        data = pytesseract.image_to_data(
+            image,
+            lang="dan+deu",
+            output_type=pytesseract.Output.DICT,
         )
-        if rows:
-            tables.append(rows)
+        page_text = _ocr_data_to_text(data)
+        text_parts.append(page_text)
+        tables.extend(_ocr_words_to_tables(data))
     return "\n".join(text_parts), tables
 
 
-def _ocr_words_to_rows(
-    data: dict[str, list[object]],
-) -> list[list[str | None]]:
-    """Group Tesseract word-boxes into rows by ``line_num``.
+def _ocr_data_to_text(data: dict[str, list[object]]) -> str:
+    """Reconstruct page text from a Tesseract TSV result.
 
-    The returned structure mimics what pdfplumber's
+    Words are grouped by their ``(block_num, par_num, line_num)``
+    key so the resulting string preserves Tesseract's natural line
+    ordering. This avoids running ``image_to_string`` separately,
+    halving OCR runtime per page.
+    """
+
+    def _as_int(value: object) -> int:
+        if isinstance(value, int):
+            return value
+        try:
+            return int(str(value))
+        except (TypeError, ValueError):
+            return 0
+
+    line_nums = data.get("line_num", [])
+    block_nums = data.get("block_num", [])
+    par_nums = data.get("par_num", [])
+    lefts = data.get("left", [])
+    texts = data.get("text", [])
+    by_line: dict[tuple[int, int, int], list[tuple[int, int, str]]] = {}
+    for i in range(len(texts)):
+        word = str(texts[i]).strip()
+        if not word:
+            continue
+        key = (
+            _as_int(block_nums[i]) if i < len(block_nums) else 0,
+            _as_int(par_nums[i]) if i < len(par_nums) else 0,
+            _as_int(line_nums[i]) if i < len(line_nums) else 0,
+        )
+        x = _as_int(lefts[i]) if i < len(lefts) else 0
+        # ``i`` is the tiebreaker: words at the same ``x`` retain
+        # the order Tesseract emitted them.
+        by_line.setdefault(key, []).append((x, i, word))
+    return "\n".join(
+        " ".join(word for _, _, word in sorted(by_line[key])) for key in sorted(by_line)
+    )
+
+
+def _ocr_words_to_tables(
+    data: dict[str, list[object]],
+) -> list[list[list[str | None]]]:
+    """Group Tesseract word-boxes into tables, one per ``block_num``.
+
+    Tesseract assigns a different ``block_num`` to each layout
+    region on a page (a paragraph, a table, a header). Splitting
+    on ``block_num`` lets the downstream scheme detector work on
+    each region independently — necessary when a page contains
+    both a metadata header and a financial-summary table. Within
+    a block, words are grouped into rows by ``(par_num,
+    line_num)``; cells inside a row are split on a coarse x-gap
+    heuristic. The returned structure mimics what pdfplumber's
     ``extract_tables`` produces, so downstream helpers can be
     shared between the two extraction paths.
     """
@@ -550,7 +598,7 @@ def _ocr_words_to_rows(
         except (TypeError, ValueError):
             return 0
 
-    by_line: dict[tuple[int, int, int], list[tuple[int, str]]] = {}
+    by_block: dict[int, dict[tuple[int, int], list[tuple[int, int, str]]]] = {}
     line_nums = data.get("line_num", [])
     block_nums = data.get("block_num", [])
     par_nums = data.get("par_num", [])
@@ -560,28 +608,32 @@ def _ocr_words_to_rows(
         word = str(texts[i]).strip()
         if not word:
             continue
-        key = (
-            _as_int(block_nums[i]) if i < len(block_nums) else 0,
+        block = _as_int(block_nums[i]) if i < len(block_nums) else 0
+        line_key = (
             _as_int(par_nums[i]) if i < len(par_nums) else 0,
             _as_int(line_nums[i]) if i < len(line_nums) else 0,
         )
         x = _as_int(lefts[i]) if i < len(lefts) else 0
-        by_line.setdefault(key, []).append((x, word))
+        by_block.setdefault(block, {}).setdefault(line_key, []).append((x, i, word))
 
-    rows: list[list[str | None]] = []
-    for key in sorted(by_line):
-        words = sorted(by_line[key])
-        # Group adjacent words into logical "cells" using a coarse
-        # x-gap heuristic.
-        cells: list[list[str]] = [[]]
-        prev_x: int | None = None
-        for x, word in words:
-            if prev_x is not None and (x - prev_x) > _OCR_CELL_GAP_PX:
-                cells.append([])
-            cells[-1].append(word)
-            prev_x = x + len(word) * 12  # rough char-width estimate
-        rows.append([" ".join(c) if c else None for c in cells])
-    return rows
+    tables: list[list[list[str | None]]] = []
+    for block in sorted(by_block):
+        rows: list[list[str | None]] = []
+        for key in sorted(by_block[block]):
+            words = sorted(by_block[block][key])
+            # Group adjacent words into logical "cells" using a coarse
+            # x-gap heuristic.
+            cells: list[list[str]] = [[]]
+            prev_x: int | None = None
+            for x, _idx, word in words:
+                if prev_x is not None and (x - prev_x) > _OCR_CELL_GAP_PX:
+                    cells.append([])
+                cells[-1].append(word)
+                prev_x = x + len(word) * 12  # rough char-width estimate
+            rows.append([" ".join(c) if c else None for c in cells])
+        if rows:
+            tables.append(rows)
+    return tables
 
 
 # --- table dispatch --------------------------------------------------------
@@ -589,8 +641,6 @@ def _ocr_words_to_rows(
 
 def _build_schemes(
     tables: list[list[list[str | None]]],
-    *,
-    holdings_tables: list[list[list[str | None]]],
 ) -> tuple[ParsedScheme, ...]:
     """Group financial-summary + holdings tables into ``ParsedScheme``s.
 

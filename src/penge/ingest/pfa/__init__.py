@@ -4,8 +4,7 @@ PFA Pension is a Danish pension provider. Account holders receive
 periodic *Pensionsoversigt* (pension overview) PDFs that summarise:
 
 - one or more sub-policies, each scoped to a Danish pension regime
-  (``aldersopsparing``, ``ratepension``, ``livrente`` /
-  ``livrente_livsvarig``);
+  (``aldersopsparing``, ``ratepension``, ``livrente``);
 - the policy's investment profile (PFA Plus by default), expressed
   as a list of fund holdings with market value in DKK;
 - contributions year-to-date (employer + employee), the gross /

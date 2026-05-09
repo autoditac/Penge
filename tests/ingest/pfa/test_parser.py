@@ -20,7 +20,6 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
 from unittest import mock
 
 import pytest
@@ -224,7 +223,10 @@ class TestParseMetadata:
 
 @pytest.mark.skipif(
     not TEXT_FIXTURE.exists(),
-    reason="Run `uv run python tools/generate_pfa_fixture.py` to produce the fixture.",
+    reason=(
+        "Run `uv run --group parsers --group ocr python tools/generate_pfa_fixture.py`"
+        " to produce the fixture."
+    ),
 )
 class TestParsePensionsoversigt:
     def test_text_path(self) -> None:
@@ -269,57 +271,62 @@ class TestParsePensionsoversigt:
 # --- OCR fallback ---------------------------------------------------------
 
 
-_CANNED_OCR_TEXT = (
-    "PFA Pensionsoversigt\n"
-    "Policenr.: 12-345-678\n"
-    "Opgjort pr. 31.12.2025\n"
-    "Optjeningsperiode: 01.01.2025 - 31.12.2025\n"
-    "Aldersopsparing\n"
-    "Primo 50.000,00\n"
-    "Indbetaling - Arbejdsgiver 0,00\n"
-    "Indbetaling - Privat 8.500,00\n"
-    "Afkast 2.500,00\n"
-    "Omkostninger 120,00\n"
-    "PAL-skat 382,50\n"
-    "Ultimo 60.497,50\n"
-)
-
-
-def _canned_tsv() -> dict[str, list[Any]]:
+def _canned_tsv() -> dict[str, list[object]]:
     """A tiny Tesseract-style TSV for the Aldersopsparing summary.
 
     Two-column layout: label at x=100, amount at x=400 (gap >
-    ``_OCR_CELL_GAP_PX``=80 → split into two cells per line).
+    ``_OCR_CELL_GAP_PX``=80 → split into two cells per line). The
+    leading rows contain the statement metadata so the parser can
+    rebuild the page text directly from this TSV (single OCR pass).
     """
 
-    rows = [
-        ("Aldersopsparing", ""),
-        ("Primo", "50.000,00"),
-        ("Indbetaling - Arbejdsgiver", "0,00"),
-        ("Indbetaling - Privat", "8.500,00"),
-        ("Afkast", "2.500,00"),
-        ("Omkostninger", "120,00"),
-        ("PAL-skat", "382,50"),
-        ("Ultimo", "60.497,50"),
+    # Block 1 holds the metadata header; block 2 holds the
+    # financial-summary table. ``_ocr_words_to_tables`` splits on
+    # ``block_num`` so the scheme detector sees the summary table
+    # with "Aldersopsparing" as its first row.
+    blocks: list[tuple[int, list[tuple[str, str]]]] = [
+        (
+            1,
+            [
+                ("PFA Pensionsoversigt", ""),
+                ("Policenr.: 12-345-678", ""),
+                ("Opgjort pr. 31.12.2025", ""),
+                ("Optjeningsperiode: 01.01.2025 - 31.12.2025", ""),
+            ],
+        ),
+        (
+            2,
+            [
+                ("Aldersopsparing", ""),
+                ("Primo", "50.000,00"),
+                ("Indbetaling - Arbejdsgiver", "0,00"),
+                ("Indbetaling - Privat", "8.500,00"),
+                ("Afkast", "2.500,00"),
+                ("Omkostninger", "120,00"),
+                ("PAL-skat", "382,50"),
+                ("Ultimo", "60.497,50"),
+            ],
+        ),
     ]
-    text: list[str] = []
-    block_num: list[int] = []
-    par_num: list[int] = []
-    line_num: list[int] = []
-    left: list[int] = []
-    for li, (label, amount) in enumerate(rows, start=1):
-        for word in label.split():
-            text.append(word)
-            block_num.append(1)
-            par_num.append(1)
-            line_num.append(li)
-            left.append(100)
-        if amount:
-            text.append(amount)
-            block_num.append(1)
-            par_num.append(1)
-            line_num.append(li)
-            left.append(400)
+    text: list[object] = []
+    block_num: list[object] = []
+    par_num: list[object] = []
+    line_num: list[object] = []
+    left: list[object] = []
+    for block, block_rows in blocks:
+        for li, (label, amount) in enumerate(block_rows, start=1):
+            for word in label.split():
+                text.append(word)
+                block_num.append(block)
+                par_num.append(1)
+                line_num.append(li)
+                left.append(100)
+            if amount:
+                text.append(amount)
+                block_num.append(block)
+                par_num.append(1)
+                line_num.append(li)
+                left.append(400)
     return {
         "text": text,
         "block_num": block_num,
@@ -331,7 +338,10 @@ def _canned_tsv() -> dict[str, list[Any]]:
 
 @pytest.mark.skipif(  # type: ignore[untyped-decorator]  # pytest decorator is untyped under strict mypy
     not SCANNED_FIXTURE.exists(),
-    reason="Run `uv run python tools/generate_pfa_fixture.py` to produce the OCR fixture.",
+    reason=(
+        "Run `uv run --group parsers --group ocr python tools/generate_pfa_fixture.py`"
+        " to produce the OCR fixture."
+    ),
 )
 def test_ocr_fallback_path() -> None:
     """Force the OCR path and assert the parser still returns a scheme.
@@ -341,7 +351,6 @@ def test_ocr_fallback_path() -> None:
     """
 
     mocked_pytesseract = mock.MagicMock()
-    mocked_pytesseract.image_to_string.return_value = _CANNED_OCR_TEXT
     mocked_pytesseract.image_to_data.return_value = _canned_tsv()
 
     class _Output:

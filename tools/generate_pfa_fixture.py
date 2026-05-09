@@ -1,7 +1,13 @@
 """Generate the synthetic PFA Pensionsoversigt PDFs used by tests.
 
-Run with ``uv run --group parsers python tools/generate_pfa_fixture.py``.
-The script overwrites two PDFs under ``tests/ingest/pfa/fixtures/``:
+Run with::
+
+    uv run --group parsers --group ocr python tools/generate_pfa_fixture.py
+
+The ``parsers`` group provides ``reportlab`` (text PDF) and the
+``ocr`` group provides ``pdf2image`` + ``Pillow`` which are used
+to rasterise the text PDF into the image-only fixture. The script
+overwrites two PDFs under ``tests/ingest/pfa/fixtures/``:
 
 - ``sample_pensionsoversigt.pdf`` — text-embedded, exercises the
   pdfplumber fast path;

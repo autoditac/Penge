@@ -113,7 +113,7 @@ def load_records(
 
         entity_id = _get_or_create_entity(conn, entity, name=entity_name)
 
-        accounts = 0
+        accounts: set[str] = set()
         instruments = 0
         transactions_count = 0
         snapshots = 0
@@ -127,7 +127,7 @@ def load_records(
                     policy_number=stmt.policy_number,
                     scheme=scheme,
                 )
-                accounts += 1
+                accounts.add(account_id)
                 transactions_count += _upsert_scheme_transactions(
                     conn,
                     transaction,
@@ -150,7 +150,7 @@ def load_records(
 
     return LoadResult(
         entities=1,
-        accounts=accounts,
+        accounts=len(accounts),
         instruments=instruments,
         transactions=transactions_count,
         holding_snapshots=snapshots,
@@ -213,14 +213,8 @@ def _get_or_create_account(
             "currency": stmt.excluded.currency,
             "updated_at": func.now(),
         },
-    )
-    conn.execute(stmt)
-    account_id = conn.execute(
-        select(account.c.id)
-        .where(account.c.provider == PROVIDER, account.c.external_id == external_id)
-        .limit(1)
-    ).scalar_one()
-    return str(account_id)
+    ).returning(account.c.id)
+    return str(conn.execute(stmt).scalar_one())
 
 
 _TICKER_SLUG_RE = re.compile(r"[^A-Z0-9]+")

@@ -83,9 +83,9 @@ class TestConstruction:
         model = BootstrapReturnModel(
             asset_returns={
                 "a": [Decimal("0.01")] * 12,
-                "b": [0.01] * 12,  # type: ignore[list-item]
-                "c": [1] * 12,  # type: ignore[list-item]
-                "d": ["0.01"] * 12,  # type: ignore[list-item]
+                "b": [0.01] * 12,  # type: ignore[list-item]  # float coerced to Decimal by validator
+                "c": [1] * 12,  # type: ignore[list-item]  # int coerced to Decimal by validator
+                "d": ["0.01"] * 12,  # type: ignore[list-item]  # numeric str coerced to Decimal by validator
             },
             inflation={"de": [Decimal("0.002")] * 12},
             block_months=3,
@@ -149,6 +149,55 @@ class TestConstruction:
                 inflation={"de": [Decimal("0.0")] * 12},
                 block_months=0,
             )
+
+    def test_rejects_string_series(self) -> None:
+        # A bare string would otherwise iterate as characters and silently
+        # parse into a series of digits.
+        with pytest.raises(ValueError, match="must be a non-string sequence"):
+            BootstrapReturnModel(
+                asset_returns={"a": "0.01"},  # type: ignore[dict-item]  # intentional misuse for validation
+                inflation={"de": [Decimal("0.002")] * 12},
+            )
+
+    def test_rejects_bytes_series(self) -> None:
+        with pytest.raises(ValueError, match="must be a non-string sequence"):
+            BootstrapReturnModel(
+                asset_returns={"a": b"\x01" * 12},  # type: ignore[dict-item]  # intentional misuse for validation
+                inflation={"de": [Decimal("0.002")] * 12},
+            )
+
+    def test_rejects_nan_decimal(self) -> None:
+        with pytest.raises(ValueError, match="non-finite entry"):
+            BootstrapReturnModel(
+                asset_returns={"a": [Decimal("NaN")] + [Decimal("0.01")] * 11},
+                inflation={"de": [Decimal("0.002")] * 12},
+            )
+
+    def test_rejects_infinity(self) -> None:
+        with pytest.raises(ValueError, match="non-finite entry"):
+            BootstrapReturnModel(
+                asset_returns={"a": [Decimal("Infinity")] + [Decimal("0.01")] * 11},
+                inflation={"de": [Decimal("0.002")] * 12},
+            )
+
+    def test_rejects_nan_float(self) -> None:
+        with pytest.raises(ValueError, match="non-finite entry"):
+            BootstrapReturnModel(
+                asset_returns={"a": [float("nan")] + [0.01] * 11},  # type: ignore[dict-item]  # validator coerces float→Decimal
+                inflation={"de": [Decimal("0.002")] * 12},
+            )
+
+    def test_history_hash_is_invariant_to_decimal_formatting(self) -> None:
+        # Numerically-equal but textually-different inputs must hash identically.
+        a = BootstrapReturnModel(
+            asset_returns={"a": [Decimal("1")] * 12},
+            inflation={"de": [Decimal("0.002")] * 12},
+        )
+        b = BootstrapReturnModel(
+            asset_returns={"a": [Decimal("1.0")] * 12},
+            inflation={"de": [Decimal("0.00200")] * 12},
+        )
+        assert a.history_hash() == b.history_hash()
 
 
 # ---------------------------------------------------------------------------
@@ -220,10 +269,13 @@ class TestCrossAssetStructure:
 
 
 class TestIIDDegenerateCase:
-    def test_block_months_one_lag1_autocorrelation_near_zero(self) -> None:
-        # AR(1) history with rho=0.6, sampled IID monthly → lag-1 autocorrelation
-        # of the *sampled monthly* sequence should be ~0 (the bootstrap shuffles
-        # months independently).
+    def test_block_months_one_yields_independent_paths(self) -> None:
+        # AR(1) history with rho=0.6, sampled IID monthly. Adjacent paths
+        # are drawn independently, so the cross-path correlation between
+        # consecutive single-year annual sums is ~0. (This does NOT test
+        # within-path lag-1 monthly autocorrelation — see
+        # ``TestBlockBootstrapPreservesAutocorrelation`` for the
+        # variance-based proxy of that.)
         n_months = 480
         history = _ar1_history(n_months=n_months, rho=0.6, sigma=0.04, seed=1)
         model = BootstrapReturnModel(
@@ -232,31 +284,29 @@ class TestIIDDegenerateCase:
             block_months=1,
             seed=11,
         )
-        # Reconstruct the underlying monthly sample by drawing many "single
-        # year" paths and concatenating them; with block_months=1 the
-        # annual-aggregation step does not affect lag-1 month-level AC across
-        # the full sequence.
         result = model.sample_paths(years=1, n_paths=2000)
-        # 2000 single-year annual sums ≈ a moving average; instead, we test
-        # at the annual-return level: IID monthly bootstrapping makes annual
-        # sums asymptotically Gaussian with near-zero lag-1 AC across paths.
         annual = result.asset_log_returns["a"][:, 0]
         ac = float(np.corrcoef(annual[:-1], annual[1:])[0, 1])
         assert abs(ac) < 0.1
 
 
 class TestBlockBootstrapPreservesAutocorrelation:
-    def test_long_block_recovers_higher_within_block_autocorrelation(self) -> None:
-        """An AR(1) history with rho=0.6 sampled with block_months=24 should
-        retain a positive lag-1 monthly autocorrelation when we look at the
-        within-path monthly sequence; a block_months=1 sample should not."""
+    def test_long_block_inflates_annual_variance_vs_iid(self) -> None:
+        """Variance-based proxy for within-block autocorrelation.
+
+        We cannot inspect within-path monthly autocorrelation directly
+        without exposing internal sequences, so we use the textbook
+        identity for an annual sum of 12 months: under IID,
+        ``var(annual) ≈ 12 * var(monthly)``; under positively
+        autocorrelated blocks, ``var(annual) > 12 * var(monthly)``
+        because months within a block move together. We compare the
+        variance of one-year annual sums under ``block_months=1``
+        (IID baseline) and ``block_months=24`` (long blocks) against
+        the same AR(1) history; the long-block variance should
+        noticeably exceed the IID variance.
+        """
         n_months = 480
         history = _ar1_history(n_months=n_months, rho=0.6, sigma=0.04, seed=2)
-        # Bypass the annual aggregation by using years=1 and a custom probe:
-        # we re-sample the model with block_months=1 vs 24 and compare the
-        # variance of annual sums. Under IID, var(annual) ≈ 12 * var(monthly).
-        # Under positively autocorrelated blocks, var(annual) > 12 * var(monthly)
-        # because months within a block move together.
         asset_returns = {"a": history}
         inflation = _flat_inflation(n_months)
         iid = BootstrapReturnModel(

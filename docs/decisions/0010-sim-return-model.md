@@ -87,10 +87,14 @@ class BootstrapReturnModel(BaseModel):
 - `seed`, `block_months`, and a hash of the input history for
   reproducibility audits.
 
-Annual returns are produced by summing 12 monthly log returns within
-each year (months never split a year). `numpy.random.Generator` is
-constructed from the `seed` so the same seed yields the same paths
-across runs.
+Annual returns are produced by summing 12 consecutive *sampled* monthly
+log returns. With `block_months ∈ {1, 12, 24, ...}` (multiples of 12 or
+1), block boundaries align with year boundaries; for any other
+`block_months` a year boundary may fall inside a sampled block. The
+year boundaries are imposed by the aggregation step on the sampled
+month sequence — they do not constrain how blocks are cut from the
+underlying history. `numpy.random.Generator` is constructed from the
+`seed` so the same seed yields the same paths across runs.
 
 ## Consequences
 

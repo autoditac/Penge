@@ -9,10 +9,10 @@ Subpackages:
 - :mod:`penge.sim.goal` — FIRE goal evaluation engine (issue #30,
   ADR-0012).
 - :mod:`penge.sim.tax` — statutory tax overlay (issue #28, ADR-0013).
+- :mod:`penge.sim.montecarlo` — vectorized Monte-Carlo runner (issue #31, ADR-0014).
 
 Future modules planned for milestone M2 (FIRE & Scenarios):
 
-- ``penge.sim.montecarlo`` — vectorized Monte-Carlo runner (#31).
 - ``penge.sim.scenario`` — scenario diff engine (#32).
 """
 
@@ -30,6 +30,11 @@ from penge.sim.goal import (
     GoalConfig,
     GoalResult,
     evaluate,
+)
+from penge.sim.montecarlo import (
+    MonteCarloConfig,
+    MonteCarloResult,
+    run,
 )
 from penge.sim.returns import (
     BootstrapReturnModel,
@@ -56,6 +61,8 @@ __all__ = [
     "EntityTaxRegime",
     "GoalConfig",
     "GoalResult",
+    "MonteCarloConfig",
+    "MonteCarloResult",
     "PensionAccrualRule",
     "ReturnModelError",
     "SalaryRule",
@@ -66,4 +73,5 @@ __all__ = [
     "evaluate",
     "net_pension_drawdown",
     "project",
+    "run",
 ]

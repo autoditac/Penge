@@ -16,6 +16,7 @@ Penge is a private personal-finance & FIRE-modeling platform for a DK/DE househo
 6. **Migrations must be reversible.** Every Alembic upgrade has a tested downgrade.
 7. **Reproducibility:** lockfiles are committed; Docker images are pinned by digest; GitHub Actions are pinned by SHA.
 8. **Pin versions, never `latest`.** Applies to base images, action versions, package versions in lockfiles, and dbt packages.
+9. **No PR is merged before review.** Wait for the Copilot review bot (and any requested human reviewer) to post; resolve every review thread before merging. Never use `gh pr merge --admin` or otherwise bypass branch protection. If the user has explicitly told you to merge without waiting, that direction overrides this rule for that one PR only — record the override in the PR description.
 
 ## Toolchain (canonical)
 

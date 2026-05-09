@@ -69,3 +69,8 @@ site/
 # Local connector configs — only the *.example.yaml templates are committed.
 /config/*.yaml
 !/config/*.example.yaml
+
+# Chat-history dumps from coding-agent sessions may contain salary numbers,
+# real account references, or other personal data — keep them out of the repo.
+.github/CHAT-HISTORY.MD
+.github/CHAT-HISTORY.md

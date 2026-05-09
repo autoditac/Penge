@@ -51,10 +51,18 @@ A PR is ready to merge **only when all** apply:
 - [ ] If architectural: a new ADR is included or referenced.
 - [ ] Database migrations include a tested downgrade.
 - [ ] No secrets in the diff (`gitleaks` and secret-scanning enforce this).
-- [ ] CI green (lint, typecheck, tests, container build, dbt parse, sqlfluff).
+- [ ] CI green (lint, typecheck, tests, container build, dbt parse, sqlfluff) **on the latest commit, not a stale one**.
 - [ ] Self-reviewed (read your own diff in the GitHub UI before requesting review).
+- [ ] **At least one review has been posted** — Copilot review bot, a human, or an explicit "merge it" from the user. "No reviews yet" never counts as approval.
+- [ ] **Every review thread resolved** — either by a fix commit or by an explicit written rationale for declining; no unresolved threads at merge time.
+
+### Merging
 
 PRs are squash-merged. The PR title becomes the squashed commit message and **must** follow Conventional Commits.
+
+- Use `gh pr merge <N> --squash --delete-branch`. **Never** `--admin`. Never force-push to `main`. Never bypass branch protection — if it blocks the merge, fix the underlying cause.
+- After opening a PR, **wait for the Copilot review to land** before merging. The review bot typically posts within a few minutes of CI going green; "CI is green and there are no comments yet" is *not* the same as "approved". Poll with `gh pr view <N> --json reviews,reviewThreads` or `gh pr checks <N>` until a review exists.
+- This rule exists because PRs #86 and #89 were merged with `--admin` immediately after CI went green and before the Copilot review bot had a chance to comment, which forced a follow-up cleanup branch (`chore/18-pr-review-followups`) to address the missed feedback.
 
 ## Architecture Decisions
 

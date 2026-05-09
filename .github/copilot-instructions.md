@@ -16,7 +16,8 @@ These instructions apply to **all** files in this repository.
 4. Every code change includes tests. Every behavioral or architectural change includes documentation.
 5. Architectural changes require an ADR in `docs/decisions/` using the MADR template.
 6. Migrations are reversible (tested `alembic upgrade && alembic downgrade`).
-7. The full Definition of Done is in [CONTRIBUTING.md](../CONTRIBUTING.md).
+7. **Never merge a PR before the Copilot review bot has posted its review and every review thread is resolved.** "CI is green and no comments yet" is not approval — wait for the review to land. Never bypass branch protection with `gh pr merge --admin` or any equivalent.
+8. The full Definition of Done is in [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## Toolchain — never deviate
 

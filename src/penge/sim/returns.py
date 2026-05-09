@@ -111,9 +111,14 @@ class BootstrapReturnModel(BaseModel):
     def _coerce_history(cls, value: object) -> _History:
         """Coerce dict-of-iterables-of-numbers to dict-of-tuple-of-Decimal.
 
-        Accepts inputs where values are any iterable of numbers
+        Accepts inputs where values are any non-string iterable of numbers
         (``Decimal``, ``int``, ``float``, or numeric strings) so that
         both YAML-configured callers and tests can write naturally.
+        Rejects ``str``/``bytes`` series eagerly: a single string would
+        otherwise iterate as characters and silently parse into a series
+        of digits. Rejects non-finite values (NaN/Infinity) to keep
+        them out of the NumPy kernel where they would silently
+        contaminate every sampled path.
         """
         if not isinstance(value, Mapping):
             raise ReturnModelError(
@@ -125,12 +130,22 @@ class BootstrapReturnModel(BaseModel):
                 raise ReturnModelError(
                     f"history label must be a string, got {type(label).__name__}"
                 )
+            if isinstance(raw, str | bytes | bytearray):
+                raise ReturnModelError(
+                    f"history series '{label}' must be a non-string sequence, "
+                    f"got {type(raw).__name__}"
+                )
             try:
                 series = tuple(Decimal(str(x)) for x in raw)
             except (TypeError, ValueError, InvalidOperation) as exc:
                 raise ReturnModelError(
                     f"history series '{label}' contains a non-numeric entry"
                 ) from exc
+            for entry in series:
+                if not entry.is_finite():
+                    raise ReturnModelError(
+                        f"history series '{label}' contains a non-finite entry ({entry})"
+                    )
             out[label] = series
         return out
 
@@ -172,8 +187,11 @@ class BootstrapReturnModel(BaseModel):
         """Stable SHA-256 of the canonicalised input history.
 
         Stable across Python invocations: keys are sorted and Decimals
-        are serialised via ``str``. Hash changes iff any number, label,
-        or series length changes.
+        are normalised via :py:meth:`Decimal.normalize` before being
+        serialised, so numerically-equal but textually-different inputs
+        (``Decimal("1")`` vs ``Decimal("1.0")``) hash identically. The
+        hash changes iff a numeric value, label, or series length
+        changes.
         """
         hasher = hashlib.sha256()
         for kind, series_dict in (
@@ -186,7 +204,7 @@ class BootstrapReturnModel(BaseModel):
                 hasher.update(label.encode("utf-8"))
                 hasher.update(b"\x00")
                 for value in series_dict[label]:
-                    hasher.update(str(value).encode("utf-8"))
+                    hasher.update(str(value.normalize()).encode("utf-8"))
                     hasher.update(b"\x00")
                 hasher.update(b"\x01")
         return hasher.hexdigest()

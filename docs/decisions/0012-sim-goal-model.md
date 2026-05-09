@@ -2,7 +2,7 @@
 
 | Field       | Value                            |
 |-------------|----------------------------------|
-| **Status**  | Accepted                         |
+| **Status**  | Proposed                         |
 | **Date**    | 2025-07-03                       |
 | **Issue**   | #30                              |
 | **Depends** | ADR-0011 (cashflow engine)       |
@@ -69,8 +69,8 @@ require per-rule cumulative tracking (see Rejected Options).
 ### Tax exclusion
 
 The `evaluate` function works on **pre-tax** income. Tax netting is the
-responsibility of `penge.sim.tax_overlay` (ADR-0013, #28). The Monte-Carlo
-runner (#31) will compose `project()` → `tax_overlay()` → `evaluate()`.
+responsibility of `penge.sim.tax` (ADR-0013, #28). The Monte-Carlo
+runner (#31) will compose `project()` → `apply_tax()` → `evaluate()`.
 Goal evaluation on gross income is still useful for sensitivity analysis and
 FIRE runway estimation before #28 is implemented.
 

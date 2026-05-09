@@ -92,8 +92,8 @@ class TestGoalConfigValidation:
 
     def test_frozen(self) -> None:
         g = GoalConfig(target_annual_eur=Decimal("50000"))
-        with pytest.raises(Exception):
-            g.target_annual_eur = Decimal("60000")  # type: ignore[misc]
+        with pytest.raises(pydantic.ValidationError):
+            g.target_annual_eur = Decimal("60000")  # type: ignore[misc]  # intentional mutation to assert frozen-model immutability
 
     def test_negative_target_rejected(self) -> None:
         with pytest.raises(pydantic.ValidationError):
@@ -158,8 +158,8 @@ class TestEvaluateBasic:
         goal = GoalConfig(target_annual_eur=Decimal("50000"))
         portfolio = _portfolio_by_year(cfg.base_year, cfg.horizon_years, Decimal("1000000"))
         result = evaluate(goal, proj, portfolio)
-        with pytest.raises(Exception):
-            result.goal_met = False  # type: ignore[misc]
+        with pytest.raises(pydantic.ValidationError):
+            result.goal_met = False  # type: ignore[misc]  # intentional mutation to assert frozen-model immutability
 
 
 # ---------------------------------------------------------------------------

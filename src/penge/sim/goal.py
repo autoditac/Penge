@@ -21,7 +21,7 @@ or JSON via ``model.model_dump()`` / ``GoalConfig.model_validate(d)``.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 
 import pydantic
 
@@ -45,10 +45,12 @@ class GoalConfig(pydantic.BaseModel):
             for 3.25 %).  Applied to the liquid portfolio value each year.
         entities: Entity identifiers whose pension entitlements count toward
             the goal.  Empty means *all* entities in the projection.
-        require_all_vested: If ``True``, only pension rules whose
-            ``vesting_year <= year`` contribute to the income in that year.
-            If ``False``, all cumulative pension is counted regardless of
-            vesting (useful for sensitivity analysis).
+        require_all_vested: If ``True``, an entity's cumulative pension only
+            counts toward the goal in year *T* when **every** pension rule
+            for that entity has ``vesting_year <= T`` (since
+            ``cumulative_pension_eur`` is an aggregate across rules and is not
+            split per-rule).  If ``False``, all cumulative pension is counted
+            regardless of vesting (useful for sensitivity analysis).
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -93,6 +95,22 @@ class GoalResult(pydantic.BaseModel):
     total_income_eur: Decimal
 
 
+def _validate_portfolio_years(
+    portfolio_by_year: Sequence[tuple[int, Decimal]],
+    projection: CashflowProjection,
+) -> None:
+    if not portfolio_by_year:
+        raise ValueError("portfolio_by_year must not be empty")
+    projection_years = {f.year for f in projection.flows}
+    last_year = -(10**9)
+    for year, _ in portfolio_by_year:
+        if year <= last_year:
+            raise ValueError("portfolio_by_year must be in strictly ascending year order")
+        if year not in projection_years:
+            raise ValueError(f"portfolio year {year} is not in the projection")
+        last_year = year
+
+
 def evaluate(
     goal: GoalConfig,
     projection: CashflowProjection,
@@ -130,6 +148,8 @@ def evaluate(
     if not portfolio_by_year:
         raise ValueError("portfolio_by_year must not be empty")
 
+    _validate_portfolio_years(portfolio_by_year, projection)
+
     entities = list(goal.entities) if goal.entities else projection.entities()
 
     # For require_all_vested: all pension rules for an entity must have vested.
@@ -143,7 +163,9 @@ def evaluate(
     last_surplus = Decimal("0")
 
     for year, portfolio_value in portfolio_by_year:
-        swr_income = (goal.swr_rate * portfolio_value).quantize(Decimal("0.01"))
+        swr_income = (goal.swr_rate * portfolio_value).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_EVEN
+        )
 
         pension_income = Decimal("0")
         for flow in projection.by_year(year):

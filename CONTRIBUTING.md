@@ -51,7 +51,7 @@ A PR is ready to merge **only when all** apply:
 - [ ] If architectural: a new ADR is included or referenced.
 - [ ] Database migrations include a tested downgrade.
 - [ ] No secrets in the diff (`gitleaks` and secret-scanning enforce this).
-- [ ] CI green (lint, typecheck, tests, container build, dbt parse, sqlfluff, codeql).
+- [ ] CI green (lint, typecheck, tests, container build, dbt parse, sqlfluff).
 - [ ] Self-reviewed (read your own diff in the GitHub UI before requesting review).
 
 PRs are squash-merged. The PR title becomes the squashed commit message and **must** follow Conventional Commits.

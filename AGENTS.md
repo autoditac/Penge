@@ -29,7 +29,7 @@ Penge is a private personal-finance & FIRE-modeling platform for a DK/DE househo
 
 - Linters/formatters: `ruff`, `ruff-format`, `mypy --strict`, `prettier`, `eslint`, `sqlfluff`, `markdownlint`.
 - Tests: `pytest`, `vitest`, `dbt test`, `alembic upgrade/downgrade` round-trip.
-- Security: `gitleaks`, CodeQL, Dependabot, `syft` SBOM, build-provenance attestation.
+- Security: `gitleaks`, Dependabot, `syft` SBOM, build-provenance attestation. (CodeQL is parked until the repo goes public or GitHub Advanced Security is purchased — SARIF upload requires code scanning to be enabled.)
 - All of the above run in pre-commit and/or CI; both must pass before merge.
 
 ## File-scoped rules

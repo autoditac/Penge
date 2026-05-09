@@ -271,9 +271,6 @@ class TestParsePensionsoversigt:
 # --- OCR fallback ---------------------------------------------------------
 
 
-# --- OCR fallback ---------------------------------------------------------
-
-
 def _canned_tsv() -> dict[str, list[object]]:
     """A tiny Tesseract-style TSV for the Aldersopsparing summary.
 

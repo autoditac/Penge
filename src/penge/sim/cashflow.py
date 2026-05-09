@@ -14,7 +14,7 @@ The engine models three streams per entity per year:
   (e.g. PFA 21 %) or a fixed annual EUR increment
   (e.g. Beamtenpension Bestandsfortschreibung).
 
-Tax netting is **not** performed here.  See :mod:`penge.sim.tax_overlay` (#28)
+Tax netting is **not** performed here.  See :mod:`penge.sim.tax` (#28)
 for net-salary and effective-rate modelling.
 
 Design rationale: `docs/decisions/0011-sim-cashflow-engine.md`.
@@ -47,7 +47,15 @@ _TWO_DP = Decimal("0.01")
 
 
 def _to_decimal(v: object) -> Decimal:
-    return Decimal(str(v))
+    """Coerce *v* to ``Decimal`` and reject NaN / Infinity values.
+
+    Raises:
+        ValueError: If the resulting Decimal is non-finite.
+    """
+    d = Decimal(str(v))
+    if not d.is_finite():
+        raise ValueError(f"Decimal value must be finite, got {d}")
+    return d
 
 
 def _compound(base: Decimal, rate: Decimal, periods: int) -> Decimal:
@@ -82,6 +90,8 @@ class SalaryRule(pydantic.BaseModel):
     def _positive_salary(self) -> SalaryRule:
         if self.gross_annual <= 0:
             raise ValueError("gross_annual must be positive")
+        if self.real_wage_growth <= Decimal("-1"):
+            raise ValueError("real_wage_growth must be > -1 (would invert salary)")
         return self
 
 
@@ -162,11 +172,15 @@ class PensionAccrualRule(pydantic.BaseModel):
                 raise ValueError("dc_fraction is required when kind='dc_fraction'")
             if not (Decimal("0") < self.dc_fraction <= Decimal("1")):
                 raise ValueError("dc_fraction must be in (0, 1]")
+            if self.annual_eur is not None:
+                raise ValueError("annual_eur must be unset when kind='dc_fraction'")
         else:  # annual_eur
             if self.annual_eur is None:
                 raise ValueError("annual_eur is required when kind='annual_eur'")
             if self.annual_eur <= 0:
                 raise ValueError("annual_eur must be positive")
+            if self.dc_fraction is not None:
+                raise ValueError("dc_fraction must be unset when kind='annual_eur'")
         return self
 
 
@@ -221,7 +235,7 @@ class YearlyFlow(pydantic.BaseModel):
             rules for this entity combined).
         liquid_contribution_eur: Amount directed into the liquid portfolio in
             EUR (all contribution rules for this entity combined).  Gross of
-            taxes — see :mod:`penge.sim.tax_overlay` for net modelling.
+            taxes — see :mod:`penge.sim.tax` for net modelling.
         pension_accrual_eur: New pension entitlement accrued in this year.
         cumulative_pension_eur: Total pension entitlement accrued from the
             start of the projection through *year* (inclusive).

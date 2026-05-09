@@ -1,6 +1,6 @@
 # 0011 — Simulation cashflow engine: deterministic per-year projection
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2026-05-09
 - **Deciders:** @autoditac
 - **Tags:** sim, cashflow, FIRE
@@ -78,5 +78,5 @@ a frozen `CashflowProjection` with a flat tuple of `YearlyFlow` records.
 | DKK → EUR | `eur_per_dkk` from `CashflowConfig`; sourced from ECB FX service by caller |
 | DC pension (PFA) | Fraction of *that year's* gross salary |
 | Beamtenpension accrual | Fixed annual EUR, optionally CPI-indexed |
-| Tax netting | Not in scope here — handled by `penge.sim.tax_overlay` (#28) |
+| Tax netting | Not in scope here — handled by `penge.sim.tax` (#28) |
 | Vesting | `vesting_year` stored on `PensionAccrualRule`; consumed by goal model (#30) |

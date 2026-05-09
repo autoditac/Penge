@@ -6,6 +6,7 @@ All fixtures use synthetic data only.
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Literal
 
 import pydantic
 import pytest
@@ -27,13 +28,13 @@ from penge.sim.cashflow import (
 
 def _salary(
     entity: str = "alice",
-    currency: str = "EUR",
+    currency: Literal["EUR", "DKK"] = "EUR",
     gross_annual: str = "60000",
     real_wage_growth: str = "0",
 ) -> SalaryRule:
     return SalaryRule(
         entity=entity,
-        currency=currency,  # type: ignore[arg-type]
+        currency=currency,
         gross_annual=Decimal(gross_annual),
         real_wage_growth=Decimal(real_wage_growth),
     )
@@ -41,13 +42,13 @@ def _salary(
 
 def _contrib(
     entity: str = "alice",
-    currency: str = "EUR",
+    currency: Literal["EUR", "DKK"] = "EUR",
     annual: str = "12000",
     index: bool = True,
 ) -> ContributionRule:
     return ContributionRule(
         entity=entity,
-        currency=currency,  # type: ignore[arg-type]
+        currency=currency,
         annual=Decimal(annual),
         index_to_inflation=index,
     )

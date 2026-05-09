@@ -66,6 +66,8 @@ nav:
       - "Manual entries": connectors/manual.md
   - Analytics:
       - "dbt": dbt.md
+  - Simulation:
+      - "Return model": sim/return-model.md
   - Tax:
       - DK: tax/dk.md
       - DE: tax/de.md
@@ -84,6 +86,7 @@ nav:
       - "ADR-0007 Initial relational data model": decisions/0007-initial-relational-data-model.md
       - "ADR-0008 Nordnet account modelling": decisions/0008-nordnet-account-modelling.md
       - "ADR-0009 ABIS list & instrument tax treatment": decisions/0009-abis-list-and-instrument-tax-treatment.md
+      - "ADR-0010 Simulation return model: historical block-bootstrap": decisions/0010-sim-return-model.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

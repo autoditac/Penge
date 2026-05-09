@@ -6,6 +6,7 @@ from __future__ import annotations
 # Helpers
 # ---------------------------------------------------------------------------
 import random as _random
+import time
 from decimal import Decimal
 
 import pydantic
@@ -349,8 +350,6 @@ class TestErrors:
 class TestPerformance:
     def test_10k_paths_10_years(self) -> None:
         """N=10000, T=10 must complete (no assertion on wall time in CI)."""
-        import time
-
         model = _simple_return_model()
         proj = project(_simple_cashflow(horizon=10))
         goal = GoalConfig(target_annual_eur=Decimal("50000"))

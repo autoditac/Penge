@@ -31,7 +31,9 @@ See ``docs/decisions/0014-sim-montecarlo-runner.md`` for design rationale.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import Decimal
+from types import MappingProxyType
 
 import numpy as np
 import pydantic
@@ -74,7 +76,7 @@ class MonteCarloConfig(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(frozen=True)
 
     n_paths: int = pydantic.Field(default=10_000, ge=1)
-    asset_weights: dict[str, Decimal]
+    asset_weights: Mapping[str, Decimal]
     initial_portfolio_eur: Decimal
     capital_gains_effective_rate: Decimal = Decimal("0.27")
     entities: tuple[str, ...] = ()
@@ -88,15 +90,20 @@ class MonteCarloConfig(pydantic.BaseModel):
 
     @pydantic.field_validator("asset_weights", mode="before")
     @classmethod
-    def _coerce_weights(cls, v: object) -> dict[str, Decimal]:
-        if not isinstance(v, dict):
-            raise ValueError("asset_weights must be a dict")
-        return {k: Decimal(str(val)) for k, val in v.items()}
+    def _coerce_weights(cls, v: object) -> Mapping[str, Decimal]:
+        if not isinstance(v, Mapping):
+            raise ValueError("asset_weights must be a mapping")
+        return MappingProxyType({k: Decimal(str(val)) for k, val in v.items()})
 
     @pydantic.model_validator(mode="after")
     def _validate(self) -> MonteCarloConfig:
         if not self.asset_weights:
             raise ValueError("asset_weights must not be empty")
+        for label, w in self.asset_weights.items():
+            if w < 0:
+                raise ValueError(f"asset_weights[{label!r}] must be >= 0, got {w}")
+            if w > Decimal("1"):
+                raise ValueError(f"asset_weights[{label!r}] must be <= 1, got {w}")
         weight_sum = sum(self.asset_weights.values())
         if abs(weight_sum - Decimal("1")) > Decimal("0.0001"):
             raise ValueError(f"asset_weights must sum to 1, got {weight_sum}")
@@ -233,7 +240,9 @@ def run(
     median_fire_year: int | None = None
     if met_mask.sum() >= n_paths / 2:
         fire_indices = goal_met_year_idx[met_mask]
-        median_idx = int(np.median(fire_indices))
+        # Round half-up (ceil) so fractional medians map to the next worse year,
+        # which is the conservative choice for FIRE planning.
+        median_idx = int(np.ceil(np.median(fire_indices)))
         median_fire_year = cfg.base_year + median_idx + 1
 
     # Percentile portfolio paths

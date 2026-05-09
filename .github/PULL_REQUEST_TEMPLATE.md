@@ -33,7 +33,7 @@ Closes #
 - [ ] Documentation updated (user docs, runbook, ADR, or inline) where relevant
 - [ ] Database migrations include a tested downgrade (N/A if no migrations)
 - [ ] No secrets, PII, or real financial data in the diff
-- [ ] CI green (lint, typecheck, tests, container build, dbt parse, sqlfluff, codeql, gitleaks)
+- [ ] CI green (lint, typecheck, tests, container build, dbt parse, sqlfluff, gitleaks)
 - [ ] Self-reviewed in the GitHub UI
 - [ ] Screenshots / log excerpts attached if behavior is observable
 

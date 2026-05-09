@@ -23,7 +23,7 @@ This is a private repository for personal use. If you have access and find a vul
 ### Dependencies
 
 - Lockfiles (`uv.lock`, `pnpm-lock.yaml`) are committed. Builds must be reproducible from lockfiles.
-- Dependabot opens PRs for security updates. CodeQL scans for known vulnerability patterns.
+- Dependabot opens PRs for security updates. (CodeQL static analysis is parked until the repo goes public or GitHub Advanced Security is purchased; SARIF upload requires code scanning to be enabled on the repository.)
 - Adding a new dependency requires (a) noting why an existing one cannot be used, (b) checking maintenance status and license, and (c) recording it in the relevant ADR if it crosses a boundary.
 
 ### Container & deploy hardening

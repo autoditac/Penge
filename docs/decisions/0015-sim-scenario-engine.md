@@ -2,7 +2,7 @@
 
 | Field       | Value                                              |
 |-------------|----------------------------------------------------|
-| **Status**  | Accepted                                           |
+| **Status**  | Proposed                                           |
 | **Date**    | 2025-07-03                                         |
 | **Issue**   | #32                                                |
 | **Depends** | ADR-0014 (Monte-Carlo runner), ADR-0011 (cashflow) |

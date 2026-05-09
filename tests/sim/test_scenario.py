@@ -382,5 +382,5 @@ class TestCompare:
             term_years=20,
         )
         proj = project(cfg)
-        new_proj, new_mc = house.apply(proj, mc)
+        _new_proj, new_mc = house.apply(proj, mc)
         assert new_mc.initial_portfolio_eur == mc.initial_portfolio_eur - Decimal("150000")

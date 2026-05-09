@@ -79,19 +79,24 @@ class HousePurchaseScenario(BaseModel, frozen=True):
     def annual_payment_eur(self) -> Decimal:
         """Compute constant annual mortgage payment (annuity formula).
 
+        Uses :class:`Decimal` arithmetic throughout to keep currency-precise.
+
         Returns ``Decimal("0")`` when the property is bought outright
         (``downpayment_eur == price_eur``).
         """
         principal = self.price_eur - self.downpayment_eur
         if principal <= 0:
             return Decimal("0")
-        r = float(self.mortgage_rate)
+        r = self.mortgage_rate
         n = self.term_years
-        if r == 0.0:
-            payment = float(principal) / n
+        if r == 0:
+            payment = principal / Decimal(n)
         else:
-            payment = float(principal) * r / (1.0 - (1.0 + r) ** (-n))
-        return Decimal(str(round(payment, 2)))
+            one = Decimal(1)
+            # (1 + r) ** -n via reciprocal of (1+r)^n; n is a positive int.
+            discount = one / ((one + r) ** n)
+            payment = principal * r / (one - discount)
+        return payment.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
 
     def apply(
         self, proj: CashflowProjection, mc_cfg: MonteCarloConfig
@@ -265,6 +270,12 @@ class ScenarioComparison(BaseModel, frozen=True):
 
     def to_markdown(self) -> str:
         """Render a markdown comparison table."""
+        if not self.scenarios:
+            header = "| Metric | Baseline |"
+            sep = "| --- | --- |"
+            p_goal = f"| P(goal met) | {self.baseline.p_goal_met} |"
+            fire_year = f"| Median FIRE year | {self.baseline.median_fire_year or '—'} |"
+            return "\n".join(["# Scenario Comparison", "", header, sep, p_goal, fire_year])
         header = "| Metric | Baseline | " + " | ".join(s.name for s in self.scenarios) + " |"
         sep = "| --- | --- | " + " | ".join("---" for _ in self.scenarios) + " |"
         p_goal = (

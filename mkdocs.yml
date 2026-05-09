@@ -89,6 +89,10 @@ nav:
       - "ADR-0009 ABIS list & instrument tax treatment": decisions/0009-abis-list-and-instrument-tax-treatment.md
       - "ADR-0010 Simulation return model: historical block-bootstrap": decisions/0010-sim-return-model.md
       - "ADR-0011 Simulation cashflow engine: deterministic projection": decisions/0011-sim-cashflow-engine.md
+      - "ADR-0012 FIRE goal evaluation model": decisions/0012-sim-goal-model.md
+      - "ADR-0013 Simulation tax overlay": decisions/0013-sim-tax-overlay.md
+      - "ADR-0014 Monte-Carlo FIRE runner": decisions/0014-sim-montecarlo-runner.md
+      - "ADR-0015 Scenario engine": decisions/0015-sim-scenario-engine.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

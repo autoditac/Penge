@@ -8,10 +8,10 @@ Subpackages:
   ADR-0011).
 - :mod:`penge.sim.goal` — FIRE goal evaluation engine (issue #30,
   ADR-0012).
+- :mod:`penge.sim.tax` — statutory tax overlay (issue #28, ADR-0013).
 
 Future modules planned for milestone M2 (FIRE & Scenarios):
 
-- ``penge.sim.tax`` — statutory tax rates per regime (#28).
 - ``penge.sim.montecarlo`` — vectorized Monte-Carlo runner (#31).
 - ``penge.sim.scenario`` — scenario diff engine (#32).
 """
@@ -36,20 +36,34 @@ from penge.sim.returns import (
     ReturnModelError,
     SampledPaths,
 )
+from penge.sim.tax import (
+    DE_DEFAULT,
+    DK_DEFAULT,
+    EntityTaxRegime,
+    TaxConfig,
+    apply_tax,
+    net_pension_drawdown,
+)
 
 __all__ = [
+    "DE_DEFAULT",
+    "DK_DEFAULT",
     "BootstrapReturnModel",
     "CashflowConfig",
     "CashflowError",
     "CashflowProjection",
     "ContributionRule",
+    "EntityTaxRegime",
     "GoalConfig",
     "GoalResult",
     "PensionAccrualRule",
     "ReturnModelError",
     "SalaryRule",
     "SampledPaths",
+    "TaxConfig",
     "YearlyFlow",
+    "apply_tax",
     "evaluate",
+    "net_pension_drawdown",
     "project",
 ]

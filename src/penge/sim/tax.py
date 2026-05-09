@@ -67,7 +67,9 @@ See ``docs/decisions/0013-sim-tax-overlay.md`` for design rationale.
 
 from __future__ import annotations
 
-from decimal import Decimal
+from collections.abc import Mapping
+from decimal import ROUND_HALF_EVEN, Decimal
+from types import MappingProxyType
 
 import pydantic
 
@@ -184,7 +186,9 @@ class TaxConfig(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(frozen=True)
 
     enabled: bool = True
-    regimes: dict[str, EntityTaxRegime] = {}
+    regimes: Mapping[str, EntityTaxRegime] = pydantic.Field(
+        default_factory=lambda: MappingProxyType({})
+    )
 
 
 def apply_tax(
@@ -278,5 +282,5 @@ def net_pension_drawdown(
 
 
 def _apply_rate(amount: Decimal, rate: Decimal) -> Decimal:
-    """Multiply *amount* by (1 - *rate*), quantised to 2 d.p. ROUND_HALF_EVEN."""
-    return (amount * (Decimal("1") - rate)).quantize(Decimal("0.01"))
+    """Return ``amount * (1 - rate)`` quantized to 2dp using ROUND_HALF_EVEN."""
+    return (amount * (Decimal("1") - rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)

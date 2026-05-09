@@ -2,7 +2,7 @@
 
 | Field       | Value                                 |
 |-------------|---------------------------------------|
-| **Status**  | Accepted                              |
+| **Status**  | Proposed                              |
 | **Date**    | 2025-07-03                            |
 | **Issue**   | #28                                   |
 | **Depends** | ADR-0011 (cashflow), ADR-0012 (goal)  |

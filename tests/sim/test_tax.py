@@ -9,6 +9,7 @@ import pytest
 
 from penge.sim.cashflow import (
     CashflowConfig,
+    CashflowProjection,
     ContributionRule,
     PensionAccrualRule,
     SalaryRule,
@@ -48,8 +49,8 @@ class TestEntityTaxRegimeValidation:
         assert r.pension_return_tax_rate == Decimal("0.153")
 
     def test_frozen(self) -> None:
-        with pytest.raises(Exception):
-            DK_DEFAULT.salary_income_tax_rate = Decimal("0")  # type: ignore[misc]
+        with pytest.raises(pydantic.ValidationError):
+            DK_DEFAULT.salary_income_tax_rate = Decimal("0")  # type: ignore[misc]  # intentional mutation to assert frozen-model immutability
 
     def test_negative_rate_rejected(self) -> None:
         with pytest.raises(pydantic.ValidationError):
@@ -114,8 +115,8 @@ class TestTaxConfig:
 
     def test_frozen(self) -> None:
         tc = TaxConfig()
-        with pytest.raises(Exception):
-            tc.enabled = False  # type: ignore[misc]
+        with pytest.raises(pydantic.ValidationError):
+            tc.enabled = False  # type: ignore[misc]  # intentional mutation to assert frozen-model immutability
 
 
 # ---------------------------------------------------------------------------
@@ -124,7 +125,7 @@ class TestTaxConfig:
 
 
 class TestApplyTaxDisabled:
-    def _projection(self) -> object:
+    def _projection(self) -> CashflowProjection:
         cfg = CashflowConfig(
             base_year=2024,
             horizon_years=3,
@@ -154,14 +155,14 @@ class TestApplyTaxDisabled:
     def test_disabled_returns_same_projection(self) -> None:
         proj = self._projection()
         tc = TaxConfig(enabled=False, regimes={"alice": DK_DEFAULT})
-        result = apply_tax(proj, tc)  # type: ignore[arg-type]
+        result = apply_tax(proj, tc)
         assert result is proj
 
     def test_no_regimes_returns_unchanged_flows(self) -> None:
         proj = self._projection()
         tc = TaxConfig(enabled=True, regimes={})
-        result = apply_tax(proj, tc)  # type: ignore[arg-type]
-        assert result.flows == proj.flows  # type: ignore[union-attr]
+        result = apply_tax(proj, tc)
+        assert result.flows == proj.flows
 
 
 # ---------------------------------------------------------------------------

@@ -10,10 +10,7 @@ Subpackages:
   ADR-0012).
 - :mod:`penge.sim.tax` — statutory tax overlay (issue #28, ADR-0013).
 - :mod:`penge.sim.montecarlo` — vectorized Monte-Carlo runner (issue #31, ADR-0014).
-
-Future modules planned for milestone M2 (FIRE & Scenarios):
-
-- ``penge.sim.scenario`` — scenario diff engine (#32).
+- :mod:`penge.sim.scenario` — scenario diff engine (issue #32, ADR-0015).
 """
 
 from penge.sim.cashflow import (
@@ -41,6 +38,14 @@ from penge.sim.returns import (
     ReturnModelError,
     SampledPaths,
 )
+from penge.sim.scenario import (
+    HousePurchaseScenario,
+    ScenarioComparison,
+    ScenarioError,
+    ScenarioResult,
+    WorkReductionScenario,
+    compare,
+)
 from penge.sim.tax import (
     DE_DEFAULT,
     DK_DEFAULT,
@@ -61,15 +66,21 @@ __all__ = [
     "EntityTaxRegime",
     "GoalConfig",
     "GoalResult",
+    "HousePurchaseScenario",
     "MonteCarloConfig",
     "MonteCarloResult",
     "PensionAccrualRule",
     "ReturnModelError",
     "SalaryRule",
     "SampledPaths",
+    "ScenarioComparison",
+    "ScenarioError",
+    "ScenarioResult",
     "TaxConfig",
+    "WorkReductionScenario",
     "YearlyFlow",
     "apply_tax",
+    "compare",
     "evaluate",
     "net_pension_drawdown",
     "project",

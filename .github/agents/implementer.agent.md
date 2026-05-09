@@ -35,7 +35,7 @@ A pull request that:
 7. **Open the PR** as a draft if not yet ready for review; ready-for-review only when all DoD boxes are checked locally.
 8. **Self-review** in the GitHub UI before requesting review.
 9. **Iterate to green** on CI. Never disable a check to ship; fix the root cause.
-10. **Wait for the automated review.** After CI is green, request a Copilot review with `gh pr edit <N> --add-reviewer copilot-pull-request-reviewer` (or `gh copilot-review`) and **wait until it has posted**. Poll with `gh pr view <N> --json reviews,reviewThreads`; do not interpret "no reviews yet" as "approved".
+10. **Wait for the automated review.** After CI is green, request a Copilot review with `gh pr edit <N> --add-reviewer copilot-pull-request-reviewer` and **wait until it has posted**. Poll with `gh pr view <N> --json reviews,reviewThreads`; do not interpret "no reviews yet" as "approved".
 11. **Address every review thread.** For each thread from any reviewer (Copilot, human, future co-maintainer): either push a fix commit on the same branch, or reply with an explicit rationale for declining and resolve the thread. No unresolved threads at merge time.
 12. **Squash-merge** with the Conventional Commit title becoming the merge commit. Use `gh pr merge <N> --squash --delete-branch` — **never** `--admin`. If branch protection blocks the merge, fix the underlying cause (failing check, missing review, unresolved thread); do not bypass it.
 

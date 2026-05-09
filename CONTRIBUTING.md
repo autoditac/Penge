@@ -61,7 +61,7 @@ A PR is ready to merge **only when all** apply:
 PRs are squash-merged. The PR title becomes the squashed commit message and **must** follow Conventional Commits.
 
 - Use `gh pr merge <N> --squash --delete-branch`. **Never** `--admin`. Never force-push to `main`. Never bypass branch protection — if it blocks the merge, fix the underlying cause.
-- After opening a PR, **wait for the Copilot review to land** before merging. The review bot typically posts within a few minutes of CI going green; "CI is green and there are no comments yet" is *not* the same as "approved". Poll with `gh pr view <N> --json reviews,reviewThreads` or `gh pr checks <N>` until a review exists.
+- After opening a PR, **wait for the Copilot review to land** before merging. The review bot typically posts within a few minutes of CI going green; "CI is green and there are no comments yet" is *not* the same as "approved". Poll with `gh pr view <N> --json reviews,reviewThreads` or `gh pr checks <N>` until a review exists. The user may override this for a single PR by recording an explicit "merge without waiting" instruction in the PR description — that override applies only to that PR.
 - This rule exists because PRs #86 and #89 were merged with `--admin` immediately after CI went green and before the Copilot review bot had a chance to comment, which forced a follow-up cleanup branch (`chore/18-pr-review-followups`) to address the missed feedback.
 
 ## Architecture Decisions

@@ -75,6 +75,7 @@ nav:
       - runbook/monthly.md
       - "Web dashboard": runbook/web.md
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
+      - "Branch protection": runbook/branch-protection.md
   - Decisions:
       - decisions/README.md
       - "ADR-0001 Self-hosted Postgres + DuckDB stack": decisions/0001-self-hosted-postgres-duckdb-stack.md

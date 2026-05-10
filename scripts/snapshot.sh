@@ -90,7 +90,7 @@ duckdb -readonly -noheader -list "${DUCKDB_PATH}" \
     "SELECT table_schema || chr(9) || table_name
        FROM information_schema.tables
       WHERE table_type = 'BASE TABLE'
-      ORDER BY 1, 2;" >"${TABLES_FILE}"
+      ORDER BY 1;" >"${TABLES_FILE}"
 
 if [[ ! -s "${TABLES_FILE}" ]]; then
     penge::warn "no user tables found in ${DUCKDB_PATH}; producing an empty snapshot"

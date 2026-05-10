@@ -161,6 +161,85 @@ describe("run_scenario — schema validation", () => {
     ).toThrow();
   });
 
+  it("rejects non-numeric house_purchase params before spawning Python", () => {
+    const tool = runScenarioTool({
+      runner: makeRunner(SAMPLE_PAYLOAD),
+      baselineLoader: fakeLoader(),
+    });
+    expect(() =>
+      tool.inputSchema.parse({
+        scenario_type: "house_purchase",
+        params: {
+          year: 2026,
+          price_eur: "abc",
+          downpayment_eur: "60000",
+          mortgage_rate: "0.02",
+          term_years: 20,
+        },
+        monte_carlo: { paths: 50, horizon_years: 10 },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects mortgage_rate outside [0, 1]", () => {
+    const tool = runScenarioTool({
+      runner: makeRunner(SAMPLE_PAYLOAD),
+      baselineLoader: fakeLoader(),
+    });
+    expect(() =>
+      tool.inputSchema.parse({
+        scenario_type: "house_purchase",
+        params: {
+          year: 2026,
+          price_eur: "300000",
+          downpayment_eur: "60000",
+          mortgage_rate: "5",
+          term_years: 20,
+        },
+        monte_carlo: { paths: 50, horizon_years: 10 },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects downpayment_eur > price_eur", () => {
+    const tool = runScenarioTool({
+      runner: makeRunner(SAMPLE_PAYLOAD),
+      baselineLoader: fakeLoader(),
+    });
+    expect(() =>
+      tool.inputSchema.parse({
+        scenario_type: "house_purchase",
+        params: {
+          year: 2026,
+          price_eur: "100000",
+          downpayment_eur: "200000",
+          mortgage_rate: "0.02",
+          term_years: 20,
+        },
+        monte_carlo: { paths: 50, horizon_years: 10 },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects fte_fraction outside (0, 1]", () => {
+    const tool = runScenarioTool({
+      runner: makeRunner(SAMPLE_PAYLOAD),
+      baselineLoader: fakeLoader(),
+    });
+    expect(() =>
+      tool.inputSchema.parse({
+        ...baseArgs,
+        params: { entity: "person_dk", year: 2027, fte_fraction: "1.5" },
+      }),
+    ).toThrow();
+    expect(() =>
+      tool.inputSchema.parse({
+        ...baseArgs,
+        params: { entity: "person_dk", year: 2027, fte_fraction: "abc" },
+      }),
+    ).toThrow();
+  });
+
   it("rejects extra top-level keys (strict)", () => {
     const tool = runScenarioTool({
       runner: makeRunner(SAMPLE_PAYLOAD),

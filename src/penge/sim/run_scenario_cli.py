@@ -16,7 +16,9 @@ Input schema (all keys required unless noted)::
 
     {
       "cashflow":     {... CashflowConfig dump ...},
-      "tax":          {... TaxConfig dump (optional, defaults to enabled=False) ...},
+      "tax":          {... TaxConfig dump (optional; when omitted, the
+                            TaxConfig defaults apply — note that
+                            ``enabled`` defaults to ``True``) ...},
       "goal":         {... GoalConfig dump ...},
       "return_model": {... BootstrapReturnModel dump (asset_returns,
                             inflation, block_months, seed) ...},
@@ -138,11 +140,10 @@ def _summarise(result: MonteCarloResult) -> dict[str, Any]:
     }
 
 
-def run_scenario(spec: Mapping[str, Any]) -> dict[str, Any]:
-    """Pure entry point: build configs from *spec* and run the comparison."""
-    if not isinstance(spec, Mapping):
-        raise CliError("input must be a JSON object at the top level")
+_REQUIRED_BLOCKS: tuple[str, ...] = ("cashflow", "goal", "return_model", "mc")
 
+
+def _extract_overrides(spec: Mapping[str, Any]) -> tuple[int, int, Any]:
     overrides = spec.get("monte_carlo") or {}
     if not isinstance(overrides, Mapping):
         raise CliError("monte_carlo must be an object")
@@ -153,27 +154,43 @@ def run_scenario(spec: Mapping[str, Any]) -> dict[str, Any]:
         raise CliError(f"monte_carlo missing required key {exc.args[0]!r}") from exc
     except (TypeError, ValueError) as exc:
         raise CliError(f"monte_carlo: {exc}") from exc
-    seed_override = overrides.get("seed")
+    return paths, horizon_years, overrides.get("seed")
 
-    if "cashflow" not in spec:
-        raise CliError("input missing 'cashflow' block")
-    if "goal" not in spec:
-        raise CliError("input missing 'goal' block")
-    if "return_model" not in spec:
-        raise CliError("input missing 'return_model' block")
-    if "mc" not in spec:
-        raise CliError("input missing 'mc' block")
+
+def _validate_blocks(spec: Mapping[str, Any]) -> Mapping[str, Any]:
+    """Ensure required spec blocks exist and are objects; return the tax block."""
+    for key in _REQUIRED_BLOCKS:
+        if key not in spec:
+            raise CliError(f"input missing {key!r} block")
+        if not isinstance(spec[key], Mapping):
+            raise CliError(f"{key!r} block must be an object")
+    tax_block = spec.get("tax") or {}
+    if not isinstance(tax_block, Mapping):
+        raise CliError("'tax' block must be an object")
+    return tax_block
+
+
+def run_scenario(spec: Mapping[str, Any]) -> dict[str, Any]:
+    """Pure entry point: build configs from *spec* and run the comparison."""
+    if not isinstance(spec, Mapping):
+        raise CliError("input must be a JSON object at the top level")
+
+    paths, horizon_years, seed_override = _extract_overrides(spec)
+    tax_block = _validate_blocks(spec)
 
     cashflow_raw = dict(spec["cashflow"])
     cashflow_raw["horizon_years"] = horizon_years
     cashflow_cfg = CashflowConfig(**cashflow_raw)
 
-    tax_cfg = TaxConfig(**dict(spec.get("tax") or {}))
+    tax_cfg = TaxConfig(**dict(tax_block))
     goal_cfg = GoalConfig(**dict(spec["goal"]))
 
     rm_raw = dict(spec["return_model"])
     if seed_override is not None:
-        rm_raw["seed"] = int(seed_override)
+        try:
+            rm_raw["seed"] = int(seed_override)
+        except (TypeError, ValueError) as exc:
+            raise CliError(f"monte_carlo.seed must be an integer: {exc}") from exc
     return_model = BootstrapReturnModel(**rm_raw)
 
     mc_raw = dict(spec["mc"])

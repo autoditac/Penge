@@ -25,21 +25,54 @@ import { z } from "zod";
 
 import type { ToolDefinition } from "../registry.js";
 
+/**
+ * Accepts a finite number or a numeric string and validates it against
+ * `predicate`. Inputs are passed through unchanged (so Decimal precision
+ * survives the wire) — we only parse for validation purposes.
+ */
+function numericish(predicate: (n: number) => boolean, message: string) {
+  return z.union([z.number().finite(), z.string().min(1)]).superRefine((val, ctx) => {
+    const n = typeof val === "number" ? val : Number(val);
+    if (!Number.isFinite(n)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "must be a finite number" });
+      return;
+    }
+    if (!predicate(n)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message });
+    }
+  });
+}
+
+function asNumber(val: number | string): number {
+  return typeof val === "number" ? val : Number(val);
+}
+
 const HousePurchaseParams = z
   .object({
     year: z.number().int().gte(2024).lte(2100),
-    price_eur: z.union([z.number().finite(), z.string().min(1)]),
-    downpayment_eur: z.union([z.number().finite(), z.string().min(1)]),
-    mortgage_rate: z.union([z.number().finite(), z.string().min(1)]),
+    price_eur: numericish((n) => n > 0, "price_eur must be > 0"),
+    downpayment_eur: numericish((n) => n >= 0, "downpayment_eur must be >= 0"),
+    mortgage_rate: numericish((n) => n >= 0 && n <= 1, "mortgage_rate must be in [0, 1]"),
     term_years: z.number().int().gte(1).lte(50),
   })
-  .strict();
+  .strict()
+  .refine(
+    (p) => {
+      const price = asNumber(p.price_eur);
+      const down = asNumber(p.downpayment_eur);
+      return Number.isFinite(price) && Number.isFinite(down) && down <= price;
+    },
+    {
+      message: "downpayment_eur must be <= price_eur",
+      path: ["downpayment_eur"],
+    },
+  );
 
 const WorkReductionParams = z
   .object({
     entity: z.string().min(1),
     year: z.number().int().gte(2024).lte(2100),
-    fte_fraction: z.union([z.number().finite(), z.string().min(1)]),
+    fte_fraction: numericish((n) => n > 0 && n <= 1, "fte_fraction must be in (0, 1]"),
   })
   .strict();
 

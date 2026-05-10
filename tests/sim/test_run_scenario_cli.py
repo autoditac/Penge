@@ -102,6 +102,28 @@ class TestRunScenario:
         with pytest.raises(CliError, match="cashflow"):
             run_scenario(spec)
 
+    def test_non_mapping_block_raises_clierror(self) -> None:
+        spec = _full_spec(
+            {
+                "type": "work_reduction",
+                "params": {"entity": "p", "year": 2027, "fte_fraction": "0.8"},
+            }
+        )
+        spec["cashflow"] = "not an object"
+        with pytest.raises(CliError, match="must be an object"):
+            run_scenario(spec)
+
+    def test_invalid_seed_override_raises_clierror(self) -> None:
+        spec = _full_spec(
+            {
+                "type": "work_reduction",
+                "params": {"entity": "person_dk", "year": 2027, "fte_fraction": "0.8"},
+            }
+        )
+        spec["monte_carlo"]["seed"] = "not-an-int"
+        with pytest.raises(CliError, match="seed must be an integer"):
+            run_scenario(spec)
+
     def test_monte_carlo_overrides_applied(self) -> None:
         spec = _full_spec(
             {

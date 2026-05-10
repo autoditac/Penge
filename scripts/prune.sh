@@ -95,9 +95,24 @@ if [[ ${#CANDIDATES[@]} -eq 0 ]]; then
     exit 0
 fi
 
-# Write the prune index to a hidden scratch dir under ROOT so an
-# interrupted run can never leave a non-`.age` file behind for the
-# CI plaintext-leak check (or a confused operator) to trip over.
+# Sweep any stray scratch directories left behind by previous runs
+# that died without honouring the EXIT/INT/TERM trap (SIGKILL, power
+# loss). The two known patterns under the backup root are:
+#   * ${ROOT}/.scratch-prune-<pid>           — produced by this script
+#   * ${ROOT}/duckdb/.scratch-<timestamp>    — produced by snapshot.sh
+# Neither is supposed to outlive its run. The prune-index never
+# contains dump bytes; the snapshot scratch can hold plaintext parquet
+# files, which is exactly what the CI plaintext-leak check (and a
+# careful operator) wants gone before we start writing new state.
+find "${ROOT}" -mindepth 1 -maxdepth 1 -type d -name '.scratch-prune-*' \
+    -exec rm -rf -- {} + 2>/dev/null || true
+find "${ROOT}/duckdb" -mindepth 1 -maxdepth 1 -type d -name '.scratch-*' \
+    -exec rm -rf -- {} + 2>/dev/null || true
+
+# Write the prune index to a hidden scratch dir under ROOT. The
+# EXIT/INT/TERM trap below removes it on any normal exit or signal,
+# but a hard kill (SIGKILL, power loss) can still leave the directory
+# behind — that's what the startup sweep above is for.
 SCRATCH_DIR="${ROOT}/.scratch-prune-$$"
 mkdir -p "${SCRATCH_DIR}"
 trap 'rm -rf -- "${SCRATCH_DIR}"' EXIT INT TERM

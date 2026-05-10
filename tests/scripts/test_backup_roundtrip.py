@@ -15,6 +15,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -75,17 +76,20 @@ def test_backup_requires_recipients(tmp_path: Path) -> None:
     assert "no age recipients" in proc.stderr
 
 
-@requires_age
-@requires_pg
-@requires_db
-def test_backup_then_restore_round_trip(
-    tmp_path: Path,
-    keypair: tuple[Path, str],
-) -> None:
-    identity, pub = keypair
+@pytest.fixture
+def scratch_schema() -> Iterator[str]:
+    """Create an isolated Postgres schema and tear it down unconditionally.
+
+    Wrapping schema setup/teardown in a fixture with try/finally semantics
+    (yield + post-yield cleanup) means the schema is dropped even when an
+    earlier ``subprocess.run`` call or assertion fails, so local test runs
+    don't leak ``penge_backup_smoke`` into the developer's database.
+    """
+
+    if not os.environ.get(DB_URL_ENV):
+        pytest.skip(f"{DB_URL_ENV} not set")
     db_url = os.environ[DB_URL_ENV]
 
-    # Spin up an isolated schema so we don't trample on other tests.
     schema = "penge_backup_smoke"
     setup = (
         f'DROP SCHEMA IF EXISTS "{schema}" CASCADE; '
@@ -99,6 +103,28 @@ def test_backup_then_restore_round_trip(
         capture_output=True,
         text=True,
     )
+    try:
+        yield schema
+    finally:
+        subprocess.run(
+            ["psql", "--dbname", db_url, "-c", f'DROP SCHEMA IF EXISTS "{schema}" CASCADE;'],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+
+@requires_age
+@requires_pg
+@requires_db
+def test_backup_then_restore_round_trip(
+    tmp_path: Path,
+    keypair: tuple[Path, str],
+    scratch_schema: str,
+) -> None:
+    identity, pub = keypair
+    db_url = os.environ[DB_URL_ENV]
+    schema = scratch_schema
 
     env = {
         **os.environ,
@@ -149,11 +175,3 @@ def test_backup_then_restore_round_trip(
         text=True,
     )
     assert proc.stdout.strip() == "3"
-
-    # Cleanup.
-    subprocess.run(
-        ["psql", "--dbname", db_url, "-c", f'DROP SCHEMA "{schema}" CASCADE;'],
-        check=True,
-        capture_output=True,
-        text=True,
-    )

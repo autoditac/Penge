@@ -10,6 +10,17 @@
 
 set -euo pipefail
 
+# The scripts use Bash 4+ features (associative arrays, `mapfile`, the
+# `${var,,}` / `${var^^}` style expansions). macOS still ships Bash 3.2
+# as `/bin/bash`; abort early with a clear pointer to the runbook so an
+# operator on macOS doesn't get confusing "syntax error" / "mapfile:
+# command not found" failures from a sourced library.
+if (( ${BASH_VERSINFO[0]:-0} < 4 )); then
+    printf '[ERROR] Penge backup scripts require Bash 4+ (found %s). On macOS: brew install bash and put $(brew --prefix bash)/bin first on PATH. See docs/runbook/backup-restore.md.\n' \
+        "${BASH_VERSION:-unknown}" >&2
+    exit 1
+fi
+
 # ---------------------------------------------------------------------------
 # Logging
 # ---------------------------------------------------------------------------

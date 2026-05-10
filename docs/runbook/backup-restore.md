@@ -1,8 +1,14 @@
 # Encrypted backups
 
-Penge's backup pipeline is a pair of shell scripts under
-[`scripts/`](https://github.com/autoditac/Penge/tree/main/scripts) that
-encrypt every artefact with [age](https://age-encryption.org/) before
+Penge's backup pipeline is a small set of shell scripts under
+[`scripts/`](https://github.com/autoditac/Penge/tree/main/scripts) —
+[`backup.sh`](https://github.com/autoditac/Penge/blob/main/scripts/backup.sh),
+[`snapshot.sh`](https://github.com/autoditac/Penge/blob/main/scripts/snapshot.sh),
+[`restore.sh`](https://github.com/autoditac/Penge/blob/main/scripts/restore.sh),
+[`prune.sh`](https://github.com/autoditac/Penge/blob/main/scripts/prune.sh),
+plus a shared
+[`lib_backup.sh`](https://github.com/autoditac/Penge/blob/main/scripts/lib_backup.sh) —
+that encrypt every artefact with [age](https://age-encryption.org/) before
 it touches disk. See [ADR-0025](../decisions/0025-encrypted-backups.md)
 for the design and threat model.
 
@@ -15,19 +21,21 @@ Install the binaries on every host that takes or restores backups:
 sudo apt-get install -y age postgresql-client
 
 # macOS — the scripts depend on GNU userland (`date -d`, `find -printf`,
-# `tar --null -T`, `stat -c`, `sha256sum`). BSD `date` and `tar` ship with
-# macOS by default and silently differ; install the GNU equivalents and
-# put their gnubin dirs at the *front* of PATH so the scripts pick them up.
-brew install age libpq coreutils findutils gnu-tar
-export PATH="$(brew --prefix coreutils)/libexec/gnubin:\
+# `tar --null -T`, `stat -c`, `sha256sum`) **and** Bash 4+ (associative
+# arrays, `mapfile`). The system `/bin/bash` is still 3.2; install
+# Homebrew bash alongside the GNU equivalents and put their gnubin /
+# Homebrew bin dirs at the *front* of PATH so the scripts pick them up.
+brew install age libpq bash coreutils findutils gnu-tar
+export PATH="$(brew --prefix bash)/bin:\
+$(brew --prefix coreutils)/libexec/gnubin:\
 $(brew --prefix findutils)/libexec/gnubin:\
 $(brew --prefix gnu-tar)/libexec/gnubin:\
 $(brew --prefix libpq)/bin:${PATH}"
 ```
 
-The scripts run a `require_gnu_userland` preflight at start-up; they
-abort with a clear pointer back here if `date -d` / ISO-week formatting
-or `find -printf` fail.
+The scripts run a `require_gnu_userland` preflight at start-up and
+abort early if Bash is older than 4 or if `date -d` / ISO-week
+formatting / `find -printf` fail; the error message points back here.
 
 The DuckDB CLI is published as a single static binary on the
 [duckdb/duckdb releases page](https://github.com/duckdb/duckdb/releases);

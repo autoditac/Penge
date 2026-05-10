@@ -67,9 +67,9 @@ Instruments not on the ABIS list (individual stocks, some bonds) are taxed
 on realisation at 27 %/42 % using the average-cost method
 (gennemsnitsmetoden).
 
-Phase 3 implements this in [`penge.tax.lots`](../../src/penge/tax/lots.py)
-(issue #35, [ADR-0016](../decisions/0016-tax-lot-tracker.md)). The book
-keeps a single aggregate quantity + cost-basis per `(account_id, isin)`,
+Phase 3 implements this in `penge.tax.lots` (issue #35,
+[ADR-0016](../decisions/0016-tax-lot-tracker.md)). The book keeps a
+single aggregate quantity + cost-basis per `(account_id, isin)`,
 mutated by `Buy` / `Sell` / `Split` / `Merge` events. Every `Sell`
 appends a `RealisedGain` to the audit log; the SKAT report generator
 (#39) consumes that log.

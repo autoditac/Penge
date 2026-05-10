@@ -32,7 +32,6 @@ from datetime import date as _date
 from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Annotated, Literal
 
-import pydantic
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 __all__ = [
@@ -97,7 +96,10 @@ class Money(BaseModel):
     def _finite(cls, v: Decimal) -> Decimal:
         if not v.is_finite():
             raise ValueError("amount must be a finite Decimal")
-        return _q_money(v)
+        # Do not quantize: prices and NAVs may legitimately carry more
+        # than two decimal places. Output records (TaxLot.cost_basis,
+        # RealisedGain.*) quantize explicitly at construction time.
+        return v
 
 
 # ---------------------------------------------------------------------------
@@ -355,13 +357,12 @@ class LotBook:
                 f"currency mismatch for {ev.isin} on {ev.account_id}: "
                 f"existing {lot.currency} vs incoming {ev.price.currency}",
             )
-        # tolerate tiny float-ish noise: oversell only if strictly greater
-        if ev.quantity > lot.quantity + _QTY_DP:
+        if ev.quantity > lot.quantity:
             raise LotError(
                 f"cannot sell {ev.quantity} of {ev.isin} on {ev.account_id}: "
                 f"only {lot.quantity} available",
             )
-        sold_qty = min(ev.quantity, lot.quantity)
+        sold_qty = ev.quantity
         avg = lot.cost / lot.quantity if lot.quantity > 0 else _ZERO
         cost_removed = avg * sold_qty
         fee = ev.fee.amount if ev.fee is not None else _ZERO
@@ -370,7 +371,9 @@ class LotBook:
         lot.quantity = lot.quantity - sold_qty
         lot.cost = lot.cost - cost_removed
         if lot.quantity <= _QTY_DP:
-            # close out residual rounding dust
+            # Close out residual rounding dust accumulated through
+            # split/merge ratios (only applies when the user sells the
+            # full available quantity).
             lot.quantity = _ZERO
             lot.cost = _ZERO
             del self._lots[key]
@@ -394,7 +397,7 @@ class LotBook:
                 f"cannot split {ev.isin} on {ev.account_id}: no open lot",
             )
         lot = self._lots[key]
-        lot.quantity = lot.quantity * ev.ratio
+        lot.quantity = _q_qty(lot.quantity * ev.ratio)
         # cost unchanged; avg_cost = cost / (qty * ratio) = old_avg / ratio.
 
     def _apply_merge(self, ev: Merge) -> None:
@@ -404,7 +407,7 @@ class LotBook:
                 f"cannot merge {ev.isin} on {ev.account_id}: no open lot",
             )
         old = self._lots.pop(old_key)
-        new_qty = old.quantity * ev.share_ratio
+        new_qty = _q_qty(old.quantity * ev.share_ratio)
         new_key = (ev.account_id, ev.new_isin)
         if new_key in self._lots:
             target = self._lots[new_key]
@@ -413,7 +416,7 @@ class LotBook:
                     f"currency mismatch when merging {ev.isin} into {ev.new_isin}: "
                     f"{old.currency} vs {target.currency}",
                 )
-            target.quantity = target.quantity + new_qty
+            target.quantity = _q_qty(target.quantity + new_qty)
             target.cost = target.cost + old.cost
         else:
             self._lots[new_key] = _MutableLot(
@@ -447,7 +450,3 @@ class LotBook:
         """
         ml = self._lots.get((account_id, isin))
         return _q_qty(ml.quantity) if ml is not None else _ZERO
-
-
-# Re-export for type checkers that don't follow union aliases.
-_ = pydantic.BaseModel  # silence unused-import linters in some setups

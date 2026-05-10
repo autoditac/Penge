@@ -10,6 +10,7 @@ import { createAuditLogger } from "./audit.js";
 import { loadConfig } from "./config.js";
 import { connect } from "./db.js";
 import { buildServer } from "./server.js";
+import { queryCashflowTool } from "./tools/queryCashflow.js";
 import { queryNetWorthTool } from "./tools/queryNetWorth.js";
 
 const SERVER_NAME = "penge-mcp";
@@ -29,6 +30,18 @@ async function main(): Promise<void> {
     audit,
     extraTools: [
       queryNetWorthTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      queryCashflowTool({
         runner: {
           async query(sql, params) {
             const client = await data.acquire();

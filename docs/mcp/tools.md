@@ -92,3 +92,80 @@ Array of:
 Every call is recorded by the MCP audit logger
 (`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
 status, and duration.
+
+## `query_cashflow`
+
+Aggregated cashflow from the dbt mart `mart_cashflow_daily`, rolled up
+to the requested granularity. Returns one row per period within the
+requested date range, with summed inflow, outflow, and net cash
+movement valued in the requested currency.
+
+### Input
+
+| Field         | Type                                     | Notes                                                                         |
+| ------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
+| `date_range`  | `{ from: string; to: string }`           | ISO `YYYY-MM-DD`. `from` must be on or before `to`.                           |
+| `granularity` | `"day" \| "week" \| "month" \| "year"`   | Bucket size. The mart is daily-grain; coarser buckets are summed in SQL.      |
+| `currency`    | `"EUR" \| "DKK"` (optional)              | Defaults to `EUR`. Both are first-class throughout Penge.                     |
+
+### Output
+
+Array of:
+
+```jsonc
+{
+  "period_start": "2024-01-01", // ISO YYYY-MM-DD, clipped to date_range.from
+  "period_end":   "2024-01-31", // ISO YYYY-MM-DD, clipped to date_range.to
+  "currency":     "EUR",        // echoes the request (or the default)
+  "inflow":       12345.67,     // sum of positive cashflows in the bucket
+  "outflow":       2345.67,     // absolute value of summed negatives
+  "net":          10000.00      // inflow - outflow
+}
+```
+
+### Period semantics
+
+- `period_start` / `period_end` are **inclusive** and **clipped** to the
+  requested `date_range`. A `month` bucket containing 2024-01 with
+  `date_range.from = 2024-01-15` reports `period_start = 2024-01-15`.
+- Days within the range that have no cashflow contribute zero. Buckets
+  with no transactions at all are simply absent from the response — the
+  consumer should treat absence as zero, not as an error.
+- Week boundaries follow Postgres `date_trunc('week', ...)`, i.e.
+  ISO weeks starting Monday.
+
+### Example call
+
+```json
+{
+  "name": "query_cashflow",
+  "arguments": {
+    "date_range": { "from": "2024-01-01", "to": "2024-03-31" },
+    "granularity": "month",
+    "currency": "EUR"
+  }
+}
+```
+
+### Example response
+
+```json
+[
+  { "period_start": "2024-01-01", "period_end": "2024-01-31", "currency": "EUR", "inflow": 4200.0, "outflow": 3100.5, "net": 1099.5 },
+  { "period_start": "2024-02-01", "period_end": "2024-02-29", "currency": "EUR", "inflow": 4250.0, "outflow": 2900.0, "net": 1350.0 },
+  { "period_start": "2024-03-01", "period_end": "2024-03-31", "currency": "EUR", "inflow": 4300.0, "outflow": 3050.0, "net": 1250.0 }
+]
+```
+
+### Errors
+
+- Invalid input (bad date format, unknown currency, unknown
+  granularity, `from > to`, extra keys) → `tool/input_invalid`.
+- Database errors (e.g. mart not yet built) propagate as the underlying
+  Postgres error message.
+
+### Audit
+
+Every call is recorded by the MCP audit logger
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+status, and duration.

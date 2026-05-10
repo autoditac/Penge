@@ -198,6 +198,12 @@ mcp-lint:
 mcp-build:
     pnpm --filter @penge/mcp build
 
+# Run the MCP golden-question eval suite. Twenty deterministic checks
+# of the tool layer (tax, sim, cashflow, net worth, vault) backed by
+# synthetic fixtures. See docs/mcp/evals.md for how to add a golden.
+mcp-evals:
+    pnpm --filter @penge/mcp exec vitest run --config vitest.evals.config.ts
+
 # --- Encrypted backups (see ADR-0025) ----------------------------------------
 #
 # All four recipes are thin wrappers around the shell scripts under

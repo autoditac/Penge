@@ -1,0 +1,121 @@
+#!/usr/bin/env bash
+# scripts/snapshot.sh — encrypted DuckDB → Parquet snapshot.
+#
+# Exports every user table in a DuckDB database to Parquet files in a
+# scratch directory, packs them into a tar archive, pipes the tar
+# through `age`, and writes a single
+# `<root>/duckdb/duckdb-<ts>.tar.age` artefact (plus a `.sha256`
+# sidecar). The unencrypted Parquet/tar bytes never leave the scratch
+# directory, which is wiped on exit.
+#
+# Usage:
+#   ./scripts/snapshot.sh --duckdb PATH [--root DIR] [--label LABEL]
+#
+# Env:
+#   PENGE_BACKUP_ROOT            backup root (default ./backups)
+#   PENGE_BACKUP_RECIPIENTS      comma-separated age public keys
+#   PENGE_BACKUP_RECIPIENTS_FILE file with one recipient per line
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib_backup.sh
+source "${SCRIPT_DIR}/lib_backup.sh"
+
+DUCKDB_PATH=""
+ROOT_FLAG=""
+LABEL=""
+
+usage() {
+    sed -n '2,18p' "$0"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --duckdb)
+            DUCKDB_PATH="$2"
+            shift 2
+            ;;
+        --root)
+            ROOT_FLAG="$2"
+            shift 2
+            ;;
+        --label)
+            LABEL="$2"
+            shift 2
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        *)
+            penge::die "unknown argument: $1"
+            ;;
+    esac
+done
+
+[[ -n "${DUCKDB_PATH}" ]] || penge::die "missing --duckdb PATH"
+[[ -r "${DUCKDB_PATH}" ]] || penge::die "duckdb file not readable: ${DUCKDB_PATH}"
+
+penge::require_cmd duckdb
+penge::require_cmd age
+penge::require_cmd tar
+penge::require_cmd sha256sum
+
+ROOT="$(penge::backup_root "${ROOT_FLAG}")"
+TS="$(penge::timestamp)"
+SLUG="${LABEL:+-${LABEL}}"
+OUT="${ROOT}/duckdb/duckdb-${TS}${SLUG}.tar.age"
+
+mapfile -t RECIPIENT_ARGS < <(penge::age_recipient_args)
+
+# Scratch directory under the backup root, never under /tmp. Cleaned
+# up on every exit path via the trap below.
+SCRATCH="${ROOT}/duckdb/.scratch-${TS}"
+mkdir -p "${SCRATCH}"
+cleanup() {
+    rm -rf "${SCRATCH}"
+}
+trap cleanup EXIT INT TERM
+
+penge::info "snapshotting DuckDB → ${OUT}"
+
+# Enumerate user tables across all schemas (DuckDB's information_schema
+# excludes its own internal catalogues by default).
+TABLES_FILE="${SCRATCH}/tables.txt"
+duckdb -readonly -noheader -list "${DUCKDB_PATH}" \
+    "SELECT table_schema || '.' || table_name
+       FROM information_schema.tables
+      WHERE table_type = 'BASE TABLE'
+      ORDER BY 1;" >"${TABLES_FILE}"
+
+if [[ ! -s "${TABLES_FILE}" ]]; then
+    penge::warn "no user tables found in ${DUCKDB_PATH}; producing an empty snapshot"
+fi
+
+MANIFEST="${SCRATCH}/manifest.tsv"
+: >"${MANIFEST}"
+
+while IFS= read -r qualified; do
+    [[ -z "${qualified}" ]] && continue
+    # Sanitise schema/table for the on-disk filename.
+    safe="${qualified//\"/}"
+    safe="${safe//\//_}"
+    parquet="${SCRATCH}/${safe}.parquet"
+    duckdb -readonly "${DUCKDB_PATH}" \
+        "COPY (SELECT * FROM ${qualified}) TO '${parquet}' (FORMAT PARQUET);"
+    rows="$(duckdb -readonly -noheader -list "${DUCKDB_PATH}" \
+        "SELECT count(*) FROM ${qualified};")"
+    printf '%s\t%s\t%s\n' "${qualified}" "${safe}.parquet" "${rows}" >>"${MANIFEST}"
+done <"${TABLES_FILE}"
+
+# Encrypt the tar stream as it's written so the unencrypted archive
+# never lands on disk.
+tar -C "${SCRATCH}" -cf - manifest.tsv $(cd "${SCRATCH}" && ls ./*.parquet 2>/dev/null || true) \
+    | age "${RECIPIENT_ARGS[@]}" -o "${OUT}"
+
+[[ -s "${OUT}" ]] || penge::die "encrypted snapshot is empty: ${OUT}"
+
+penge::write_sha256 "${OUT}"
+penge::info "wrote $(stat -c '%s' "${OUT}") bytes → ${OUT}"
+penge::info "sha256 sidecar: ${OUT}.sha256"

@@ -197,3 +197,35 @@ mcp-lint:
 # Production build (TypeScript → dist/).
 mcp-build:
     pnpm --filter @penge/mcp build
+
+# --- Encrypted backups (see ADR-0025) ----------------------------------------
+#
+# All four recipes are thin wrappers around the shell scripts under
+# scripts/. Configure recipients via PENGE_BACKUP_RECIPIENTS (a
+# comma-separated list of `age` public keys) and the identity file via
+# PENGE_BACKUP_IDENTITY_FILE. See docs/runbook/backups.md.
+
+# Take an encrypted Postgres logical backup (pg_dump | age).
+# Extra flags forward to scripts/backup.sh, e.g.
+#   just backup --label pre-upgrade
+backup *FLAGS:
+    ./scripts/backup.sh {{FLAGS}}
+
+# Snapshot a DuckDB database to encrypted Parquet (per-table COPY | tar | age).
+# Usage:
+#   just snapshot ./data/penge.duckdb
+#   just snapshot ./data/penge.duckdb --label pre-upgrade
+snapshot DUCKDB *FLAGS:
+    ./scripts/snapshot.sh --duckdb {{DUCKDB}} {{FLAGS}}
+
+# Round-trip restore drill: decrypt the newest pg-*.sql.age and replay it
+# into PENGE_TEST_DATABASE_URL (never production).
+restore-test:
+    @test -n "${PENGE_TEST_DATABASE_URL:-}" || (echo "PENGE_TEST_DATABASE_URL must be set" && exit 1)
+    @test -n "${PENGE_BACKUP_IDENTITY_FILE:-}" || (echo "PENGE_BACKUP_IDENTITY_FILE must be set" && exit 1)
+    LATEST="$(ls -1 "${PENGE_BACKUP_ROOT:-./backups}"/postgres/pg-*.sql.age | tail -n1)" && \
+        ./scripts/restore.sh --input "$LATEST" --database-url "$PENGE_TEST_DATABASE_URL"
+
+# Apply backup retention (defaults: 14 daily / 8 weekly / 12 monthly).
+backup-prune *FLAGS:
+    ./scripts/prune.sh {{FLAGS}}

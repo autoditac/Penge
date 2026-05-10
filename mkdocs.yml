@@ -66,6 +66,8 @@ nav:
       - "Manual entries": connectors/manual.md
   - Analytics:
       - "dbt": dbt.md
+  - MCP:
+      - "Tool reference": mcp/tools.md
   - Simulation:
       - "Return model": sim/return-model.md
   - Tax:

@@ -122,3 +122,34 @@ single aggregate quantity + cost-basis per `(account_id, isin)`,
 mutated by `Buy` / `Sell` / `Split` / `Merge` events. Every `Sell`
 appends a `RealisedGain` to the audit log; the SKAT report generator
 (#39) consumes that log.
+
+## SKAT report (#39)
+
+`penge.tax.report_dk` aggregates the per-instrument outputs of the
+four Phase-3 calculators (`lots`, `lager`, `aktiesparekonto`, `pal`)
+into a single year-scoped report — one `SkatReportRow` per source
+object, plus per-year totals. See
+[ADR-0020](../decisions/0020-skat-report-generator.md).
+
+```python
+from penge.tax import build_skat_report, to_csv, to_markdown
+
+report = build_skat_report(
+    tax_year=2025,
+    lager_results=lager_rows,
+    ask_results=ask_rows,
+    pal_results=pal_rows,
+    realised_gains=lots_book.realised_gains(),
+    prior_loss_carry_forward=carry_in,
+)
+
+csv_text = to_csv(report)        # for Steuerberater / SKAT online form
+md_text  = to_markdown(report)   # for the household audit log
+```
+
+Only `lager` and `realised` rows feed `taxable_capital_income`. ASK
+and PAL settle at source; their gains and withheld tax are reported
+on their own lines for traceability but never double-counted in the
+ordinary capital-income bands. Cross-year carry-forward is netted by
+passing `prior_loss_carry_forward` and reading `loss_carry_forward`
+back from the report.

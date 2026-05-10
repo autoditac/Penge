@@ -50,14 +50,6 @@ jobs:
           corepack prepare pnpm@11.0.9 --activate
           pnpm --version
       - name: Install workspace deps
-        # pnpm 10+ promotes ignored build scripts to a hard error under
-        # --frozen-lockfile in CI. esbuild is whitelisted via
-        # `onlyBuiltDependencies` in pnpm-workspace.yaml, but on a fresh
-        # store the check still fires before the workspace config is
-        # applied (pnpm bug, tracked upstream). `--config.strict-dep-builds=false`
-        # downgrades it back to a warning so the install can continue.
-        # esbuild's lifecycle script downloads the platform binary that
-        # vitest needs to load .ts test files.
-        run: pnpm install --frozen-lockfile --config.strict-dep-builds=false
+        run: pnpm install --frozen-lockfile
       - name: Run MCP eval suite
         run: pnpm --filter @penge/mcp exec vitest run evals/runner.ts

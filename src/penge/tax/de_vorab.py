@@ -189,30 +189,27 @@ def compute_vorabpauschale(inp: VorabInput) -> VorabResult:
 
     months_factor = Decimal(inp.holding_months) / Decimal(12)
     basisertrag_raw = inp.start_value.amount * basiszins * Decimal("0.7") * months_factor
-    basisertrag = _q(basisertrag_raw)
 
     wertzuwachs_raw = inp.end_value.amount - inp.start_value.amount + inp.distributions.amount
-    wertzuwachs = _q(wertzuwachs_raw)
 
-    vp_after_dist = max(basisertrag - inp.distributions.amount, Decimal(0))
-    vp_capped = min(vp_after_dist, max(wertzuwachs, Decimal(0)))
-    vorabpauschale = _q(vp_capped)
+    vp_after_dist = max(basisertrag_raw - inp.distributions.amount, Decimal(0))
+    vorabpauschale_raw = min(vp_after_dist, max(wertzuwachs_raw, Decimal(0)))
 
     quote = TEILFREISTELLUNG_QUOTES[inp.classification]
-    taxable = _q(vorabpauschale * (Decimal(1) - quote))
-    tax_due = _q(taxable * ABGELT_RATE)
+    taxable_raw = vorabpauschale_raw * (Decimal(1) - quote)
+    tax_due_raw = taxable_raw * ABGELT_RATE
 
     return VorabResult(
         isin=inp.isin,
         tax_year=inp.tax_year,
         classification=inp.classification,
         basiszins=basiszins,
-        basisertrag=_eur(basisertrag),
-        wertzuwachs=_eur(wertzuwachs),
-        vorabpauschale=_eur(vorabpauschale),
+        basisertrag=_eur(basisertrag_raw),
+        wertzuwachs=_eur(wertzuwachs_raw),
+        vorabpauschale=_eur(vorabpauschale_raw),
         teilfreistellung_quote=quote,
-        taxable=_eur(taxable),
-        tax_due=_eur(tax_due),
+        taxable=_eur(taxable_raw),
+        tax_due=_eur(tax_due_raw),
     )
 
 

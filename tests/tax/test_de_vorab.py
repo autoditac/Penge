@@ -10,6 +10,7 @@ from penge.tax.de_vorab import (
     ABGELT_RATE,
     BASISZINS_DE,
     TEILFREISTELLUNG_QUOTES,
+    FundClassification,
     VorabError,
     VorabInput,
     compute_vorabpauschale,
@@ -27,7 +28,7 @@ def _input(
     *,
     isin: str = "IE0000000001",
     year: int = 2024,
-    classification: str = "equity",
+    classification: FundClassification = "equity",
     start: str = "10000",
     end: str = "11000",
     distributions: str = "0",
@@ -36,7 +37,7 @@ def _input(
     return VorabInput(
         isin=isin,
         tax_year=year,
-        classification=classification,  # type: ignore[arg-type]
+        classification=classification,
         start_value=_eur(start),
         end_value=_eur(end),
         distributions=_eur(distributions),

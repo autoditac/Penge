@@ -119,9 +119,16 @@ for path in "${CANDIDATES[@]}"; do
     # Re-shape into something `date -d` can parse: 20260508T134507Z
     # → 2026-05-08T13:45:07Z.
     iso="${ts:0:4}-${ts:4:2}-${ts:6:2}T${ts:9:2}:${ts:11:2}:${ts:13:2}Z"
-    day="$(date -u -d "${iso}" +%Y-%m-%d)"
-    week="$(date -u -d "${iso}" +%G-W%V)"
-    month="$(date -u -d "${iso}" +%Y-%m)"
+    # `date` rejects e.g. month 13 / day 32 with a non-zero exit; under
+    # `set -e` that would abort the entire prune run because of one
+    # malformed filename. Guard each call so we can warn-and-skip
+    # instead of taking the whole retention pass down.
+    if ! day="$(date -u -d "${iso}" +%Y-%m-%d 2>/dev/null)" \
+        || ! week="$(date -u -d "${iso}" +%G-W%V 2>/dev/null)" \
+        || ! month="$(date -u -d "${iso}" +%Y-%m 2>/dev/null)"; then
+        penge::warn "skipping (unparseable timestamp ${ts}): ${path}"
+        continue
+    fi
     printf '%s\t%s\t%s\t%s\t%s\n' "${ts}" "${day}" "${week}" "${month}" "${path}"
 done | sort -r >"${INDEX}"
 

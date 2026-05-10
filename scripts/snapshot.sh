@@ -124,6 +124,13 @@ while IFS=$'\t' read -r schema table; do
     safe="${schema}.${table}"
     safe="${safe//[^A-Za-z0-9_.-]/_}"
     parquet="${SCRATCH}/${safe}.parquet"
+    # Two distinct (schema, table) pairs can sanitise to the same
+    # `safe` slug if they differ only in stripped characters; detect
+    # the collision and fail loudly rather than silently overwriting
+    # an earlier table's parquet.
+    if [[ -e "${parquet}" ]]; then
+        penge::die "safe-name collision for ${schema}.${table} → ${safe}.parquet (already produced by another table)"
+    fi
     # DuckDB COPY ... TO 'PATH' requires SQL-style escaping for single
     # quotes inside PATH. PENGE_BACKUP_ROOT (and therefore SCRATCH) can
     # legitimately contain quotes on shared workstations; escape them

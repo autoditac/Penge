@@ -225,6 +225,10 @@ restore-test:
     @test -n "${PENGE_BACKUP_IDENTITY_FILE:-}" || (echo "PENGE_BACKUP_IDENTITY_FILE must be set" && exit 1)
     set -euo pipefail; \
         ROOT="${PENGE_BACKUP_ROOT:-./backups}"; \
+        if [ ! -d "$ROOT/postgres" ]; then \
+            echo "no $ROOT/postgres directory — run 'just backup' first" >&2; \
+            exit 1; \
+        fi; \
         LATEST="$(find "$ROOT/postgres" -maxdepth 1 -type f -name 'pg-*.sql.age' | sort | tail -n1)"; \
         if [ -z "$LATEST" ]; then \
             echo "no pg-*.sql.age artefacts under $ROOT/postgres — run 'just backup' first" >&2; \

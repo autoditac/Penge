@@ -13,6 +13,7 @@ import { buildServer } from "./server.js";
 import { computeTaxYearTool } from "./tools/computeTaxYear.js";
 import { queryCashflowTool } from "./tools/queryCashflow.js";
 import { queryNetWorthTool } from "./tools/queryNetWorth.js";
+import { runScenarioTool } from "./tools/runScenario.js";
 
 const SERVER_NAME = "penge-mcp";
 const SERVER_VERSION = "0.0.0";
@@ -55,6 +56,7 @@ async function main(): Promise<void> {
         },
       }),
       computeTaxYearTool(),
+      runScenarioTool(),
     ],
   });
 

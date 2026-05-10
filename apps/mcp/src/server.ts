@@ -16,7 +16,8 @@ export interface BuildServerOptions {
   version: string;
   audit: AuditLogger;
   /** Optionally register additional tools after the built-in `_meta` tool. */
-  extraTools?: readonly ToolDefinition[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  extraTools?: readonly ToolDefinition<any, any>[];
 }
 
 export interface BuiltServer {

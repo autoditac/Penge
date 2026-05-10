@@ -16,6 +16,7 @@ set -euo pipefail
 # operator on macOS doesn't get confusing "syntax error" / "mapfile:
 # command not found" failures from a sourced library.
 if (( ${BASH_VERSINFO[0]:-0} < 4 )); then
+    # shellcheck disable=SC2016 # the $(brew --prefix bash) text is documentation, not a command
     printf '[ERROR] Penge backup scripts require Bash 4+ (found %s). On macOS: brew install bash and put $(brew --prefix bash)/bin first on PATH. See docs/runbook/backup-restore.md.\n' \
         "${BASH_VERSION:-unknown}" >&2
     exit 1

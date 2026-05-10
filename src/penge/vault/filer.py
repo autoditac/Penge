@@ -135,6 +135,7 @@ def file_document(
 
     target = target_dir / filename
     sidecar = target_dir / f"{sha256}-{slug}.txt"
+    sidecar_tmp = sidecar.with_suffix(".txt.tmp")
 
     try:
         shutil.move(str(source), str(target))
@@ -142,8 +143,15 @@ def file_document(
         raise FilerError(f"failed to move {source} -> {target}: {exc}") from exc
 
     try:
-        sidecar.write_text(ocr_text, encoding="utf-8")
+        sidecar_tmp.write_text(ocr_text, encoding="utf-8")
+        sidecar_tmp.replace(sidecar)
     except OSError as exc:
+        # Roll back the moved PDF so the vault is never left half-filed.
+        for cleanup in (sidecar_tmp, target):
+            try:
+                cleanup.unlink()
+            except OSError:
+                log.warning("vault.filer.rollback_failed path=%s", cleanup)
         raise FilerError(f"failed to write OCR sidecar {sidecar}: {exc}") from exc
 
     entry: IndexEntry = {
@@ -151,7 +159,16 @@ def file_document(
         "size": target.stat().st_size,
         "filed_at": timestamp.isoformat(),
     }
-    index.add(sha256, entry)
+    try:
+        index.add(sha256, entry)
+    except OSError as exc:
+        # Index write failed — undo the file moves so a retry is clean.
+        for cleanup in (sidecar, target):
+            try:
+                cleanup.unlink()
+            except OSError:
+                log.warning("vault.filer.rollback_failed path=%s", cleanup)
+        raise FilerError(f"failed to update index for {sha256}: {exc}") from exc
 
     log.info(
         "vault.filer.filed sha256=%s filed_path=%s document_type=%s",

@@ -117,7 +117,8 @@ def _try_embedded(pdf_path: Path) -> tuple[list[str], int]:
         import pdfplumber  # noqa: PLC0415 - lazy: heavy native dep
     except ImportError:
         log.info("vault.ocr.pdfplumber_missing path=%s", pdf_path)
-        return [], _page_count(pdf_path)
+        total = _page_count(pdf_path)
+        return [""] * total, total
 
     pages: list[str] = []
     try:
@@ -141,7 +142,7 @@ def _page_count(pdf_path: Path) -> int:
     except Exception:
         return 1
     pages = info.get("Pages", 1)
-    return int(pages) if isinstance(pages, int | str) else 1
+    return int(pages) if isinstance(pages, (int, str)) else 1
 
 
 def _ocr_pages(pdf_path: Path, *, page_indices: list[int], cfg: OCRConfig) -> list[str]:

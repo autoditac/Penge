@@ -2,9 +2,13 @@
 
 Produces three small reportlab-rendered PDFs under
 ``tests/vault/fixtures/`` containing well-known DA / DE / EN text.
-The fixtures are *deterministic* — re-running this script overwrites
-the previous output bit-for-bit (modulo PDF metadata that reportlab
-seeds from creation time, which we override below).
+
+We enable reportlab's ``invariant`` mode and override creation-time
+metadata so re-runs produce reproducibly identical bytes for
+review-friendly diffs. Older reportlab releases that do not honour
+``invariant`` may still produce small byte-level deltas around the PDF
+trailer; that is acceptable because the vault tests assert on
+*content*, not on byte equality.
 
 The vault tests rely on these fixtures having embedded text so the
 OCR layer's "embedded text fast path" can be exercised without
@@ -21,8 +25,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from reportlab import rl_config
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+
+rl_config.invariant = 1
 
 ROOT = Path(__file__).resolve().parent.parent
 FIXTURE_DIR = ROOT / "tests" / "vault" / "fixtures"

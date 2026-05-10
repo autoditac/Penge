@@ -100,14 +100,10 @@ def main(argv: list[str] | None = None) -> int:
     watcher = VaultWatcher(config)
 
     if args.once:
-        watcher.start()
-        try:
-            results = watcher.process_inbox_once()
-            for r in results:
-                action = "duplicate" if r.duplicate else "filed"
-                print(f"{action}\t{r.sha256[:12]}\t{r.filed_path or '-'}")
-        finally:
-            watcher.stop()
+        results = watcher.process_inbox_once()
+        for r in results:
+            action = "duplicate" if r.duplicate else "filed"
+            print(f"{action}\t{r.sha256[:12]}\t{r.filed_path or '-'}")
         return 0
 
     print(

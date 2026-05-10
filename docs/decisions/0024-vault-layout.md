@@ -1,6 +1,6 @@
 # 0024 — Document vault layout, hash naming, dedup strategy
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2026-05-10
 - **Deciders:** @autoditac
 - **Tags:** vault, infra

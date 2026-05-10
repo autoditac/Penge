@@ -23,11 +23,11 @@ requested date range, valued in the requested currency.
 
 ### Input
 
-| Field          | Type                                   | Notes                                                       |
-| -------------- | -------------------------------------- | ----------------------------------------------------------- |
-| `date_range`   | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`. `from` must be on or before `to`.         |
-| `currency`     | `"EUR" \| "DKK"`                       | Both are first-class; pick whichever the consumer needs.    |
-| `breakdown_by` | `"none" \| "account" \| "asset_class"` | See semantics below.                                        |
+| Field          | Type                                   | Notes                                                    |
+| -------------- | -------------------------------------- | -------------------------------------------------------- |
+| `date_range`   | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`. `from` must be on or before `to`.      |
+| `currency`     | `"EUR" \| "DKK"`                       | Both are first-class; pick whichever the consumer needs. |
+| `breakdown_by` | `"none" \| "account" \| "asset_class"` | See semantics below.                                     |
 
 ### Output
 
@@ -35,10 +35,10 @@ Array of:
 
 ```jsonc
 {
-  "date": "2024-01-31",         // ISO YYYY-MM-DD
-  "currency": "EUR",            // echoes the request
+  "date": "2024-01-31", // ISO YYYY-MM-DD
+  "currency": "EUR", // echoes the request
   "breakdown_key": "brokerage", // omitted when breakdown_by = "none"
-  "value": 123456.78            // numeric, summed across the breakdown
+  "value": 123456.78, // numeric, summed across the breakdown
 }
 ```
 
@@ -102,11 +102,11 @@ movement valued in the requested currency.
 
 ### Input
 
-| Field         | Type                                     | Notes                                                                         |
-| ------------- | ---------------------------------------- | ----------------------------------------------------------------------------- |
-| `date_range`  | `{ from: string; to: string }`           | ISO `YYYY-MM-DD`. `from` must be on or before `to`.                           |
-| `granularity` | `"day" \| "week" \| "month" \| "year"`   | Bucket size. The mart is daily-grain; coarser buckets are summed in SQL.      |
-| `currency`    | `"EUR" \| "DKK"` (optional)              | Defaults to `EUR`. Both are first-class throughout Penge.                     |
+| Field         | Type                                   | Notes                                                                    |
+| ------------- | -------------------------------------- | ------------------------------------------------------------------------ |
+| `date_range`  | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`. `from` must be on or before `to`.                      |
+| `granularity` | `"day" \| "week" \| "month" \| "year"` | Bucket size. The mart is daily-grain; coarser buckets are summed in SQL. |
+| `currency`    | `"EUR" \| "DKK"` (optional)            | Defaults to `EUR`. Both are first-class throughout Penge.                |
 
 ### Output
 
@@ -115,11 +115,11 @@ Array of:
 ```jsonc
 {
   "period_start": "2024-01-01", // ISO YYYY-MM-DD, clipped to date_range.from
-  "period_end":   "2024-01-31", // ISO YYYY-MM-DD, clipped to date_range.to
-  "currency":     "EUR",        // echoes the request (or the default)
-  "inflow":       12345.67,     // sum of positive cashflows in the bucket
-  "outflow":       2345.67,     // absolute value of summed negatives
-  "net":          10000.00      // inflow - outflow
+  "period_end": "2024-01-31", // ISO YYYY-MM-DD, clipped to date_range.to
+  "currency": "EUR", // echoes the request (or the default)
+  "inflow": 12345.67, // sum of positive cashflows in the bucket
+  "outflow": 2345.67, // absolute value of summed negatives
+  "net": 10000.0, // inflow - outflow
 }
 ```
 
@@ -151,9 +151,30 @@ Array of:
 
 ```json
 [
-  { "period_start": "2024-01-01", "period_end": "2024-01-31", "currency": "EUR", "inflow": 4200.0, "outflow": 3100.5, "net": 1099.5 },
-  { "period_start": "2024-02-01", "period_end": "2024-02-29", "currency": "EUR", "inflow": 4250.0, "outflow": 2900.0, "net": 1350.0 },
-  { "period_start": "2024-03-01", "period_end": "2024-03-31", "currency": "EUR", "inflow": 4300.0, "outflow": 3050.0, "net": 1250.0 }
+  {
+    "period_start": "2024-01-01",
+    "period_end": "2024-01-31",
+    "currency": "EUR",
+    "inflow": 4200.0,
+    "outflow": 3100.5,
+    "net": 1099.5
+  },
+  {
+    "period_start": "2024-02-01",
+    "period_end": "2024-02-29",
+    "currency": "EUR",
+    "inflow": 4250.0,
+    "outflow": 2900.0,
+    "net": 1350.0
+  },
+  {
+    "period_start": "2024-03-01",
+    "period_end": "2024-03-31",
+    "currency": "EUR",
+    "inflow": 4300.0,
+    "outflow": 3050.0,
+    "net": 1250.0
+  }
 ]
 ```
 
@@ -188,11 +209,11 @@ project's locked uv environment.
 
 ### Input
 
-| Field           | Type                  | Notes                                                              |
-| --------------- | --------------------- | ------------------------------------------------------------------ |
-| `year`          | `number` (int)        | Tax year; 1900 ≤ year ≤ 2999.                                      |
-| `jurisdictions` | `("DK" \| "DE")[]`    | Non-empty, unique. One report is produced per requested entry.     |
-| `currency`      | `"EUR" \| "DKK"`      | Display currency. Native DK reports are DKK; DE reports are EUR.   |
+| Field           | Type               | Notes                                                            |
+| --------------- | ------------------ | ---------------------------------------------------------------- |
+| `year`          | `number` (int)     | Tax year; 1900 ≤ year ≤ 2999.                                    |
+| `jurisdictions` | `("DK" \| "DE")[]` | Non-empty, unique. One report is produced per requested entry.   |
+| `currency`      | `"EUR" \| "DKK"`   | Display currency. Native DK reports are DKK; DE reports are EUR. |
 
 ### Output
 
@@ -201,20 +222,21 @@ Array of:
 ```jsonc
 {
   "year": 2024,
-  "jurisdiction": "DK",         // or "DE"
-  "currency": "EUR",            // echoes the request
-  "summary": {                  // jurisdiction-specific totals (numbers)
+  "jurisdiction": "DK", // or "DE"
+  "currency": "EUR", // echoes the request
+  "summary": {
+    // jurisdiction-specific totals (numbers)
     "gross_capital_income": 0.0,
     "taxable_capital_income": 0.0,
     "loss_carry_forward": 0.0,
     "tax_withheld_total": 0.0,
-    "prior_loss_carry_forward": 0.0
+    "prior_loss_carry_forward": 0.0,
   },
   "line_items": [
     { "category": "lager", "amount": 1700.0, "source": "lager:nordnet-1:DK0001234567" },
-    { "category": "ask",   "amount": 500.0,  "source": "ask:ask-1" },
-    { "category": "ask_tax_withheld", "amount": 85.0, "source": "ask:ask-1" }
-  ]
+    { "category": "ask", "amount": 500.0, "source": "ask:ask-1" },
+    { "category": "ask_tax_withheld", "amount": 85.0, "source": "ask:ask-1" },
+  ],
 }
 ```
 
@@ -242,17 +264,17 @@ currency.
 
 ### Categories
 
-| Category              | Source ID format                | Meaning                                                                |
-| --------------------- | ------------------------------- | ---------------------------------------------------------------------- |
-| `lager`               | `lager:<account>:<isin>`        | DK lagerbeskatning gain/loss per ISIN.                                 |
-| `ask`                 | `ask:<account>`                 | DK ASK net taxable gain (17 % settled at source).                      |
-| `ask_tax_withheld`    | `ask:<account>`                 | DK ASK 17 % withheld via the account.                                  |
-| `pal`                 | `pal:<account>`                 | DK pension return for the year.                                        |
-| `pal_tax_withheld`    | `pal:<account>`                 | DK PAL-skat (15.3 %) withheld by the pension provider.                 |
-| `realised`            | `realised:<acc>:<isin>:<n>`     | DK realised gain on a sell event (gennemsnitsmetoden).                 |
-| `vorabpauschale`      | `de_vorab:<isin>`               | DE deemed annual yield (post-cap, pre-Teilfreistellung).               |
-| `vorab_taxable`       | `de_vorab:<isin>`               | DE Vorabpauschale × (1 − Teilfreistellung).                            |
-| `vorab_tax_due`       | `de_vorab:<isin>`               | DE Abgeltungsteuer (26.375 %) on the taxable amount.                   |
+| Category           | Source ID format            | Meaning                                                  |
+| ------------------ | --------------------------- | -------------------------------------------------------- |
+| `lager`            | `lager:<account>:<isin>`    | DK lagerbeskatning gain/loss per ISIN.                   |
+| `ask`              | `ask:<account>`             | DK ASK net taxable gain (17 % settled at source).        |
+| `ask_tax_withheld` | `ask:<account>`             | DK ASK 17 % withheld via the account.                    |
+| `pal`              | `pal:<account>`             | DK pension return for the year.                          |
+| `pal_tax_withheld` | `pal:<account>`             | DK PAL-skat (15.3 %) withheld by the pension provider.   |
+| `realised`         | `realised:<acc>:<isin>:<n>` | DK realised gain on a sell event (gennemsnitsmetoden).   |
+| `vorabpauschale`   | `de_vorab:<isin>`           | DE deemed annual yield (post-cap, pre-Teilfreistellung). |
+| `vorab_taxable`    | `de_vorab:<isin>`           | DE Vorabpauschale × (1 − Teilfreistellung).              |
+| `vorab_tax_due`    | `de_vorab:<isin>`           | DE Abgeltungsteuer (26.375 %) on the taxable amount.     |
 
 ### Example call
 
@@ -299,45 +321,51 @@ malformed baseline JSON is a hard error (no safe empty default).
 
 ### Input
 
-| Field           | Type                                                                          | Notes                                                                                                                                                            |
-| --------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `scenario_type` | `"house_purchase" \| "work_reduction"`                                        | Discriminator. Determines the shape of `params`.                                                                                                                 |
-| `params`        | scenario-specific (see below)                                                 | Forwarded verbatim to `HousePurchaseScenario` / `WorkReductionScenario` constructors. Strict — extra keys are rejected.                                          |
-| `monte_carlo`   | `{ paths: int; seed?: int; horizon_years: int }`                              | `paths` overrides `mc.n_paths`; `horizon_years` overrides `cashflow.horizon_years`; `seed` (when present) overrides `return_model.seed` for path reproducibility. |
+| Field           | Type                                             | Notes                                                                                                                                                             |
+| --------------- | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scenario_type` | `"house_purchase" \| "work_reduction"`           | Discriminator. Determines the shape of `params`.                                                                                                                  |
+| `params`        | scenario-specific (see below)                    | Forwarded verbatim to `HousePurchaseScenario` / `WorkReductionScenario` constructors. Strict — extra keys are rejected.                                           |
+| `monte_carlo`   | `{ paths: int; seed?: int; horizon_years: int }` | `paths` overrides `mc.n_paths`; `horizon_years` overrides `cashflow.horizon_years`; `seed` (when present) overrides `return_model.seed` for path reproducibility. |
 
 #### `params` for `house_purchase`
 
-| Field             | Type                | Notes                                                  |
-| ----------------- | ------------------- | ------------------------------------------------------ |
-| `year`            | `int` (2024–2100)   | Calendar year of purchase.                             |
-| `price_eur`       | `number \| string`  | Full purchase price, EUR. Strings preserve precision.  |
-| `downpayment_eur` | `number \| string`  | Down-payment, EUR. Must be `<= price_eur`.             |
-| `mortgage_rate`   | `number \| string`  | Annual nominal interest rate in `[0, 1]`.              |
-| `term_years`      | `int` (1–50)        | Mortgage term, years.                                  |
+| Field             | Type               | Notes                                                 |
+| ----------------- | ------------------ | ----------------------------------------------------- |
+| `year`            | `int` (2024–2100)  | Calendar year of purchase.                            |
+| `price_eur`       | `number \| string` | Full purchase price, EUR. Strings preserve precision. |
+| `downpayment_eur` | `number \| string` | Down-payment, EUR. Must be `<= price_eur`.            |
+| `mortgage_rate`   | `number \| string` | Annual nominal interest rate in `[0, 1]`.             |
+| `term_years`      | `int` (1–50)       | Mortgage term, years.                                 |
 
 #### `params` for `work_reduction`
 
-| Field          | Type                | Notes                                                  |
-| -------------- | ------------------- | ------------------------------------------------------ |
-| `entity`       | `string`            | Entity identifier in the cashflow projection.          |
-| `year`         | `int` (2024–2100)   | First year the reduction takes effect.                 |
-| `fte_fraction` | `number \| string`  | New FTE fraction in `(0, 1]` (e.g. `"0.8"` for 80 %).  |
+| Field          | Type               | Notes                                                 |
+| -------------- | ------------------ | ----------------------------------------------------- |
+| `entity`       | `string`           | Entity identifier in the cashflow projection.         |
+| `year`         | `int` (2024–2100)  | First year the reduction takes effect.                |
+| `fte_fraction` | `number \| string` | New FTE fraction in `(0, 1]` (e.g. `"0.8"` for 80 %). |
 
 ### Output
 
 ```jsonc
 {
   "baseline": {
-    "p10":  { "2025": 209028.14, "2026": 218463.81, /* ... */ },
-    "p50":  { /* ... */ },
-    "p90":  { /* ... */ },
-    "fire_year_distribution": { "2032": 17, "2033": 23 } // empty when no path met the goal
+    "p10": { "2025": 209028.14, "2026": 218463.81 /* ... */ },
+    "p50": {
+      /* ... */
+    },
+    "p90": {
+      /* ... */
+    },
+    "fire_year_distribution": { "2032": 17, "2033": 23 }, // empty when no path met the goal
   },
-  "scenario": { /* same shape */ },
+  "scenario": {
+    /* same shape */
+  },
   "deltas": {
-    "p50_value_eur":         -54321.0, // terminal-year p50 delta (scenario - baseline)
-    "fire_year_shift_years":  2        // median-FIRE-year shift, or null if undefined
-  }
+    "p50_value_eur": -54321.0, // terminal-year p50 delta (scenario - baseline)
+    "fire_year_shift_years": 2, // median-FIRE-year shift, or null if undefined
+  },
 }
 ```
 
@@ -372,6 +400,101 @@ median FIRE year is undefined (fewer than 50 % of paths met the goal).
   negative initial portfolio, malformed override) → propagates the
   Python `error: …` message with a non-zero exit code as
   `tool/run_scenario_failed`.
+
+### Audit
+
+Every call is recorded by the MCP audit logger
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+status, and duration.
+
+## `search_documents`
+
+Search the on-disk document vault by filename, classifier metadata
+(year + type) and OCR sidecar text. Returns ranked references —
+**never** raw file contents. Excerpts are redacted with the same
+value-pattern policy described under "Privacy notes" below.
+
+### Input
+
+| Field   | Type      | Notes                                          |
+| ------- | --------- | ---------------------------------------------- |
+| `query` | `string`  | Min 2 characters. Matched case-insensitively.  |
+| `year`  | `number?` | Optional 4-digit year filter (e.g. `2024`).    |
+| `type`  | `string?` | Optional classifier category (see list below). |
+| `limit` | `number?` | Defaults to 20. Min 1, max 100.                |
+
+`type` accepts the categories defined in
+`src/penge/vault/classifier_rules.yaml`:
+
+`lønseddel`, `gehaltsabrechnung`, `årsopgørelse`, `steuerbescheid`,
+`kontoauszug`, `depotauszug`, `pfa-statement`, `hypothek`,
+`grundbuch`, `versicherungspolice`, `unsorted`.
+
+### Output
+
+Array of:
+
+```jsonc
+{
+  "vault_path": "2024/kontoauszug/abcd…-gls-bank-january.pdf", // relative to PENGE_VAULT_ROOT
+  "year": 2024, // null when the vault path does not start with a 4-digit year folder
+  "type": "kontoauszug",
+  "classified_at": "2024-02-02T08:00:00Z", // = vault index `filed_at`
+  "hash": "abcd…", // sha256 of the document
+  "excerpt": "…Kontoauszug Januar 2024. IBAN: [REDACTED] Saldo am 31.01: …",
+  "confidence": 0.4, // search-relevance score in [0, 1]
+}
+```
+
+Hits are sorted by descending match count, then most-recently-filed,
+then `vault_path` for determinism. `confidence` is a saturating
+relevance score (`min(1, matches/5)`), not the classifier's own
+confidence (which is not persisted in the index today).
+
+### Search strategy
+
+For each entry in `<PENGE_VAULT_ROOT>/.index.json`:
+
+1. Apply optional `year` / `type` filters (derived from the vault path).
+2. Count case-insensitive occurrences of `query` in the filename, the
+   classifier type, and the OCR sidecar (`<hash>-<slug>.txt` next to the
+   document).
+3. Drop entries with zero matches; rank the remainder; build a ±50-char
+   excerpt around the first OCR match (falling back to the filename).
+
+### Configuration
+
+| Env var            | Default      | Purpose                              |
+| ------------------ | ------------ | ------------------------------------ |
+| `PENGE_VAULT_ROOT` | `data/vault` | Vault root containing `.index.json`. |
+
+### Privacy notes
+
+- **No file contents are returned.** Only metadata and a short excerpt.
+- Excerpts are run through `redactText` before leaving the process.
+  IBANs (contiguous and printed 4-char-group form, case-insensitive),
+  DK CPR numbers (`\d{6}-?\d{4}`) and long digit runs (`\d{8,}`) —
+  typical of account / customer numbers — are replaced with
+  `[REDACTED]`.
+- The audit logger additionally redacts the `query` argument (and any
+  other key whose name matches the standard redaction policy in
+  `audit.ts`) before writing the audit record.
+
+### Example call
+
+```json
+{
+  "name": "search_documents",
+  "arguments": { "query": "Kontoauszug", "year": 2024, "limit": 5 }
+}
+```
+
+### Errors
+
+- Query shorter than 2 chars, unknown `type`, or `limit` out of
+  `[1, 100]` → `tool/input_invalid`.
+- A missing or unreadable vault index degrades gracefully to an empty
+  result array (no error).
 
 ### Audit
 

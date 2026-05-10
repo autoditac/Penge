@@ -2,8 +2,10 @@
 
 The ASK is a separate Danish tax wrapper introduced in 2019. It taxes
 all holdings annually on a mark-to-market basis at a flat **17 %**
-(no progressive bands), and limits cumulative *net* deposits to a
-yearly-indexed cap (135 000 DKK in 2024, 142 000 DKK in 2025, ...).
+(no progressive bands), and limits *cumulative* (lifetime) net deposits
+to a yearly-indexed cap. The cap that applies at any moment is the cap
+of the calendar year in which the deposit is made — see
+:data:`ASK_DEPOSIT_CAPS` for the current values.
 
 This module provides:
 
@@ -82,8 +84,11 @@ class AskError(Exception):
 class AskDeposit(BaseModel):
     """A net deposit movement on an ASK account.
 
-    Negative ``amount`` represents a withdrawal. Cumulative net
-    deposits per calendar year must stay within :data:`ASK_DEPOSIT_CAPS`.
+    Negative ``amount`` represents a withdrawal. The Danish ASK rule
+    applies to the *cumulative* (lifetime) net-deposit total: that
+    running total must never exceed the cap of the calendar year in
+    which a deposit is made. See :data:`ASK_DEPOSIT_CAPS` and
+    :func:`check_deposit_cap`.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -142,6 +147,11 @@ def compute_ask_taxes(
             raise AskError(
                 f"lager result for tax year {r.tax_year} passed to ASK "
                 f"calculator for tax year {tax_year}"
+            )
+        if r.gain.currency != _DKK:
+            raise AskError(
+                f"lager result gain must be DKK, got {r.gain.currency} "
+                f"(account {account_id!r}, isin {r.isin!r})"
             )
         gain += r.gain.amount
 

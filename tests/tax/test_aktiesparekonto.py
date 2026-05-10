@@ -125,6 +125,30 @@ def test_empty_results_yields_zero_tax() -> None:
 # ---------------------------------------------------------------------------
 
 
+def test_non_dkk_gain_in_lager_result_rejected() -> None:
+    """ASK calculator must guard against a non-DKK LagerResult.gain."""
+
+    from penge.tax.lager import LagerResult
+
+    bad = LagerResult(
+        account_id="ask-1",
+        tax_year=2024,
+        isin="IE0000000001",
+        start_market_value=_dkk(0),
+        end_market_value=_dkk(0),
+        buys_total=_dkk(0),
+        sells_total=_dkk(0),
+        distributions_total=_dkk(0),
+        gain=_eur("100"),
+    )
+    with pytest.raises(AskError, match="DKK"):
+        compute_ask_taxes(
+            account_id="ask-1",
+            tax_year=2024,
+            lager_results=[bad],
+        )
+
+
 def test_deposit_within_cap_is_ok() -> None:
     check_deposit_cap(
         account_id="ask-1",

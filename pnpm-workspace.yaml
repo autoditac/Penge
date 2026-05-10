@@ -1,2 +1,8 @@
 packages:
   - "apps/*"
+
+# pnpm 10+ requires explicit allow-listing of packages whose lifecycle
+# scripts may run during install. Without this, fresh CI installs fail
+# with [ERR_PNPM_IGNORED_BUILDS]. esbuild is the only such dep.
+onlyBuiltDependencies:
+  - esbuild

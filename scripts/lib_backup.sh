@@ -53,6 +53,22 @@ to PATH. See docs/runbook/backup-restore.md."
     if ! find /tmp -maxdepth 0 -printf '' >/dev/null 2>&1; then
         penge::die "GNU find is required (find -printf). See docs/runbook/backup-restore.md."
     fi
+    if ! tar --version 2>/dev/null | grep -qi 'GNU tar'; then
+        penge::die "GNU tar is required (--null -T). On macOS: brew install gnu-tar \
+and put the gnubin dir at the front of PATH. See docs/runbook/backup-restore.md."
+    fi
+}
+
+# Sanitise a free-form `--label` string into something safe to embed
+# in a filesystem path. Strips any byte that isn't [A-Za-z0-9_.-];
+# rejects an entirely empty result so an operator can't smuggle a
+# path-traversal sequence (`..`, `/`, …) through the label.
+penge::safe_label() {
+    local raw="$1"
+    local clean="${raw//[^A-Za-z0-9_.-]/_}"
+    [[ -n "${clean}" ]] || penge::die "label sanitises to empty: ${raw}"
+    [[ "${clean}" != *..* ]] || penge::die "label may not contain '..': ${raw}"
+    printf '%s\n' "${clean}"
 }
 
 # Print the size of a regular file in bytes. GNU coreutils uses

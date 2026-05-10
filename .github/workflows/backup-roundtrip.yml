@@ -205,11 +205,20 @@ jobs:
       - name: Reject any plaintext leftover under the backup root
         run: |
           set -euo pipefail
+          # The scripts trap-clean their own scratch dirs, so any
+          # `.scratch-*` artefact reaching this step indicates a
+          # cleanup failure (and may contain plaintext parquet /
+          # manifest data). Fail the job loudly in that case.
+          if find "${PENGE_BACKUP_ROOT}" -type d -name '.scratch-*' \
+                -print -quit | grep -q .; then
+            echo "::error::scratch directory survived under the backup root:"
+            find "${PENGE_BACKUP_ROOT}" -type d -name '.scratch-*' -print
+            exit 1
+          fi
           # Anything under the backup root that is *not* a `*.age` or a
           # `*.sha256` sidecar is a smoking gun.
           BAD=$(find "${PENGE_BACKUP_ROOT}" -type f \
-                  ! -name '*.age' ! -name '*.sha256' \
-                  ! -path '*/.scratch-*/*' || true)
+                  ! -name '*.age' ! -name '*.sha256' || true)
           if [[ -n "${BAD}" ]]; then
             echo "::error::plaintext leftovers under backup root:"
             echo "${BAD}"

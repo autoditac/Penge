@@ -65,7 +65,10 @@ penge::require_gnu_userland
 
 ROOT="$(penge::backup_root "${ROOT_FLAG}")"
 TS="$(penge::timestamp)"
-SLUG="${LABEL:+-${LABEL}}"
+SLUG=""
+if [[ -n "${LABEL}" ]]; then
+    SLUG="-$(penge::safe_label "${LABEL}")"
+fi
 OUT="${ROOT}/duckdb/duckdb-${TS}${SLUG}.tar.age"
 
 mapfile -t RECIPIENT_ARGS < <(penge::age_recipient_args)

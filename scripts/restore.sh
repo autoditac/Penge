@@ -157,18 +157,15 @@ else
     done < <(tar -tvf "${SCRATCH_TAR}")
 
     while IFS= read -r member; do
-        # Reject genuine traversal (a path component that *equals* `..`)
-        # and absolute paths / embedded newlines, but allow `..` to
-        # appear inside a single component — snapshot.sh's `safe`
-        # sanitiser preserves dots in schema/table names, so legitimate
-        # members like `main.foo..bar.parquet` must still extract.
-        if [[ "${member}" == /* ]] \
-            || [[ "${member}" == *$'\n'* ]] \
-            || [[ "${member}" == ".." ]] \
-            || [[ "${member}" == "../"* ]] \
-            || [[ "${member}" == */".."/* ]] \
-            || [[ "${member}" == */".." ]]; then
-            penge::die "refusing tar member with unsafe path: ${member}"
+        # Strict allowlist: snapshot.sh only ever produces a single
+        # `manifest.tsv` plus one `<safe>.parquet` per table, where
+        # `<safe>` is sanitised to [A-Za-z0-9_.-]+. Anything else in
+        # the archive is suspicious and we refuse to extract it.
+        # This subsumes the earlier path-traversal / absolute-path
+        # checks because none of those characters survive the regex.
+        if [[ "${member}" != "manifest.tsv" \
+            && ! "${member}" =~ ^[A-Za-z0-9_.-]+\.parquet$ ]]; then
+            penge::die "refusing tar member outside the snapshot allowlist: ${member}"
         fi
     done < <(tar -tf "${SCRATCH_TAR}")
 

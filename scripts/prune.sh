@@ -69,6 +69,17 @@ done
 ROOT="$(penge::backup_root "${ROOT_FLAG}")"
 penge::require_gnu_userland
 
+# Validate quotas as non-negative integers. A non-numeric value would
+# silently coerce to 0 inside the awk quota check and delete every
+# artefact in that bucket — which is exactly the wrong default for a
+# retention tool.
+for var in DAILY WEEKLY MONTHLY; do
+    val="${!var}"
+    if ! [[ "${val}" =~ ^[0-9]+$ ]]; then
+        penge::die "${var} must be a non-negative integer, got: ${val}"
+    fi
+done
+
 # Collect all `*.age` artefacts (ignore sidecars). For every file we
 # emit a TSV row: <ts>\t<iso_date>\t<iso_week>\t<iso_month>\t<path>
 # sorted descending by timestamp so the head of each bucket is the

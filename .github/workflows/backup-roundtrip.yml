@@ -156,7 +156,7 @@ jobs:
           duckdb _duck/db.duckdb <<'SQL'
           CREATE TABLE positions (id INT, ticker VARCHAR, qty INT);
           INSERT INTO positions VALUES (1, 'VWCE', 50), (2, 'IDUS', 100);
-          CREATE TABLE prices (ticker VARCHAR, asof DATE, eur DECIMAL(10, 4));
+          CREATE TABLE prices (ticker VARCHAR, as_of DATE, eur DECIMAL(10, 4));
           INSERT INTO prices VALUES ('VWCE', '2026-05-08', 120.5500),
                                     ('IDUS', '2026-05-08', 95.1200);
           SQL

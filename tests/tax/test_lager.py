@@ -80,7 +80,7 @@ def test_worked_example_with_trades_and_distribution() -> None:
 def test_loss_is_negative() -> None:
     inp = LagerInput(
         account_id="acc",
-        isin="IE0",
+        isin="IE0000000000",
         tax_year=2024,
         start_market_value=_dkk("100000"),
         end_market_value=_dkk("85000"),
@@ -93,7 +93,7 @@ def test_full_exit_during_year() -> None:
 
     inp = LagerInput(
         account_id="acc",
-        isin="IE0",
+        isin="IE0000000000",
         tax_year=2024,
         start_market_value=_dkk("10000"),
         end_market_value=_dkk("0"),
@@ -105,7 +105,7 @@ def test_full_exit_during_year() -> None:
 def test_multiple_buys_and_sells_aggregate() -> None:
     inp = LagerInput(
         account_id="acc",
-        isin="IE0",
+        isin="IE0000000000",
         tax_year=2024,
         start_market_value=_dkk("0"),
         end_market_value=_dkk("30000"),
@@ -128,7 +128,7 @@ def test_non_dkk_market_value_rejected() -> None:
     with pytest.raises(LagerError):
         LagerInput(
             account_id="acc",
-            isin="IE0",
+            isin="IE0000000000",
             tax_year=2024,
             start_market_value=_eur("100"),
             end_market_value=_dkk("100"),
@@ -159,7 +159,7 @@ def test_negative_market_value_rejected() -> None:
     with pytest.raises(LagerError):
         LagerInput(
             account_id="acc",
-            isin="IE0",
+            isin="IE0000000000",
             tax_year=2024,
             start_market_value=_dkk("-1"),
             end_market_value=_dkk("100"),
@@ -175,7 +175,7 @@ def test_compute_lager_many_preserves_order() -> None:
     inputs = [
         LagerInput(
             account_id="a",
-            isin=f"IE{i}",
+            isin=f"IE{i:010d}",
             tax_year=2024,
             start_market_value=_dkk("0"),
             end_market_value=_dkk(str(i * 100)),
@@ -183,7 +183,7 @@ def test_compute_lager_many_preserves_order() -> None:
         for i in range(5)
     ]
     results = compute_lager_many(inputs)
-    assert [r.isin for r in results] == [f"IE{i}" for i in range(5)]
+    assert [r.isin for r in results] == [f"IE{i:010d}" for i in range(5)]
 
 
 def test_sum_gain_by_year() -> None:
@@ -191,21 +191,21 @@ def test_sum_gain_by_year() -> None:
         [
             LagerInput(
                 account_id="a",
-                isin="IE1",
+                isin="IE0000000001",
                 tax_year=2024,
                 start_market_value=_dkk("0"),
                 end_market_value=_dkk("1000"),
             ),
             LagerInput(
                 account_id="a",
-                isin="IE2",
+                isin="IE0000000002",
                 tax_year=2024,
                 start_market_value=_dkk("0"),
                 end_market_value=_dkk("2000"),
             ),
             LagerInput(
                 account_id="a",
-                isin="IE1",
+                isin="IE0000000001",
                 tax_year=2025,
                 start_market_value=_dkk("1000"),
                 end_market_value=_dkk("1500"),
@@ -248,7 +248,7 @@ def test_gain_formula_property(
 ) -> None:
     inp = LagerInput(
         account_id="a",
-        isin="IE0",
+        isin="IE0000000000",
         tax_year=2024,
         start_market_value=Money(amount=start_mv, currency="DKK"),
         end_market_value=Money(amount=end_mv, currency="DKK"),
@@ -280,7 +280,7 @@ def test_no_trades_no_dist_is_pure_appreciation(
 ) -> None:
     inp = LagerInput(
         account_id="a",
-        isin="IE0",
+        isin="IE0000000000",
         tax_year=2024,
         start_market_value=Money(amount=start_mv, currency="DKK"),
         end_market_value=Money(amount=end_mv, currency="DKK"),

@@ -59,6 +59,7 @@ __all__ = [
     "SellLeg",
     "compute_lager",
     "compute_lager_many",
+    "sum_gain_by_year",
 ]
 
 from typing import Final, Literal
@@ -75,19 +76,12 @@ class LagerError(Exception):
     """Raised when a lager input is inconsistent (e.g. wrong currency)."""
 
 
-class _DkkMoney(BaseModel):
-    """Internal helper enforcing DKK on a Money field via reuse."""
-
-    model_config = ConfigDict(frozen=True)
-
-    value: Money
-
-    @field_validator("value")
-    @classmethod
-    def _must_be_dkk(cls, v: Money) -> Money:
-        if v.currency != _DKK:
-            raise LagerError(f"lager amounts must be in DKK, got {v.currency}")
-        return v
+def _ensure_dkk_nonneg(v: Money, *, label: str) -> Money:
+    if v.currency != _DKK:
+        raise LagerError(f"{label} must be DKK, got {v.currency}")
+    if v.amount < 0:
+        raise LagerError(f"{label} must be non-negative")
+    return v
 
 
 class BuyLeg(BaseModel):
@@ -100,11 +94,7 @@ class BuyLeg(BaseModel):
     @field_validator("cost")
     @classmethod
     def _dkk(cls, v: Money) -> Money:
-        if v.currency != _DKK:
-            raise LagerError(f"BuyLeg.cost must be DKK, got {v.currency}")
-        if v.amount < 0:
-            raise LagerError("BuyLeg.cost must be non-negative")
-        return v
+        return _ensure_dkk_nonneg(v, label="BuyLeg.cost")
 
 
 class SellLeg(BaseModel):
@@ -117,11 +107,7 @@ class SellLeg(BaseModel):
     @field_validator("proceeds")
     @classmethod
     def _dkk(cls, v: Money) -> Money:
-        if v.currency != _DKK:
-            raise LagerError(f"SellLeg.proceeds must be DKK, got {v.currency}")
-        if v.amount < 0:
-            raise LagerError("SellLeg.proceeds must be non-negative")
-        return v
+        return _ensure_dkk_nonneg(v, label="SellLeg.proceeds")
 
 
 class Distribution(BaseModel):
@@ -134,11 +120,7 @@ class Distribution(BaseModel):
     @field_validator("amount")
     @classmethod
     def _dkk(cls, v: Money) -> Money:
-        if v.currency != _DKK:
-            raise LagerError(f"Distribution.amount must be DKK, got {v.currency}")
-        if v.amount < 0:
-            raise LagerError("Distribution.amount must be non-negative")
-        return v
+        return _ensure_dkk_nonneg(v, label="Distribution.amount")
 
 
 class LagerInput(BaseModel):
@@ -147,7 +129,7 @@ class LagerInput(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     account_id: str = Field(..., min_length=1)
-    isin: str = Field(..., min_length=1)
+    isin: str = Field(..., min_length=12, max_length=12)
     tax_year: int = Field(..., ge=1900, le=2999)
     start_market_value: Money
     end_market_value: Money
@@ -158,11 +140,7 @@ class LagerInput(BaseModel):
     @field_validator("start_market_value", "end_market_value")
     @classmethod
     def _mv_dkk(cls, v: Money) -> Money:
-        if v.currency != _DKK:
-            raise LagerError(f"market values must be DKK, got {v.currency}")
-        if v.amount < 0:
-            raise LagerError("market values must be non-negative")
-        return v
+        return _ensure_dkk_nonneg(v, label="market value")
 
 
 class LagerResult(BaseModel):

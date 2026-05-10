@@ -72,12 +72,25 @@ Override to 42 % for scenarios with large annual gains.
 
 ## Aktiesparekonto (ASK)
 
-The ASK is a separate tax wrapper with a flat **17 %** rate on realised
-gains.  Deposits are capped at ~135 k DKK (2024, annually indexed).
+The ASK is a separate tax wrapper with a flat **17 %** mark-to-market
+rate on annual gains. Cumulative net deposits are capped at a yearly-
+indexed amount (135 900 DKK in 2024, 142 500 DKK in 2025).
 
-The ASK is not modelled separately in Phase 2.  It can be approximated by
-setting `capital_gains_effective_rate = 0.17` for the ASK-held portion of
-the portfolio, or by running a separate sub-simulation.
+Phase 3 implements this in `penge.tax.aktiesparekonto`
+(issue #37, [ADR-0018](../decisions/0018-aktiesparekonto-handling.md)).
+The module reuses the lager calculator per ISIN, aggregates per
+`(account_id, tax_year)`, and applies the flat 17 % rate to the net
+gain. Losses on one ISIN net against gains on another within the same
+year and account; residual losses are returned as `loss_carry_forward`
+for the SKAT report generator (#39) to roll forward.
+
+Deposit-cap enforcement is provided by `check_deposit_cap`, which
+walks a chronological deposit/withdrawal sequence against the
+`ASK_DEPOSIT_CAPS` constants table and raises `AskError` on breach.
+
+For Phase-2 simulation, the ASK can still be approximated by setting
+`capital_gains_effective_rate = 0.17` for the ASK-held portion of the
+portfolio, or by running a separate sub-simulation.
 
 ## Realisationsbeskatning (non-ABIS instruments)
 

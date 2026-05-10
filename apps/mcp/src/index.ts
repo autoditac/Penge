@@ -10,6 +10,7 @@ import { createAuditLogger } from "./audit.js";
 import { loadConfig } from "./config.js";
 import { connect } from "./db.js";
 import { buildServer } from "./server.js";
+import { computeTaxYearTool } from "./tools/computeTaxYear.js";
 import { queryCashflowTool } from "./tools/queryCashflow.js";
 import { queryNetWorthTool } from "./tools/queryNetWorth.js";
 
@@ -53,6 +54,7 @@ async function main(): Promise<void> {
           },
         },
       }),
+      computeTaxYearTool(),
     ],
   });
 

@@ -1617,6 +1617,13 @@ sim = [
     { name = "numpy" },
     { name = "pydantic" },
 ]
+vault = [
+    { name = "pdf2image" },
+    { name = "pillow" },
+    { name = "pydantic" },
+    { name = "pytesseract" },
+    { name = "watchdog" },
+]
 web = [
     { name = "pandas" },
     { name = "plotly" },
@@ -1668,6 +1675,13 @@ prices = [
 sim = [
     { name = "numpy", specifier = ">=2.0" },
     { name = "pydantic", specifier = ">=2.7" },
+]
+vault = [
+    { name = "pdf2image", specifier = ">=1.17" },
+    { name = "pillow", specifier = ">=10.4" },
+    { name = "pydantic", specifier = ">=2.7" },
+    { name = "pytesseract", specifier = ">=0.3.10" },
+    { name = "watchdog", specifier = ">=6.0" },
 ]
 web = [
     { name = "pandas", specifier = ">=2.2" },

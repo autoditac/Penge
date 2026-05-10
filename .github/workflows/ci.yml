@@ -173,6 +173,6 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             tesseract-ocr tesseract-ocr-dan tesseract-ocr-deu poppler-utils
       - name: Install dev + db deps
-        run: uv sync --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr --frozen
+        run: uv sync --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr --group vault --frozen
       - name: Run tests
-        run: uv run --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr pytest
+        run: uv run --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr --group vault pytest

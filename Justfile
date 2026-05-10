@@ -153,6 +153,24 @@ ingest-pfa *FLAGS:
 ingest-abis *FLAGS:
     uv run --group db penge-abis {{FLAGS}}
 
+# --- Vault inbox watcher --------------------------------------------------
+#
+# The vault watcher tails an inbox directory and files every PDF dropped
+# into it under a year/type tree (see ADR-0024). The OCR pipeline writes
+# a `.txt` sidecar next to every filed document.
+# Examples:
+#   just vault-watch ~/Nextcloud/Finance/inbox ~/Nextcloud/Finance/vault
+#   just vault-once  ~/Nextcloud/Finance/inbox ~/Nextcloud/Finance/vault
+#   just vault-fixtures   # regenerate synthetic test PDFs
+vault-watch *FLAGS:
+    uv run --group vault --group parsers --group ocr penge-vault watch {{FLAGS}}
+
+vault-once INBOX VAULT:
+    uv run --group vault --group parsers --group ocr penge-vault watch {{INBOX}} {{VAULT}} --once
+
+vault-fixtures:
+    uv run --group parsers python tools/generate_vault_fixtures.py
+
 # --- MCP server (TypeScript) -------------------------------------------------
 #
 # Skeleton MCP server (apps/mcp). See ADR-0023.

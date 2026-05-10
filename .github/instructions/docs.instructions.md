@@ -61,7 +61,7 @@ Each connector under `apps/ingest/connectors/` has a corresponding page in `docs
 
 ## Runbook
 
-- `docs/runbook/monthly.md` — the 1-hour monthly ritual.
+- `docs/runbook/monthly-ritual.md` — the 1-hour monthly ritual.
 - `docs/runbook/incident.md` — what to do when ingestion breaks.
 - `docs/runbook/backup-restore.md` — recovery procedure.
 - `docs/runbook/tax-year-close.md` — yearly tax-prep procedure.

@@ -148,10 +148,12 @@ then `authorize --code <CODE>`.
 ### Custodians (CSV / PDF)
 
 ```bash
-# Nordnet — monthly CSV export
-uv run --group db --group parsers penge-nordnet \
-    --entity-name "Operator A" \
-    ~/Nextcloud/Finance/vault/$(date +%Y)/depotauszug/nordnet-*.csv
+# Nordnet — monthly CSV export. See docs/connectors/nordnet.md for
+# the accounts-config YAML schema.
+uv run --group db penge-nordnet \
+    --transactions ~/Nextcloud/Finance/vault/$(date +%Y)/depotauszug/nordnet-transactions-*.csv \
+    --holdings    ~/Nextcloud/Finance/vault/$(date +%Y)/depotauszug/nordnet-depotoversigt-*.csv \
+    --accounts-config config/nordnet-accounts.yaml
 
 # Growney / Sutor — quarterly PDF (skip outside quarter-end months)
 just ingest-growney --entity-name "Operator A" \
@@ -178,7 +180,7 @@ just manual-mark-property --entity "Operator A" \
 ### Prices
 
 ```bash
-uv run --group db --group http penge-prices --last-30d
+uv run --group db --group prices penge-prices --last-30d
 ```
 
 `--last-30d` is the standard monthly cadence; pair with
@@ -220,7 +222,9 @@ yourself typing this often.)
   to and including yesterday:
 
   ```bash
-  psql "$DATABASE_URL" -c \
+  # DATABASE_URL in the repo is a SQLAlchemy URL
+  # (postgresql+psycopg://…); strip the dialect prefix for libpq tools.
+  psql "${DATABASE_URL/+psycopg/}" -c \
     "select max(asof_date) from analytics_marts.mart_net_worth_daily;"
   ```
 
@@ -289,7 +293,7 @@ today:
 ```bash
 # DK ABIS treatment audit — list any instruments without a sticky
 # tax treatment in case Skat moved the list mid-year.
-psql "$DATABASE_URL" -c "
+psql "${DATABASE_URL/+psycopg/}" -c "
 select isin, name, dk_tax_treatment, dk_tax_treatment_source
 from instrument
 where dk_tax_treatment is null

@@ -82,7 +82,9 @@ jobs:
           sudo install -m 0755 _duckdb/duckdb /usr/local/bin/duckdb
           rm -rf duckdb.zip _duckdb
           age --version
-          pg_dump --version
+          # Place pg17 binaries ahead of the apt-installed v16 stubs.
+          echo "/usr/lib/postgresql/17/bin" >> "${GITHUB_PATH}"
+          /usr/lib/postgresql/17/bin/pg_dump --version
           duckdb --version
 
       - name: Generate ephemeral age key-pair

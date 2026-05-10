@@ -53,6 +53,16 @@ describe("query_net_worth — schema validation", () => {
     ).toThrow();
   });
 
+  it("rejects calendar-impossible dates that match the YYYY-MM-DD shape", () => {
+    const tool = queryNetWorthTool({ runner: makeRunner([]) });
+    expect(() =>
+      tool.inputSchema.parse({ ...baseArgs, date_range: { from: "2024-13-40", to: "2024-13-41" } }),
+    ).toThrow();
+    expect(() =>
+      tool.inputSchema.parse({ ...baseArgs, date_range: { from: "2024-02-30", to: "2024-03-01" } }),
+    ).toThrow();
+  });
+
   it("rejects unknown currency", () => {
     const tool = queryNetWorthTool({ runner: makeRunner([]) });
     expect(() => tool.inputSchema.parse({ ...baseArgs, currency: "USD" })).toThrow();
@@ -114,6 +124,17 @@ describe("query_net_worth — SQL shape", () => {
     await tool.handler({ ...baseArgs, breakdown_by: "asset_class" }, ctx);
     expect(runner.calls[0]!.sql).toMatch(/custom_marts\.mart_net_worth_daily/);
     expect(runner.calls[0]!.sql).toMatch(/custom\.account/);
+  });
+
+  it("rejects table overrides that are not safe schema.table identifiers", () => {
+    const runner = makeRunner([]);
+    expect(() => queryNetWorthTool({ runner, martTable: "x; DROP TABLE foo --" })).toThrow(
+      /martTable/,
+    );
+    expect(() => queryNetWorthTool({ runner, accountTable: "public.account WHERE 1=1" })).toThrow(
+      /accountTable/,
+    );
+    expect(() => queryNetWorthTool({ runner, martTable: "no_schema_only" })).toThrow(/martTable/);
   });
 });
 

@@ -31,12 +31,31 @@ import type { ToolDefinition } from "../registry.js";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * True iff `value` is a valid ISO `YYYY-MM-DD` calendar date. The
+ * regex check rules out shapes like `2024-1-1`; the `Date.UTC`
+ * round-trip rules out impossible dates like `2024-13-40` or
+ * `2024-02-30` that would otherwise reach Postgres and surface as a
+ * raw `invalid input syntax for type date` error.
+ */
+function isValidIsoDate(value: string): boolean {
+  if (!ISO_DATE.test(value)) return false;
+  const [y, m, d] = value.split("-").map(Number) as [number, number, number];
+  const ts = Date.UTC(y, m - 1, d);
+  const round = new Date(ts);
+  return round.getUTCFullYear() === y && round.getUTCMonth() === m - 1 && round.getUTCDate() === d;
+}
+
+const IsoDate = z.string().refine(isValidIsoDate, {
+  message: "must be a valid ISO calendar date (YYYY-MM-DD)",
+});
+
 const InputSchema = z
   .object({
     date_range: z
       .object({
-        from: z.string().regex(ISO_DATE, "from must be an ISO date (YYYY-MM-DD)"),
-        to: z.string().regex(ISO_DATE, "to must be an ISO date (YYYY-MM-DD)"),
+        from: IsoDate,
+        to: IsoDate,
       })
       .strict()
       .refine((r) => r.from <= r.to, {
@@ -76,10 +95,29 @@ export interface NetWorthQueryRunner {
 
 export interface QueryNetWorthOptions {
   runner: NetWorthQueryRunner;
-  /** Fully-qualified table name of the mart. Defaults to dbt's `analytics_marts.mart_net_worth_daily`. */
+  /**
+   * Fully-qualified table name of the mart. Defaults to dbt's
+   * `analytics_marts.mart_net_worth_daily`. If overridden, the value
+   * MUST be a hard-coded constant or come from trusted config — it is
+   * interpolated into SQL after a strict `schema.table` identifier
+   * check, never user input.
+   */
   martTable?: string;
-  /** Fully-qualified table name of the operational `account` table. Defaults to `public.account`. */
+  /**
+   * Fully-qualified table name of the operational `account` table.
+   * Defaults to `public.account`. Same trust rules as `martTable`.
+   */
   accountTable?: string;
+}
+
+const QUALIFIED_IDENT = /^[a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*$/;
+
+function assertQualifiedIdent(value: string, label: string): void {
+  if (!QUALIFIED_IDENT.test(value)) {
+    throw new Error(
+      `${label} must match ${QUALIFIED_IDENT.source} (lowercase schema.table identifier)`,
+    );
+  }
 }
 
 interface MartRow extends Record<string, unknown> {
@@ -148,6 +186,8 @@ export function queryNetWorthTool(
 ): ToolDefinition<QueryNetWorthInput, QueryNetWorthOutput> {
   const martTable = opts.martTable ?? "analytics_marts.mart_net_worth_daily";
   const accountTable = opts.accountTable ?? "public.account";
+  assertQualifiedIdent(martTable, "martTable");
+  assertQualifiedIdent(accountTable, "accountTable");
 
   return {
     name: "query_net_worth",

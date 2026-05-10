@@ -122,8 +122,12 @@ batch. See [ADR-0003 — Hybrid ingestion](../decisions/0003-hybrid-ingestion-ps
 ### Daily-rate FX (always run)
 
 ```bash
-uv run --group db --group http penge-ecb-fx fetch
+uv run --group db penge-ecb-fx --90d
 ```
+
+`--90d` overlaps the previous run so a missed weekday or upstream
+outage gets back-filled. See
+[ECB daily FX rates](../connectors/ecb_fx.md).
 
 ### PSD2 banks (Enable Banking)
 
@@ -174,8 +178,12 @@ just manual-mark-property --entity "Operator A" \
 ### Prices
 
 ```bash
-uv run --group db --group http penge-prices fetch
+uv run --group db --group http penge-prices --last-30d
 ```
+
+`--last-30d` is the standard monthly cadence; pair with
+`--nordnet-holdings <Depotoversigt.csv>` if you want a same-run
+cross-check against Nordnet's last-quote column.
 
 ### What "good" looks like
 

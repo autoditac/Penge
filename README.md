@@ -65,7 +65,7 @@ sudo apt-get install -y age postgresql-client
 # https://github.com/duckdb/duckdb/releases (see ADR-0025).
 ```
 
-See [`docs/runbook/backups.md`](docs/runbook/backups.md) and
+See [`docs/runbook/backup-restore.md`](docs/runbook/backup-restore.md) and
 [`ADR-0025`](docs/decisions/0025-encrypted-backups.md) for the design
 and operator procedure.
 

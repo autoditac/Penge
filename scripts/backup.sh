@@ -20,7 +20,8 @@
 # Exit codes:
 #   0  success
 #   1  configuration / dependency error
-#   2  pg_dump failure (encrypted artefact is not written)
+#   2  pg_dump failure (encrypted artefact is removed before exit)
+#   3  age encryption failure (encrypted artefact is removed before exit)
 
 set -euo pipefail
 
@@ -100,6 +101,11 @@ penge::info "backing up Postgres → ${OUT}"
 # Plain SQL dump (default format) — restorable with `psql -f -`. We
 # include `--no-owner --no-privileges` so a restore into a fresh role
 # stays portable; ADR-0025 documents the trade-off.
+#
+# Inspect PIPESTATUS so we can map pg_dump and age failures to the
+# documented exit codes (2 = pg_dump, 3 = age) rather than relying on
+# pipefail to surface only the rightmost non-zero status.
+set +o pipefail
 pg_dump \
     --dbname="${LIBPQ_URL}" \
     --format=plain \
@@ -107,6 +113,17 @@ pg_dump \
     --no-privileges \
     --quote-all-identifiers \
     | age "${RECIPIENT_ARGS[@]}" -o "${OUT}"
+PIPE_STATUS=("${PIPESTATUS[@]}")
+set -o pipefail
+
+if (( PIPE_STATUS[0] != 0 )); then
+    rm -f -- "${OUT}"
+    penge::die "pg_dump failed (exit ${PIPE_STATUS[0]}); artefact removed" 2
+fi
+if (( PIPE_STATUS[1] != 0 )); then
+    rm -f -- "${OUT}"
+    penge::die "age encryption failed (exit ${PIPE_STATUS[1]}); artefact removed" 3
+fi
 
 # Verify the artefact looks plausible before declaring success.
 [[ -s "${OUT}" ]] || penge::die "encrypted artefact is empty: ${OUT}"

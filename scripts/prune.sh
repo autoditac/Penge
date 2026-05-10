@@ -125,14 +125,14 @@ pick_bucket() {
 }
 
 while IFS= read -r p; do KEEP["${p}"]=daily; done < <(pick_bucket 2 "${DAILY}")
-while IFS= read -r p; do KEEP["${p}"]=${KEEP[$p]:-weekly}; done < <(pick_bucket 3 "${WEEKLY}")
-while IFS= read -r p; do KEEP["${p}"]=${KEEP[$p]:-monthly}; done < <(pick_bucket 4 "${MONTHLY}")
+while IFS= read -r p; do KEEP["${p}"]="${KEEP["${p}"]:-weekly}"; done < <(pick_bucket 3 "${WEEKLY}")
+while IFS= read -r p; do KEEP["${p}"]="${KEEP["${p}"]:-monthly}"; done < <(pick_bucket 4 "${MONTHLY}")
 
 REMOVED=0
 KEPT=0
 while IFS= read -r line; do
     path="${line##*$'\t'}"
-    if [[ -n "${KEEP[$path]+x}" ]]; then
+    if [[ -n "${KEEP["${path}"]+x}" ]]; then
         KEPT=$((KEPT + 1))
         continue
     fi

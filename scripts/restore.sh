@@ -87,7 +87,15 @@ fi
 if [[ -n "${DB_URL}" ]]; then
     penge::require_cmd psql
     LIBPQ_URL="$(penge::libpq_url "${DB_URL}")"
-    penge::info "decrypt + psql restore → ${LIBPQ_URL%%@*}@…"
+    # Redact any userinfo (user[:password]) before logging — the URL
+    # may include a password we don't want in CI logs or scrollback.
+    REDACTED_URL="${LIBPQ_URL}"
+    if [[ "${REDACTED_URL}" =~ ^([^:]+://)([^/@]+@)?(.*)$ ]]; then
+        scheme="${BASH_REMATCH[1]}"
+        host_and_path="${BASH_REMATCH[3]}"
+        REDACTED_URL="${scheme}***@${host_and_path}"
+    fi
+    penge::info "decrypt + psql restore → ${REDACTED_URL}"
     age -d "${IDENTITY_ARGS[@]}" "${INPUT}" \
         | psql --dbname="${LIBPQ_URL}" \
             --quiet \
@@ -98,7 +106,30 @@ else
     penge::require_cmd tar
     mkdir -p "${DUCKDB_OUT}"
     penge::info "decrypt + tar -x → ${DUCKDB_OUT}"
-    age -d "${IDENTITY_ARGS[@]}" "${INPUT}" | tar -C "${DUCKDB_OUT}" -xf -
+    # Stream the decrypted tar into a scratch file under the
+    # restore output directory so we can list members and reject
+    # path-traversal payloads BEFORE extracting. The recipient
+    # public key is not secret, so an attacker who knows it could
+    # craft a malicious tarball encrypted to that key; refuse any
+    # member whose name is absolute, contains `..`, or is a
+    # symlink/hardlink pointing outside the restore root.
+    SCRATCH_TAR="${DUCKDB_OUT}/.restore.$$.tar"
+    trap 'rm -f -- "${SCRATCH_TAR}"' EXIT
+    age -d "${IDENTITY_ARGS[@]}" "${INPUT}" >"${SCRATCH_TAR}"
+    while IFS= read -r member; do
+        case "${member}" in
+            /*|*..*|*$'\n'*)
+                penge::die "refusing tar member with unsafe path: ${member}"
+                ;;
+        esac
+    done < <(tar -tf "${SCRATCH_TAR}")
+    tar -C "${DUCKDB_OUT}" \
+        --no-same-owner \
+        --no-same-permissions \
+        --no-overwrite-dir \
+        -xf "${SCRATCH_TAR}"
+    rm -f -- "${SCRATCH_TAR}"
+    trap - EXIT
     penge::info "extracted snapshot to ${DUCKDB_OUT}"
     [[ -r "${DUCKDB_OUT}/manifest.tsv" ]] \
         && penge::info "manifest:" \

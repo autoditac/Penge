@@ -5,8 +5,8 @@
 # All functions are pure-bash; the only external commands we rely on are
 # coreutils, `age`, `pg_dump`/`psql`, and `duckdb`.
 #
-# Hard rule: nothing in here writes to /tmp. Callers must pass an
-# explicit working directory (we honour ${TMPDIR:-./.tmp}).
+# Hard rule: nothing in here writes to /tmp. Caller scripts create a
+# scratch directory under the configured backup root and clean it up.
 
 set -euo pipefail
 
@@ -24,8 +24,8 @@ penge::log() {
 penge::info() { penge::log INFO "$*"; }
 penge::warn() { penge::log WARN "$*"; }
 penge::die() {
-    penge::log ERROR "$*"
-    exit 1
+    penge::log ERROR "$1"
+    exit "${2:-1}"
 }
 
 # ---------------------------------------------------------------------------

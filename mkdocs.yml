@@ -77,7 +77,8 @@ nav:
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
       - "Branch protection": runbook/branch-protection.md
       - "Vault watcher": runbook/vault-watcher.md
-      - "Encrypted backups": runbook/backups.md
+      - "Encrypted backups": runbook/backup-restore.md
+      - "Restore drill log": runbook/restore-log.md
   - Decisions:
       - decisions/README.md
       - "ADR-0001 Self-hosted Postgres + DuckDB stack": decisions/0001-self-hosted-postgres-duckdb-stack.md

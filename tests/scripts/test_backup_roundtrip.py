@@ -59,6 +59,7 @@ def keypair(tmp_path: Path) -> tuple[Path, str]:
 
 
 @requires_age
+@requires_pg
 def test_backup_requires_recipients(tmp_path: Path) -> None:
     env = {**os.environ, "PENGE_BACKUP_ROOT": str(tmp_path)}
     env.pop("PENGE_BACKUP_RECIPIENTS", None)

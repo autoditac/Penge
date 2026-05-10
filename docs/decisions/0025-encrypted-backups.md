@@ -1,6 +1,6 @@
 # 0025 — Encrypted backups: age + Parquet snapshots
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2026-05-08
 - **Deciders:** @autoditac
 - **Tags:** infra, security
@@ -220,7 +220,7 @@ problem one level down without solving it.
 - [`scripts/snapshot.sh`](https://github.com/autoditac/Penge/blob/main/scripts/snapshot.sh)
 - [`scripts/restore.sh`](https://github.com/autoditac/Penge/blob/main/scripts/restore.sh)
 - [`scripts/prune.sh`](https://github.com/autoditac/Penge/blob/main/scripts/prune.sh)
-- [`docs/runbook/backups.md`](../runbook/backups.md)
+- [`docs/runbook/backup-restore.md`](../runbook/backup-restore.md)
 - [`.github/workflows/backup-roundtrip.yml`](https://github.com/autoditac/Penge/blob/main/.github/workflows/backup-roundtrip.yml)
 - [age — A simple, modern and secure encryption tool](https://age-encryption.org/)
 - ADR-0001 — Self-hosted Postgres + DuckDB stack

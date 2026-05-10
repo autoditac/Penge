@@ -81,13 +81,16 @@ trap cleanup EXIT INT TERM
 penge::info "snapshotting DuckDB → ${OUT}"
 
 # Enumerate user tables across all schemas (DuckDB's information_schema
-# excludes its own internal catalogues by default).
-TABLES_FILE="${SCRATCH}/tables.txt"
+# excludes its own internal catalogues by default). Emit each row as a
+# tab-separated `schema<TAB>table` pair so callers don't have to
+# re-quote identifiers; we double-quote both sides for the CREATE/COPY
+# statements below to handle reserved words and mixed case safely.
+TABLES_FILE="${SCRATCH}/tables.tsv"
 duckdb -readonly -noheader -list "${DUCKDB_PATH}" \
-    "SELECT table_schema || '.' || table_name
+    "SELECT table_schema || chr(9) || table_name
        FROM information_schema.tables
       WHERE table_type = 'BASE TABLE'
-      ORDER BY 1;" >"${TABLES_FILE}"
+      ORDER BY 1, 2;" >"${TABLES_FILE}"
 
 if [[ ! -s "${TABLES_FILE}" ]]; then
     penge::warn "no user tables found in ${DUCKDB_PATH}; producing an empty snapshot"
@@ -96,17 +99,26 @@ fi
 MANIFEST="${SCRATCH}/manifest.tsv"
 : >"${MANIFEST}"
 
-while IFS= read -r qualified; do
-    [[ -z "${qualified}" ]] && continue
-    # Sanitise schema/table for the on-disk filename.
-    safe="${qualified//\"/}"
-    safe="${safe//\//_}"
+# Quote a SQL identifier (double-quote, escaping embedded quotes) so it
+# is safe to interpolate into DuckDB SELECT/COPY statements.
+quote_ident() {
+    local raw="$1"
+    printf '"%s"' "${raw//\"/\"\"}"
+}
+
+while IFS=$'\t' read -r schema table; do
+    [[ -z "${schema}" || -z "${table}" ]] && continue
+    qualified="$(quote_ident "${schema}").$(quote_ident "${table}")"
+    # Sanitise schema/table for the on-disk filename — strip anything
+    # that isn't [A-Za-z0-9_.-] so the tar member is portable.
+    safe="${schema}.${table}"
+    safe="${safe//[^A-Za-z0-9_.-]/_}"
     parquet="${SCRATCH}/${safe}.parquet"
     duckdb -readonly "${DUCKDB_PATH}" \
         "COPY (SELECT * FROM ${qualified}) TO '${parquet}' (FORMAT PARQUET);"
     rows="$(duckdb -readonly -noheader -list "${DUCKDB_PATH}" \
         "SELECT count(*) FROM ${qualified};")"
-    printf '%s\t%s\t%s\n' "${qualified}" "${safe}.parquet" "${rows}" >>"${MANIFEST}"
+    printf '%s.%s\t%s\t%s\n' "${schema}" "${table}" "${safe}.parquet" "${rows}" >>"${MANIFEST}"
 done <"${TABLES_FILE}"
 
 # Build the tar member list explicitly via NUL-delimited find output to avoid

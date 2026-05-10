@@ -25,6 +25,24 @@ pension pots (PFA, Velliv, etc.).  It is withheld automatically by the
 pension provider.  In the simulation, it reduces `pension_accrual_eur` by
 15.3 % each year via `pension_return_tax_rate`.
 
+Phase 3 implements the deterministic shadow calculation in
+`penge.tax.pal` (issue #38,
+[ADR-0019](../decisions/0019-pal-skat-tracking.md)). The rate is
+exposed as the constant `PAL_RATE` so the simulation overlay can
+import a single source of truth.
+
+```text
+return = end_market_value
+       - start_market_value
+       - Σ contributions
+       + Σ withdrawals
+tax    = max(return, 0) × 0.153
+```
+
+Negative returns yield zero tax due and a `loss_carry_forward`
+amount; cross-year roll-forward bookkeeping is the SKAT report
+generator's (#39) responsibility.
+
 Default: **15.3 %** (`DK_DEFAULT.pension_return_tax_rate`).
 
 ## Pension drawdown tax

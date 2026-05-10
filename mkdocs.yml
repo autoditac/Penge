@@ -96,6 +96,7 @@ nav:
       - "ADR-0016 Tax-lot tracker (gennemsnitsmetoden)": decisions/0016-tax-lot-tracker.md
       - "ADR-0017 Lagerbeskatning calculator": decisions/0017-lagerbeskatning-calculator.md
       - "ADR-0018 Aktiesparekonto handling": decisions/0018-aktiesparekonto-handling.md
+      - "ADR-0019 PAL-skat tracking": decisions/0019-pal-skat-tracking.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

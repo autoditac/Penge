@@ -95,7 +95,7 @@ document (`vault/{year}/{category}/{hash}-{slug}.pdf`).
 
 ### How it works
 
-- Patterns live in [`config/vault-classifier.yaml`](../../config/vault-classifier.yaml).
+- Patterns live in `config/vault-classifier.yaml`.
 - Each category lists regex patterns matched (case-insensitive)
   against the lowercased OCR text.
 - A document scores `matches / total_patterns` per category; the
@@ -122,7 +122,7 @@ document (`vault/{year}/{category}/{hash}-{slug}.pdf`).
    On failure the test prints the full confusion matrix plus a
    per-fixture prediction list to make tuning actionable.
 4. To add a fresh labeled fixture, extend `LABELED_SAMPLES` in
-   [`tools/generate_vault_fixtures.py`](../../tools/generate_vault_fixtures.py)
+   `tools/generate_vault_fixtures.py`
    and re-run it (`uv run --group parsers python tools/generate_vault_fixtures.py`).
    Synthetic fixtures only — never copy a real statement into the
    repo.

@@ -282,3 +282,99 @@ Every call is recorded by the MCP audit logger
 (`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
 status, and duration. The Python subprocess does not log financial
 data to stderr beyond the canonical `error: …` prefix on failure.
+
+## `run_scenario`
+
+Runs a baseline + scenario Monte-Carlo comparison via the Phase-3
+scenario engine (`src/penge/sim/scenario.py`). Returns p10/p50/p90
+portfolio paths and a FIRE-year histogram for both the baseline and
+the scenario, plus a small `deltas` block (terminal-year p50 EUR
+delta and median-FIRE-year shift).
+
+The household baseline (cashflow, tax overlay, FIRE goal, return
+model, MC defaults) is loaded from
+`${PENGE_SIM_INPUTS_DIR:-data/sim}/baseline.json` — only the scenario
+itself and the `monte_carlo` overrides come from the wire. Missing or
+malformed baseline JSON is a hard error (no safe empty default).
+
+### Input
+
+| Field           | Type                                                                          | Notes                                                                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `scenario_type` | `"house_purchase" \| "work_reduction"`                                        | Discriminator. Determines the shape of `params`.                                                                                                                 |
+| `params`        | scenario-specific (see below)                                                 | Forwarded verbatim to `HousePurchaseScenario` / `WorkReductionScenario` constructors. Strict — extra keys are rejected.                                          |
+| `monte_carlo`   | `{ paths: int; seed?: int; horizon_years: int }`                              | `paths` overrides `mc.n_paths`; `horizon_years` overrides `cashflow.horizon_years`; `seed` (when present) overrides `return_model.seed` for path reproducibility. |
+
+#### `params` for `house_purchase`
+
+| Field             | Type                | Notes                                                  |
+| ----------------- | ------------------- | ------------------------------------------------------ |
+| `year`            | `int` (2024–2100)   | Calendar year of purchase.                             |
+| `price_eur`       | `number \| string`  | Full purchase price, EUR. Strings preserve precision.  |
+| `downpayment_eur` | `number \| string`  | Down-payment, EUR. Must be `<= price_eur`.             |
+| `mortgage_rate`   | `number \| string`  | Annual nominal interest rate in `[0, 1]`.              |
+| `term_years`      | `int` (1–50)        | Mortgage term, years.                                  |
+
+#### `params` for `work_reduction`
+
+| Field          | Type                | Notes                                                  |
+| -------------- | ------------------- | ------------------------------------------------------ |
+| `entity`       | `string`            | Entity identifier in the cashflow projection.          |
+| `year`         | `int` (2024–2100)   | First year the reduction takes effect.                 |
+| `fte_fraction` | `number \| string`  | New FTE fraction in `(0, 1]` (e.g. `"0.8"` for 80 %).  |
+
+### Output
+
+```jsonc
+{
+  "baseline": {
+    "p10":  { "2025": 209028.14, "2026": 218463.81, /* ... */ },
+    "p50":  { /* ... */ },
+    "p90":  { /* ... */ },
+    "fire_year_distribution": { "2032": 17, "2033": 23 } // empty when no path met the goal
+  },
+  "scenario": { /* same shape */ },
+  "deltas": {
+    "p50_value_eur":         -54321.0, // terminal-year p50 delta (scenario - baseline)
+    "fire_year_shift_years":  2        // median-FIRE-year shift, or null if undefined
+  }
+}
+```
+
+`p50_value_eur` is the terminal-year (largest year key in
+`baseline.p50`) delta of the scenario p50 path versus the baseline p50
+path. `fire_year_shift_years` is `scenario.median_fire_year -
+baseline.median_fire_year`; either is `null` when the corresponding
+median FIRE year is undefined (fewer than 50 % of paths met the goal).
+
+### Example call
+
+```json
+{
+  "name": "run_scenario",
+  "arguments": {
+    "scenario_type": "work_reduction",
+    "params": { "entity": "person_dk", "year": 2027, "fte_fraction": "0.8" },
+    "monte_carlo": { "paths": 1000, "seed": 42, "horizon_years": 25 }
+  }
+}
+```
+
+### Errors
+
+- Invalid input (unknown `scenario_type`, missing required `params`,
+  out-of-range `paths` / `horizon_years`, extra keys) →
+  `tool/input_invalid`.
+- Missing / unparseable
+  `${PENGE_SIM_INPUTS_DIR:-data/sim}/baseline.json` →
+  `tool/run_scenario_failed`.
+- Subprocess failure (Pydantic validation error, scenario produces a
+  negative initial portfolio, malformed override) → propagates the
+  Python `error: …` message with a non-zero exit code as
+  `tool/run_scenario_failed`.
+
+### Audit
+
+Every call is recorded by the MCP audit logger
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+status, and duration.

@@ -109,9 +109,17 @@ while IFS= read -r qualified; do
     printf '%s\t%s\t%s\n' "${qualified}" "${safe}.parquet" "${rows}" >>"${MANIFEST}"
 done <"${TABLES_FILE}"
 
-# Encrypt the tar stream as it's written so the unencrypted archive
-# never lands on disk.
-tar -C "${SCRATCH}" -cf - manifest.tsv $(cd "${SCRATCH}" && ls ./*.parquet 2>/dev/null || true) \
+# Build the tar member list explicitly via NUL-delimited find output to avoid
+# word-splitting glob results. Encrypt the tar stream as it is written so the
+# unencrypted archive never lands on disk.
+MEMBERS_FILE="${SCRATCH}/.tar-members"
+(
+    cd "${SCRATCH}"
+    printf 'manifest.tsv\0'
+    find . -maxdepth 1 -type f -name '*.parquet' -printf '%P\0'
+) >"${MEMBERS_FILE}"
+
+tar -C "${SCRATCH}" --null -T "${MEMBERS_FILE}" -cf - \
     | age "${RECIPIENT_ARGS[@]}" -o "${OUT}"
 
 [[ -s "${OUT}" ]] || penge::die "encrypted snapshot is empty: ${OUT}"

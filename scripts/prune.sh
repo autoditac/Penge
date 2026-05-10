@@ -108,7 +108,7 @@ done | sort -r >"${ROOT}/.prune-index"
 # Pick the newest artefact for each distinct day / week / month bucket
 # until the per-category quota is reached.
 pick_bucket() {
-    local col="$1" quota="$2" name="$3"
+    local col="$1" quota="$2"
     awk -v col="${col}" -v quota="${quota}" '
         BEGIN { kept = 0 }
         {
@@ -124,9 +124,9 @@ pick_bucket() {
     ' "${ROOT}/.prune-index"
 }
 
-while IFS= read -r p; do KEEP["${p}"]=daily; done < <(pick_bucket 2 "${DAILY}" daily)
-while IFS= read -r p; do KEEP["${p}"]=${KEEP[$p]:-weekly}; done < <(pick_bucket 3 "${WEEKLY}" weekly)
-while IFS= read -r p; do KEEP["${p}"]=${KEEP[$p]:-monthly}; done < <(pick_bucket 4 "${MONTHLY}" monthly)
+while IFS= read -r p; do KEEP["${p}"]=daily; done < <(pick_bucket 2 "${DAILY}")
+while IFS= read -r p; do KEEP["${p}"]=${KEEP[$p]:-weekly}; done < <(pick_bucket 3 "${WEEKLY}")
+while IFS= read -r p; do KEEP["${p}"]=${KEEP[$p]:-monthly}; done < <(pick_bucket 4 "${MONTHLY}")
 
 REMOVED=0
 KEPT=0

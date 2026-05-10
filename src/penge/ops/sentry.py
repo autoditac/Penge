@@ -53,7 +53,7 @@ REDACT_KEY_PATTERN = re.compile(r"(account|iban|cpr|tax[_-]?id|name|email)", re.
 REDACTED = "[REDACTED]"
 
 # Module-level mutable state so :func:`init_sentry` is idempotent. Held in a
-# single-element list to avoid the ``global`` statement (ruff PLW0603).
+# dict so the flag can be mutated without a ``global`` statement (ruff PLW0603).
 _state: dict[str, bool] = {"initialized": False}
 
 

@@ -131,6 +131,14 @@ CLI entry points (`penge-vault`, `penge-ecb-fx`, `penge-gls`,
   resolved environment (`SENTRY_ENVIRONMENT`, falling back to
   `PENGE_ENV`, default `dev`).
 
+> **Important:** the `sentry-sdk` package only ships with the optional
+> `ops` dependency group. Setting `SENTRY_DSN` is **not** sufficient on
+> its own — the runtime must also install the group, e.g.
+> `uv sync --group ops` (or `uv run --group ops ...`, or include `ops`
+> in your container/cron profile). When the SDK is missing,
+> `init_sentry()` logs `sentry init skipped: sentry-sdk not installed`
+> at WARNING level and returns `False`.
+
 PII scrubbing happens in a `before_send` hook that redacts every dict
 value whose key matches `account|iban|cpr|tax_id|name|email`. The same
 regex is enforced by the MCP audit logger
@@ -170,6 +178,10 @@ the env var is not set. Either configure it or accept the no-op.
 the `ops` group is not installed. Run `uv sync --group ops` (or include
 it in your runtime profile).
 
-**Uptime Kuma resets after `docker compose down -v`** — the bind mount
-lives at `./data/uptime-kuma`. Use `docker compose down` (no `-v`) for
-restarts; the named volume is only wiped on explicit `-v`.
+**Uptime Kuma state is missing after a restart** — Kuma's SQLite
+database lives in the bind mount at `./data/uptime-kuma`. `docker
+compose down` (with or without `-v`) does **not** delete bind-mounted
+host directories — `-v` only removes Docker-managed named volumes. If
+the data directory is empty, it was wiped manually (e.g. `rm -rf
+data/uptime-kuma`) or the service was started against a different
+working directory; restore from backup and re-create monitors.

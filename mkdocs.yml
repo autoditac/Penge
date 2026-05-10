@@ -93,6 +93,7 @@ nav:
       - "ADR-0013 Simulation tax overlay": decisions/0013-sim-tax-overlay.md
       - "ADR-0014 Monte-Carlo FIRE runner": decisions/0014-sim-montecarlo-runner.md
       - "ADR-0015 Scenario engine": decisions/0015-sim-scenario-engine.md
+      - "ADR-0016 Tax-lot tracker (gennemsnitsmetoden)": decisions/0016-tax-lot-tracker.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

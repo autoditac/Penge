@@ -140,11 +140,7 @@ function toNumber(value: string | number | null): number {
   return typeof value === "string" ? Number(value) : value;
 }
 
-function buildSql(
-  granularity: QueryCashflowInput["granularity"],
-  currency: z.infer<typeof Currency>,
-  martTable: string,
-): string {
+function buildSql(currency: z.infer<typeof Currency>, martTable: string): string {
   const inflowCol = currency === "EUR" ? "m.inflow_eur" : "m.inflow_dkk";
   const outflowCol = currency === "EUR" ? "m.outflow_eur" : "m.outflow_dkk";
   const netCol = currency === "EUR" ? "m.net_eur" : "m.net_dkk";
@@ -199,7 +195,7 @@ export function queryCashflowTool(
     outputSchema: OutputSchema,
     async handler(args) {
       const currency = args.currency ?? defaultCurrency;
-      const sql = buildSql(args.granularity, currency, martTable);
+      const sql = buildSql(currency, martTable);
       const result = await opts.runner.query<BucketRow>(sql, [
         args.date_range.from,
         args.date_range.to,

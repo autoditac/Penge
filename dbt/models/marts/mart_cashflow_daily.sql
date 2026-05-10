@@ -5,9 +5,11 @@
 --
 -- Mechanics:
 --   1. Bucket every `raw.transaction` row by `coalesce(value_date,
---      ts::date)` — the value date is the calendar day on which money
---      hit/left the account. `ts` is only used as a fallback when
---      providers omit `value_date`.
+--      (ts at time zone 'UTC')::date)` — the value date is the
+--      calendar day on which money hit/left the account. `ts` is only
+--      used as a fallback when providers omit `value_date`; we cast
+--      via UTC because `ts` is `TIMESTAMP WITH TIME ZONE` and a naive
+--      `::date` would depend on the session time zone.
 --   2. Split the signed `amount` column into inflow / outflow halves.
 --      `amount > 0` → inflow, `amount < 0` → outflow (taken as the
 --      absolute value). Net = inflow - outflow.
@@ -29,7 +31,7 @@ txns as (
     select
         t.account_id,
         t.amount,
-        coalesce(t.value_date, t.ts::date) as as_of
+        coalesce(t.value_date, (t.ts at time zone 'UTC')::date) as as_of
     from {{ source('raw', 'transaction') }} as t
 ),
 

@@ -83,6 +83,14 @@ if [[ ${#CANDIDATES[@]} -eq 0 ]]; then
     exit 0
 fi
 
+# Write the prune index to a hidden scratch dir under ROOT so an
+# interrupted run can never leave a non-`.age` file behind for the
+# CI plaintext-leak check (or a confused operator) to trip over.
+SCRATCH_DIR="${ROOT}/.scratch-prune-$$"
+mkdir -p "${SCRATCH_DIR}"
+trap 'rm -rf -- "${SCRATCH_DIR}"' EXIT INT TERM
+INDEX="${SCRATCH_DIR}/prune-index"
+
 # AWK extracts the timestamp, computes day / ISO-week / month buckets,
 # and prints `path<TAB>day<TAB>week<TAB>month` rows sorted newest-first.
 # We use GNU date for ISO-week math because POSIX awk doesn't expose it.
@@ -103,7 +111,7 @@ for path in "${CANDIDATES[@]}"; do
     week="$(date -u -d "${iso}" +%G-W%V)"
     month="$(date -u -d "${iso}" +%Y-%m)"
     printf '%s\t%s\t%s\t%s\t%s\n' "${ts}" "${day}" "${week}" "${month}" "${path}"
-done | sort -r >"${ROOT}/.prune-index"
+done | sort -r >"${INDEX}"
 
 # Pick the newest artefact for each distinct day / week / month bucket
 # until the per-category quota is reached.
@@ -121,7 +129,7 @@ pick_bucket() {
                 }
             }
         }
-    ' "${ROOT}/.prune-index"
+    ' "${INDEX}"
 }
 
 while IFS= read -r p; do KEEP["${p}"]=daily; done < <(pick_bucket 2 "${DAILY}")
@@ -143,7 +151,6 @@ while IFS= read -r line; do
         penge::info "removing: ${path}"
         rm -f -- "${path}" "${path}.sha256"
     fi
-done <"${ROOT}/.prune-index"
+done <"${INDEX}"
 
-rm -f "${ROOT}/.prune-index"
 penge::info "kept ${KEPT}, removed ${REMOVED}"

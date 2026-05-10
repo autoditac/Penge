@@ -203,7 +203,7 @@ mcp-build:
 # All four recipes are thin wrappers around the shell scripts under
 # scripts/. Configure recipients via PENGE_BACKUP_RECIPIENTS (a
 # comma-separated list of `age` public keys) and the identity file via
-# PENGE_BACKUP_IDENTITY_FILE. See docs/runbook/backups.md.
+# PENGE_BACKUP_IDENTITY_FILE. See docs/runbook/backup-restore.md.
 
 # Take an encrypted Postgres logical backup (pg_dump | age).
 # Extra flags forward to scripts/backup.sh, e.g.

@@ -62,7 +62,7 @@ recipients or identity files.**
 just backup
 
 # DuckDB → Parquet snapshot (per-table COPY | tar | age)
-just snapshot DUCKDB=./data/penge.duckdb
+just snapshot ./data/penge.duckdb
 
 # Round-trip restore drill (decrypt + replay into a throwaway DB).
 # Uses PENGE_TEST_DATABASE_URL; never points at production.
@@ -174,7 +174,7 @@ successful drill is suspect.
 | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | `no age recipients configured`                                       | `PENGE_BACKUP_RECIPIENTS` / `PENGE_BACKUP_RECIPIENTS_FILE` not exported.                    |
 | `sha256 mismatch for ...`                                            | Artefact bit-rot or partial download. Refetch from another mirror; do **not** `--skip-hash-check` blindly. |
-| `pg_restore: error: connection to server ... FATAL`                  | Wrong `--database-url`, or the target database doesn't exist yet.                           |
+| `psql:<file>: ERROR: ...` or `psql: error: connection to server ... FATAL` | Wrong `--database-url`, or the target database doesn't exist yet.                           |
 | `decrypted nothing — empty stream`                                   | Wrong identity file. Remember `age` doesn't tell you which recipient encrypted the artefact. |
 
 ## Related

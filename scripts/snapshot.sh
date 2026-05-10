@@ -70,11 +70,17 @@ OUT="${ROOT}/duckdb/duckdb-${TS}${SLUG}.tar.age"
 mapfile -t RECIPIENT_ARGS < <(penge::age_recipient_args)
 
 # Scratch directory under the backup root, never under /tmp. Cleaned
-# up on every exit path via the trap below.
+# up on every exit path via the trap below. The same trap also drops
+# any partially written ${OUT} so a failing pipeline doesn't leave a
+# truncated artefact behind for operators to mistake for a real one.
 SCRATCH="${ROOT}/duckdb/.scratch-${TS}"
 mkdir -p "${SCRATCH}"
+SUCCESS=0
 cleanup() {
     rm -rf "${SCRATCH}"
+    if (( SUCCESS == 0 )); then
+        rm -f -- "${OUT}"
+    fi
 }
 trap cleanup EXIT INT TERM
 
@@ -137,5 +143,6 @@ tar -C "${SCRATCH}" --null -T "${MEMBERS_FILE}" -cf - \
 [[ -s "${OUT}" ]] || penge::die "encrypted snapshot is empty: ${OUT}"
 
 penge::write_sha256 "${OUT}"
+SUCCESS=1
 penge::info "wrote $(stat -c '%s' "${OUT}") bytes → ${OUT}"
 penge::info "sha256 sidecar: ${OUT}.sha256"

@@ -40,10 +40,14 @@ def _seed(root: Path, days: int) -> list[Path]:
     return out
 
 
-def _run_prune(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+def _run_prune(
+    root: Path,
+    *args: str,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         ["bash", str(PRUNE), "--root", str(root), *args],
-        check=True,
+        check=check,
         capture_output=True,
         text=True,
     )
@@ -66,7 +70,8 @@ def test_prune_keeps_recent_dailies_and_culls_the_rest(backup_root: Path) -> Non
 
 
 def test_prune_buckets_weekly_and_monthly(backup_root: Path) -> None:
-    _seed(backup_root, days=400)
+    seeded = _seed(backup_root, days=400)
+    expected_newest = seeded[0].name  # _seed returns newest-first.
 
     _run_prune(backup_root, "--daily", "14", "--weekly", "8", "--monthly", "12")
 
@@ -76,9 +81,10 @@ def test_prune_buckets_weekly_and_monthly(backup_root: Path) -> None:
     # Lower bound: at least 14 (the daily quota). Upper bound: 14+8+12.
     assert 14 <= len(survivors) <= 34, survivors
 
-    # The newest artefact must always survive.
-    newest = max(survivors)
-    assert newest in survivors
+    # The newest artefact must always survive a prune; assert the
+    # specific filename rather than tautologically asserting that
+    # max(survivors) is in survivors.
+    assert expected_newest in survivors, (expected_newest, survivors)
 
 
 def test_prune_dry_run_keeps_everything(backup_root: Path) -> None:
@@ -106,8 +112,12 @@ def test_prune_ignores_files_without_timestamp(backup_root: Path) -> None:
 @pytest.mark.skipif(shutil.which("bash") is None, reason="bash is required")
 def test_prune_handles_empty_root(tmp_path: Path) -> None:
     root = tmp_path / "empty"
-    proc = _run_prune(root)
-    assert "no artefacts" in proc.stderr or proc.returncode == 0
+    # Use check=False so that a hypothetical non-zero exit (which the
+    # script should NOT produce on an empty root) surfaces as an
+    # assertion failure instead of a CalledProcessError.
+    proc = _run_prune(root, check=False)
+    assert proc.returncode == 0, proc.stderr
+    assert "no artefacts" in proc.stderr
     # Backup root + subdirs were created on demand.
     assert (root / "postgres").is_dir()
     assert (root / "duckdb").is_dir()

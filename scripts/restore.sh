@@ -77,11 +77,15 @@ mapfile -t IDENTITY_ARGS < <(penge::age_identity_args "${IDENTITY}")
 
 # Verify the integrity sidecar before touching the artefact, unless the
 # operator has explicitly opted out (e.g. the sidecar got lost).
-if [[ ${SKIP_HASH} -eq 0 && -r "${INPUT}.sha256" ]]; then
+if [[ ${SKIP_HASH} -eq 0 ]]; then
     penge::require_cmd sha256sum
-    penge::info "verifying ${INPUT}.sha256"
-    (cd "$(dirname -- "${INPUT}")" && sha256sum -c "$(basename -- "${INPUT}").sha256") \
-        || penge::die "sha256 mismatch for ${INPUT}"
+    if [[ -r "${INPUT}.sha256" ]]; then
+        penge::info "verifying ${INPUT}.sha256"
+        (cd "$(dirname -- "${INPUT}")" && sha256sum -c "$(basename -- "${INPUT}").sha256") \
+            || penge::die "sha256 mismatch for ${INPUT}"
+    else
+        penge::die "missing sidecar ${INPUT}.sha256 (pass --skip-hash-check to override)"
+    fi
 fi
 
 if [[ -n "${DB_URL}" ]]; then
@@ -89,11 +93,11 @@ if [[ -n "${DB_URL}" ]]; then
     LIBPQ_URL="$(penge::libpq_url "${DB_URL}")"
     # Redact any userinfo (user[:password]) before logging — the URL
     # may include a password we don't want in CI logs or scrollback.
+    # Only rewrite when userinfo is actually present so URLs without
+    # credentials (e.g. postgresql://localhost/db) stay readable.
     REDACTED_URL="${LIBPQ_URL}"
-    if [[ "${REDACTED_URL}" =~ ^([^:]+://)([^/@]+@)?(.*)$ ]]; then
-        scheme="${BASH_REMATCH[1]}"
-        host_and_path="${BASH_REMATCH[3]}"
-        REDACTED_URL="${scheme}***@${host_and_path}"
+    if [[ "${LIBPQ_URL}" =~ ^([^:]+://)([^/@]+)@(.*)$ ]]; then
+        REDACTED_URL="${BASH_REMATCH[1]}***@${BASH_REMATCH[3]}"
     fi
     penge::info "decrypt + psql restore → ${REDACTED_URL}"
     age -d "${IDENTITY_ARGS[@]}" "${INPUT}" \
@@ -107,15 +111,30 @@ else
     mkdir -p "${DUCKDB_OUT}"
     penge::info "decrypt + tar -x → ${DUCKDB_OUT}"
     # Stream the decrypted tar into a scratch file under the
-    # restore output directory so we can list members and reject
-    # path-traversal payloads BEFORE extracting. The recipient
-    # public key is not secret, so an attacker who knows it could
-    # craft a malicious tarball encrypted to that key; refuse any
-    # member whose name is absolute, contains `..`, or is a
-    # symlink/hardlink pointing outside the restore root.
+    # restore output directory so we can list and validate every
+    # member BEFORE extracting. The recipient public key is not
+    # secret, so an attacker who knows it could craft and encrypt a
+    # malicious tarball for it; this pre-flight rejects:
+    #   * absolute paths and `..` traversal
+    #   * symlinks and hardlinks (any link could escape the root)
+    #   * device, FIFO, or other non-regular member types
     SCRATCH_TAR="${DUCKDB_OUT}/.restore.$$.tar"
     trap 'rm -f -- "${SCRATCH_TAR}"' EXIT
     age -d "${IDENTITY_ARGS[@]}" "${INPUT}" >"${SCRATCH_TAR}"
+
+    # `tar -tvf` prints a `ls -l`-style listing whose first character
+    # encodes the entry type: '-' regular, 'd' dir, 'l' symlink, 'h'
+    # hardlink, 'b'/'c' devices, 's' socket, 'p' fifo. Only '-' and
+    # 'd' are safe.
+    while IFS= read -r line; do
+        [[ -z "${line}" ]] && continue
+        type_char="${line:0:1}"
+        case "${type_char}" in
+            -|d) ;;
+            *) penge::die "refusing tar member with unsafe type '${type_char}': ${line}" ;;
+        esac
+    done < <(tar -tvf "${SCRATCH_TAR}")
+
     while IFS= read -r member; do
         case "${member}" in
             /*|*..*|*$'\n'*)
@@ -123,6 +142,7 @@ else
                 ;;
         esac
     done < <(tar -tf "${SCRATCH_TAR}")
+
     tar -C "${DUCKDB_OUT}" \
         --no-same-owner \
         --no-same-permissions \

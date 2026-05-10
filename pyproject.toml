@@ -117,6 +117,18 @@ ops = [
   "httpx>=0.27",
   "sentry-sdk>=2.59.0",
 ]
+report = [
+  # Monthly automated PDF + Markdown report (issue #50). matplotlib
+  # renders the static PNG charts embedded into both the Markdown and
+  # PDF outputs (no interactive runtime needed). reportlab is reused
+  # from the `parsers` group as the pure-Python PDF backend so we do
+  # not add WeasyPrint / its native deps (cairo, pango, gdk-pixbuf).
+  # pandas comes from the `web` / `prices` groups; the report loader
+  # uses it to slice the dbt marts.
+  "matplotlib>=3.9",
+  "reportlab>=4.2",
+  "pandas>=2.2",
+]
 
 [tool.ruff]
 line-length = 100
@@ -179,6 +191,14 @@ ignore_missing_imports = true
 # remain strictly typed.
 [[tool.mypy.overrides]]
 module = ["yfinance", "yfinance.*"]
+ignore_missing_imports = true
+
+# matplotlib and reportlab ship no first-party strict-friendly stubs.
+# The report generator wraps them in a thin typed facade
+# (penge.ops.report.charts / penge.ops.report.pdf); the helpers around
+# them stay strictly typed.
+[[tool.mypy.overrides]]
+module = ["matplotlib", "matplotlib.*", "reportlab", "reportlab.*"]
 ignore_missing_imports = true
 
 # Typer's decorator typing trips ``untyped-decorator`` under --strict

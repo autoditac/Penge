@@ -22,6 +22,9 @@ N=10 000 paths over 30 years runs in well under 30 s on a laptop.
 - ``p_goal_met``: fraction of paths where the goal is met in some year.
 - ``median_fire_year``: median calendar year of first goal-met (``None``
   if fewer than 50 % of paths meet the goal).
+- ``fire_year_distribution``: histogram of first goal-met year across
+  paths, keyed by calendar year (``int -> int`` count).  Paths that
+  never meet the goal are not counted.
 - ``p10_portfolio`` / ``p50_portfolio`` / ``p90_portfolio``: 10th / 50th /
   90th percentile portfolio values per year, as ``dict[year, Decimal]``.
 - ``n_paths``, ``seed``, ``history_hash``: for audit / reproducibility.
@@ -123,6 +126,10 @@ class MonteCarloResult(pydantic.BaseModel):
         median_fire_year: Median calendar year of first goal-met across all
             paths that meet the goal.  ``None`` if fewer than 50 % of paths
             meet the goal.
+        fire_year_distribution: Histogram of first goal-met year across
+            paths, keyed by calendar year.  Paths that never meet the
+            goal are not represented.  Always non-empty when at least
+            one path meets the goal; empty otherwise.
         p10_portfolio: 10th-percentile portfolio value (EUR) keyed by
             calendar year.
         p50_portfolio: 50th-percentile portfolio value (EUR).
@@ -136,6 +143,7 @@ class MonteCarloResult(pydantic.BaseModel):
 
     p_goal_met: Decimal
     median_fire_year: int | None
+    fire_year_distribution: dict[int, int] = pydantic.Field(default_factory=dict)
     p10_portfolio: dict[int, Decimal]
     p50_portfolio: dict[int, Decimal]
     p90_portfolio: dict[int, Decimal]
@@ -238,6 +246,9 @@ def run(
     p_goal_met = Decimal(str(round(float(met_mask.mean()), 6)))
 
     median_fire_year: int | None = None
+    fire_year_distribution = _build_fire_year_distribution(
+        goal_met_year_idx, met_mask, base_year=cfg.base_year
+    )
     if met_mask.sum() >= n_paths / 2:
         fire_indices = goal_met_year_idx[met_mask]
         # Round half-up (ceil) so fractional medians map to the next worse year,
@@ -257,6 +268,7 @@ def run(
     return MonteCarloResult(
         p_goal_met=p_goal_met,
         median_fire_year=median_fire_year,
+        fire_year_distribution=fire_year_distribution,
         p10_portfolio=p10_portfolio,
         p50_portfolio=p50_portfolio,
         p90_portfolio=p90_portfolio,
@@ -264,6 +276,25 @@ def run(
         seed=return_model.seed,
         history_hash=paths.history_hash,
     )
+
+
+def _build_fire_year_distribution(
+    goal_met_year_idx: np.ndarray,
+    met_mask: np.ndarray,
+    *,
+    base_year: int,
+) -> dict[int, int]:
+    """Histogram of first-goal-met calendar year across paths.
+
+    Returns an empty dict when no path met the goal.
+    """
+    if not met_mask.any():
+        return {}
+    fire_indices = goal_met_year_idx[met_mask]
+    unique, counts = np.unique(fire_indices, return_counts=True)
+    return {
+        int(base_year + int(idx) + 1): int(count) for idx, count in zip(unique, counts, strict=True)
+    }
 
 
 def _build_contributions(

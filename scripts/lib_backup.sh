@@ -104,8 +104,38 @@ penge::timestamp() {
 # Resolve the backup root, creating subdirs on demand. Defaults to
 # ./backups under the repo when neither flag nor env var is set; the
 # directory is gitignored.
+#
+# Refuses obviously-dangerous roots (`/`, `$HOME`, top-level FHS
+# directories) up-front: prune.sh later runs `find <root> -name '*.age'
+# -delete` underneath it, so pointing at `/` or `~` would let a typo
+# in `PENGE_BACKUP_ROOT` walk and rm large parts of the host. The
+# allow-by-not-being-on-the-deny-list approach is intentional — adding
+# a marker-file requirement would silently break existing operator
+# setups, so we only block the cases that have no legitimate use.
 penge::backup_root() {
     local root="${1:-${PENGE_BACKUP_ROOT:-./backups}}"
+    [[ -n "${root}" ]] || penge::die "backup root is empty"
+
+    # Resolve to an absolute path for the deny-list check; keep the
+    # original (possibly relative) form for the caller so log lines
+    # and on-disk paths stay readable.
+    local abs
+    if abs="$(cd -- "${root}" 2>/dev/null && pwd)"; then
+        :
+    elif abs="$(cd -- "$(dirname -- "${root}")" 2>/dev/null && pwd)/$(basename -- "${root}")"; then
+        :
+    else
+        abs="${root}"
+    fi
+
+    case "${abs}" in
+        / | /bin | /boot | /dev | /etc | /home | /lib | /lib32 | /lib64 \
+            | /media | /mnt | /opt | /proc | /root | /run | /sbin | /srv \
+            | /sys | /tmp | /usr | /var | "${HOME}")
+            penge::die "refusing dangerous backup root: ${root} (resolved to ${abs})"
+            ;;
+    esac
+
     mkdir -p "${root}/postgres" "${root}/duckdb"
     printf '%s\n' "${root}"
 }

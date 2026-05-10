@@ -216,12 +216,12 @@ problem one level down without solving it.
 
 ## Links
 
-- [`scripts/backup.sh`](https://github.com/autoditac/Penge/blob/main/scripts/backup.sh)
-- [`scripts/snapshot.sh`](https://github.com/autoditac/Penge/blob/main/scripts/snapshot.sh)
-- [`scripts/restore.sh`](https://github.com/autoditac/Penge/blob/main/scripts/restore.sh)
-- [`scripts/prune.sh`](https://github.com/autoditac/Penge/blob/main/scripts/prune.sh)
+- `scripts/backup.sh`
+- `scripts/snapshot.sh`
+- `scripts/restore.sh`
+- `scripts/prune.sh`
 - [`docs/runbook/backup-restore.md`](../runbook/backup-restore.md)
-- [`.github/workflows/backup-roundtrip.yml`](https://github.com/autoditac/Penge/blob/main/.github/workflows/backup-roundtrip.yml)
+- `.github/workflows/backup-roundtrip.yml`
 - [age — A simple, modern and secure encryption tool](https://age-encryption.org/)
 - ADR-0001 — Self-hosted Postgres + DuckDB stack
 - ADR-0024 — Vault layout

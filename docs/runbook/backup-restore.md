@@ -1,16 +1,11 @@
 # Encrypted backups
 
 Penge's backup pipeline is a small set of shell scripts under
-[`scripts/`](https://github.com/autoditac/Penge/tree/main/scripts) —
-[`backup.sh`](https://github.com/autoditac/Penge/blob/main/scripts/backup.sh),
-[`snapshot.sh`](https://github.com/autoditac/Penge/blob/main/scripts/snapshot.sh),
-[`restore.sh`](https://github.com/autoditac/Penge/blob/main/scripts/restore.sh),
-[`prune.sh`](https://github.com/autoditac/Penge/blob/main/scripts/prune.sh),
-plus a shared
-[`lib_backup.sh`](https://github.com/autoditac/Penge/blob/main/scripts/lib_backup.sh) —
-that encrypt every artefact with [age](https://age-encryption.org/) before
-it touches disk. See [ADR-0025](../decisions/0025-encrypted-backups.md)
-for the design and threat model.
+`scripts/` — `backup.sh`, `snapshot.sh`, `restore.sh`, `prune.sh`,
+plus a shared `lib_backup.sh` — that encrypt every artefact with
+[age](https://age-encryption.org/) before it touches disk. See
+[ADR-0025](../decisions/0025-encrypted-backups.md) for the design
+and threat model.
 
 ## Prerequisites
 
@@ -199,8 +194,8 @@ successful drill is suspect.
 ## Related
 
 - [ADR-0025 — Encrypted backups: age + Parquet snapshots](../decisions/0025-encrypted-backups.md)
-- [`scripts/backup.sh`](https://github.com/autoditac/Penge/blob/main/scripts/backup.sh)
-- [`scripts/snapshot.sh`](https://github.com/autoditac/Penge/blob/main/scripts/snapshot.sh)
-- [`scripts/restore.sh`](https://github.com/autoditac/Penge/blob/main/scripts/restore.sh)
-- [`scripts/prune.sh`](https://github.com/autoditac/Penge/blob/main/scripts/prune.sh)
-- [`.github/workflows/backup-roundtrip.yml`](https://github.com/autoditac/Penge/blob/main/.github/workflows/backup-roundtrip.yml)
+- `scripts/backup.sh`
+- `scripts/snapshot.sh`
+- `scripts/restore.sh`
+- `scripts/prune.sh`
+- `.github/workflows/backup-roundtrip.yml`

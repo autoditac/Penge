@@ -94,6 +94,7 @@ nav:
       - "ADR-0014 Monte-Carlo FIRE runner": decisions/0014-sim-montecarlo-runner.md
       - "ADR-0015 Scenario engine": decisions/0015-sim-scenario-engine.md
       - "ADR-0016 Tax-lot tracker (gennemsnitsmetoden)": decisions/0016-tax-lot-tracker.md
+      - "ADR-0017 Lagerbeskatning calculator": decisions/0017-lagerbeskatning-calculator.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

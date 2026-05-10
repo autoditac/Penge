@@ -1,21 +1,22 @@
----
-status: Proposed
-date: 2026-05-10
-deciders: autoditac
-consulted: GitHub Copilot
-informed: future Steuerberater reviewer
----
+# 0020 — SKAT-format report generator (DK)
 
-# ADR-0020: SKAT-format report generator (DK)
+- **Status:** Proposed
+- **Date:** 2026-05-10
+- **Deciders:** @autoditac
+- **Tags:** tax, dk, reporting
 
-## Context
+## Context and Problem Statement
 
 Phase-3 produced four independent calculators:
 
-- `penge.tax.lots` — gennemsnitsmetoden tax-lot tracker (#35, ADR-0016)
-- `penge.tax.lager` — lagerbeskatning per ISIN (#36, ADR-0017)
-- `penge.tax.aktiesparekonto` — ASK 17 % wrapper (#37, ADR-0018)
-- `penge.tax.pal` — PAL-skat 15.3 % (#38, ADR-0019)
+- `penge.tax.lots` — gennemsnitsmetoden tax-lot tracker (#35,
+  [ADR-0016](0016-tax-lot-tracker.md))
+- `penge.tax.lager` — lagerbeskatning per ISIN (#36,
+  [ADR-0017](0017-lagerbeskatning-calculator.md))
+- `penge.tax.aktiesparekonto` — ASK 17 % wrapper (#37,
+  [ADR-0018](0018-aktiesparekonto-handling.md))
+- `penge.tax.pal` — PAL-skat 15.3 % (#38,
+  [ADR-0019](0019-pal-skat-tracking.md))
 
 Each emits frozen Pydantic results in DKK. To submit a Danish tax
 return, those four streams have to be aggregated into a single
@@ -50,6 +51,9 @@ year's call. Persisting that rolling state is the consumer's job.
 
 `source_id` is a stable string keyed on category + account + ISIN +
 optional realisation index, e.g. `realised:nordnet:IE0000000001:7`.
+Realised gains are sorted by `(event_date, account_id, isin, gain)`
+before numbering so the index is deterministic regardless of the
+caller's iteration order.
 
 ## Consequences
 

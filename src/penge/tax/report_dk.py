@@ -106,7 +106,9 @@ class SkatReport:
     rows: tuple[SkatReportRow, ...] = field(default_factory=tuple)
     prior_loss_carry_forward: Money = field(default_factory=lambda: _dkk(Decimal(0)))
     gross_capital_income: Money = field(default_factory=lambda: _dkk(Decimal(0)))
-    """Sum of all ``gain`` rows, *before* applying prior-year carry-forward."""
+    """Sum of ordinary capital-income rows (lager + realised), *before*
+    applying prior-year carry-forward. ASK and PAL settle at source and
+    are excluded."""
 
     taxable_capital_income: Money = field(default_factory=lambda: _dkk(Decimal(0)))
     """``max(gross_capital_income - prior_loss_carry_forward, 0)``."""
@@ -233,13 +235,15 @@ def build_skat_report(
         rows.append(_row_pal(line, pr))
         line += 1
 
-    realised_idx = 0
-    for rg in realised_gains:
-        if rg.event_date.year != tax_year:
-            continue
-        rows.append(_row_realised(line, realised_idx, rg))
+    # Sort deterministically so source_id is stable regardless of caller
+    # iteration order or whether the audit log spans multiple years.
+    realised_in_year = sorted(
+        (rg for rg in realised_gains if rg.event_date.year == tax_year),
+        key=lambda rg: (rg.event_date, rg.account_id, rg.isin, rg.gain.amount),
+    )
+    for idx, rg in enumerate(realised_in_year):
+        rows.append(_row_realised(line, idx, rg))
         line += 1
-        realised_idx += 1
 
     # Only lager + realised feed the ordinary capital-income line.
     gross = sum(

@@ -30,6 +30,7 @@ from penge.ingest.enablebanking.client import (
     ClientConfig,
     default_consent_until,
 )
+from penge.ops.sentry import init_sentry
 
 from .loader import load_account
 
@@ -171,12 +172,12 @@ def _cmd_sync(args: argparse.Namespace, client: Client) -> int:
     session = client.get_session(args.session_id)
     if session.status != "AUTHORIZED":
         sys.stderr.write(
-            f"error: session {args.session_id} status is {session.status} " "(re-link required)\n"
+            f"error: session {args.session_id} status is {session.status} (re-link required)\n"
         )
         return 2
 
     # Lazy DB import so --help / link / authorize don't need psycopg.
-    from sqlalchemy import create_engine  # noqa: PLC0415
+    from sqlalchemy import create_engine
 
     engine = create_engine(_database_url())
     date_from = (datetime.now(UTC) - timedelta(days=args.days)).date()
@@ -230,6 +231,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(component="ingest.ebank")
     config = ClientConfig.from_env()
     with Client(config) as client:
         if args.command == "link":

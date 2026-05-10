@@ -79,6 +79,7 @@ nav:
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
       - "Branch protection": runbook/branch-protection.md
       - "Vault watcher": runbook/vault-watcher.md
+      - "Healthchecks (Uptime Kuma + Sentry)": runbook/healthchecks.md
       - "Encrypted backups": runbook/backup-restore.md
       - "Restore drill log": runbook/restore-log.md
   - Decisions:

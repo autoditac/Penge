@@ -65,5 +65,11 @@ the portfolio, or by running a separate sub-simulation.
 
 Instruments not on the ABIS list (individual stocks, some bonds) are taxed
 on realisation at 27 %/42 % using the average-cost method
-(gennemsnitsmetoden).  Not directly modelled in Phase 2 (the household
-holds ABIS ETFs primarily).
+(gennemsnitsmetoden).
+
+Phase 3 implements this in `penge.tax.lots` (issue #35,
+[ADR-0016](../decisions/0016-tax-lot-tracker.md)). The book keeps a
+single aggregate quantity + cost-basis per `(account_id, isin)`,
+mutated by `Buy` / `Sell` / `Split` / `Merge` events. Every `Sell`
+appends a `RealisedGain` to the audit log; the SKAT report generator
+(#39) consumes that log.

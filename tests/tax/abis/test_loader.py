@@ -45,7 +45,7 @@ def engine() -> Iterator[Engine]:
     assert _DB_URL is not None
     eng = create_engine(_DB_URL)
     env = {**os.environ, "DATABASE_URL": _DB_URL}
-    subprocess.run(  # noqa: S603
+    subprocess.run(
         ["alembic", "upgrade", "head"],  # noqa: S607
         cwd=REPO_ROOT,
         env=env,

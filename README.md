@@ -14,6 +14,10 @@ A self-hosted data platform that:
 - Runs Monte-Carlo FIRE projections and scenario simulations (house purchase, work-time reduction, ...).
 - Stores statements in a document vault and exposes the whole dataset to LLMs through a typed Model Context Protocol (MCP) server.
 
+## MCP server
+
+A read-only TypeScript MCP server lives at [`apps/mcp/`](apps/mcp/) and is the single LLM ingress for Penge — see [ADR-0005](docs/decisions/0005-llm-access-via-mcp-only.md) for the policy and [ADR-0023](docs/decisions/0023-mcp-server-architecture.md) for the implementation. Run it locally with `just mcp-dev`; every tool call is audit-logged with sensitive argument values redacted.
+
 ## Status
 
 🚧 Phase 0 — Foundations. See the [project backlog](https://github.com/users/autoditac/projects) and milestones.

@@ -21,3 +21,4 @@ ignore: |
   data/
   target/
   dbt_packages/
+  pnpm-lock.yaml

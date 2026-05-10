@@ -152,3 +152,30 @@ ingest-pfa *FLAGS:
 #   just ingest-abis override --isin DE0002635281 --treatment lagerbeskatning
 ingest-abis *FLAGS:
     uv run --group db penge-abis {{FLAGS}}
+
+# --- MCP server (TypeScript) -------------------------------------------------
+#
+# Skeleton MCP server (apps/mcp). See ADR-0023.
+# `mcp-dev` runs the server over stdio with hot reload — point your MCP host
+# (Claude Desktop, VS Code Copilot Chat) at the command shown in
+# apps/mcp/README.md.
+
+# Install TS workspace dependencies (idempotent).
+mcp-install:
+    pnpm --filter @penge/mcp install
+
+# Run the MCP server locally with hot reload.
+mcp-dev:
+    pnpm --filter @penge/mcp dev
+
+# Run MCP server unit tests (vitest).
+mcp-test:
+    pnpm --filter @penge/mcp test
+
+# Lint + format-check the MCP TS package.
+mcp-lint:
+    pnpm --filter @penge/mcp lint
+
+# Production build (TypeScript → dist/).
+mcp-build:
+    pnpm --filter @penge/mcp build

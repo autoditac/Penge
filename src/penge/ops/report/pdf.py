@@ -132,6 +132,7 @@ def _append_net_worth(story: list[Any], data: ReportData, ctx: _PdfCtx) -> None:
     chart = render_sparkline(ctx.out_dir, section.sparkline_eur)
     story.append(Spacer(1, 0.3 * ctx.cm))
     story.append(Image(str(ctx.out_dir / chart), width=16 * ctx.cm, height=4.5 * ctx.cm))
+    _append_note_para(story, section.note, ctx.body)
 
 
 def _append_cashflow(story: list[Any], data: ReportData, ctx: _PdfCtx) -> None:
@@ -162,6 +163,7 @@ def _append_cashflow(story: list[Any], data: ReportData, ctx: _PdfCtx) -> None:
     )
     story.append(Spacer(1, 0.3 * ctx.cm))
     story.append(Image(str(ctx.out_dir / chart), width=16 * ctx.cm, height=6.5 * ctx.cm))
+    _append_note_para(story, section.note, ctx.body)
 
 
 def _append_allocation(story: list[Any], data: ReportData, ctx: _PdfCtx) -> None:
@@ -193,6 +195,7 @@ def _append_allocation(story: list[Any], data: ReportData, ctx: _PdfCtx) -> None
     )
     story.append(Spacer(1, 0.2 * ctx.cm))
     story.append(Image(str(ctx.out_dir / chart_b), width=10 * ctx.cm, height=10 * ctx.cm))
+    _append_note_para(story, section.note, ctx.body)
 
 
 def _append_kv_section(
@@ -209,6 +212,7 @@ def _append_kv_section(
         story.append(_todo_para(section.note, ctx.body))
         return
     story.append(_kv_table(rows_fn(section), ctx.table_style_cls, ctx.colors))
+    _append_note_para(story, section.note, ctx.body)
 
 
 # ---------------------------------------------------------------------------
@@ -223,6 +227,16 @@ def _header_html(header: HeaderSection) -> str:
         f"<b>Git SHA:</b> <font face='Courier'>{header.git_sha}</font><br/>"
         f"<b>Schema versions:</b> {versions}"
     )
+
+
+def _append_note_para(story: list[Any], note: str, body_style: Any) -> None:
+    """Append a TODO/note paragraph when an available section has a non-empty
+    note. Mirrors markdown._append_note so partial data sources are surfaced
+    rather than silently dropped.
+    """
+
+    if note:
+        story.append(_todo_para(note, body_style))
 
 
 def _todo_para(note: str, body_style: Any) -> Any:

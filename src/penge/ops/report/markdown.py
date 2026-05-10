@@ -64,6 +64,17 @@ def _todo(note: str) -> str:
     return f"> **TODO** — {_safe(msg)}"
 
 
+def _append_note(lines: list[str], note: str) -> None:
+    """Append a TODO/note block when a section has a non-empty note even though
+    it rendered as available. Without this the note (e.g. "per-category
+    breakdown pending") would be silently dropped.
+    """
+
+    if note:
+        lines.append("")
+        lines.append(_todo(note))
+
+
 def _render_header(header: HeaderSection) -> str:
     versions = ", ".join(f"{k}={v}" for k, v in sorted(header.schema_versions.items())) or "—"
     return (
@@ -88,6 +99,7 @@ def _render_net_worth(section: NetWorthSection, out_dir: Path) -> str:
     chart = render_sparkline(out_dir, section.sparkline_eur)
     lines.append("")
     lines.append(f"![Net worth sparkline]({chart})")
+    _append_note(lines, section.note)
     return "\n".join(lines)
 
 
@@ -117,6 +129,7 @@ def _render_cashflow(section: CashflowSection, out_dir: Path) -> str:
     )
     lines.append("")
     lines.append(f"![Top cashflow categories]({chart})")
+    _append_note(lines, section.note)
     return "\n".join(lines)
 
 
@@ -154,6 +167,7 @@ def _render_allocation(section: AllocationSection, out_dir: Path) -> str:
     )
     lines.append("")
     lines.append(f"![Allocation by jurisdiction]({chart_b})")
+    _append_note(lines, section.note)
     return "\n".join(lines)
 
 
@@ -178,6 +192,7 @@ def _render_tax(section: TaxSection) -> str:
         lines.append("| --- | ---: |")
         for label, amount in section.de_components:
             lines.append(f"| {_safe(label)} | {_fmt(amount)} |")
+    _append_note(lines, section.note)
     return "\n".join(lines)
 
 
@@ -195,6 +210,7 @@ def _render_fire(section: FireSection) -> str:
     p_goal_pct = None if p_goal is None else (p_goal * Decimal(100))
     lines.append(f"- **P(goal met):** {_fmt(p_goal_pct, suffix='%')}")
     lines.append(f"- **Median FIRE year:** {_fmt_int(section.median_fire_year)}")
+    _append_note(lines, section.note)
     return "\n".join(lines)
 
 
@@ -212,4 +228,5 @@ def _render_ops(section: OpsSection) -> str:
     backup_at = "—" if section.last_backup_at is None else section.last_backup_at.isoformat()
     lines.append(f"- **Last backup:** {backup_at} ({backup_age})")
     lines.append(f"- **Sentry errors (last 30d):** {_fmt_int(section.sentry_errors_last_month)}")
+    _append_note(lines, section.note)
     return "\n".join(lines)

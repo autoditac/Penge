@@ -25,6 +25,19 @@ from typing import Any
 from PIL import Image as _PILImage  # noqa: F401
 from PIL import PngImagePlugin as _PILPng  # noqa: F401
 
+from penge.ops.report.redact import redact_text
+
+
+def _safe_label(label: str) -> str:
+    """Strip PII and control chars from a chart label.
+
+    Chart labels are baked into the rasterized PNG, so unlike the
+    Markdown / PDF text streams they cannot be retroactively cleaned.
+    We redact aggressively here as defence in depth.
+    """
+
+    return redact_text(label).replace("\n", " ").strip()
+
 
 def _setup_matplotlib() -> Any:
     """Configure matplotlib for headless use and return the ``pyplot`` module."""
@@ -44,8 +57,6 @@ def _setup_matplotlib() -> Any:
         Image.register_extension("PNG", ".png")
     if "PNG" not in Image.OPEN:
         Image.register_open("PNG", PngImagePlugin.PngImageFile, PngImagePlugin._accept)
-
-    return plt
 
     return plt
 
@@ -103,7 +114,10 @@ def render_pie(
 
     fig, ax = plt.subplots(figsize=(4.2, 4.2))
     if slices:
-        labels = [label for label, _, _ in slices]
+        # Labels are baked into the PNG pixels — redact every label so
+        # PII can never leak via the rendered image even if a caller
+        # passes an un-redacted source string.
+        labels = [_safe_label(label) for label, _, _ in slices]
         sizes = [float(value) for _, value, _ in slices]
         ax.pie(sizes, labels=labels, autopct="%1.1f%%", startangle=90, textprops={"fontsize": 8})
         ax.set_aspect("equal")
@@ -133,7 +147,9 @@ def render_bar(
 
     fig, ax = plt.subplots(figsize=(6.4, 2.6))
     if bars:
-        labels = [label for label, _ in bars]
+        # Same defence-in-depth as render_pie: redact y-tick labels so
+        # the rendered PNG cannot leak PII.
+        labels = [_safe_label(label) for label, _ in bars]
         values = [float(v) for _, v in bars]
         positions = list(range(len(labels)))
         ax.barh(positions, values)

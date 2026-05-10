@@ -75,6 +75,7 @@ nav:
       - DE: tax/de.md
   - Runbook:
       - runbook/monthly.md
+      - "Monthly automated report": runbook/monthly-report.md
       - "Web dashboard": runbook/web.md
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
       - "Branch protection": runbook/branch-protection.md

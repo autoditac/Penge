@@ -42,7 +42,7 @@ just migrate-up             # idempotent; no-op if already at head
 ### What "good" looks like
 
 - `git pull` says `Already up to date.` or fast-forwards cleanly.
-- `docker compose ps` lists `penge-postgres-1` and `penge-adminer-1`
+- `docker compose ps` lists `penge-postgres` and `penge-adminer` as running (the explicit `container_name` values from `compose.yaml`)
   as `running (healthy)`.
 - `alembic upgrade head` prints `INFO  [alembic.runtime.migration]`
   lines and returns `0`.

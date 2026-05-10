@@ -63,7 +63,7 @@ import {
   PAL_RATE,
   VORAB_BASE_NAV_EUR,
   VORAB_BASE_RATE,
-  VORAB_TF_EQUITY,
+  VORAB_EQUITY_TAXABLE_FRACTION,
 } from "./fixtures/taxPayloads.js";
 import {
   BASELINE_MC_PAYLOAD,
@@ -497,7 +497,7 @@ export const GOLDENS: Golden[] = [
       if (!vorab || !taxable) throw new Error("expected vorabpauschale + vorab_taxable line items");
       approxEqual(
         taxable.amount,
-        vorab.amount * VORAB_TF_EQUITY,
+        vorab.amount * VORAB_EQUITY_TAXABLE_FRACTION,
         0.01,
         "Teilfreistellung 70 % (taxable = 30 % of vorab)",
       );

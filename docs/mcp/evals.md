@@ -113,9 +113,22 @@ absorb:
 
 Instead, the harness validates the tool layer itself — the LLM-visible
 contract. If the tool returns the right numbers in the right shape,
-any well-behaved LLM has the information it needs. A separate manual
-walk-through against a live LLM is still useful and is documented in
-`docs/mcp/tools.md`, but it is not part of CI.
+any well-behaved LLM has the information it needs.
+
+### Scope of this PR vs issue #54
+
+Issue #54 originally asked for "all 20 questions pass against the live
+LLM". That requirement is intentionally **out of scope for CI**: a
+live-model gate is non-deterministic and would block green builds on
+upstream model drift. What ships here is the deterministic tool-layer
+half of that contract — the half that *can* be a CI gate.
+
+The live-LLM walk-through is still expected as a manual pre-release
+check (see `docs/mcp/tools.md` for the question list and the local
+`mcp-server` invocation). Re-running it monthly is a release-checklist
+item, not a CI job. If we ever want to automate it, that should be a
+separate scheduled workflow (e.g. nightly `workflow_dispatch` with a
+report-only outcome) and a separate ADR — not a merge gate.
 
 ## When a golden fails
 

@@ -7,27 +7,16 @@
  * appended so the diff in CI logs has enough context to triage
  * without scrolling back to the dataset.
  *
- * This file is its own vitest spec — see `vitest.config.ts` for the
- * include glob.
+ * This file is **not** picked up by the default `vitest run` include
+ * glob (so `pnpm --filter @penge/mcp test` stays fast and focused on
+ * unit tests). It is invoked explicitly by `just mcp-evals` and the
+ * dedicated CI workflow via `vitest run evals/runner.ts`.
  */
 
 import { describe, expect, it } from "vitest";
 
-import { GOLDENS, type Golden } from "./goldens.js";
-
-export function formatGoldenFailure(golden: Golden, cause: unknown): Error {
-  const message = cause instanceof Error ? cause.message : String(cause);
-  const wrapped = new Error(
-    `Golden ${golden.id} (${golden.tool}) failed.\n` +
-      `Question: ${golden.question}\n` +
-      `Rationale: ${golden.rationale}\n` +
-      `Failure : ${message}`,
-  );
-  if (cause instanceof Error && cause.stack !== undefined) {
-    wrapped.stack = `${wrapped.message}\n${cause.stack}`;
-  }
-  return wrapped;
-}
+import { formatGoldenFailure } from "./format.js";
+import { GOLDENS } from "./goldens.js";
 
 describe("MCP golden questions (20)", () => {
   it("dataset is the right size and shape", () => {

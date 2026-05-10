@@ -203,4 +203,8 @@ export const PAL_EXPECTED_TAX_DKK = Math.round(PAL_PENSION_RETURN_DKK * PAL_RATE
 
 export const VORAB_BASE_NAV_EUR = 10_000;
 export const VORAB_BASE_RATE = 0.0255;
-export const VORAB_TF_EQUITY = 0.3;
+// German equity-fund Teilfreistellung is 70 %, so 30 % of the
+// Vorabpauschale remains taxable. We name the constant after what it
+// actually represents (the taxable fraction) to avoid future confusion
+// with the headline "70 %" Teilfreistellung rate.
+export const VORAB_EQUITY_TAXABLE_FRACTION = 0.3;

@@ -7,7 +7,7 @@ import {
   expectPercentileOrdering,
   expectSumCloseTo,
 } from "../evals/assertions.js";
-import { formatGoldenFailure } from "../evals/runner.js";
+import { formatGoldenFailure } from "../evals/format.js";
 import type { Golden } from "../evals/goldens.js";
 import { buildVault, SYNTHETIC_VAULT_DOCS } from "../evals/fixtures/vaultDocs.js";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";

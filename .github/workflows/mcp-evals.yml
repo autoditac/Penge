@@ -52,4 +52,4 @@ jobs:
       - name: Install workspace deps
         run: pnpm install --frozen-lockfile
       - name: Run MCP eval suite
-        run: pnpm --filter @penge/mcp exec vitest run evals/runner.ts
+        run: pnpm --filter @penge/mcp exec vitest run --config vitest.evals.config.ts

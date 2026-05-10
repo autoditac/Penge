@@ -1,10 +1,13 @@
 /**
  * Synthetic vault layout for the `search_documents` goldens.
  *
- * All content is fabricated. Account numbers below are deliberately
- * malformed but match the *shape* the redactor must mask (DK CPR,
- * IBAN, long digit runs) so the goldens can prove that excerpts never
- * leak raw values.
+ * All content is fabricated and uses placeholders that match the
+ * *shape* the redactor must mask (DK CPR, IBAN, long digit runs) but
+ * are clearly invalid: the IBAN has all-zero account/check digits, the
+ * "CPR" carries an impossible birthdate (00-00-00) and a zero serial,
+ * and the case number is a flat run of nines. None of these can be
+ * mistaken for real PII or pass a checksum-aware secret scanner — the
+ * goldens still prove that excerpts never leak the raw values.
  */
 
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -22,21 +25,22 @@ export const SYNTHETIC_VAULT_DOCS: FixtureDoc[] = [
     hash: "a".repeat(64),
     relPath: "2024/lønseddel/aaaa-payslip-january.pdf",
     filedAt: "2024-02-01T08:00:00Z",
-    // Contains a fake CPR-shaped value the redactor must mask.
-    ocr: "Lønseddel januar 2024. Brutto 45000 DKK. CPR: 010190-1234.",
+    // Impossible CPR: birthdate 00-00-00 and serial 0000.
+    ocr: "Lønseddel januar 2024. Brutto 45000 DKK. CPR: 000000-0000.",
   },
   {
     hash: "b".repeat(64),
     relPath: "2024/kontoauszug/bbbb-gls-bank-january.pdf",
     filedAt: "2024-02-02T08:00:00Z",
-    // Contains a fake IBAN the redactor must mask.
-    ocr: "GLS Bank Kontoauszug Januar 2024. IBAN: DE89370400440532013000 Saldo 1234,56 EUR.",
+    // Invalid IBAN: country DE, all-zero check + BBAN. Right shape, wrong checksum.
+    ocr: "GLS Bank Kontoauszug Januar 2024. IBAN: DE00000000000000000000 Saldo 1234,56 EUR.",
   },
   {
     hash: "c".repeat(64),
     relPath: "2023/årsopgørelse/cccc-skat-2023.pdf",
     filedAt: "2024-04-01T08:00:00Z",
-    ocr: "Årsopgørelse 2023 fra Skattestyrelsen. Sagsnr 99887766554433.",
+    // Long digit run (placeholder Sagsnr) that the redactor must mask.
+    ocr: "Årsopgørelse 2023 fra Skattestyrelsen. Sagsnr 99999999999999.",
   },
   {
     hash: "d".repeat(64),

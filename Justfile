@@ -202,7 +202,7 @@ mcp-build:
 # of the tool layer (tax, sim, cashflow, net worth, vault) backed by
 # synthetic fixtures. See docs/mcp/evals.md for how to add a golden.
 mcp-evals:
-    pnpm --filter @penge/mcp exec vitest run evals/runner.ts
+    pnpm --filter @penge/mcp exec vitest run --config vitest.evals.config.ts
 
 # --- Encrypted backups (see ADR-0025) ----------------------------------------
 #

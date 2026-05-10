@@ -32,8 +32,9 @@ def render(
 
     accounts = accounts.copy()
     accounts["display_name"] = accounts.apply(
-        lambda row: f"{row['entity_name']} — "
-        f"{mask_account_name(row['account_name'], reveal=reveal)}",
+        lambda row: (
+            f"{row['entity_name']} — {mask_account_name(row['account_name'], reveal=reveal)}"
+        ),
         axis=1,
     )
     accounts["display_iban"] = accounts["iban"].apply(lambda v: mask_iban(v, reveal=reveal))

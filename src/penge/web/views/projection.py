@@ -33,8 +33,8 @@ from penge.sim.cashflow import project
 from penge.sim.montecarlo import MonteCarloResult, run
 from penge.sim.scenario import (
     HousePurchaseScenario,
+    Scenario,
     WorkReductionScenario,
-    compare,
 )
 from penge.web import projection_demo as demo
 
@@ -183,8 +183,9 @@ def _gather_inputs() -> _Inputs:
 
 
 # Streamlit's ``cache_data`` is typed as an untyped decorator under
-# ``mypy --strict``; same suppression as in app.py.
-@st.cache_data(ttl=600, show_spinner="Running Monte-Carlo…")  # type: ignore[untyped-decorator]
+# ``mypy --strict``; same suppression as in app.py. Remove once
+# Streamlit ships strict-friendly stubs.
+@st.cache_data(ttl=600, show_spinner="Running Monte-Carlo…")  # type: ignore[untyped-decorator]  # streamlit cache_data is untyped under --strict
 def _run_mc(inputs: _Inputs) -> MonteCarloResult:
     """Run the Monte-Carlo for the given inputs (baseline or scenario)."""
     cashflow_cfg = demo.default_cashflow_config(horizon_years=inputs.horizon_years)
@@ -205,6 +206,7 @@ def _run_mc(inputs: _Inputs) -> MonteCarloResult:
         proj = project(cashflow_cfg)
         return run(proj, tax_cfg, goal, return_model, mc_cfg)
 
+    scen: Scenario
     if inputs.scenario == "Work reduction":
         scen = WorkReductionScenario(
             entity="demo",
@@ -212,7 +214,7 @@ def _run_mc(inputs: _Inputs) -> MonteCarloResult:
             fte_fraction=Decimal(inputs.work_red_fte_pct) / Decimal("100"),
         )
     else:  # House purchase
-        scen = HousePurchaseScenario(  # type: ignore[assignment]
+        scen = HousePurchaseScenario(
             year=inputs.house_year,
             price_eur=Decimal(inputs.house_price_eur),
             downpayment_eur=Decimal(inputs.house_down_eur),
@@ -220,8 +222,12 @@ def _run_mc(inputs: _Inputs) -> MonteCarloResult:
             term_years=inputs.house_term_years,
         )
 
-    comparison = compare(cashflow_cfg, tax_cfg, goal, return_model, mc_cfg, {inputs.scenario: scen})
-    return comparison.scenarios[0].mc_result
+    # Apply the scenario directly to a single baseline projection rather
+    # than going through ``scenario.compare``, which would also run the
+    # baseline Monte-Carlo and double compute time on cache misses.
+    baseline_proj = project(cashflow_cfg)
+    new_proj, new_mc_cfg = scen.apply(baseline_proj, mc_cfg)
+    return run(new_proj, tax_cfg, goal, return_model, new_mc_cfg)
 
 
 def _fan_chart(result: MonteCarloResult) -> go.Figure:

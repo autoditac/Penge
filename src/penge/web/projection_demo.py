@@ -107,11 +107,19 @@ def default_return_model(
     seed: int = 0,
     n_months: int = _HISTORY_MONTHS,
 ) -> BootstrapReturnModel:
-    """Synthetic two-asset monthly history; deterministic by ``seed``.
+    """Synthetic two-asset monthly history; deterministic by construction.
+
+    The synthetic history itself is pinned to a private constant
+    (``_HISTORY_SEED``) so callers always see the same input series
+    across runs and across processes — without it the dashboard cache
+    key would have to include the history.  The *seed* parameter is
+    passed through to :class:`BootstrapReturnModel` and controls only
+    the bootstrap *sampling* RNG (which paths get sampled), not the
+    underlying history.
 
     Equity-like series: ~7 %/yr drift, ~15 %/yr vol.
     Bond-like series:   ~2 %/yr drift, ~5 %/yr vol.
-    Inflation: a flat 2 %/yr both DE and DK.
+    Inflation: a flat ~2 %/yr both DE and DK.
     """
     rng = np.random.default_rng(_HISTORY_SEED)
     equity = rng.normal(loc=0.07 / 12, scale=0.15 / np.sqrt(12), size=n_months)

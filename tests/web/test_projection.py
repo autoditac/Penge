@@ -4,16 +4,18 @@ Drives ``app.py`` via ``streamlit.testing.v1.AppTest`` to verify the
 new "Projection" page renders end-to-end against the synthetic demo
 inputs and that changing a slider re-renders without raising.
 
-A second test exercises the projection module directly to verify the
-Monte-Carlo cache wrapper produces a valid :class:`MonteCarloResult`
-with a populated fan chart and FI-year distribution — useful when the
-``streamlit.testing`` harness is not available (it is an optional
-dependency).
+The ``test_run_mc_smoke_*`` cases exercise the projection module's
+Monte-Carlo wrapper directly. They do *not* require the
+``streamlit.testing`` optional dependency — only the AppTest-driven
+cases do.  The skip is therefore scoped to those cases via a fixture
+so the wrapper smoke tests still run when the AppTest harness is
+absent.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pandas as pd
 import pytest
@@ -22,8 +24,8 @@ import streamlit as st
 from penge.web import data as data_layer
 from penge.web.views import projection as projection_view
 
-streamlit_testing = pytest.importorskip("streamlit.testing.v1")
-AppTest = streamlit_testing.AppTest
+if TYPE_CHECKING:
+    from streamlit.testing.v1 import AppTest as _AppTest
 
 APP_PATH = Path(__file__).resolve().parents[2] / "src" / "penge" / "web" / "app.py"
 
@@ -36,7 +38,20 @@ def _empty_accounts() -> pd.DataFrame:
     return pd.DataFrame()
 
 
-@pytest.fixture(autouse=True)  # type: ignore[untyped-decorator]
+def _apptest() -> type[_AppTest]:
+    """Return the optional :class:`AppTest` class or skip the test.
+
+    Importing here (rather than at module level) keeps the
+    ``test_run_mc_smoke_*`` cases runnable even when the
+    ``streamlit.testing`` extra is missing.
+    """
+    streamlit_testing = pytest.importorskip("streamlit.testing.v1")
+    return streamlit_testing.AppTest  # type: ignore[no-any-return]
+
+
+# ``pytest.fixture`` is typed loosely; under strict mypy this trips
+# ``untyped-decorator``. Same pattern is used in tests/web/test_app_smoke.py.
+@pytest.fixture(autouse=True)  # type: ignore[untyped-decorator]  # pytest decorator is untyped under strict mypy
 def _patch_data(monkeypatch: pytest.MonkeyPatch) -> None:
     """Replace DB fetchers and clear caches between tests.
 
@@ -51,7 +66,8 @@ def _patch_data(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_projection_view_renders() -> None:
     """The Projection page renders without exceptions and emits headers."""
-    app = AppTest.from_file(str(APP_PATH), default_timeout=60)
+    app_test_cls: Any = _apptest()
+    app = app_test_cls.from_file(str(APP_PATH), default_timeout=60)
     app.run()
     assert not app.exception, [str(e) for e in app.exception]
 
@@ -64,7 +80,8 @@ def test_projection_view_renders() -> None:
 
 def test_projection_view_responds_to_slider_change() -> None:
     """Changing the target-income slider re-renders without errors."""
-    app = AppTest.from_file(str(APP_PATH), default_timeout=60)
+    app_test_cls: Any = _apptest()
+    app = app_test_cls.from_file(str(APP_PATH), default_timeout=60)
     app.run()
     app.sidebar.radio[0].set_value("Projection").run()
     assert not app.exception, [str(e) for e in app.exception]

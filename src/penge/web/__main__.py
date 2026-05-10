@@ -27,8 +27,7 @@ def main(argv: list[str] | None = None) -> int:
         from streamlit.web import cli as stcli
     except ImportError as exc:  # pragma: no cover — bootstrap-only path
         sys.stderr.write(
-            "streamlit is not installed. Install the web group: "
-            "`uv sync --group web --group db`.\n"
+            "streamlit is not installed. Install the web group: `uv sync --group web --group db`.\n"
         )
         raise SystemExit(2) from exc
 

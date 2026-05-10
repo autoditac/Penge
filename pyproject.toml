@@ -83,6 +83,19 @@ ocr = [
   "pdf2image>=1.17",
   "Pillow>=10.4",
 ]
+vault = [
+  # Document vault inbox watcher (issue #41). watchdog drives the
+  # filesystem observer; pytesseract / pdf2image / Pillow back the
+  # OCR pipeline (Tesseract DA+DE+EN, poppler-utils for rasterisation).
+  # pdfplumber comes from the `parsers` group when embedded text is
+  # available; it is imported lazily by penge.vault.ocr so installs
+  # without it still work via the OCR fallback path.
+  "watchdog>=6.0",
+  "pytesseract>=0.3.10",
+  "pdf2image>=1.17",
+  "Pillow>=10.4",
+  "pydantic>=2.7",
+]
 sim = [
   # Simulation engine: historical-bootstrap return model (issue #26),
   # cashflow engine (#27), tax overlay (#28), Monte-Carlo runner (#31),
@@ -188,3 +201,4 @@ penge-lunar = "penge.ingest.lunar.__main__:main"
 penge-growney = "penge.ingest.growney.__main__:main"
 penge-pfa = "penge.ingest.pfa.__main__:main"
 penge-abis = "penge.tax.abis.__main__:main"
+penge-vault = "penge.vault.__main__:main"

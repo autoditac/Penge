@@ -35,6 +35,10 @@ git fetch origin
 git checkout main
 git pull --ff-only
 
+# Set the month you are closing (e.g. in January close December):
+export CLOSE_YEAR=2026
+export CLOSE_MONTH=04          # zero-padded, e.g. 04 for April
+
 just up                     # Postgres + Adminer + Uptime Kuma
 just migrate-up             # idempotent; no-op if already at head
 ```
@@ -42,8 +46,11 @@ just migrate-up             # idempotent; no-op if already at head
 ### What "good" looks like
 
 - `git pull` says `Already up to date.` or fast-forwards cleanly.
-- `docker compose ps` lists `penge-postgres` and `penge-adminer` as running (the explicit `container_name` values from `compose.yaml`)
-  as `running (healthy)`.
+- `docker compose ps` shows:
+  - `penge-postgres` → `running (healthy)` (Postgres has a healthcheck)
+  - `penge-adminer` → `running` (no healthcheck configured)
+  - `penge-uptime-kuma` → `running` (no healthcheck configured)
+  (These are the explicit `container_name` values from `compose.yaml`.)
 - `alembic upgrade head` prints `INFO  [alembic.runtime.migration]`
   lines and returns `0`.
 - Last successful backup run is visible:
@@ -151,17 +158,17 @@ then `authorize --code <CODE>`.
 # Nordnet — monthly CSV export. See docs/connectors/nordnet.md for
 # the accounts-config YAML schema.
 uv run --group db penge-nordnet \
-    --transactions ~/Nextcloud/Finance/vault/$(date +%Y)/depotauszug/nordnet-transactions-*.csv \
-    --holdings    ~/Nextcloud/Finance/vault/$(date +%Y)/depotauszug/nordnet-depotoversigt-*.csv \
+    --transactions ~/Nextcloud/Finance/vault/${CLOSE_YEAR}/depotauszug/nordnet-transactions-*.csv \
+    --holdings    ~/Nextcloud/Finance/vault/${CLOSE_YEAR}/depotauszug/nordnet-depotoversigt-*.csv \
     --accounts-config config/nordnet-accounts.yaml
 
 # Growney / Sutor — quarterly PDF (skip outside quarter-end months)
 just ingest-growney --entity-name "Operator A" \
-    ~/Nextcloud/Finance/vault/$(date +%Y)/depotauszug/sutor-*.pdf
+    ~/Nextcloud/Finance/vault/${CLOSE_YEAR}/depotauszug/sutor-*.pdf
 
 # PFA pension — annual; only on the once-a-year delivery
 just ingest-pfa --entity-name "Operator A" \
-    ~/Nextcloud/Finance/vault/$(date +%Y)/pfa-statement/pensionsoversigt-*.pdf
+    ~/Nextcloud/Finance/vault/${CLOSE_YEAR}/pfa-statement/pensionsoversigt-*.pdf
 ```
 
 ### Manual entries
@@ -362,8 +369,11 @@ ls -lh "${PENGE_BACKUP_ROOT:-./backups}/duckdb"  | tail -5
 ### Quarterly drill (every third monthly ritual — Jan / Apr / Jul / Oct)
 
 ```bash
-export PENGE_TEST_DATABASE_URL=postgresql://penge:penge@localhost:5432/penge_drill_$(date +%F)
-createdb penge_drill_$(date +%F)
+# Derive a throwaway DB URL from the existing connection env vars.
+# Adjust the host/port/credentials if your local setup differs from .env.example.
+DRILL_DB="penge_drill_$(date +%F)"
+export PENGE_TEST_DATABASE_URL="${DATABASE_URL%/*}/${DRILL_DB}"
+createdb --maintenance-db "${DATABASE_URL/+psycopg/}" "${DRILL_DB}"
 just restore-test
 ```
 

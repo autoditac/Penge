@@ -39,6 +39,36 @@ just test          # run all tests
 just docs          # serve docs locally
 ```
 
+### System dependencies
+
+Some ingestion paths and the vault OCR pipeline shell out to native
+tools. On Debian/Ubuntu:
+
+```bash
+sudo apt-get install -y \
+    tesseract-ocr tesseract-ocr-dan tesseract-ocr-deu tesseract-ocr-eng \
+    poppler-utils
+```
+
+The vault watcher (`just vault-watch`) and the PFA / Growney parsers
+require both Tesseract (with `dan`, `deu`, `eng` traineddata) and
+`poppler-utils` for `pdftoppm`. See
+[`docs/runbook/vault-watcher.md`](docs/runbook/vault-watcher.md).
+
+The encrypted-backup pipeline (`just backup`, `just snapshot`,
+`just restore-test`, `just backup-prune`) needs the [`age`](https://age-encryption.org/)
+binary plus `postgresql-client` and the DuckDB CLI:
+
+```bash
+sudo apt-get install -y age postgresql-client
+# DuckDB CLI: download and SHA-256-verify the pinned release from
+# https://github.com/duckdb/duckdb/releases (see ADR-0025).
+```
+
+See [`docs/runbook/backup-restore.md`](docs/runbook/backup-restore.md) and
+[`ADR-0025`](docs/decisions/0025-encrypted-backups.md) for the design
+and operator procedure.
+
 ## Layout
 
 ```text

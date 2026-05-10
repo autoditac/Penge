@@ -153,6 +153,24 @@ ingest-pfa *FLAGS:
 ingest-abis *FLAGS:
     uv run --group db penge-abis {{FLAGS}}
 
+# --- Vault inbox watcher --------------------------------------------------
+#
+# The vault watcher tails an inbox directory and files every PDF dropped
+# into it under a year/type tree (see ADR-0024). The OCR pipeline writes
+# a `.txt` sidecar next to every filed document.
+# Examples:
+#   just vault-watch ~/Nextcloud/Finance/inbox ~/Nextcloud/Finance/vault
+#   just vault-once  ~/Nextcloud/Finance/inbox ~/Nextcloud/Finance/vault
+#   just vault-fixtures   # regenerate synthetic test PDFs
+vault-watch *FLAGS:
+    uv run --group vault --group parsers --group ocr penge-vault watch {{FLAGS}}
+
+vault-once INBOX VAULT:
+    uv run --group vault --group parsers --group ocr penge-vault watch {{INBOX}} {{VAULT}} --once
+
+vault-fixtures:
+    uv run --group parsers python tools/generate_vault_fixtures.py
+
 # --- MCP server (TypeScript) -------------------------------------------------
 #
 # Skeleton MCP server (apps/mcp). See ADR-0023.
@@ -179,3 +197,65 @@ mcp-lint:
 # Production build (TypeScript → dist/).
 mcp-build:
     pnpm --filter @penge/mcp build
+
+# Run the MCP golden-question eval suite. Twenty deterministic checks
+# of the tool layer (tax, sim, cashflow, net worth, vault) backed by
+# synthetic fixtures. See docs/mcp/evals.md for how to add a golden.
+mcp-evals:
+    pnpm --filter @penge/mcp exec vitest run --config vitest.evals.config.ts
+
+# --- Encrypted backups (see ADR-0025) ----------------------------------------
+#
+# All four recipes are thin wrappers around the shell scripts under
+# scripts/. Configure recipients via PENGE_BACKUP_RECIPIENTS (a
+# comma-separated list of `age` public keys) and the identity file via
+# PENGE_BACKUP_IDENTITY_FILE. See docs/runbook/backup-restore.md.
+
+# Take an encrypted Postgres logical backup (pg_dump | age).
+# Extra flags forward to scripts/backup.sh, e.g.
+#   just backup --label pre-upgrade
+backup *FLAGS:
+    ./scripts/backup.sh {{FLAGS}}
+
+# Snapshot a DuckDB database to encrypted Parquet (per-table COPY | tar | age).
+# Usage:
+#   just snapshot ./data/penge.duckdb
+#   just snapshot ./data/penge.duckdb --label pre-upgrade
+snapshot DUCKDB *FLAGS:
+    ./scripts/snapshot.sh --duckdb {{DUCKDB}} {{FLAGS}}
+
+# Round-trip restore drill: decrypt the newest pg-*.sql.age and replay it
+# into PENGE_TEST_DATABASE_URL (never production).
+restore-test:
+    @test -n "${PENGE_TEST_DATABASE_URL:-}" || (echo "PENGE_TEST_DATABASE_URL must be set" && exit 1)
+    @test -n "${PENGE_BACKUP_IDENTITY_FILE:-}" || (echo "PENGE_BACKUP_IDENTITY_FILE must be set" && exit 1)
+    set -euo pipefail; \
+        ROOT="${PENGE_BACKUP_ROOT:-./backups}"; \
+        if [ ! -d "$ROOT/postgres" ]; then \
+            echo "no $ROOT/postgres directory — run 'just backup' first" >&2; \
+            exit 1; \
+        fi; \
+        LATEST="$(find "$ROOT/postgres" -maxdepth 1 -type f -name 'pg-*.sql.age' | sort | tail -n1)"; \
+        if [ -z "$LATEST" ]; then \
+            echo "no pg-*.sql.age artefacts under $ROOT/postgres — run 'just backup' first" >&2; \
+            exit 1; \
+        fi; \
+        ./scripts/restore.sh --input "$LATEST" --database-url "$PENGE_TEST_DATABASE_URL"
+
+# Apply backup retention (defaults: 14 daily / 8 weekly / 12 monthly).
+backup-prune *FLAGS:
+    ./scripts/prune.sh {{FLAGS}}
+
+# --- Monthly report (issue #50) ---------------------------------------------
+#
+# Generate the monthly PDF + Markdown report under reports/{MONTH}/.
+# MONTH is an ISO month string, e.g. 2026-04. The DB connection (if
+# any) is resolved from DATABASE_URL / POSTGRES_*; missing sources
+# fall back to TODO placeholders.
+#
+# Example:
+#   just monthly-report MONTH=2026-04
+#   just monthly-report MONTH=2026-04 OUT=./reports
+monthly-report MONTH OUT="reports":
+    uv run --group db --group report python -m penge.ops.report.generate \
+        --month {{MONTH}} --out {{OUT}}

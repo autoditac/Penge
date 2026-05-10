@@ -23,6 +23,7 @@ from sqlalchemy import create_engine
 
 from penge.ingest.nordnet.config import load_accounts_config
 from penge.ingest.nordnet.loader import load_files
+from penge.ops.sentry import init_sentry
 
 log = logging.getLogger("penge.ingest.nordnet")
 
@@ -73,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(component="ingest.nordnet")
 
     cfg = load_accounts_config(args.accounts_config)
     engine = create_engine(_database_url())

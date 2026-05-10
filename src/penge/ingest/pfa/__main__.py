@@ -20,6 +20,7 @@ import sys
 from sqlalchemy import create_engine
 
 from penge.ingest.pfa.loader import load_files
+from penge.ops.sentry import init_sentry
 
 log = logging.getLogger("penge.ingest.pfa")
 
@@ -69,6 +70,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(component="ingest.pfa")
 
     engine = create_engine(_database_url())
     result = load_files(

@@ -10,6 +10,11 @@ data/
 !docs/**/*.pdf
 !tests/**/fixtures/**
 
+# Monthly report artefacts (issue #50). The generator writes both PDF
+# and Markdown plus PNG charts under reports/{YYYY-MM}/; none of those
+# files belong in git — they may contain aggregated financial figures.
+reports/
+
 # Secrets
 .env
 .env.*
@@ -19,6 +24,13 @@ data/
 *.age
 secrets/
 !secrets/*.enc.*
+
+# Encrypted backups (artefacts produced by scripts/backup.sh and
+# scripts/snapshot.sh). The age-encrypted blobs are themselves
+# safe-ish, but their existence in the working tree implies a real
+# database and is never something we want to commit. The matching
+# `.sha256` sidecars and the `.scratch-*` working dirs go with them.
+backups/
 
 # Python
 __pycache__/

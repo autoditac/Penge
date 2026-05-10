@@ -1,0 +1,115 @@
+# Rule-based document classifier for the vault (issue #42).
+#
+# Each entry maps a category to a list of regex patterns that are
+# matched (with re.IGNORECASE) against the lowercased OCR text of an
+# incoming document. A document scores one point per matching pattern;
+# the highest-scoring category above ``min_confidence`` wins. Ties are
+# broken by the order categories appear below.
+#
+# Patterns are tuned against synthetic fixtures under
+# ``tests/vault/fixtures/`` and against real-world filenames /
+# header lines we expect from DK / DE / EN issuers. Keep them
+# *language-aware* (Danish/German/English vocabulary) and prefer
+# anchored, document-distinctive tokens over generic words like
+# "saldo" that show up in many statement types.
+#
+# Tune by editing this file — no code change required. After editing,
+# run ``uv run --group vault pytest tests/vault/test_classifier.py``
+# to confirm the confusion-matrix bar still passes.
+
+# Minimum score (matches divided by the category's pattern count, in
+# [0.0, 1.0]) for a hit to count. Below this the document is filed
+# under ``unsorted/`` and the ``vault_unclassified_total`` counter is
+# bumped. 0.0 < min_confidence <= 1.0.
+min_confidence: 0.33
+
+categories:
+  lønseddel:
+    # Danish payslip ("lønseddel" / "lønspecifikation").
+    - "\\bl[øo]nseddel\\b"
+    - "\\bl[øo]nspecifikation\\b"
+    - "\\bl[øo]nperiode\\b"
+    - "\\battrukket\\s+a-skat\\b"
+    - "\\barbejdsmarkedsbidrag\\b"
+    - "\\bferiepenge\\b"
+
+  gehaltsabrechnung:
+    # German payslip ("Gehaltsabrechnung" / "Lohnabrechnung").
+    - "\\bgehaltsabrechnung\\b"
+    - "\\blohnabrechnung\\b"
+    - "\\bverdienstabrechnung\\b"
+    - "\\bentgeltabrechnung\\b"
+    - "\\blohnsteuer\\b"
+    - "\\bsozialversicherungsbeitrag\\b"
+
+  årsopgørelse:
+    # Danish annual tax statement from SKAT.
+    - "\\b[åa]rsopg[øo]relse\\b"
+    - "\\bskattestyrelsen\\b"
+    - "\\bforskudsopg[øo]relse\\b"
+    - "\\bskattepligtig\\s+indkomst\\b"
+    - "\\brestskat\\b"
+    - "\\boverskydende\\s+skat\\b"
+
+  steuerbescheid:
+    # German income-tax assessment ("Einkommensteuerbescheid").
+    - "\\bsteuerbescheid\\b"
+    - "\\beinkommensteuerbescheid\\b"
+    - "\\bfestsetzung\\s+der\\s+einkommensteuer\\b"
+    - "\\bzu\\s+versteuerndes\\s+einkommen\\b"
+    - "\\bsolidarit[äa]tszuschlag\\b"
+    - "\\bfinanzamt\\b"
+
+  kontoauszug:
+    # Bank account statement (DE "Kontoauszug" / DK "kontoudtog" / EN).
+    - "\\bkontoauszug\\b"
+    - "\\bkontoudtog\\b"
+    - "\\baccount\\s+statement\\b"
+    - "\\bbuchungstag\\b"
+    - "\\bvalutadato\\b"
+    - "\\biban\\b"
+
+  depotauszug:
+    # Brokerage / securities statement.
+    - "\\bdepotauszug\\b"
+    - "\\bdepotaufstellung\\b"
+    - "\\bwertpapierabrechnung\\b"
+    - "\\bportfolio\\s+statement\\b"
+    - "\\bbeholdningsoversigt\\b"
+    - "\\bvaerdipapir(?:er)?\\b"
+
+  pfa-statement:
+    # PFA Pension (DK) annual statement / Pensionsoversigt.
+    - "\\bpfa\\s+pension\\b"
+    - "\\bpfa\\s+plus\\b"
+    - "\\bpensionsoversigt\\b"
+    - "\\bdepotrente\\b"
+    - "\\blivrente\\b"
+    - "\\bratepension\\b"
+
+  hypothek:
+    # Mortgage statement (DE "Hypothek" / DK "realkreditlån").
+    - "\\bhypothek(?:endarlehen|enkredit)?\\b"
+    - "\\bgrundschuld\\b"
+    - "\\brealkreditl[åa]n\\b"
+    - "\\brealkredit\\b"
+    - "\\btilgungsplan\\b"
+    - "\\bzins(?:bindung|satz)\\b"
+
+  grundbuch:
+    # Land registry extract (DE "Grundbuchauszug").
+    - "\\bgrundbuch(?:auszug|amt|blatt)?\\b"
+    - "\\bbestandsverzeichnis\\b"
+    - "\\babteilung\\s+i{1,3}\\b"
+    - "\\bflurst[üu]ck\\b"
+    - "\\beigent[üu]mer\\b"
+    - "\\btingbog\\b"
+
+  versicherungspolice:
+    # Insurance policy (DE "Versicherungspolice" / DK "forsikringspolice").
+    - "\\bversicherungspolice\\b"
+    - "\\bversicherungsschein\\b"
+    - "\\bpolicenummer\\b"
+    - "\\bforsikringspolice\\b"
+    - "\\bpolicenr\\b"
+    - "\\bpr[æa]mie\\b"

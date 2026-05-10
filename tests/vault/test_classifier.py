@@ -130,9 +130,9 @@ def test_confusion_matrix_meets_precision_bar() -> None:
     """
 
     fixtures = sorted(LABELED_DIR.glob("*.pdf"))
-    assert fixtures, (
-        f"no labeled fixtures under {LABELED_DIR}; run tools/generate_vault_fixtures.py"
-    )
+    assert (
+        fixtures
+    ), f"no labeled fixtures under {LABELED_DIR}; run tools/generate_vault_fixtures.py"
 
     labels = sorted(set(_LABEL_FROM_SLUG.values()))
     matrix: dict[str, dict[str, int]] = {label: defaultdict(int) for label in labels}
@@ -146,15 +146,19 @@ def test_confusion_matrix_meets_precision_bar() -> None:
         matrix[actual][result.category] += 1
         predictions.append((path, actual, result))
 
-    # Per-class precision = TP / (TP + FP); a class with zero predictions
-    # has undefined precision and is skipped (the recall bar from the
-    # confusion matrix's rows still catches "always wrong" classes).
+    # Per-class precision = TP / (TP + FP). A class with zero predictions
+    # has undefined precision; rather than silently skipping it (which
+    # would let an "always wrong" classifier pass), we explicitly require
+    # every label to be predicted at least once. Combined with the
+    # unsorted-recall check below, this guarantees both axes of the
+    # confusion matrix are exercised.
     failures: list[str] = []
     for predicted in labels:
         tp = matrix[predicted].get(predicted, 0)
         fp = sum(matrix[actual].get(predicted, 0) for actual in labels if actual != predicted)
         denom = tp + fp
         if denom == 0:
+            failures.append(f"  {predicted}: never predicted (column is all zeros)")
             continue
         precision = tp / denom
         if precision < PRECISION_BAR:
@@ -162,8 +166,8 @@ def test_confusion_matrix_meets_precision_bar() -> None:
                 f"  {predicted}: precision {precision:.2f} < {PRECISION_BAR:.2f} (tp={tp}, fp={fp})"
             )
 
-    # Also sanity-check recall: every fixture must be classified, not
-    # left in unsorted, since the patterns are tuned for these inputs.
+    # Recall sanity check: every fixture must be classified, not left in
+    # unsorted, since the patterns are tuned for these inputs.
     unsorted_hits = sum(matrix[a].get(UNSORTED_CATEGORY, 0) for a in labels)
     if unsorted_hits:
         failures.append(f"  {unsorted_hits} fixture(s) fell back to unsorted")

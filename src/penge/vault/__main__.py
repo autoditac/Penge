@@ -75,6 +75,15 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Process every file currently in the inbox and exit (no watch loop).",
     )
+    watch.add_argument(
+        "--classifier-config",
+        type=Path,
+        default=None,
+        help=(
+            "Path to a custom classifier YAML. Defaults to the rules bundled "
+            "with the package (penge.vault.classifier_rules.yaml)."
+        ),
+    )
     watch.add_argument("--verbose", action="store_true", help="Enable DEBUG logging on stderr.")
 
     return p
@@ -96,6 +105,7 @@ def main(argv: list[str] | None = None) -> int:
         stable_for_s=args.stable_for,
         health_host=args.health_host,
         health_port=args.health_port,
+        classifier_config_path=args.classifier_config,
     )
     watcher = VaultWatcher(config)
 

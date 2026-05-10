@@ -76,9 +76,6 @@ site/
 # Local connector configs — only the *.example.yaml templates are committed.
 /config/*.yaml
 !/config/*.example.yaml
-# Rule definitions for the vault classifier are checked in (no secrets,
-# tuned via PR review per issue #42).
-!/config/vault-classifier.yaml
 
 # Chat-history dumps from coding-agent sessions may contain salary numbers,
 # real account references, or other personal data — keep them out of the repo.

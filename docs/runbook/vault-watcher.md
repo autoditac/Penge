@@ -95,7 +95,8 @@ document (`vault/{year}/{category}/{hash}-{slug}.pdf`).
 
 ### How it works
 
-- Patterns live in `config/vault-classifier.yaml`.
+- Patterns live in `src/penge/vault/classifier_rules.yaml` (shipped
+  as package data, overridable via `--classifier-config`).
 - Each category lists regex patterns matched (case-insensitive)
   against the lowercased OCR text.
 - A document scores `matches / total_patterns` per category; the
@@ -107,10 +108,14 @@ document (`vault/{year}/{category}/{hash}-{slug}.pdf`).
 
 ### Tuning the rules
 
-1. Edit `config/vault-classifier.yaml`. Add language-aware tokens
-   (DA / DE / EN) and keep patterns *anchored* (`\\b…\\b`) and
-   document-distinctive — generic words like "saldo" appear on
-   many statement types and dilute precision.
+1. Edit `src/penge/vault/classifier_rules.yaml`. The file ships as
+   package data so it is available both from a source checkout and
+   from an installed wheel. Add language-aware tokens (DA / DE / EN)
+   and keep patterns *anchored* (`\\b…\\b`) and document-distinctive
+   — generic words like "saldo" appear on many statement types and
+   dilute precision. Operators wanting to override the rules without
+   reshipping the wheel can pass `--classifier-config PATH` to
+   `penge-vault watch` (or set `WatcherConfig.classifier_config_path`).
 2. Tighten/loosen the threshold via `min_confidence`. Default
    `0.33` requires roughly two of six patterns to fire.
 3. Re-run the confusion-matrix test:

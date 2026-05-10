@@ -74,7 +74,12 @@ class WatcherConfig(BaseModel):
     health_port: int = Field(default=0, ge=0, le=65535)
     classifier_config_path: Path | None = Field(
         default=None,
-        description="Path to vault-classifier.yaml; None loads the bundled default.",
+        description=(
+            "Optional path to a custom classifier YAML. If ``None``, the rules "
+            "bundled with the package (``penge.vault.classifier_rules.yaml``) "
+            "are used; this works both from a source checkout and from an "
+            "installed wheel. Override via the ``--classifier-config`` CLI flag."
+        ),
     )
 
 

@@ -1623,6 +1623,7 @@ vault = [
     { name = "pillow" },
     { name = "pydantic" },
     { name = "pytesseract" },
+    { name = "pyyaml" },
     { name = "watchdog" },
 ]
 web = [
@@ -1683,6 +1684,7 @@ vault = [
     { name = "pillow", specifier = ">=10.4" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pytesseract", specifier = ">=0.3.10" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "watchdog", specifier = ">=6.0" },
 ]
 web = [

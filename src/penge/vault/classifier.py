@@ -1,12 +1,17 @@
 """Rule-based document classifier for the vault (issue #42).
 
-The classifier is intentionally *boring*: a YAML file at
-``config/vault-classifier.yaml`` lists regex patterns per category,
-and :func:`classify` returns the highest-scoring category whose
-confidence clears the configured threshold. Documents that do not
-clear the threshold are routed to ``unsorted`` and bumped on the
+The classifier is intentionally *boring*: a YAML file shipped with
+the package at ``classifier_rules.yaml`` lists regex patterns per
+category, and :func:`classify` returns the highest-scoring category
+whose confidence clears the configured threshold. Documents that do
+not clear the threshold are routed to ``unsorted`` and bumped on the
 ``vault_unclassified_total`` Prometheus counter so they show up in
 manual triage.
+
+Operators tune the rules by editing ``src/penge/vault/classifier_rules.yaml``
+in a checkout (and shipping a new wheel), or by pointing the watcher
+at a custom file via :class:`penge.vault.watcher.WatcherConfig`'s
+``classifier_config_path`` / the ``--classifier-config`` CLI flag.
 
 Why rules instead of ML?
 
@@ -24,6 +29,7 @@ from __future__ import annotations
 import functools
 import re
 from dataclasses import dataclass
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -35,8 +41,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 #: layout from PR #107.
 UNSORTED_CATEGORY = "unsorted"
 
-#: Default location of the rules YAML, relative to the repository root.
-DEFAULT_CONFIG_PATH = Path(__file__).resolve().parents[3] / "config" / "vault-classifier.yaml"
+#: Filename of the YAML rules shipped as package data.
+DEFAULT_CONFIG_RESOURCE = "classifier_rules.yaml"
 
 
 @dataclass(frozen=True)
@@ -98,19 +104,38 @@ def _compile_rules(name: str, patterns: list[str]) -> _CategoryRules:
     return _CategoryRules(name=name, patterns=tuple(patterns), compiled=compiled)
 
 
+def _read_default_resource() -> tuple[str, str]:
+    """Return ``(label, contents)`` for the bundled default rules.
+
+    The label is a printable identifier used in error messages; the
+    contents are the YAML source. Loading via :mod:`importlib.resources`
+    works whether the package is installed as a wheel or run from a
+    source checkout.
+    """
+
+    resource = resources.files("penge.vault").joinpath(DEFAULT_CONFIG_RESOURCE)
+    return f"<package:{DEFAULT_CONFIG_RESOURCE}>", resource.read_text(encoding="utf-8")
+
+
 def load_config(path: str | Path | None = None) -> ClassifierConfig:
     """Read and validate the classifier YAML.
 
     Args:
-        path: Optional override; defaults to :data:`DEFAULT_CONFIG_PATH`.
+        path: Optional override; if ``None`` the bundled default
+            shipped as package data (``penge.vault.classifier_rules.yaml``)
+            is used. This works both from a source checkout and from
+            an installed wheel.
 
     Raises:
         ValueError: If the YAML shape is invalid or a regex fails to
             compile.
     """
 
-    config_path = Path(path) if path is not None else DEFAULT_CONFIG_PATH
-    raw = config_path.read_text(encoding="utf-8")
+    if path is None:
+        config_path, raw = _read_default_resource()
+    else:
+        config_path = str(Path(path))
+        raw = Path(path).read_text(encoding="utf-8")
     data: Any = yaml.safe_load(raw) or {}
     if not isinstance(data, dict):
         raise ValueError(
@@ -151,7 +176,7 @@ def classify(text: str, *, config: ClassifierConfig | None = None) -> Classifica
             classifier lowercases it once and runs every category's
             regexes against the result.
         config: Optional pre-loaded :class:`ClassifierConfig`. Defaults
-            to the cached YAML at :data:`DEFAULT_CONFIG_PATH`.
+            to the cached YAML bundled with the package.
 
     Returns:
         :class:`Classification` describing the winning category, its
@@ -196,7 +221,7 @@ def classify(text: str, *, config: ClassifierConfig | None = None) -> Classifica
 
 
 __all__ = [
-    "DEFAULT_CONFIG_PATH",
+    "DEFAULT_CONFIG_RESOURCE",
     "UNSORTED_CATEGORY",
     "Classification",
     "ClassifierConfig",

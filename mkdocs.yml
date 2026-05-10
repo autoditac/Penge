@@ -77,6 +77,8 @@ nav:
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
       - "Branch protection": runbook/branch-protection.md
       - "Vault watcher": runbook/vault-watcher.md
+      - "Encrypted backups": runbook/backup-restore.md
+      - "Restore drill log": runbook/restore-log.md
   - Decisions:
       - decisions/README.md
       - "ADR-0001 Self-hosted Postgres + DuckDB stack": decisions/0001-self-hosted-postgres-duckdb-stack.md
@@ -103,6 +105,7 @@ nav:
       - "ADR-0022 Streamlit projection dashboard tab": decisions/0022-web-projection-dashboard.md
       - "ADR-0023 MCP server architecture (TypeScript skeleton)": decisions/0023-mcp-server-architecture.md
       - "ADR-0024 Vault layout": decisions/0024-vault-layout.md
+      - "ADR-0025 Encrypted backups: age + Parquet snapshots": decisions/0025-encrypted-backups.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

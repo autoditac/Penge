@@ -197,3 +197,45 @@ mcp-lint:
 # Production build (TypeScript → dist/).
 mcp-build:
     pnpm --filter @penge/mcp build
+
+# --- Encrypted backups (see ADR-0025) ----------------------------------------
+#
+# All four recipes are thin wrappers around the shell scripts under
+# scripts/. Configure recipients via PENGE_BACKUP_RECIPIENTS (a
+# comma-separated list of `age` public keys) and the identity file via
+# PENGE_BACKUP_IDENTITY_FILE. See docs/runbook/backup-restore.md.
+
+# Take an encrypted Postgres logical backup (pg_dump | age).
+# Extra flags forward to scripts/backup.sh, e.g.
+#   just backup --label pre-upgrade
+backup *FLAGS:
+    ./scripts/backup.sh {{FLAGS}}
+
+# Snapshot a DuckDB database to encrypted Parquet (per-table COPY | tar | age).
+# Usage:
+#   just snapshot ./data/penge.duckdb
+#   just snapshot ./data/penge.duckdb --label pre-upgrade
+snapshot DUCKDB *FLAGS:
+    ./scripts/snapshot.sh --duckdb {{DUCKDB}} {{FLAGS}}
+
+# Round-trip restore drill: decrypt the newest pg-*.sql.age and replay it
+# into PENGE_TEST_DATABASE_URL (never production).
+restore-test:
+    @test -n "${PENGE_TEST_DATABASE_URL:-}" || (echo "PENGE_TEST_DATABASE_URL must be set" && exit 1)
+    @test -n "${PENGE_BACKUP_IDENTITY_FILE:-}" || (echo "PENGE_BACKUP_IDENTITY_FILE must be set" && exit 1)
+    set -euo pipefail; \
+        ROOT="${PENGE_BACKUP_ROOT:-./backups}"; \
+        if [ ! -d "$ROOT/postgres" ]; then \
+            echo "no $ROOT/postgres directory — run 'just backup' first" >&2; \
+            exit 1; \
+        fi; \
+        LATEST="$(find "$ROOT/postgres" -maxdepth 1 -type f -name 'pg-*.sql.age' | sort | tail -n1)"; \
+        if [ -z "$LATEST" ]; then \
+            echo "no pg-*.sql.age artefacts under $ROOT/postgres — run 'just backup' first" >&2; \
+            exit 1; \
+        fi; \
+        ./scripts/restore.sh --input "$LATEST" --database-url "$PENGE_TEST_DATABASE_URL"
+
+# Apply backup retention (defaults: 14 daily / 8 weekly / 12 monthly).
+backup-prune *FLAGS:
+    ./scripts/prune.sh {{FLAGS}}

@@ -1,0 +1,193 @@
+#!/usr/bin/env bash
+# scripts/prune.sh — retention pruning for encrypted backup artefacts.
+#
+# Buckets every `*.age` artefact under the given root by ISO date /
+# week / month derived from the filename timestamp (UTC), keeps the
+# `--daily` newest dailies, the `--weekly` newest distinct ISO weeks,
+# and the `--monthly` newest distinct calendar months. Anything that
+# falls into none of those buckets is removed (along with its
+# `.sha256` sidecar).
+#
+# Filenames must contain a `YYYYMMDDTHHMMSSZ` substring as produced by
+# `scripts/backup.sh` / `scripts/snapshot.sh` (and the `lib_backup.sh::timestamp`
+# helper). Anything else is left untouched.
+#
+# Usage:
+#   ./scripts/prune.sh [--root DIR] [--daily 14] [--weekly 8] [--monthly 12] [--dry-run]
+#
+# Defaults follow the configurable retention policy documented in
+# ADR-0025: 14 daily, 8 weekly, 12 monthly artefacts per category.
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib_backup.sh
+source "${SCRIPT_DIR}/lib_backup.sh"
+
+ROOT_FLAG=""
+DAILY="${PENGE_BACKUP_RETENTION_DAILY:-14}"
+WEEKLY="${PENGE_BACKUP_RETENTION_WEEKLY:-8}"
+MONTHLY="${PENGE_BACKUP_RETENTION_MONTHLY:-12}"
+DRY_RUN=0
+
+usage() {
+    sed -n '2,20p' "$0"
+}
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --root)
+            ROOT_FLAG="$2"
+            shift 2
+            ;;
+        --daily)
+            DAILY="$2"
+            shift 2
+            ;;
+        --weekly)
+            WEEKLY="$2"
+            shift 2
+            ;;
+        --monthly)
+            MONTHLY="$2"
+            shift 2
+            ;;
+        --dry-run)
+            DRY_RUN=1
+            shift
+            ;;
+        -h | --help)
+            usage
+            exit 0
+            ;;
+        *)
+            penge::die "unknown argument: $1"
+            ;;
+    esac
+done
+
+ROOT="$(penge::backup_root "${ROOT_FLAG}")"
+penge::require_gnu_userland
+
+# Validate quotas as non-negative integers. A non-numeric value would
+# silently coerce to 0 inside the awk quota check and delete every
+# artefact in that bucket — which is exactly the wrong default for a
+# retention tool.
+for var in DAILY WEEKLY MONTHLY; do
+    val="${!var}"
+    if ! [[ "${val}" =~ ^[0-9]+$ ]]; then
+        penge::die "${var} must be a non-negative integer, got: ${val}"
+    fi
+done
+
+# Collect all `*.age` artefacts (ignore sidecars). For every file we
+# emit a TSV row: <ts>\t<iso_date>\t<iso_week>\t<iso_month>\t<path>
+# sorted descending by timestamp so the head of each bucket is the
+# newest.
+
+penge::info "pruning ${ROOT} (daily=${DAILY} weekly=${WEEKLY} monthly=${MONTHLY})"
+
+# Gather candidates without invoking `find` more than once.
+mapfile -t CANDIDATES < <(find "${ROOT}" -type f -name '*.age' 2>/dev/null | sort)
+
+if [[ ${#CANDIDATES[@]} -eq 0 ]]; then
+    penge::info "no artefacts to prune"
+    exit 0
+fi
+
+# Sweep any stray scratch directories left behind by previous runs
+# that died without honouring the EXIT/INT/TERM trap (SIGKILL, power
+# loss). The two known patterns under the backup root are:
+#   * ${ROOT}/.scratch-prune-<pid>           — produced by this script
+#   * ${ROOT}/duckdb/.scratch-<timestamp>    — produced by snapshot.sh
+# Neither is supposed to outlive its run. The prune-index never
+# contains dump bytes; the snapshot scratch can hold plaintext parquet
+# files, which is exactly what the CI plaintext-leak check (and a
+# careful operator) wants gone before we start writing new state.
+find "${ROOT}" -mindepth 1 -maxdepth 1 -type d -name '.scratch-prune-*' \
+    -exec rm -rf -- {} + 2>/dev/null || true
+find "${ROOT}/duckdb" -mindepth 1 -maxdepth 1 -type d -name '.scratch-*' \
+    -exec rm -rf -- {} + 2>/dev/null || true
+
+# Write the prune index to a hidden scratch dir under ROOT. The
+# EXIT/INT/TERM trap below removes it on any normal exit or signal,
+# but a hard kill (SIGKILL, power loss) can still leave the directory
+# behind — that's what the startup sweep above is for.
+SCRATCH_DIR="${ROOT}/.scratch-prune-$$"
+mkdir -p "${SCRATCH_DIR}"
+trap 'rm -rf -- "${SCRATCH_DIR}"' EXIT INT TERM
+INDEX="${SCRATCH_DIR}/prune-index"
+
+# AWK extracts the timestamp, computes day / ISO-week / month buckets,
+# and prints `path<TAB>day<TAB>week<TAB>month` rows sorted newest-first.
+# We use GNU date for ISO-week math because POSIX awk doesn't expose it.
+declare -A KEEP=()
+
+for path in "${CANDIDATES[@]}"; do
+    base="$(basename -- "${path}")"
+    # Match the YYYYMMDDTHHMMSSZ pattern.
+    if [[ ! "${base}" =~ ([0-9]{8}T[0-9]{6}Z) ]]; then
+        penge::warn "skipping (no timestamp in name): ${path}"
+        continue
+    fi
+    ts="${BASH_REMATCH[1]}"
+    # Re-shape into something `date -d` can parse: 20260508T134507Z
+    # → 2026-05-08T13:45:07Z.
+    iso="${ts:0:4}-${ts:4:2}-${ts:6:2}T${ts:9:2}:${ts:11:2}:${ts:13:2}Z"
+    # `date` rejects e.g. month 13 / day 32 with a non-zero exit; under
+    # `set -e` that would abort the entire prune run because of one
+    # malformed filename. Guard each call so we can warn-and-skip
+    # instead of taking the whole retention pass down.
+    if ! day="$(date -u -d "${iso}" +%Y-%m-%d 2>/dev/null)" \
+        || ! week="$(date -u -d "${iso}" +%G-W%V 2>/dev/null)" \
+        || ! month="$(date -u -d "${iso}" +%Y-%m 2>/dev/null)"; then
+        penge::warn "skipping (unparseable timestamp ${ts}): ${path}"
+        continue
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\n' "${ts}" "${day}" "${week}" "${month}" "${path}"
+done | sort -r >"${INDEX}"
+
+# Pick the newest artefact for each distinct day / week / month bucket
+# until the per-category quota is reached.
+pick_bucket() {
+    local col="$1" quota="$2"
+    # The index is tab-separated and the path field can legitimately
+    # contain spaces; force awk's FS to tab and emit the last column
+    # (the path) verbatim so KEEP[] subscripts match the real path.
+    awk -F '\t' -v col="${col}" -v quota="${quota}" '
+        BEGIN { kept = 0 }
+        {
+            key = $col
+            if (!(key in seen)) {
+                seen[key] = 1
+                if (kept < quota) {
+                    kept++
+                    print $NF
+                }
+            }
+        }
+    ' "${INDEX}"
+}
+
+while IFS= read -r p; do KEEP["${p}"]=daily; done < <(pick_bucket 2 "${DAILY}")
+while IFS= read -r p; do KEEP["${p}"]="${KEEP["${p}"]:-weekly}"; done < <(pick_bucket 3 "${WEEKLY}")
+while IFS= read -r p; do KEEP["${p}"]="${KEEP["${p}"]:-monthly}"; done < <(pick_bucket 4 "${MONTHLY}")
+
+REMOVED=0
+KEPT=0
+while IFS= read -r line; do
+    path="${line##*$'\t'}"
+    if [[ -n "${KEEP["${path}"]+x}" ]]; then
+        KEPT=$((KEPT + 1))
+        continue
+    fi
+    REMOVED=$((REMOVED + 1))
+    if [[ ${DRY_RUN} -eq 1 ]]; then
+        penge::info "would remove: ${path}"
+    else
+        penge::info "removing: ${path}"
+        rm -f -- "${path}" "${path}.sha256"
+    fi
+done <"${INDEX}"
+
+penge::info "kept ${KEPT}, removed ${REMOVED}"

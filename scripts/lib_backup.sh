@@ -136,10 +136,16 @@ penge::age_identity_args() {
 # ---------------------------------------------------------------------------
 
 # SQLAlchemy uses `postgresql+psycopg://...` while libpq tools expect
-# `postgresql://...`. Strip the driver suffix non-destructively.
+# `postgresql://...`. Strip the driver suffix non-destructively. We
+# match the literal prefix and rebuild rather than using a
+# substitution pattern so the slashes are unambiguous.
 penge::libpq_url() {
     local url="${1:?database URL required}"
-    printf '%s\n' "${url//postgresql+psycopg:\/\//postgresql:\/\/}"
+    if [[ "${url}" == postgresql+psycopg://* ]]; then
+        printf '%s\n' "postgresql://${url#postgresql+psycopg://}"
+    else
+        printf '%s\n' "${url}"
+    fi
 }
 
 # ---------------------------------------------------------------------------

@@ -223,7 +223,13 @@ snapshot DUCKDB *FLAGS:
 restore-test:
     @test -n "${PENGE_TEST_DATABASE_URL:-}" || (echo "PENGE_TEST_DATABASE_URL must be set" && exit 1)
     @test -n "${PENGE_BACKUP_IDENTITY_FILE:-}" || (echo "PENGE_BACKUP_IDENTITY_FILE must be set" && exit 1)
-    LATEST="$(ls -1 "${PENGE_BACKUP_ROOT:-./backups}"/postgres/pg-*.sql.age | tail -n1)" && \
+    set -euo pipefail; \
+        ROOT="${PENGE_BACKUP_ROOT:-./backups}"; \
+        LATEST="$(find "$ROOT/postgres" -maxdepth 1 -type f -name 'pg-*.sql.age' | sort | tail -n1)"; \
+        if [ -z "$LATEST" ]; then \
+            echo "no pg-*.sql.age artefacts under $ROOT/postgres — run 'just backup' first" >&2; \
+            exit 1; \
+        fi; \
         ./scripts/restore.sh --input "$LATEST" --database-url "$PENGE_TEST_DATABASE_URL"
 
 # Apply backup retention (defaults: 14 daily / 8 weekly / 12 monthly).

@@ -124,8 +124,11 @@ while IFS=$'\t' read -r schema table; do
     # DuckDB COPY ... TO 'PATH' requires SQL-style escaping for single
     # quotes inside PATH. PENGE_BACKUP_ROOT (and therefore SCRATCH) can
     # legitimately contain quotes on shared workstations; escape them
-    # before interpolation.
-    parquet_lit="${parquet//\'/\'\'}"
+    # before interpolation. Bash parameter expansion does not treat
+    # `\'` inside double quotes as a single-quote literal in the
+    # pattern, so route the apostrophe through a helper variable.
+    sq="'"
+    parquet_lit="${parquet//${sq}/${sq}${sq}}"
     duckdb -readonly "${DUCKDB_PATH}" \
         "COPY (SELECT * FROM ${qualified}) TO '${parquet_lit}' (FORMAT PARQUET);"
     rows="$(duckdb -readonly -noheader -list "${DUCKDB_PATH}" \

@@ -209,7 +209,7 @@ jobs:
           # `*.sha256` sidecar is a smoking gun.
           BAD=$(find "${PENGE_BACKUP_ROOT}" -type f \
                   ! -name '*.age' ! -name '*.sha256' \
-                  ! -path '*/.scratch-*' || true)
+                  ! -path '*/.scratch-*/*' || true)
           if [[ -n "${BAD}" ]]; then
             echo "::error::plaintext leftovers under backup root:"
             echo "${BAD}"

@@ -45,7 +45,25 @@ annually on unrealised gains:
 | ≤ 61 900 DKK (2024) | 27 %     |
 | > 61 900 DKK        | 42 %     |
 
-The simulation stores the effective rate in
+Phase 3 implements the per-ISIN, per-year gain in `penge.tax.lager`
+(issue #36, [ADR-0017](../decisions/0017-lagerbeskatning-calculator.md)).
+The calculator is a pure function:
+
+```text
+gain = end_market_value
+     - start_market_value
+     - Σ buys.cost
+     + Σ sells.proceeds
+     + Σ distributions
+```
+
+All inputs and outputs are in DKK; non-DKK inputs raise `LagerError`.
+Caller converts to DKK using SKAT-published year-end FX rates (market
+values) and trade-date rates (legs). The 27 %/42 % progressive band is
+applied at the household level by the SKAT report generator (#39), not
+per ISIN.
+
+The simulation engine still stores the effective rate in
 `EntityTaxRegime.capital_gains_effective_rate`.  This rate is consumed by
 the Monte-Carlo runner (#31) to scale down gross portfolio returns.
 

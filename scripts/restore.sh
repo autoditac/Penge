@@ -28,6 +28,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib_backup.sh
 source "${SCRIPT_DIR}/lib_backup.sh"
+penge::require_gnu_userland
 
 INPUT=""
 DB_URL=""
@@ -156,11 +157,19 @@ else
     done < <(tar -tvf "${SCRATCH_TAR}")
 
     while IFS= read -r member; do
-        case "${member}" in
-            /*|*..*|*$'\n'*)
-                penge::die "refusing tar member with unsafe path: ${member}"
-                ;;
-        esac
+        # Reject genuine traversal (a path component that *equals* `..`)
+        # and absolute paths / embedded newlines, but allow `..` to
+        # appear inside a single component — snapshot.sh's `safe`
+        # sanitiser preserves dots in schema/table names, so legitimate
+        # members like `main.foo..bar.parquet` must still extract.
+        if [[ "${member}" == /* ]] \
+            || [[ "${member}" == *$'\n'* ]] \
+            || [[ "${member}" == ".." ]] \
+            || [[ "${member}" == "../"* ]] \
+            || [[ "${member}" == */".."/* ]] \
+            || [[ "${member}" == */".." ]]; then
+            penge::die "refusing tar member with unsafe path: ${member}"
+        fi
     done < <(tar -tf "${SCRATCH_TAR}")
 
     tar -C "${DUCKDB_OUT}" \

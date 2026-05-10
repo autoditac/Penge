@@ -23,7 +23,7 @@ import pandas as pd
 import streamlit as st
 
 from penge.web import data as data_layer
-from penge.web.views import allocation, drilldown, kpi, timeseries
+from penge.web.views import allocation, drilldown, kpi, projection, timeseries
 
 log = logging.getLogger("penge.web")
 
@@ -55,7 +55,7 @@ def _sidebar() -> tuple[str, str, bool]:
     st.sidebar.caption("Local-only — protect with Tailscale or Caddy basic-auth.")
     view = st.sidebar.radio(
         "View",
-        options=("KPI", "Time series", "Allocation", "Account drill-down"),
+        options=("KPI", "Time series", "Allocation", "Account drill-down", "Projection"),
         index=0,
     )
     currency = st.sidebar.selectbox("Display currency", options=("EUR", "DKK"), index=0)
@@ -73,6 +73,13 @@ def main() -> None:
 
     view, currency, reveal = _sidebar()
 
+    if view == "Projection":
+        # The projection view is self-contained: it does not need the
+        # net-worth panel or the accounts table.  Render it before the
+        # database fetch so the page works even when the marts are empty.
+        projection.render()
+        return
+
     since = date.today() - timedelta(days=DEFAULT_LOOKBACK_DAYS)
     try:
         panel = _load_net_worth(since)
@@ -82,7 +89,7 @@ def main() -> None:
         # password) for SQLAlchemy connection errors. Log the full
         # traceback server-side and show a generic message in the UI.
         log.exception("Failed to load dashboard data")
-        st.error("Could not load data from the database. " "See the server log for details.")
+        st.error("Could not load data from the database. See the server log for details.")
         st.info(
             "Check that Postgres is reachable and the marts have been "
             "built (`uv run --group dbt dbt build`)."

@@ -4,6 +4,7 @@ export const ConfigSchema = z.object({
   databaseUrl: z.string().url(),
   duckdbPath: z.string().min(1),
   logDir: z.string().min(1),
+  vaultRoot: z.string().min(1),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -18,6 +19,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     databaseUrl: env.PENGE_DB_URL,
     duckdbPath: env.PENGE_DUCKDB_PATH,
     logDir: env.PENGE_MCP_LOG_DIR ?? "logs/mcp",
+    vaultRoot: env.PENGE_VAULT_ROOT ?? "data/vault",
   });
   if (!parsed.success) {
     const issues = parsed.error.issues

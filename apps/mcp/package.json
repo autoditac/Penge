@@ -1,0 +1,39 @@
+{
+  "name": "@penge/mcp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Penge MCP server — typed tool gateway between LLM hosts and the Penge data platform.",
+  "main": "dist/index.js",
+  "bin": {
+    "penge-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . && prettier --check ."
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.0.4",
+    "duckdb-async": "1.1.3",
+    "pg": "8.13.1",
+    "pino": "9.5.0",
+    "zod": "3.23.8",
+    "zod-to-json-schema": "3.23.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.1",
+    "@types/pg": "8.11.10",
+    "@typescript-eslint/eslint-plugin": "8.18.0",
+    "@typescript-eslint/parser": "8.18.0",
+    "eslint": "9.17.0",
+    "prettier": "3.4.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "typescript-eslint": "8.18.0",
+    "vitest": "2.1.8"
+  }
+}

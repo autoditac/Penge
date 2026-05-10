@@ -70,10 +70,24 @@ describe("search_documents — schema validation", () => {
     expect(() => tool.inputSchema.parse({ query: "abc", limit: 0 })).toThrow();
   });
 
-  it("treats limit as optional and defaults to 20 in the handler", async () => {
+  it("schema makes limit optional (default applied in handler)", () => {
     const tool = searchDocumentsTool({ vaultRoot });
     const parsed = tool.inputSchema.parse({ query: "abc" });
     expect(parsed.limit).toBeUndefined();
+  });
+
+  it("handler defaults to limit 20 when omitted", async () => {
+    // 25 synthetic docs all matching `query`. Default limit must clip to 20.
+    const docs: FixtureDoc[] = Array.from({ length: 25 }, (_, i) => ({
+      hash: String(i).padStart(64, "0"),
+      relPath: `2024/lønseddel/${String(i).padStart(64, "0")}-needle-doc-${i}.pdf`,
+      filedAt: `2024-02-${String((i % 28) + 1).padStart(2, "0")}T08:00:00Z`,
+      ocr: `needle occurs here for doc ${i}`,
+    }));
+    buildVault(vaultRoot, docs);
+    const tool = searchDocumentsTool({ vaultRoot });
+    const out = await tool.handler(tool.inputSchema.parse({ query: "needle" }), ctx);
+    expect(out).toHaveLength(20);
   });
 
   it("rejects extra keys", () => {
@@ -243,5 +257,96 @@ describe("search_documents — excerpt redaction", () => {
     expect(out).toHaveLength(1);
     expect(out[0]?.excerpt).not.toContain("010190-1234");
     expect(out[0]?.excerpt).toContain("[REDACTED]");
+  });
+
+  it("masks IBANs that appear lowercase and space-separated (typical OCR)", async () => {
+    const ocrRoot = mkdtempSync(join(tmpdir(), "penge-vault-iban-"));
+    try {
+      buildVault(ocrRoot, [
+        {
+          hash: "e".repeat(64),
+          relPath: "2024/kontoauszug/eeee-statement.pdf",
+          filedAt: "2024-02-02T08:00:00Z",
+          ocr: "Konto IBAN de89 3704 0044 0532 0130 00 — Saldo 1234,56 EUR.",
+        },
+      ]);
+      const tool = searchDocumentsTool({ vaultRoot: ocrRoot });
+      const out = await tool.handler(tool.inputSchema.parse({ query: "IBAN" }), ctx);
+      expect(out).toHaveLength(1);
+      expect(out[0]?.excerpt.toLowerCase()).not.toContain("3704 0044");
+      expect(out[0]?.excerpt).toContain("[REDACTED]");
+    } finally {
+      rmSync(ocrRoot, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("search_documents — robustness", () => {
+  let vaultRoot: string;
+
+  beforeEach(() => {
+    vaultRoot = mkdtempSync(join(tmpdir(), "penge-vault-"));
+  });
+  afterEach(() => {
+    rmSync(vaultRoot, { recursive: true, force: true });
+  });
+
+  it("refuses to read sidecars whose path escapes the vault root", async () => {
+    // Hand-craft an index with a path-traversal entry. The tool must
+    // not read /etc/passwd-shaped neighbours; it should treat the
+    // sidecar as absent and only match against the (synthetic) filename.
+    writeFileSync(
+      join(vaultRoot, ".index.json"),
+      JSON.stringify({
+        ["f".repeat(64)]: {
+          path: "../../escape-attempt.pdf",
+          size: 1,
+          filed_at: "2024-01-01T00:00:00Z",
+        },
+      }),
+      "utf-8",
+    );
+    const tool = searchDocumentsTool({ vaultRoot });
+    // Query the filename slug — match comes from the index path itself,
+    // not from any sidecar (which would resolve outside the vault).
+    const out = await tool.handler(tool.inputSchema.parse({ query: "escape-attempt" }), ctx);
+    // Even if the entry surfaces (year/type parse will null/unsorted),
+    // the excerpt must never contain content sourced from outside the vault.
+    for (const hit of out) {
+      expect(hit.excerpt).not.toMatch(/root:|bash|\/bin\//);
+    }
+  });
+
+  it("returns year=null when the vault path lacks a 4-digit year folder", async () => {
+    buildVault(vaultRoot, [
+      {
+        hash: "9".repeat(64),
+        relPath: "loose/lønseddel/9999-needle.pdf",
+        filedAt: "2024-02-02T08:00:00Z",
+        ocr: "needle in OCR",
+      },
+    ]);
+    const tool = searchDocumentsTool({ vaultRoot });
+    const out = await tool.handler(tool.inputSchema.parse({ query: "needle" }), ctx);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.year).toBeNull();
+    expect(() => tool.outputSchema.parse(out)).not.toThrow();
+  });
+
+  it("returns a type-derived excerpt when only the classifier type matches", async () => {
+    buildVault(vaultRoot, [
+      {
+        hash: "8".repeat(64),
+        relPath: "2024/kontoauszug/8888-misc.pdf",
+        filedAt: "2024-02-02T08:00:00Z",
+        ocr: "this OCR text contains nothing relevant",
+      },
+    ]);
+    const tool = searchDocumentsTool({ vaultRoot });
+    const out = await tool.handler(tool.inputSchema.parse({ query: "kontoauszug" }), ctx);
+    expect(out).toHaveLength(1);
+    // The excerpt must reflect that the type was the source of the
+    // match; the filename and OCR don't contain "kontoauszug".
+    expect(out[0]?.excerpt.toLowerCase()).toContain("kontoauszug");
   });
 });

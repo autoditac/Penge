@@ -437,7 +437,7 @@ Array of:
 ```jsonc
 {
   "vault_path": "2024/kontoauszug/abcd…-gls-bank-january.pdf", // relative to PENGE_VAULT_ROOT
-  "year": 2024,
+  "year": 2024, // null when the vault path does not start with a 4-digit year folder
   "type": "kontoauszug",
   "classified_at": "2024-02-02T08:00:00Z", // = vault index `filed_at`
   "hash": "abcd…", // sha256 of the document
@@ -472,11 +472,13 @@ For each entry in `<PENGE_VAULT_ROOT>/.index.json`:
 
 - **No file contents are returned.** Only metadata and a short excerpt.
 - Excerpts are run through `redactText` before leaving the process.
-  IBANs (`[A-Z]{2}\d{2}[A-Z0-9]{10,30}`), DK CPR numbers
-  (`\d{6}-?\d{4}`) and long digit runs (`\d{8,}`) — typical of account
-  / customer numbers — are replaced with `[REDACTED]`.
-- The audit logger additionally redacts `query` and any other key whose
-  name matches the standard redaction policy in `audit.ts`.
+  IBANs (contiguous and printed 4-char-group form, case-insensitive),
+  DK CPR numbers (`\d{6}-?\d{4}`) and long digit runs (`\d{8,}`) —
+  typical of account / customer numbers — are replaced with
+  `[REDACTED]`.
+- The audit logger additionally redacts the `query` argument (and any
+  other key whose name matches the standard redaction policy in
+  `audit.ts`) before writing the audit record.
 
 ### Example call
 

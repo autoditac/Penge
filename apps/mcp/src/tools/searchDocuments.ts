@@ -17,8 +17,9 @@
  * The classifier categories are mirrored in `CATEGORY_VALUES` below.
  */
 
-import { readFileSync, existsSync } from "node:fs";
-import { join, posix } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { readFile } from "node:fs/promises";
+import { isAbsolute, join, posix, resolve, sep } from "node:path";
 
 import { z } from "zod";
 
@@ -67,7 +68,8 @@ const DEFAULT_LIMIT = 20;
 const HitSchema = z
   .object({
     vault_path: z.string(),
-    year: z.number().int(),
+    /** Null when the vault path does not start with a 4-digit year folder. */
+    year: z.number().int().nullable(),
     type: z.string(),
     classified_at: z.string(),
     hash: z.string(),
@@ -91,7 +93,7 @@ interface RawIndex {
 
 interface ScoredHit {
   vault_path: string;
-  year: number;
+  year: number | null;
   type: string;
   classified_at: string;
   hash: string;
@@ -110,6 +112,9 @@ function readIndex(vaultRoot: string): RawIndex {
   if (!existsSync(indexPath)) return {};
   let raw: unknown;
   try {
+    // Synchronous because the index is small and read exactly once per
+    // call before any per-entry I/O. Per-entry sidecar reads further
+    // down are async to keep the event loop responsive.
     raw = JSON.parse(readFileSync(indexPath, "utf-8"));
   } catch {
     return {};
@@ -132,18 +137,40 @@ function readIndex(vaultRoot: string): RawIndex {
 }
 
 /**
- * Read the OCR sidecar for a vault path (`<hash>-<slug>.<ext>` →
- * `<hash>-<slug>.txt` in the same folder). Returns `""` if missing
- * or unreadable so search continues to work on filename + metadata.
+ * Resolve `relPath` (from `.index.json`) to an absolute path **inside**
+ * `vaultRoot`. Returns `null` if `relPath` is absolute, contains a
+ * `..` segment, or otherwise resolves outside the vault — corrupt or
+ * malicious index entries must never cause us to read arbitrary files.
  */
-function readSidecar(vaultRoot: string, relPath: string): string {
+function safeResolveInVault(vaultRoot: string, relPath: string): string | null {
+  const normalized = relPath.replace(/\\/g, "/");
+  if (normalized === "" || isAbsolute(normalized) || normalized.startsWith("/")) {
+    return null;
+  }
+  if (normalized.split("/").some((segment) => segment === "..")) {
+    return null;
+  }
+  const rootAbs = resolve(vaultRoot);
+  const candidate = resolve(rootAbs, normalized);
+  if (candidate !== rootAbs && !candidate.startsWith(rootAbs + sep)) {
+    return null;
+  }
+  return candidate;
+}
+
+/**
+ * Read the OCR sidecar for a vault path (`<hash>-<slug>.<ext>` →
+ * `<hash>-<slug>.txt` in the same folder). Returns `""` if missing,
+ * unreadable, or if the resolved path would escape `vaultRoot`.
+ */
+async function readSidecar(vaultRoot: string, relPath: string): Promise<string> {
   const lastDot = relPath.lastIndexOf(".");
   if (lastDot === -1) return "";
   const sidecarRel = `${relPath.slice(0, lastDot)}.txt`;
-  const sidecarAbs = join(vaultRoot, sidecarRel);
-  if (!existsSync(sidecarAbs)) return "";
+  const sidecarAbs = safeResolveInVault(vaultRoot, sidecarRel);
+  if (sidecarAbs === null) return "";
   try {
-    return readFileSync(sidecarAbs, "utf-8");
+    return await readFile(sidecarAbs, "utf-8");
   } catch {
     return "";
   }
@@ -222,6 +249,31 @@ export interface SearchDocumentsOptions {
   vaultRoot: string;
 }
 
+/**
+ * Cap on parallel sidecar reads. Bounded so a vault with thousands of
+ * documents cannot exhaust file descriptors or starve other MCP
+ * requests sharing the event loop.
+ */
+const SIDECAR_CONCURRENCY = 8;
+
+async function mapWithConcurrency<T, R>(
+  items: readonly T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>,
+): Promise<R[]> {
+  const out: R[] = new Array<R>(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (true) {
+      const i = cursor++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i] as T, i);
+    }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
 export function searchDocumentsTool(
   opts: SearchDocumentsOptions,
 ): ToolDefinition<SearchDocumentsInput, SearchDocumentsOutput> {
@@ -235,48 +287,78 @@ export function searchDocumentsTool(
       "strings are masked in excerpts before they leave the process.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
-    handler(args) {
+    async handler(args) {
       const { query, year, type } = args;
       const limit = args.limit ?? DEFAULT_LIMIT;
       const index = readIndex(opts.vaultRoot);
 
-      const hits: ScoredHit[] = [];
+      // Apply the structured filters first so we never even open
+      // sidecars for entries that cannot match.
+      const candidates: {
+        hash: string;
+        entry: IndexEntry;
+        entryYear: number | null;
+        entryType: string;
+      }[] = [];
       for (const [hash, entry] of Object.entries(index)) {
         const { year: entryYear, type: entryType } = parseRelPath(entry.path);
         if (year !== undefined && entryYear !== year) continue;
         if (type !== undefined && entryType !== type) continue;
-
-        const filename = entry.path.split(/[\\/]/).pop() ?? "";
-        const filenameMatches = countOccurrences(filename, query);
-        const typeMatches = countOccurrences(entryType, query);
-
-        const ocr = readSidecar(opts.vaultRoot, entry.path);
-        const ocrMatches = countOccurrences(ocr, query);
-
-        const total = filenameMatches + typeMatches + ocrMatches;
-        if (total === 0) continue;
-
-        const ocrExcerpt = ocrMatches > 0 ? buildExcerpt(ocr, query) : "";
-        const fileExcerpt = ocrExcerpt === "" ? buildExcerpt(filename, query) : "";
-        const excerpt = redactText(ocrExcerpt || fileExcerpt || filename);
-
-        hits.push({
-          vault_path: entry.path,
-          year: entryYear ?? 0,
-          type: entryType,
-          classified_at: entry.filed_at,
-          hash,
-          excerpt,
-          matches: total,
-        });
+        candidates.push({ hash, entry, entryYear, entryType });
       }
+
+      const hits = (
+        await mapWithConcurrency(candidates, SIDECAR_CONCURRENCY, async (cand) => {
+          const filename = cand.entry.path.split(/[\\/]/).pop() ?? "";
+          const filenameMatches = countOccurrences(filename, query);
+          const typeMatches = countOccurrences(cand.entryType, query);
+
+          const ocr = await readSidecar(opts.vaultRoot, cand.entry.path);
+          const ocrMatches = countOccurrences(ocr, query);
+
+          const total = filenameMatches + typeMatches + ocrMatches;
+          if (total === 0) return null;
+
+          // Excerpt preference: OCR (richest context) → filename →
+          // classifier type. Falling back to type ensures hits driven
+          // purely by the type filter still surface a meaningful
+          // excerpt instead of an unrelated filename slug.
+          let excerptSource = "";
+          if (ocrMatches > 0) {
+            excerptSource = buildExcerpt(ocr, query);
+          }
+          if (excerptSource === "" && filenameMatches > 0) {
+            excerptSource = buildExcerpt(filename, query);
+          }
+          if (excerptSource === "" && typeMatches > 0) {
+            excerptSource = `[type] ${cand.entryType}`;
+          }
+          if (excerptSource === "") {
+            excerptSource = filename;
+          }
+          const excerpt = redactText(excerptSource);
+
+          return {
+            vault_path: cand.entry.path,
+            year: cand.entryYear,
+            type: cand.entryType,
+            classified_at: cand.entry.filed_at,
+            hash: cand.hash,
+            excerpt,
+            matches: total,
+          } satisfies ScoredHit;
+        })
+      ).filter((h): h is ScoredHit => h !== null);
 
       hits.sort((a, b) => {
         if (b.matches !== a.matches) return b.matches - a.matches;
-        // Stable secondary order: newest first, then path for determinism.
+        // Secondary: newest filed first.
         if (a.classified_at !== b.classified_at) {
           return a.classified_at < b.classified_at ? 1 : -1;
         }
+        // Tertiary: vault_path ascending. Returning 0 on equality
+        // honours the comparator contract.
+        if (a.vault_path === b.vault_path) return 0;
         return a.vault_path < b.vault_path ? -1 : 1;
       });
 

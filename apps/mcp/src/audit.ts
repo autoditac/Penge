@@ -1,7 +1,7 @@
 import { mkdirSync, createWriteStream, type WriteStream } from "node:fs";
 import { dirname, join } from "node:path";
 
-const REDACT_KEY = /(account|iban|cpr|tax[_-]?id|name|email)/i;
+const REDACT_KEY = /(account|iban|cpr|tax[_-]?id|name|email|query)/i;
 const REDACTED = "[REDACTED]";
 
 export interface AuditRecord {

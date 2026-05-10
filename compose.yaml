@@ -36,3 +36,18 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+
+  uptime-kuma:
+    # louislam/uptime-kuma:1 — digest resolved 2026-05-10 via skopeo inspect.
+    # Dependabot (docker ecosystem in .github/dependabot.yml) keeps this in sync.
+    # Uptime Kuma stores its state (monitor configs, heartbeat history) in a
+    # SQLite DB under /app/data; the bind mount preserves it across upgrades.
+    # See docs/runbook/healthchecks.md for first-time setup, monitor configs,
+    # and how the vault watcher + ingestion jobs wire into it (issue #52).
+    image: louislam/uptime-kuma:1@sha256:3d632903e6af34139a37f18055c4f1bfd9b7205ae1138f1e5e8940ddc1d176f9
+    container_name: penge-uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - ./data/uptime-kuma:/app/data

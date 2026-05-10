@@ -18,6 +18,7 @@ import os
 import sys
 
 from penge.ingest.growney.loader import load_files
+from penge.ops.sentry import init_sentry
 
 log = logging.getLogger("penge.ingest.growney")
 
@@ -67,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(component="ingest.growney")
 
     from sqlalchemy import create_engine
 

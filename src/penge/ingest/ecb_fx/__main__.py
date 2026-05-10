@@ -17,6 +17,8 @@ import os
 import sys
 from datetime import date
 
+from penge.ops.sentry import init_sentry
+
 from .loader import Feed, fetch, parse, upsert
 
 log = logging.getLogger("penge.ingest.ecb_fx")
@@ -59,6 +61,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(component="ingest.ecb_fx")
 
     if args.latest:
         feed = Feed.DAILY

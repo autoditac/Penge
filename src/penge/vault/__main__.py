@@ -25,6 +25,7 @@ import os
 import sys
 from pathlib import Path
 
+from penge.ops.sentry import init_sentry
 from penge.vault.ocr import DEFAULT_LANGS, OCRConfig
 from penge.vault.watcher import VaultWatcher, WatcherConfig
 
@@ -96,6 +97,7 @@ def main(argv: list[str] | None = None) -> int:
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
         stream=sys.stderr,
     )
+    init_sentry(component="vault-watcher")
 
     config = WatcherConfig(
         inbox=args.inbox,

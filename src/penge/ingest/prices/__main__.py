@@ -22,6 +22,8 @@ from decimal import Decimal
 from pathlib import Path
 from uuid import UUID
 
+from penge.ops.sentry import init_sentry
+
 from .loader import (
     DISCREPANCY_THRESHOLD,
     Instrument,
@@ -49,7 +51,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="penge-prices",
         description=(
-            "Load end-of-day instrument prices from Yahoo Finance into " "the price_history table."
+            "Load end-of-day instrument prices from Yahoo Finance into the price_history table."
         ),
     )
     g = p.add_mutually_exclusive_group(required=True)
@@ -148,6 +150,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(component="ingest.prices")
 
     start = date.today() - timedelta(days=30) if args.last_30d else args.since
 

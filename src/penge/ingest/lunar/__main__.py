@@ -33,6 +33,7 @@ from penge.ingest.enablebanking.client import (
     ClientConfig,
     default_consent_until,
 )
+from penge.ops.sentry import init_sentry
 
 from .loader import load_account
 
@@ -234,6 +235,7 @@ def main(argv: list[str] | None = None) -> int:
         level=logging.DEBUG if args.verbose else logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s %(message)s",
     )
+    init_sentry(component="ingest.lunar")
     config = ClientConfig.from_env()
     with Client(config) as client:
         if args.command == "link":

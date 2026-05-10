@@ -103,7 +103,7 @@ Concretely::
 ### Neutral
 
 - Health surface is a stdlib `http.server` thread serving `/health`
-  + `/metrics` (Prometheus text format). Uptime Kuma (#52) hooks
+  and `/metrics` (Prometheus text format). Uptime Kuma (#52) hooks
   into either route. We did not add aiohttp/uvicorn — the surface is
   two endpoints with no auth or app logic, and the AGENTS.md
   no-new-deps rule applies. If we ever expose the vault over HTTP

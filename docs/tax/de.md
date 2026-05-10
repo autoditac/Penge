@@ -72,3 +72,38 @@ The Basiszins for 2024 is **2.29 %** (published by BMF).
 The simulation uses the effective `capital_gains_effective_rate` as a
 composite approximation of Vorabpauschale + final Abgeltungsteuer at sale.
 A more precise model is Phase 3 scope.
+
+## Phase-3 calculator: penge.tax.de_vorab (#40)
+
+Phase 3 implements the per-ISIN Vorabpauschale + Teilfreistellung in
+`penge.tax.de_vorab`. See
+[ADR-0021](../decisions/0021-de-vorabpauschale.md).
+
+```python
+from penge.tax import (
+    VorabInput,
+    compute_vorabpauschale_many,
+    to_markdown_vorab,
+)
+from penge.tax.lots import Money
+from decimal import Decimal
+
+inputs = [
+    VorabInput(
+        isin="IE00B4L5Y983",
+        tax_year=2024,
+        classification="equity",
+        start_value=Money(amount=Decimal("10000"), currency="EUR"),
+        end_value=Money(amount=Decimal("11000"), currency="EUR"),
+    ),
+]
+results = compute_vorabpauschale_many(inputs)
+md = to_markdown_vorab(results)
+```
+
+The module exposes `BASISZINS_DE` (BMF table) and
+`TEILFREISTELLUNG_QUOTES` (`equity 0.30`, `mixed 0.15`, `real_estate
+0.60`, `other 0.00`) as constants so the Phase-2 overlay can later
+import them in place of the hard-coded effective rate. The
+Sparerpauschbetrag (€1 000/year) is *not* applied per ISIN — it is a
+household-level allowance applied at aggregation time.

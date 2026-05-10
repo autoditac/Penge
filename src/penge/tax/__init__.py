@@ -11,6 +11,8 @@ Subpackages and modules:
   ADR-0019).
 - :mod:`penge.tax.report_dk` — SKAT-format report generator (issue #39,
   ADR-0020).
+- :mod:`penge.tax.de_vorab` — DE Vorabpauschale + Teilfreistellung
+  (issue #40, ADR-0021).
 """
 
 from penge.tax.aktiesparekonto import (
@@ -23,6 +25,18 @@ from penge.tax.aktiesparekonto import (
     compute_ask_tax,
     compute_ask_taxes,
 )
+from penge.tax.de_vorab import (
+    ABGELT_RATE,
+    BASISZINS_DE,
+    TEILFREISTELLUNG_QUOTES,
+    FundClassification,
+    VorabError,
+    VorabInput,
+    VorabResult,
+    compute_vorabpauschale,
+    compute_vorabpauschale_many,
+)
+from penge.tax.de_vorab import to_markdown as to_markdown_vorab
 from penge.tax.lager import (
     BuyLeg,
     Distribution,
@@ -65,14 +79,17 @@ from penge.tax.report_dk import (
 )
 
 __all__ = [
+    "ABGELT_RATE",
     "ASK_DEPOSIT_CAPS",
     "ASK_RATE",
     "AskDeposit",
     "AskError",
     "AskTaxResult",
+    "BASISZINS_DE",
     "Buy",
     "BuyLeg",
     "Distribution",
+    "FundClassification",
     "LagerError",
     "LagerInput",
     "LagerResult",
@@ -93,7 +110,11 @@ __all__ = [
     "SkatReportError",
     "SkatReportRow",
     "Split",
+    "TEILFREISTELLUNG_QUOTES",
     "TaxLot",
+    "VorabError",
+    "VorabInput",
+    "VorabResult",
     "build_skat_report",
     "check_deposit_cap",
     "compute_ask_tax",
@@ -102,7 +123,10 @@ __all__ = [
     "compute_lager_many",
     "compute_pal",
     "compute_pal_many",
+    "compute_vorabpauschale",
+    "compute_vorabpauschale_many",
     "sum_gain_by_year",
     "to_csv",
     "to_markdown",
+    "to_markdown_vorab",
 ]

@@ -169,3 +169,116 @@ Array of:
 Every call is recorded by the MCP audit logger
 (`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
 status, and duration.
+
+## `compute_tax_year`
+
+Computes a per-jurisdiction tax report for a single tax year by
+delegating to the Phase-3 Python tax calculators (`penge.tax`). For
+**DK** it covers `lagerbeskatning` (mark-to-market on ABIS-listed
+funds), `Aktiesparekonto` (flat 17 % wrapper), and `PAL-skat`
+(15.3 % yield tax on Danish pension pots). For **DE** it covers
+`Vorabpauschale` + `Teilfreistellung` under the InvStG.
+
+The MCP server is TypeScript and the calculators are Python, so the
+tool spawns a Python subprocess (`python -m penge.tax …`) and parses
+its JSON output. The Python interpreter command is configurable via
+`PENGE_PYTHON` (defaults to `python3`); in dev the host typically
+launches the server under `uv run` so the working interpreter is the
+project's locked uv environment.
+
+### Input
+
+| Field           | Type                  | Notes                                                              |
+| --------------- | --------------------- | ------------------------------------------------------------------ |
+| `year`          | `number` (int)        | Tax year; 1900 ≤ year ≤ 2999.                                      |
+| `jurisdictions` | `("DK" \| "DE")[]`    | Non-empty, unique. One report is produced per requested entry.     |
+| `currency`      | `"EUR" \| "DKK"`      | Display currency. Native DK reports are DKK; DE reports are EUR.   |
+
+### Output
+
+Array of:
+
+```jsonc
+{
+  "year": 2024,
+  "jurisdiction": "DK",         // or "DE"
+  "currency": "EUR",            // echoes the request
+  "summary": {                  // jurisdiction-specific totals (numbers)
+    "gross_capital_income": 0.0,
+    "taxable_capital_income": 0.0,
+    "loss_carry_forward": 0.0,
+    "tax_withheld_total": 0.0,
+    "prior_loss_carry_forward": 0.0
+  },
+  "line_items": [
+    { "category": "lager", "amount": 1700.0, "source": "lager:nordnet-1:DK0001234567" },
+    { "category": "ask",   "amount": 500.0,  "source": "ask:ask-1" },
+    { "category": "ask_tax_withheld", "amount": 85.0, "source": "ask:ask-1" }
+  ]
+}
+```
+
+### Inputs file
+
+The CLI reads the household's holdings from
+`${PENGE_TAX_INPUTS_DIR:-data/tax}/<year>.json`. If the file does not
+exist the report is **empty** (zero totals, zero line items) rather
+than an error — this is the expected default before any year has been
+populated. The JSON shape is documented in
+[`src/penge/tax/cli.py`](../../src/penge/tax/cli.py); it accepts
+arrays of `LagerInput`, `AskAccount`, `PalInput`, and `VorabInput`
+records and an optional `fx` map for cross-jurisdiction currency
+conversion.
+
+### Currency conversion
+
+DK calculators are DKK-native; DE calculators are EUR-native. When
+`currency` differs from the native currency of a jurisdiction, the
+CLI converts amounts using the `fx` map in the inputs file
+(e.g. `"fx": {"DKK_to_EUR": "0.134"}`). A missing rate for a
+**non-zero** required conversion is a hard error; zero amounts pass
+through untouched so an empty report can always render in either
+currency.
+
+### Categories
+
+| Category              | Source ID format                | Meaning                                                                |
+| --------------------- | ------------------------------- | ---------------------------------------------------------------------- |
+| `lager`               | `lager:<account>:<isin>`        | DK lagerbeskatning gain/loss per ISIN.                                 |
+| `ask`                 | `ask:<account>`                 | DK ASK net taxable gain (17 % settled at source).                      |
+| `ask_tax_withheld`    | `ask:<account>`                 | DK ASK 17 % withheld via the account.                                  |
+| `pal`                 | `pal:<account>`                 | DK pension return for the year.                                        |
+| `pal_tax_withheld`    | `pal:<account>`                 | DK PAL-skat (15.3 %) withheld by the pension provider.                 |
+| `realised`            | `realised:<acc>:<isin>:<n>`     | DK realised gain on a sell event (gennemsnitsmetoden).                 |
+| `vorabpauschale`      | `de_vorab:<isin>`               | DE deemed annual yield (post-cap, pre-Teilfreistellung).               |
+| `vorab_taxable`       | `de_vorab:<isin>`               | DE Vorabpauschale × (1 − Teilfreistellung).                            |
+| `vorab_tax_due`       | `de_vorab:<isin>`               | DE Abgeltungsteuer (26.375 %) on the taxable amount.                   |
+
+### Example call
+
+```json
+{
+  "name": "compute_tax_year",
+  "arguments": {
+    "year": 2024,
+    "jurisdictions": ["DK", "DE"],
+    "currency": "EUR"
+  }
+}
+```
+
+### Errors
+
+- Invalid input (unknown jurisdiction, duplicates, unknown currency,
+  out-of-range year, extra keys) → `tool/input_invalid`.
+- Subprocess failure (calculator validation error, malformed inputs
+  file, missing FX rate for a required conversion) → propagates the
+  Python `error: …` message and a non-zero exit code as
+  `tool/compute_tax_year_failed`.
+
+### Audit
+
+Every call is recorded by the MCP audit logger
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+status, and duration. The Python subprocess does not log financial
+data to stderr beyond the canonical `error: …` prefix on failure.

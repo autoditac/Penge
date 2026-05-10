@@ -154,7 +154,13 @@ penge::libpq_url() {
 
 # Write `<file>.sha256` next to the artefact so an operator can verify
 # the encrypted blob hasn't bit-rotted before attempting a restore.
+# The sidecar records only the basename (we cd into the artefact's
+# directory before invoking sha256sum) so the artefact + sidecar pair
+# can be moved to another host / path and `sha256sum -c` still works.
 penge::write_sha256() {
     local target="$1"
-    sha256sum "${target}" >"${target}.sha256"
+    local dir base
+    dir="$(dirname -- "${target}")"
+    base="$(basename -- "${target}")"
+    (cd "${dir}" && sha256sum "${base}" >"${base}.sha256")
 }

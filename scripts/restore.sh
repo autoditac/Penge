@@ -78,6 +78,20 @@ done
 [[ -n "${DB_URL}" && -n "${DUCKDB_OUT}" ]] \
     && penge::die "--database-url and --duckdb-out are mutually exclusive"
 
+# Refuse to feed a Postgres dump into tar (or vice versa). The
+# encrypted artefact's filename suffix encodes the producer:
+#   *.sql.age  → backup.sh   (replay via psql)
+#   *.tar.age  → snapshot.sh (extract via tar)
+# A mismatch between mode and suffix almost always means the operator
+# pointed --input at the wrong file; fail fast with a clear error
+# rather than streaming SQL into tar or a tar archive into psql.
+if [[ -n "${DB_URL}" && "${INPUT}" != *.sql.age ]]; then
+    penge::die "--database-url mode expects a *.sql.age artefact, got: ${INPUT}"
+fi
+if [[ -n "${DUCKDB_OUT}" && "${INPUT}" != *.tar.age ]]; then
+    penge::die "--duckdb-out mode expects a *.tar.age artefact, got: ${INPUT}"
+fi
+
 penge::require_cmd age
 mapfile -t IDENTITY_ARGS < <(penge::age_identity_args "${IDENTITY}")
 

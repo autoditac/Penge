@@ -80,7 +80,7 @@ SUCCESS=0
 cleanup() {
     rm -rf "${SCRATCH}"
     if (( SUCCESS == 0 )); then
-        rm -f -- "${OUT}"
+        rm -f -- "${OUT}" "${OUT}.sha256"
     fi
 }
 trap cleanup EXIT INT TERM

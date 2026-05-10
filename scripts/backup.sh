@@ -89,6 +89,19 @@ mapfile -t RECIPIENT_ARGS < <(penge::age_recipient_args)
 
 LIBPQ_URL="$(penge::libpq_url "${DB_URL}")"
 
+# A SIGINT / SIGTERM during the pg_dump|age pipeline can leave a
+# truncated *.sql.age (and possibly a stale .sha256 from a previous
+# run at the same path) behind, which prune would later mistake for a
+# valid backup. Use a SUCCESS flag + EXIT/INT/TERM trap so the
+# artefact + sidecar are dropped on any non-success exit path.
+SUCCESS=0
+cleanup() {
+    if (( SUCCESS == 0 )); then
+        rm -f -- "${OUT}" "${OUT}.sha256"
+    fi
+}
+trap cleanup EXIT INT TERM
+
 # ---------------------------------------------------------------------------
 # pg_dump | age
 # ---------------------------------------------------------------------------
@@ -137,3 +150,4 @@ fi
 penge::write_sha256 "${OUT}"
 penge::info "wrote $(penge::file_size "${OUT}") bytes → ${OUT}"
 penge::info "sha256 sidecar: ${OUT}.sha256"
+SUCCESS=1

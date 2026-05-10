@@ -17,6 +17,7 @@ dev = [
   "pre-commit>=4.0",
   "pandas-stubs>=2.2",
   "hypothesis>=6.100",
+  "types-pyyaml>=6.0.12.20260510",
 ]
 docs = [
   "mkdocs-material>=9.5",
@@ -180,7 +181,12 @@ disallow_untyped_decorators = false
 # strategies themselves are still typed, so the property-test bodies
 # remain meaningfully checked.
 [[tool.mypy.overrides]]
-module = ["tests.sim.test_returns", "tests.tax.test_lager", "tests.tax.test_lots"]
+module = [
+  "tests.sim.test_returns",
+  "tests.tax.test_lager",
+  "tests.tax.test_lots",
+  "tests.vault.test_classifier",
+]
 disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]

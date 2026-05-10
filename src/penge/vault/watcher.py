@@ -33,6 +33,15 @@ from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 from watchdog.observers.api import BaseObserver
 
+from penge.vault.classifier import (
+    UNSORTED_CATEGORY,
+    Classification,
+    ClassifierConfig,
+    classify,
+)
+from penge.vault.classifier import (
+    load_config as load_classifier_config,
+)
 from penge.vault.dedupe import HashIndex
 from penge.vault.errors import VaultError
 from penge.vault.filer import UNSORTED_TYPE, FilerResult, file_document
@@ -63,6 +72,10 @@ class WatcherConfig(BaseModel):
     )
     health_host: str = Field(default="127.0.0.1")
     health_port: int = Field(default=0, ge=0, le=65535)
+    classifier_config_path: Path | None = Field(
+        default=None,
+        description="Path to vault-classifier.yaml; None loads the bundled default.",
+    )
 
 
 @dataclass
@@ -73,6 +86,7 @@ class _Metrics:
     files_filed: int = 0
     duplicates: int = 0
     failures: int = 0
+    unclassified: int = 0
     last_scan_iso: str = ""
     started_at: float = field(default_factory=time.time)
     index_len: Callable[[], int] = field(default=lambda: 0)
@@ -85,6 +99,7 @@ class _Metrics:
             "vault_files_filed_total": float(self.files_filed),
             "vault_duplicates_total": float(self.duplicates),
             "vault_failures_total": float(self.failures),
+            "vault_unclassified_total": float(self.unclassified),
             "vault_index_size": float(self.index_len()),
         }
 
@@ -138,6 +153,7 @@ class VaultWatcher:
         self._index = HashIndex(config.vault_root / ".index.json")
         self._heartbeat = Heartbeat(config.vault_root)
         self._metrics = _Metrics(index_len=lambda: len(self._index))
+        self._classifier: ClassifierConfig = load_classifier_config(config.classifier_config_path)
 
         self._observer: BaseObserver = (observer_factory or Observer)()
         self._observer.schedule(
@@ -293,12 +309,30 @@ class VaultWatcher:
             self._metrics.failures += 1
             log.exception("vault.worker.ocr_failed path=%s", path)
             return None
+        classification: Classification = classify(ocr.text, config=self._classifier)
+        document_type = classification.category
+        if document_type == UNSORTED_CATEGORY:
+            document_type = UNSORTED_TYPE
+            self._metrics.unclassified += 1
+            log.warning(
+                "vault.classifier.unclassified path=%s confidence=%.2f matched_rules=%s",
+                path,
+                classification.confidence,
+                list(classification.matched_rules),
+            )
+        else:
+            log.info(
+                "vault.classifier.matched path=%s category=%s confidence=%.2f",
+                path,
+                classification.category,
+                classification.confidence,
+            )
         result = file_document(
             path,
             vault_root=self._config.vault_root,
             index=self._index,
             ocr_text=ocr.text,
-            document_type=UNSORTED_TYPE,
+            document_type=document_type,
             now=self._clock(),
         )
         if result.duplicate:

@@ -7,6 +7,8 @@ Subpackages and modules:
   ADR-0016).
 - :mod:`penge.tax.lager` — lagerbeskatning calculator (issue #36, ADR-0017).
 - :mod:`penge.tax.aktiesparekonto` — ASK 17 % wrapper (issue #37, ADR-0018).
+- :mod:`penge.tax.pal` — PAL-skat 15.3 % pension yield tax (issue #38,
+  ADR-0019).
 """
 
 from penge.tax.aktiesparekonto import (
@@ -41,6 +43,16 @@ from penge.tax.lots import (
     Split,
     TaxLot,
 )
+from penge.tax.pal import (
+    PAL_RATE,
+    PalContribution,
+    PalError,
+    PalInput,
+    PalResult,
+    PalWithdrawal,
+    compute_pal,
+    compute_pal_many,
+)
 
 __all__ = [
     "ASK_DEPOSIT_CAPS",
@@ -58,6 +70,12 @@ __all__ = [
     "LotError",
     "Merge",
     "Money",
+    "PAL_RATE",
+    "PalContribution",
+    "PalError",
+    "PalInput",
+    "PalResult",
+    "PalWithdrawal",
     "RealisedGain",
     "Sell",
     "SellLeg",
@@ -68,5 +86,7 @@ __all__ = [
     "compute_ask_taxes",
     "compute_lager",
     "compute_lager_many",
+    "compute_pal",
+    "compute_pal_many",
     "sum_gain_by_year",
 ]

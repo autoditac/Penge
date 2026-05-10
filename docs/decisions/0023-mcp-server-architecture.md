@@ -1,6 +1,6 @@
 # 0023 — MCP server architecture (TypeScript skeleton)
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2026-05-10
 - **Deciders:** @autoditac
 - **Tags:** mcp, security, vault

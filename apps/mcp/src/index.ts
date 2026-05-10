@@ -10,7 +10,11 @@ import { createAuditLogger } from "./audit.js";
 import { loadConfig } from "./config.js";
 import { connect } from "./db.js";
 import { buildServer } from "./server.js";
+import { computeTaxYearTool } from "./tools/computeTaxYear.js";
+import { queryCashflowTool } from "./tools/queryCashflow.js";
 import { queryNetWorthTool } from "./tools/queryNetWorth.js";
+import { runScenarioTool } from "./tools/runScenario.js";
+import { searchDocumentsTool } from "./tools/searchDocuments.js";
 
 const SERVER_NAME = "penge-mcp";
 const SERVER_VERSION = "0.0.0";
@@ -40,6 +44,21 @@ async function main(): Promise<void> {
           },
         },
       }),
+      queryCashflowTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      computeTaxYearTool(),
+      runScenarioTool(),
+      searchDocumentsTool({ vaultRoot: config.vaultRoot }),
     ],
   });
 

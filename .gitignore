@@ -10,6 +10,11 @@ data/
 !docs/**/*.pdf
 !tests/**/fixtures/**
 
+# Monthly report artefacts (issue #50). The generator writes both PDF
+# and Markdown plus PNG charts under reports/{YYYY-MM}/; none of those
+# files belong in git — they may contain aggregated financial figures.
+reports/
+
 # Secrets
 .env
 .env.*

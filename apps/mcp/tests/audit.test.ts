@@ -31,6 +31,13 @@ describe("redactArgs", () => {
     });
   });
 
+  it("redacts the `query` key (search arguments may carry sensitive strings)", () => {
+    expect(redactArgs({ query: "Rouven Sacha", limit: 5 })).toEqual({
+      query: "[REDACTED]",
+      limit: 5,
+    });
+  });
+
   it("redacts case-insensitively and across nested objects", () => {
     expect(
       redactArgs({

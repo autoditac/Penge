@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: mart_cashflow_daily
+    description: >
+      Daily cashflow time series per account: inflow, outflow, and net
+      cash movement, expressed in the account currency, EUR, and DKK.
+      Buckets every `raw.transaction` row by `coalesce(value_date,
+      ts::date)` and converts to EUR/DKK via the value-date ECB rate
+      from `raw.fx_rate` (base_ccy = 'EUR'), forward-filled across
+      weekends/holidays. Days without transactions for an account are
+      simply absent — consumers must treat absent days as zero when
+      rolling up.
+    columns:
+      - name: entity_id
+        description: Owning entity, copied from `raw.account.entity_id`.
+        data_tests:
+          - not_null
+          - relationships:
+              to: source('raw', 'entity')
+              field: id
+      - name: account_id
+        description: Account the cashflow is reported for.
+        data_tests:
+          - not_null
+          - relationships:
+              to: source('raw', 'account')
+              field: id
+      - name: account_currency
+        description: ISO 4217 currency of the underlying account.
+        data_tests:
+          - not_null
+      - name: as_of
+        description: >
+          Calendar date of the cashflow bucket — the value date of the
+          transactions that contribute to this row.
+        data_tests:
+          - not_null
+      - name: inflow_acct_ccy
+        description: >
+          Sum of positive transaction amounts on `as_of`, in
+          `account_currency`. Always >= 0.
+        data_tests:
+          - not_null
+      - name: outflow_acct_ccy
+        description: >
+          Absolute value of the sum of negative transaction amounts on
+          `as_of`, in `account_currency`. Always >= 0.
+        data_tests:
+          - not_null
+      - name: net_acct_ccy
+        description: >
+          `inflow_acct_ccy - outflow_acct_ccy`, in `account_currency`.
+          Equal to the signed sum of `raw.transaction.amount`.
+      - name: inflow_eur
+        description: >
+          `inflow_acct_ccy` converted to EUR via
+          `fx_rate(base='EUR', quote=account_currency)` at `as_of`,
+          forward-filled across weekends/holidays.
+      - name: outflow_eur
+        description: As `inflow_eur`, for the outflow component.
+      - name: net_eur
+        description: As `inflow_eur`, for the net component.
+      - name: inflow_dkk
+        description: >
+          `inflow_acct_ccy` converted to DKK via EUR as the bridge
+          currency (`account_currency → EUR → DKK`).
+      - name: outflow_dkk
+        description: As `inflow_dkk`, for the outflow component.
+      - name: net_dkk
+        description: As `inflow_dkk`, for the net component.

@@ -198,6 +198,12 @@ mcp-lint:
 mcp-build:
     pnpm --filter @penge/mcp build
 
+# Run the MCP golden-question eval suite. Twenty deterministic checks
+# of the tool layer (tax, sim, cashflow, net worth, vault) backed by
+# synthetic fixtures. See docs/mcp/evals.md for how to add a golden.
+mcp-evals:
+    pnpm --filter @penge/mcp exec vitest run --config vitest.evals.config.ts
+
 # --- Encrypted backups (see ADR-0025) ----------------------------------------
 #
 # All four recipes are thin wrappers around the shell scripts under
@@ -239,3 +245,17 @@ restore-test:
 # Apply backup retention (defaults: 14 daily / 8 weekly / 12 monthly).
 backup-prune *FLAGS:
     ./scripts/prune.sh {{FLAGS}}
+
+# --- Monthly report (issue #50) ---------------------------------------------
+#
+# Generate the monthly PDF + Markdown report under reports/{MONTH}/.
+# MONTH is an ISO month string, e.g. 2026-04. The DB connection (if
+# any) is resolved from DATABASE_URL / POSTGRES_*; missing sources
+# fall back to TODO placeholders.
+#
+# Example:
+#   just monthly-report MONTH=2026-04
+#   just monthly-report MONTH=2026-04 OUT=./reports
+monthly-report MONTH OUT="reports":
+    uv run --group db --group report python -m penge.ops.report.generate \
+        --month {{MONTH}} --out {{OUT}}

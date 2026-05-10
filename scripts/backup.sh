@@ -74,6 +74,7 @@ done
 penge::require_cmd pg_dump
 penge::require_cmd age
 penge::require_cmd sha256sum
+penge::require_gnu_userland
 
 # ---------------------------------------------------------------------------
 # Resolve paths and recipients up-front so we fail fast.
@@ -111,6 +112,8 @@ set +o pipefail
 pg_dump \
     --dbname="${LIBPQ_URL}" \
     --format=plain \
+    --clean \
+    --if-exists \
     --no-owner \
     --no-privileges \
     --quote-all-identifiers \
@@ -132,5 +135,5 @@ fi
 [[ -s "${OUT}" ]] || penge::die "encrypted artefact is empty: ${OUT}"
 
 penge::write_sha256 "${OUT}"
-penge::info "wrote $(stat -c '%s' "${OUT}") bytes → ${OUT}"
+penge::info "wrote $(penge::file_size "${OUT}") bytes → ${OUT}"
 penge::info "sha256 sidecar: ${OUT}.sha256"

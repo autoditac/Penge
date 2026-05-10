@@ -38,6 +38,31 @@ penge::require_cmd() {
         || penge::die "required command not found in PATH: ${cmd}"
 }
 
+# Preflight: the scripts in this directory rely on GNU userland for
+# `date -d` / ISO-week formatting (`%G`/`%V`), `find -printf`, GNU tar's
+# `--null -T`, and `stat -c`. macOS / BSD ships POSIX/BSD variants that
+# silently differ. Probe the few that matter and die with a clear
+# pointer to the runbook so an operator on macOS knows to install
+# Homebrew coreutils/findutils/gnu-tar and put the gnubin dirs on PATH.
+penge::require_gnu_userland() {
+    if ! date -u -d '2020-01-01T00:00:00Z' +%G-W%V >/dev/null 2>&1; then
+        penge::die "GNU date is required (date -d / %G%V). On macOS: \
+brew install coreutils findutils gnu-tar and prepend the gnubin dirs \
+to PATH. See docs/runbook/backup-restore.md."
+    fi
+    if ! find /tmp -maxdepth 0 -printf '' >/dev/null 2>&1; then
+        penge::die "GNU find is required (find -printf). See docs/runbook/backup-restore.md."
+    fi
+}
+
+# Print the size of a regular file in bytes. GNU coreutils uses
+# `stat -c %s`, BSD/macOS `stat -f %z`; try both so log lines and
+# tests work on either.
+penge::file_size() {
+    local f="$1"
+    stat -c '%s' "${f}" 2>/dev/null || stat -f '%z' "${f}"
+}
+
 # ---------------------------------------------------------------------------
 # Timestamps and paths
 # ---------------------------------------------------------------------------

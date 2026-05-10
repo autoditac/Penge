@@ -14,9 +14,20 @@ Install the binaries on every host that takes or restores backups:
 # Debian / Ubuntu
 sudo apt-get install -y age postgresql-client
 
-# macOS
-brew install age libpq
+# macOS — the scripts depend on GNU userland (`date -d`, `find -printf`,
+# `tar --null -T`, `stat -c`, `sha256sum`). BSD `date` and `tar` ship with
+# macOS by default and silently differ; install the GNU equivalents and
+# put their gnubin dirs at the *front* of PATH so the scripts pick them up.
+brew install age libpq coreutils findutils gnu-tar
+export PATH="$(brew --prefix coreutils)/libexec/gnubin:\
+$(brew --prefix findutils)/libexec/gnubin:\
+$(brew --prefix gnu-tar)/libexec/gnubin:\
+$(brew --prefix libpq)/bin:${PATH}"
 ```
+
+The scripts run a `require_gnu_userland` preflight at start-up; they
+abort with a clear pointer back here if `date -d` / ISO-week formatting
+or `find -printf` fail.
 
 The DuckDB CLI is published as a single static binary on the
 [duckdb/duckdb releases page](https://github.com/duckdb/duckdb/releases);

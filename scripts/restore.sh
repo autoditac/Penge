@@ -11,8 +11,14 @@
 # replay needed).
 #
 # Usage:
-#   ./scripts/restore.sh --input PATH --database-url URL [--identity FILE]
-#   ./scripts/restore.sh --input PATH --duckdb-out DIR     [--identity FILE]
+#   ./scripts/restore.sh --input PATH --database-url URL [--identity FILE] [--skip-hash-check]
+#   ./scripts/restore.sh --input PATH --duckdb-out DIR     [--identity FILE] [--skip-hash-check]
+#
+# Flags:
+#   --skip-hash-check   skip verification of the .sha256 sidecar (and
+#                       allow restoring an artefact whose sidecar is
+#                       absent). Use with care — this disables the
+#                       integrity check the encrypted blob ships with.
 #
 # Env:
 #   PENGE_BACKUP_IDENTITY_FILE  age private-key file (overridden by --identity)
@@ -30,7 +36,7 @@ IDENTITY="${PENGE_BACKUP_IDENTITY_FILE:-}"
 SKIP_HASH=0
 
 usage() {
-    sed -n '2,21p' "$0"
+    sed -n '2,24p' "$0"
 }
 
 while [[ $# -gt 0 ]]; do

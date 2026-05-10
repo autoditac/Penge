@@ -61,6 +61,7 @@ penge::require_cmd duckdb
 penge::require_cmd age
 penge::require_cmd tar
 penge::require_cmd sha256sum
+penge::require_gnu_userland
 
 ROOT="$(penge::backup_root "${ROOT_FLAG}")"
 TS="$(penge::timestamp)"
@@ -120,8 +121,13 @@ while IFS=$'\t' read -r schema table; do
     safe="${schema}.${table}"
     safe="${safe//[^A-Za-z0-9_.-]/_}"
     parquet="${SCRATCH}/${safe}.parquet"
+    # DuckDB COPY ... TO 'PATH' requires SQL-style escaping for single
+    # quotes inside PATH. PENGE_BACKUP_ROOT (and therefore SCRATCH) can
+    # legitimately contain quotes on shared workstations; escape them
+    # before interpolation.
+    parquet_lit="${parquet//\'/\'\'}"
     duckdb -readonly "${DUCKDB_PATH}" \
-        "COPY (SELECT * FROM ${qualified}) TO '${parquet}' (FORMAT PARQUET);"
+        "COPY (SELECT * FROM ${qualified}) TO '${parquet_lit}' (FORMAT PARQUET);"
     rows="$(duckdb -readonly -noheader -list "${DUCKDB_PATH}" \
         "SELECT count(*) FROM ${qualified};")"
     printf '%s.%s\t%s\t%s\n' "${schema}" "${table}" "${safe}.parquet" "${rows}" >>"${MANIFEST}"
@@ -144,5 +150,5 @@ tar -C "${SCRATCH}" --null -T "${MEMBERS_FILE}" -cf - \
 
 penge::write_sha256 "${OUT}"
 SUCCESS=1
-penge::info "wrote $(stat -c '%s' "${OUT}") bytes → ${OUT}"
+penge::info "wrote $(penge::file_size "${OUT}") bytes → ${OUT}"
 penge::info "sha256 sidecar: ${OUT}.sha256"

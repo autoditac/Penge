@@ -67,6 +67,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 ROOT="$(penge::backup_root "${ROOT_FLAG}")"
+penge::require_gnu_userland
 
 # Collect all `*.age` artefacts (ignore sidecars). For every file we
 # emit a TSV row: <ts>\t<iso_date>\t<iso_week>\t<iso_month>\t<path>
@@ -117,7 +118,10 @@ done | sort -r >"${INDEX}"
 # until the per-category quota is reached.
 pick_bucket() {
     local col="$1" quota="$2"
-    awk -v col="${col}" -v quota="${quota}" '
+    # The index is tab-separated and the path field can legitimately
+    # contain spaces; force awk's FS to tab and emit the last column
+    # (the path) verbatim so KEEP[] subscripts match the real path.
+    awk -F '\t' -v col="${col}" -v quota="${quota}" '
         BEGIN { kept = 0 }
         {
             key = $col
@@ -125,7 +129,7 @@ pick_bucket() {
                 seen[key] = 1
                 if (kept < quota) {
                     kept++
-                    print $5
+                    print $NF
                 }
             }
         }

@@ -225,7 +225,7 @@ The CLI reads the household's holdings from
 exist the report is **empty** (zero totals, zero line items) rather
 than an error — this is the expected default before any year has been
 populated. The JSON shape is documented in
-[`src/penge/tax/cli.py`](../../src/penge/tax/cli.py); it accepts
+`src/penge/tax/cli.py`; it accepts
 arrays of `LagerInput`, `AskAccount`, `PalInput`, and `VorabInput`
 records and an optional `fx` map for cross-jurisdiction currency
 conversion.

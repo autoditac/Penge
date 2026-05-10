@@ -47,6 +47,7 @@ __all__ = [
     "PalResult",
     "PalWithdrawal",
     "compute_pal",
+    "compute_pal_many",
 ]
 
 _MONEY_DP = Decimal("0.01")
@@ -110,10 +111,15 @@ class PalInput(BaseModel):
     contributions: tuple[PalContribution, ...] = ()
     withdrawals: tuple[PalWithdrawal, ...] = ()
 
-    @field_validator("start_market_value", "end_market_value")
+    @field_validator("start_market_value")
     @classmethod
-    def _mv_dkk(cls, v: Money) -> Money:
-        return _ensure_dkk_nonneg(v, label="market value")
+    def _start_mv_dkk(cls, v: Money) -> Money:
+        return _ensure_dkk_nonneg(v, label="PalInput.start_market_value")
+
+    @field_validator("end_market_value")
+    @classmethod
+    def _end_mv_dkk(cls, v: Money) -> Money:
+        return _ensure_dkk_nonneg(v, label="PalInput.end_market_value")
 
 
 class PalResult(BaseModel):

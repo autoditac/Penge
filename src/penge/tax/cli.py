@@ -66,7 +66,7 @@ import sys
 from collections.abc import Iterable, Mapping
 from decimal import ROUND_HALF_EVEN, Decimal
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from pydantic import ValidationError
 
@@ -110,46 +110,77 @@ def _money(amount: str | int | float | Decimal, currency: Currency) -> Money:
     return Money(amount=Decimal(str(amount)), currency=currency)
 
 
+def _safe_decode(label: str, raw: Any, fn: Any) -> Any:
+    """Run a decode helper and convert shape errors into CliError.
+
+    Required-key/wrong-type problems in the input file should surface
+    as deterministic input errors (exit code 2 with a stable message),
+    not as the generic last-resort `Exception` path.
+    """
+    if not isinstance(raw, Mapping):
+        raise CliError(f"invalid {label}: expected an object, got {type(raw).__name__}")
+    try:
+        return fn(raw)
+    except KeyError as exc:
+        raise CliError(f"invalid {label}: missing required key {exc.args[0]!r}") from exc
+    except ValidationError:
+        # Let main()'s ValidationError handler format these — it strips
+        # offending input values to avoid leaking PII into audit logs.
+        raise
+    except (TypeError, ValueError) as exc:
+        raise CliError(f"invalid {label}: {exc}") from exc
+
+
 def _decode_lager(raw: Mapping[str, Any]) -> LagerInput:
-    return LagerInput(
-        account_id=str(raw["account_id"]),
-        isin=str(raw["isin"]),
-        tax_year=int(raw["tax_year"]),
-        start_market_value=_money(raw["start_market_value"], "DKK"),
-        end_market_value=_money(raw["end_market_value"], "DKK"),
-        buys=tuple(BuyLeg(cost=_money(b["cost"], "DKK")) for b in raw.get("buys", [])),
-        sells=tuple(SellLeg(proceeds=_money(s["proceeds"], "DKK")) for s in raw.get("sells", [])),
-        distributions=tuple(
-            Distribution(amount=_money(d["amount"], "DKK")) for d in raw.get("distributions", [])
-        ),
-    )
+    def _do(r: Mapping[str, Any]) -> LagerInput:
+        return LagerInput(
+            account_id=str(r["account_id"]),
+            isin=str(r["isin"]),
+            tax_year=int(r["tax_year"]),
+            start_market_value=_money(r["start_market_value"], "DKK"),
+            end_market_value=_money(r["end_market_value"], "DKK"),
+            buys=tuple(BuyLeg(cost=_money(b["cost"], "DKK")) for b in r.get("buys", [])),
+            sells=tuple(SellLeg(proceeds=_money(s["proceeds"], "DKK")) for s in r.get("sells", [])),
+            distributions=tuple(
+                Distribution(amount=_money(d["amount"], "DKK")) for d in r.get("distributions", [])
+            ),
+        )
+
+    return cast(LagerInput, _safe_decode("lager input", raw, _do))
 
 
 def _decode_pal(raw: Mapping[str, Any]) -> PalInput:
-    return PalInput(
-        account_id=str(raw["account_id"]),
-        tax_year=int(raw["tax_year"]),
-        start_market_value=_money(raw["start_market_value"], "DKK"),
-        end_market_value=_money(raw["end_market_value"], "DKK"),
-        contributions=tuple(
-            PalContribution(amount=_money(c["amount"], "DKK")) for c in raw.get("contributions", [])
-        ),
-        withdrawals=tuple(
-            PalWithdrawal(amount=_money(w["amount"], "DKK")) for w in raw.get("withdrawals", [])
-        ),
-    )
+    def _do(r: Mapping[str, Any]) -> PalInput:
+        return PalInput(
+            account_id=str(r["account_id"]),
+            tax_year=int(r["tax_year"]),
+            start_market_value=_money(r["start_market_value"], "DKK"),
+            end_market_value=_money(r["end_market_value"], "DKK"),
+            contributions=tuple(
+                PalContribution(amount=_money(c["amount"], "DKK"))
+                for c in r.get("contributions", [])
+            ),
+            withdrawals=tuple(
+                PalWithdrawal(amount=_money(w["amount"], "DKK")) for w in r.get("withdrawals", [])
+            ),
+        )
+
+    return cast(PalInput, _safe_decode("pal input", raw, _do))
 
 
 def _decode_vorab(raw: Mapping[str, Any]) -> VorabInput:
-    return VorabInput(
-        isin=str(raw["isin"]),
-        tax_year=int(raw["tax_year"]),
-        classification=raw["classification"],
-        start_value=_money(raw["start_value"], "EUR"),
-        end_value=_money(raw["end_value"], "EUR"),
-        distributions=_money(raw.get("distributions", "0"), "EUR"),
-        holding_months=int(raw.get("holding_months", 12)),
-    )
+    def _do(r: Mapping[str, Any]) -> VorabInput:
+        return VorabInput(
+            isin=str(r["isin"]),
+            tax_year=int(r["tax_year"]),
+            classification=r["classification"],
+            start_value=_money(r["start_value"], "EUR"),
+            end_value=_money(r["end_value"], "EUR"),
+            distributions=_money(r.get("distributions", "0"), "EUR"),
+            holding_months=int(r.get("holding_months", 12)),
+        )
+
+    return cast(VorabInput, _safe_decode("vorab input", raw, _do))
 
 
 def _convert(
@@ -358,9 +389,10 @@ def _parse_jurisdictions(value: str) -> list[Jurisdiction]:
     for p in parts:
         if p not in ("DK", "DE"):
             raise CliError(f"unknown jurisdiction {p!r}; expected DK or DE")
-        if p in out:
+        jur = cast(Jurisdiction, p)
+        if jur in out:
             raise CliError(f"duplicate jurisdiction {p!r}")
-        out.append(p)  # type: ignore[arg-type]
+        out.append(jur)
     if not out:
         raise CliError("at least one jurisdiction is required")
     return out
@@ -435,7 +467,15 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
     except ValidationError as exc:
-        print(f"error: invalid input: {exc}", file=sys.stderr)
+        # Format errors as <loc>: <msg> only — never echo the offending
+        # input value, which on this codebase can be a real holding
+        # amount or account identifier and would leak via the MCP
+        # subprocess stderr capture into audit logs.
+        details = "; ".join(
+            f"{'.'.join(str(p) for p in err['loc']) or '<root>'}: {err['msg']}"
+            for err in exc.errors()
+        )
+        print(f"error: invalid input: {details}", file=sys.stderr)
         return 2
     except Exception as exc:  # pragma: no cover - last-resort guard
         print(f"error: {exc}", file=sys.stderr)

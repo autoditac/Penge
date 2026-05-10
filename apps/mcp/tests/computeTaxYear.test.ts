@@ -168,48 +168,57 @@ describe.skipIf(!HAS_UV)("compute_tax_year — integration (real subprocess)", (
   it("returns zero reports for an empty inputs dir", async () => {
     const repoRoot = resolve(__dirname, "..", "..", "..");
     const emptyInputsDir = resolve(__dirname, ".scratch", "empty-tax-inputs");
-    // Use a directory we know has no <year>.json so the CLI takes the
-    // "no inputs → empty report" branch.
+    // Save and restore PENGE_TAX_INPUTS_DIR so this test cannot leak
+    // env state into other tests in the same worker.
+    const prevInputsDir = process.env.PENGE_TAX_INPUTS_DIR;
     process.env.PENGE_TAX_INPUTS_DIR = emptyInputsDir;
-    const tool = computeTaxYearTool({
-      pythonCmd: "uv",
-      pythonModule: "penge.tax",
-      cwd: repoRoot,
-    });
-    // `uv run python -m penge.tax ...` — adapt the runner: when
-    // pythonCmd is `uv`, prepend `run python` to the spawn args.
-    // For this test we instead use the explicit interpreter shipped
-    // by uv via `uv run`, by overriding the runner.
-    const realRunner = {
-      async run(args: ReadonlyArray<string>): Promise<unknown> {
-        return new Promise((resolveP, rejectP) => {
-          const child = spawn("uv", ["run", "python", "-m", "penge.tax", ...args], {
-            cwd: repoRoot,
-            env: { ...process.env, PENGE_TAX_INPUTS_DIR: emptyInputsDir },
-            stdio: ["ignore", "pipe", "pipe"],
+    try {
+      const tool = computeTaxYearTool({
+        pythonCmd: "uv",
+        pythonModule: "penge.tax",
+        cwd: repoRoot,
+      });
+      // `uv run python -m penge.tax ...` — adapt the runner: when
+      // pythonCmd is `uv`, prepend `run python` to the spawn args.
+      // For this test we instead use the explicit interpreter shipped
+      // by uv via `uv run`, by overriding the runner.
+      const realRunner = {
+        async run(args: ReadonlyArray<string>): Promise<unknown> {
+          return new Promise((resolveP, rejectP) => {
+            const child = spawn("uv", ["run", "python", "-m", "penge.tax", ...args], {
+              cwd: repoRoot,
+              env: { ...process.env, PENGE_TAX_INPUTS_DIR: emptyInputsDir },
+              stdio: ["ignore", "pipe", "pipe"],
+            });
+            const out: Buffer[] = [];
+            const err: Buffer[] = [];
+            child.stdout.on("data", (c: Buffer) => out.push(c));
+            child.stderr.on("data", (c: Buffer) => err.push(c));
+            child.on("error", rejectP);
+            child.on("close", (code) => {
+              if (code !== 0) {
+                rejectP(new Error(`exit ${code}: ${Buffer.concat(err).toString()}`));
+                return;
+              }
+              resolveP(JSON.parse(Buffer.concat(out).toString()));
+            });
           });
-          const out: Buffer[] = [];
-          const err: Buffer[] = [];
-          child.stdout.on("data", (c: Buffer) => out.push(c));
-          child.stderr.on("data", (c: Buffer) => err.push(c));
-          child.on("error", rejectP);
-          child.on("close", (code) => {
-            if (code !== 0) {
-              rejectP(new Error(`exit ${code}: ${Buffer.concat(err).toString()}`));
-              return;
-            }
-            resolveP(JSON.parse(Buffer.concat(out).toString()));
-          });
-        });
-      },
-    };
-    const tool2 = computeTaxYearTool({ runner: realRunner });
-    const result = await tool2.handler(
-      { year: 2024, jurisdictions: ["DK", "DE"], currency: "DKK" },
-      ctx,
-    );
-    const parsed = tool.outputSchema.parse(result);
-    expect(parsed).toHaveLength(2);
-    expect(parsed.every((r) => r.line_items.length === 0)).toBe(true);
+        },
+      };
+      const tool2 = computeTaxYearTool({ runner: realRunner });
+      const result = await tool2.handler(
+        { year: 2024, jurisdictions: ["DK", "DE"], currency: "DKK" },
+        ctx,
+      );
+      const parsed = tool.outputSchema.parse(result);
+      expect(parsed).toHaveLength(2);
+      expect(parsed.every((r) => r.line_items.length === 0)).toBe(true);
+    } finally {
+      if (prevInputsDir === undefined) {
+        delete process.env.PENGE_TAX_INPUTS_DIR;
+      } else {
+        process.env.PENGE_TAX_INPUTS_DIR = prevInputsDir;
+      }
+    }
   }, 30_000);
 });

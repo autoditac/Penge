@@ -308,3 +308,60 @@ def test_decimal_quantization_half_even() -> None:
     # Lager calculator already quantizes; just confirm round-trip
     val = Decimal(str(report["line_items"][0]["amount"]))
     assert val == Decimal("1000.00")
+
+
+def test_missing_required_key_raises_cli_error() -> None:
+    spec = {
+        "dk": {
+            "lager": [
+                {
+                    "account_id": "a",
+                    # missing "isin" — should surface as CliError, not KeyError
+                    "tax_year": 2024,
+                    "start_market_value": "0",
+                    "end_market_value": "100",
+                }
+            ]
+        }
+    }
+    with pytest.raises(CliError, match="missing required key 'isin'"):
+        compute_tax_year(year=2024, currency="DKK", jurisdictions=["DK"], spec=spec)
+
+
+def test_validation_error_does_not_leak_input_values(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Provide a vorab entry with an invalid classification; pydantic
+    # raises ValidationError. Our handler must not echo the raw value.
+    payload = json.dumps(
+        {
+            "de": {
+                "vorab": [
+                    {
+                        "isin": "DE0001234567",
+                        "tax_year": 2024,
+                        "classification": "BOGUS_CLASS_DO_NOT_LEAK",
+                        "start_value": "1000",
+                        "end_value": "1100",
+                    }
+                ]
+            }
+        }
+    )
+    monkeypatch.setattr(sys, "stdin", io.StringIO(payload))
+    rc = main(
+        [
+            "--year",
+            "2024",
+            "--currency",
+            "EUR",
+            "--jurisdictions",
+            "DE",
+            "--input",
+            "-",
+        ]
+    )
+    assert rc == 2
+    err = capsys.readouterr().err
+    assert "BOGUS_CLASS_DO_NOT_LEAK" not in err
+    assert "invalid input" in err

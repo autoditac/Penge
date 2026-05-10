@@ -17,6 +17,7 @@ dev = [
   "pre-commit>=4.0",
   "pandas-stubs>=2.2",
   "hypothesis>=6.100",
+  "types-pyyaml>=6.0.12.20260510",
 ]
 docs = [
   "mkdocs-material>=9.5",
@@ -89,12 +90,14 @@ vault = [
   # OCR pipeline (Tesseract DA+DE+EN, poppler-utils for rasterisation).
   # pdfplumber comes from the `parsers` group when embedded text is
   # available; it is imported lazily by penge.vault.ocr so installs
-  # without it still work via the OCR fallback path.
+  # without it still work via the OCR fallback path. PyYAML loads the
+  # rule-based classifier config (issue #42).
   "watchdog>=6.0",
   "pytesseract>=0.3.10",
   "pdf2image>=1.17",
   "Pillow>=10.4",
   "pydantic>=2.7",
+  "pyyaml>=6.0",
 ]
 sim = [
   # Simulation engine: historical-bootstrap return model (issue #26),
@@ -180,7 +183,21 @@ disallow_untyped_decorators = false
 # strategies themselves are still typed, so the property-test bodies
 # remain meaningfully checked.
 [[tool.mypy.overrides]]
-module = ["tests.sim.test_returns", "tests.tax.test_lager", "tests.tax.test_lots"]
+module = [
+  "tests.sim.test_returns",
+  "tests.tax.test_lager",
+  "tests.tax.test_lots",
+]
+disallow_untyped_decorators = false
+
+# pytest's ``@pytest.mark.parametrize`` is reported as an untyped
+# decorator under --strict (the body is still type-checked, only the
+# decorator's signature is permissive). The classifier confusion-matrix
+# tests rely heavily on parametrize.
+[[tool.mypy.overrides]]
+module = [
+  "tests.vault.test_classifier",
+]
 disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]

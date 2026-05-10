@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import shutil
 import time
 import urllib.request
@@ -147,3 +148,42 @@ def test_real_tesseract_does_not_crash_pipeline(tmp_path: Path) -> None:
     results = watcher.process_inbox_once()
     assert len(results) == 1
     assert results[0].filed_path is not None
+
+
+def test_classifier_routes_recognised_doc_into_category_folder(tmp_path: Path) -> None:
+    """A labeled fixture should land under ``vault/<year>/<category>/`` (issue #42)."""
+
+    config = _make_config(tmp_path)
+    watcher = VaultWatcher(config)
+    shutil.copy(
+        FIXTURES / "labeled" / "kontoauszug_01.pdf",
+        config.inbox / "kontoauszug.pdf",
+    )
+    results = watcher.process_inbox_once()
+    assert len(results) == 1
+    result = results[0]
+    assert result.document_type == "kontoauszug"
+    assert result.filed_path is not None
+    relative = result.filed_path.relative_to(config.vault_root)
+    assert relative.parts[1] == "kontoauszug"
+    assert watcher.metrics()["vault_unclassified_total"] == 0.0
+
+
+def test_unclassified_doc_increments_counter_and_warns(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Documents whose OCR text matches no rule must be flagged (issue #42)."""
+
+    config = _make_config(tmp_path)
+    watcher = VaultWatcher(config)
+    # ``sample_en.pdf`` is generic Annual-Statement boilerplate that the
+    # rule-based classifier intentionally does *not* recognise.
+    shutil.copy(FIXTURES / "sample_en.pdf", config.inbox / "mystery.pdf")
+
+    with caplog.at_level(logging.WARNING, logger="penge.vault.watcher"):
+        results = watcher.process_inbox_once()
+
+    assert len(results) == 1
+    assert results[0].document_type == "unsorted"
+    assert watcher.metrics()["vault_unclassified_total"] == 1.0
+    assert any("vault.classifier.unclassified" in rec.message for rec in caplog.records)

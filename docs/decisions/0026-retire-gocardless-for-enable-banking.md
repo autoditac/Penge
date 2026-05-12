@@ -1,6 +1,6 @@
 # 0026 — Retire GoCardless Bank Account Data; standardize on Enable Banking
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2026-05-12
 - **Deciders:** @autoditac
 - **Tags:** ingest, security

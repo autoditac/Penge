@@ -47,7 +47,7 @@ This is a private repository for personal use. If you have access and find a vul
 ### Authentication
 
 - Web UIs are reachable only via Tailscale or behind Caddy with strong auth.
-- API tokens (GoCardless, etc.) are scoped to the minimum required permissions and rotated yearly.
+- API tokens (Enable Banking, etc.) are scoped to the minimum required permissions and rotated yearly.
 
 ## Disclosure
 

@@ -1,6 +1,6 @@
 # 0003 — Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers
 
-- **Status:** Accepted
+- **Status:** Superseded by [ADR-0026](0026-retire-gocardless-for-enable-banking.md)
 - **Date:** 2026-05-06
 - **Deciders:** @autoditac
 - **Tags:** ingest, security

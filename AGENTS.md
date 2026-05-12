@@ -74,7 +74,7 @@ A new conversation typically starts in *planner* mode and switches to *implement
 - **DK tax:** see [`docs/tax/dk.md`](docs/tax/dk.md). Lagerbeskatning is the dominant pattern for ETFs on the ABIS list.
 - **DE tax:** see [`docs/tax/de.md`](docs/tax/de.md). Vorabpauschale + Teilfreistellung apply to the spouse's depot.
 - **Currencies:** EUR and DKK are shown in parallel; FX from ECB. Never silently pick one as base.
-- **Sources:** GLS Bank, Evangelische Bank, Lunar (PSD2 via GoCardless); Nordnet, PFA, Growney (CSV/PDF parsers); manual entries for cash and real estate.
+- **Sources:** GLS Bank, Evangelische Bank, Lunar (PSD2 via Enable Banking); Nordnet, PFA, Growney (CSV/PDF parsers); manual entries for cash and real estate.
 
 ## Out of scope
 

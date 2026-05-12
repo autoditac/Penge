@@ -1,4 +1,5 @@
 site_name: Penge
+site_url: https://autoditac.github.io/Penge/
 site_description: Private personal-finance & FIRE-modeling platform
 repo_url: https://github.com/autoditac/Penge
 repo_name: autoditac/Penge
@@ -111,5 +112,7 @@ nav:
       - "ADR-0025 Encrypted backups: age + Parquet snapshots": decisions/0025-encrypted-backups.md
       - "ADR-0026 Retire GoCardless; standardize on Enable Banking": decisions/0026-retire-gocardless-for-enable-banking.md
       - "ADR template": decisions/adr-template.md
+  - Privacy: privacy.md
+  - Terms: terms.md
 
 strict: true

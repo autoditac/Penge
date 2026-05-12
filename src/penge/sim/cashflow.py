@@ -72,6 +72,10 @@ class SalaryRule(pydantic.BaseModel):
         gross_annual: Base-year gross salary in *currency*.
         real_wage_growth: Annual real wage growth above CPI (fraction,
             e.g. ``Decimal("0.01")`` for 1 %).
+        active_from: First calendar year this rule is active (inclusive).
+            ``None`` means active from the start of the projection.
+        active_until: Last calendar year this rule is active (inclusive).
+            ``None`` means active to the end of the projection.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -80,6 +84,8 @@ class SalaryRule(pydantic.BaseModel):
     currency: Literal["EUR", "DKK"] = "EUR"
     gross_annual: Decimal
     real_wage_growth: Decimal = Decimal("0")
+    active_from: int | None = None
+    active_until: int | None = None
 
     @pydantic.field_validator("gross_annual", "real_wage_growth", mode="before")
     @classmethod
@@ -92,6 +98,12 @@ class SalaryRule(pydantic.BaseModel):
             raise ValueError("gross_annual must be positive")
         if self.real_wage_growth <= Decimal("-1"):
             raise ValueError("real_wage_growth must be > -1 (would invert salary)")
+        if (
+            self.active_from is not None
+            and self.active_until is not None
+            and self.active_from > self.active_until
+        ):
+            raise ValueError("active_from must be <= active_until")
         return self
 
 
@@ -104,6 +116,10 @@ class ContributionRule(pydantic.BaseModel):
         annual: Base-year annual contribution in *currency*.
         index_to_inflation: If ``True``, the amount is compounded by CPI
             each year; otherwise it is held constant in nominal terms.
+        active_from: First calendar year this rule is active (inclusive).
+            ``None`` means active from the start of the projection.
+        active_until: Last calendar year this rule is active (inclusive).
+            ``None`` means active to the end of the projection.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -112,6 +128,8 @@ class ContributionRule(pydantic.BaseModel):
     currency: Literal["EUR", "DKK"] = "EUR"
     annual: Decimal
     index_to_inflation: bool = True
+    active_from: int | None = None
+    active_until: int | None = None
 
     @pydantic.field_validator("annual", mode="before")
     @classmethod
@@ -122,6 +140,12 @@ class ContributionRule(pydantic.BaseModel):
     def _positive_annual(self) -> ContributionRule:
         if self.annual <= 0:
             raise ValueError("annual must be positive")
+        if (
+            self.active_from is not None
+            and self.active_until is not None
+            and self.active_from > self.active_until
+        ):
+            raise ValueError("active_from must be <= active_until")
         return self
 
 
@@ -133,7 +157,8 @@ class PensionAccrualRule(pydantic.BaseModel):
     - ``dc_fraction``: Defined-contribution fraction of the entity's gross
       salary.  Suitable for PFA (combined employer + employee rate).
     - ``annual_eur``: Fixed annual accrual expressed in EUR, optionally
-      inflation-indexed.  Suitable for Beamtenpension Bestandsfortschreibung.
+      inflation-indexed.  Suitable for Beamtenpension Bestandsfortschreibung
+      or voluntary private pension contributions after leaving employment.
 
     Args:
         entity: Identifier for the person/entity.
@@ -147,6 +172,10 @@ class PensionAccrualRule(pydantic.BaseModel):
             annual accrual by CPI each year.  Default ``True``.
         vesting_year: Calendar year from which this pension can first be drawn.
             Informational here; consumed by the goal model (#30).
+        active_from: First calendar year this rule is active (inclusive).
+            ``None`` means active from the start of the projection.
+        active_until: Last calendar year this rule is active (inclusive).
+            ``None`` means active to the end of the projection.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -157,6 +186,8 @@ class PensionAccrualRule(pydantic.BaseModel):
     annual_eur: Decimal | None = None
     index_accrual_to_inflation: bool = True
     vesting_year: int
+    active_from: int | None = None
+    active_until: int | None = None
 
     @pydantic.field_validator("dc_fraction", "annual_eur", mode="before")
     @classmethod
@@ -181,6 +212,12 @@ class PensionAccrualRule(pydantic.BaseModel):
                 raise ValueError("annual_eur must be positive")
             if self.dc_fraction is not None:
                 raise ValueError("dc_fraction must be unset when kind='annual_eur'")
+        if (
+            self.active_from is not None
+            and self.active_until is not None
+            and self.active_from > self.active_until
+        ):
+            raise ValueError("active_from must be <= active_until")
         return self
 
 
@@ -281,15 +318,25 @@ class CashflowProjection(pydantic.BaseModel):
         return sorted({f.year for f in self.flows})
 
 
+def _is_active(rule: SalaryRule | ContributionRule | PensionAccrualRule, year: int) -> bool:
+    """Return True if *rule* is active in *year* according to its active window."""
+    if rule.active_from is not None and year < rule.active_from:
+        return False
+    return not (rule.active_until is not None and year > rule.active_until)
+
+
 def _compute_salaries(
     rules: tuple[SalaryRule, ...],
     entities: list[str],
     infl: Decimal,
     epd: Decimal,
     t_offset: int,
+    year: int,
 ) -> dict[str, Decimal]:
     result: dict[str, Decimal] = {e: Decimal("0") for e in entities}
     for s in rules:
+        if not _is_active(s, year):
+            continue
         base_eur = s.gross_annual * (epd if s.currency == "DKK" else Decimal("1"))
         result[s.entity] += _compound(base_eur, infl + s.real_wage_growth, t_offset)
     return result
@@ -301,9 +348,12 @@ def _compute_contributions(
     infl: Decimal,
     epd: Decimal,
     t_offset: int,
+    year: int,
 ) -> dict[str, Decimal]:
     result: dict[str, Decimal] = {e: Decimal("0") for e in entities}
     for c in rules:
+        if not _is_active(c, year):
+            continue
         base_eur = c.annual * (epd if c.currency == "DKK" else Decimal("1"))
         if c.index_to_inflation:
             result[c.entity] += _compound(base_eur, infl, t_offset)
@@ -318,9 +368,12 @@ def _compute_pension_accruals(
     salary_eur: dict[str, Decimal],
     infl: Decimal,
     t_offset: int,
+    year: int,
 ) -> dict[str, Decimal]:
     result: dict[str, Decimal] = {e: Decimal("0") for e in entities}
     for p in rules:
+        if not _is_active(p, year):
+            continue
         if p.kind == "dc_fraction":
             # p.dc_fraction is guaranteed non-None by PensionAccrualRule validation
             fraction = p.dc_fraction if p.dc_fraction is not None else Decimal("0")
@@ -366,7 +419,16 @@ def project(config: CashflowConfig) -> CashflowProjection:
     """
     salary_entities = {s.entity for s in config.salaries}
     for rule in config.pension_rules:
-        if rule.kind == "dc_fraction" and rule.entity not in salary_entities:
+        if (
+            rule.kind == "dc_fraction"
+            and rule.entity not in salary_entities
+            # Only fail if the dc_fraction rule has no active_from (i.e. it would be
+            # active from year 1 when there may never be salary for this entity).
+            # A time-bounded dc_fraction rule (active_from set) may co-exist with a
+            # salary rule that is separately time-bounded — the projection naturally
+            # produces 0 when neither is active at the same time.
+            and rule.active_from is None
+        ):
             raise CashflowError(
                 f"dc_fraction pension rule for '{rule.entity}' has no matching salary rule"
             )
@@ -385,10 +447,12 @@ def project(config: CashflowConfig) -> CashflowProjection:
         infl = config.inflation_rate
         epd = config.eur_per_dkk
 
-        salary_eur = _compute_salaries(config.salaries, entities, infl, epd, t_offset)
-        contrib_eur = _compute_contributions(config.contributions, entities, infl, epd, t_offset)
+        salary_eur = _compute_salaries(config.salaries, entities, infl, epd, t_offset, year)
+        contrib_eur = _compute_contributions(
+            config.contributions, entities, infl, epd, t_offset, year
+        )
         accrual_eur = _compute_pension_accruals(
-            config.pension_rules, entities, salary_eur, infl, t_offset
+            config.pension_rules, entities, salary_eur, infl, t_offset, year
         )
 
         for entity in entities:

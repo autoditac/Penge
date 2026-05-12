@@ -55,7 +55,6 @@ nav:
   - Connectors:
       - connectors/index.md
       - "ECB daily FX rates": connectors/ecb_fx.md
-      - "GoCardless (PSD2)": connectors/gocardless.md
       - "GLS Bank (Enable Banking)": connectors/gls.md
       - "Evangelische Bank (Enable Banking)": connectors/evangelische-bank.md
       - "Lunar (Enable Banking)": connectors/lunar.md
@@ -110,6 +109,7 @@ nav:
       - "ADR-0023 MCP server architecture (TypeScript skeleton)": decisions/0023-mcp-server-architecture.md
       - "ADR-0024 Vault layout": decisions/0024-vault-layout.md
       - "ADR-0025 Encrypted backups: age + Parquet snapshots": decisions/0025-encrypted-backups.md
+      - "ADR-0026 Retire GoCardless; standardize on Enable Banking": decisions/0026-retire-gocardless-for-enable-banking.md
       - "ADR template": decisions/adr-template.md
 
 strict: true

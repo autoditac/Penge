@@ -18,9 +18,10 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 |------|----------------------------------------------------------------------------------------------|----------|
 | [0001](0001-self-hosted-postgres-duckdb-stack.md) | Self-hosted Postgres + DuckDB stack over a managed lakehouse | Accepted |
 | [0002](0002-custom-monorepo-over-off-the-shelf-pfm.md) | Custom monorepo over off-the-shelf PFM tools                 | Accepted |
-| [0003](0003-hybrid-ingestion-psd2-and-csv-pdf.md) | Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers        | Accepted |
+| [0003](0003-hybrid-ingestion-psd2-and-csv-pdf.md) | Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers        | Superseded by [0026](0026-retire-gocardless-for-enable-banking.md) |
 | [0004](0004-eur-and-dkk-shown-in-parallel.md) | EUR and DKK shown in parallel; no single base currency       | Accepted |
 | [0005](0005-llm-access-via-mcp-only.md) | LLM access exclusively via MCP server with typed tools       | Accepted |
 | [0006](0006-trunk-based-conventional-commits-adrs.md) | Trunk-based development with Conventional Commits and ADRs   | Accepted |
 | [0007](0007-initial-relational-data-model.md) | Initial relational data model                                | Accepted |
 | [0008](0008-nordnet-account-modelling.md) | Nordnet account modelling: kinds, multi-currency cash, ASK   | Accepted |
+| [0026](0026-retire-gocardless-for-enable-banking.md) | Retire GoCardless; standardize on Enable Banking for PSD2 | Accepted |

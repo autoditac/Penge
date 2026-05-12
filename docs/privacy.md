@@ -1,7 +1,9 @@
 # Privacy Policy
 
-**Service:** Penge  
-**Operator:** autoditac (private individual)  
+**Service:** Penge
+
+**Operator:** autoditac (private individual)
+
 **Last updated:** 2026-05-12
 
 ## 1. What is Penge?

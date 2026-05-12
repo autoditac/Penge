@@ -1,5 +1,5 @@
 # Build the MkDocs Material site on every PR (--strict, as a quality gate)
-# and deploy to GitHub Pages on tags.
+# and deploy to GitHub Pages on every push to main.
 #
 # All third-party actions are pinned to a full commit SHA; Dependabot keeps
 # both the SHA and the trailing version comment in sync.

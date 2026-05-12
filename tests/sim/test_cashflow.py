@@ -595,6 +595,44 @@ class TestContributionActiveWindow:
             else:
                 assert f.liquid_contribution_eur == Decimal("0")
 
+    def test_contribution_active_from_only(self) -> None:
+        """active_from only: zero before window, nonzero from active_from onwards."""
+        cfg = _config(
+            base_year=2024,
+            horizon_years=5,
+            contributions=(_contrib(active_from=2027),),
+        )
+        proj = project(cfg)
+        alice = proj.by_entity("alice")
+        for f in alice:
+            if f.year < 2027:
+                assert f.liquid_contribution_eur == Decimal("0"), (
+                    f"expected no contribution before active_from in {f.year}"
+                )
+            else:
+                assert f.liquid_contribution_eur > Decimal("0"), (
+                    f"expected contribution from active_from onwards in {f.year}"
+                )
+
+    def test_contribution_active_until_only(self) -> None:
+        """active_until with no active_from: nonzero up to active_until, zero after."""
+        cfg = _config(
+            base_year=2024,
+            horizon_years=5,
+            contributions=(_contrib(active_until=2026),),
+        )
+        proj = project(cfg)
+        alice = proj.by_entity("alice")
+        for f in alice:
+            if f.year <= 2026:
+                assert f.liquid_contribution_eur > Decimal("0"), (
+                    f"expected contribution up to active_until in {f.year}"
+                )
+            else:
+                assert f.liquid_contribution_eur == Decimal("0"), (
+                    f"expected no contribution after active_until in {f.year}"
+                )
+
 
 class TestPensionAccrualActiveWindow:
     def test_dc_fraction_zero_outside_window(self) -> None:

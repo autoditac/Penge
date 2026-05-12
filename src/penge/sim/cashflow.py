@@ -73,9 +73,11 @@ class SalaryRule(pydantic.BaseModel):
         real_wage_growth: Annual real wage growth above CPI (fraction,
             e.g. ``Decimal("0.01")`` for 1 %).
         active_from: First calendar year this rule is active (inclusive).
-            ``None`` means active from the start of the projection.
+            ``None`` means active from the first projected year
+            (``base_year + 1``).
         active_until: Last calendar year this rule is active (inclusive).
-            ``None`` means active to the end of the projection.
+            ``None`` means active through the last projected year
+            (``base_year + horizon_years``).
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -117,9 +119,11 @@ class ContributionRule(pydantic.BaseModel):
         index_to_inflation: If ``True``, the amount is compounded by CPI
             each year; otherwise it is held constant in nominal terms.
         active_from: First calendar year this rule is active (inclusive).
-            ``None`` means active from the start of the projection.
+            ``None`` means active from the first projected year
+            (``base_year + 1``).
         active_until: Last calendar year this rule is active (inclusive).
-            ``None`` means active to the end of the projection.
+            ``None`` means active through the last projected year
+            (``base_year + horizon_years``).
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -173,9 +177,11 @@ class PensionAccrualRule(pydantic.BaseModel):
         vesting_year: Calendar year from which this pension can first be drawn.
             Informational here; consumed by the goal model (#30).
         active_from: First calendar year this rule is active (inclusive).
-            ``None`` means active from the start of the projection.
+            ``None`` means active from the first projected year
+            (``base_year + 1``).
         active_until: Last calendar year this rule is active (inclusive).
-            ``None`` means active to the end of the projection.
+            ``None`` means active through the last projected year
+            (``base_year + horizon_years``).
     """
 
     model_config = pydantic.ConfigDict(frozen=True)

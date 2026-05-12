@@ -1,5 +1,5 @@
 # Build the MkDocs Material site on every PR (--strict, as a quality gate)
-# and deploy to GitHub Pages on tags.
+# and deploy to GitHub Pages on every push to main.
 #
 # All third-party actions are pinned to a full commit SHA; Dependabot keeps
 # both the SHA and the trailing version comment in sync.
@@ -9,7 +9,6 @@ name: docs
 on:
   push:
     branches: [main]
-    tags: ["v*"]
   pull_request:
 
 permissions:
@@ -39,7 +38,7 @@ jobs:
   deploy:
     name: Deploy to GitHub Pages
     needs: build
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:
       contents: write  # gh-deploy pushes to the gh-pages branch
@@ -61,4 +60,4 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 
       - name: mkdocs gh-deploy
-        run: uv run mkdocs gh-deploy --force --no-jekyll
+        run: uv run mkdocs gh-deploy --force

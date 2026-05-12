@@ -10,9 +10,11 @@ The engine models three streams per entity per year:
 - **Gross salary** — compounded by inflation + optional real wage growth.
 - **Liquid contribution** — savings directed into the liquid investment portfolio
   (e.g. Nordnet deposits), optionally inflation-indexed.
-- **Pension accrual** — either a defined-contribution fraction of gross salary
-  (e.g. PFA 21 %) or a fixed annual EUR increment
-  (e.g. Beamtenpension Bestandsfortschreibung).
+- **Pension balance** — tracks an actual account balance, not merely an accrual
+  tally.  Each year the existing balance grows by the net pension return
+  (``pension_market_return_rate`` after ``pal_skat_rate``), then new accruals
+  (dc_fraction of salary or fixed annual_eur) are added.  An opening balance
+  from an existing account can be supplied via ``pension_opening_balances``.
 
 Tax netting is **not** performed here.  See :mod:`penge.sim.tax` (#28)
 for net-salary and effective-rate modelling.
@@ -197,6 +199,19 @@ class CashflowConfig(pydantic.BaseModel):
         salaries: Salary streams per entity.
         contributions: Liquid investment contributions per entity.
         pension_rules: Pension accrual rules per entity.
+        pension_opening_balances: Current real-world pension account balance per
+            entity in EUR.  Seeding this from an actual account statement makes
+            the projection accurate rather than starting from zero.  Entities
+            not listed default to ``0``.
+        pension_market_return_rate: Annual gross market return on the pension
+            balance (fraction, e.g. ``0.10`` for 10 %).  Defaults to ``0``
+            (no balance growth — accruals only).  Set this to the expected
+            long-run return of the chosen investment profile.
+        pal_skat_rate: Danish pension investment tax (*pensionsafkastafgift*)
+            rate applied to pension balance growth.  ``0.153`` for the standard
+            DK rate; ``0`` (default) disables the reduction.  The effective
+            net pension return is
+            ``pension_market_return_rate * (1 - pal_skat_rate)``.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -208,11 +223,27 @@ class CashflowConfig(pydantic.BaseModel):
     salaries: tuple[SalaryRule, ...]
     contributions: tuple[ContributionRule, ...]
     pension_rules: tuple[PensionAccrualRule, ...]
+    pension_opening_balances: dict[str, Decimal] = pydantic.Field(default_factory=dict)
+    pension_market_return_rate: Decimal = Decimal("0")
+    pal_skat_rate: Decimal = Decimal("0")
 
-    @pydantic.field_validator("inflation_rate", "eur_per_dkk", mode="before")
+    @pydantic.field_validator(
+        "inflation_rate",
+        "eur_per_dkk",
+        "pension_market_return_rate",
+        "pal_skat_rate",
+        mode="before",
+    )
     @classmethod
     def _coerce(cls, v: object) -> Decimal:
         return _to_decimal(v)
+
+    @pydantic.field_validator("pension_opening_balances", mode="before")
+    @classmethod
+    def _coerce_opening_balances(cls, v: object) -> dict[str, Decimal]:
+        if not isinstance(v, dict):
+            raise ValueError("pension_opening_balances must be a mapping")
+        return {k: _to_decimal(val) for k, val in v.items()}
 
     @pydantic.model_validator(mode="after")
     def _validate(self) -> CashflowConfig:
@@ -222,6 +253,15 @@ class CashflowConfig(pydantic.BaseModel):
             raise ValueError("inflation_rate must be in [-0.5, 1.0]")
         if self.eur_per_dkk <= 0:
             raise ValueError("eur_per_dkk must be positive")
+        if self.pension_market_return_rate < Decimal("-1"):
+            raise ValueError("pension_market_return_rate must be >= -1")
+        if not (Decimal("0") <= self.pal_skat_rate < Decimal("1")):
+            raise ValueError("pal_skat_rate must be in [0, 1)")
+        for entity, balance in self.pension_opening_balances.items():
+            if balance < 0:
+                raise ValueError(
+                    f"pension_opening_balances['{entity}'] must be >= 0, got {balance}"
+                )
         return self
 
 
@@ -236,9 +276,15 @@ class YearlyFlow(pydantic.BaseModel):
         liquid_contribution_eur: Amount directed into the liquid portfolio in
             EUR (all contribution rules for this entity combined).  Gross of
             taxes — see :mod:`penge.sim.tax` for net modelling.
-        pension_accrual_eur: New pension entitlement accrued in this year.
-        cumulative_pension_eur: Total pension entitlement accrued from the
-            start of the projection through *year* (inclusive).
+        pension_accrual_eur: New pension entitlement accrued in this year from
+            active accrual rules (dc_fraction or annual_eur).  Does **not**
+            include market growth on the existing balance.
+        pension_balance_growth_eur: Growth of the pension balance due to market
+            return net of PAL-skat for this year.  Zero when
+            ``pension_market_return_rate`` is ``0`` on the config.
+        cumulative_pension_eur: Total pension account balance at the end of
+            *year*, including the opening balance, all prior and current
+            accruals, and all market growth net of PAL-skat.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -248,6 +294,7 @@ class YearlyFlow(pydantic.BaseModel):
     gross_salary_eur: Decimal
     liquid_contribution_eur: Decimal
     pension_accrual_eur: Decimal
+    pension_balance_growth_eur: Decimal
     cumulative_pension_eur: Decimal
 
 
@@ -345,11 +392,12 @@ def project(config: CashflowConfig) -> CashflowProjection:
       relative to the base year.
     - **Liquid contributions**: compounded by ``inflation_rate`` if
       ``index_to_inflation`` is ``True``, otherwise held constant in nominal terms.
-    - **Pension accruals**:
+    - **Pension balance**:
 
-      - ``dc_fraction``: applied to that year's gross salary for the entity.
-      - ``annual_eur``: compounded by ``inflation_rate`` if
-        ``index_accrual_to_inflation`` is ``True``, otherwise held constant.
+      - The balance starts at ``pension_opening_balances[entity]`` (default ``0``).
+      - Each year the existing balance grows by the *net* pension return:
+        ``pension_market_return_rate * (1 - pal_skat_rate)``.
+      - New accruals (``dc_fraction`` or ``annual_eur`` rules) are then added.
 
     DKK amounts are converted to EUR using ``config.eur_per_dkk``.
 
@@ -377,7 +425,12 @@ def project(config: CashflowConfig) -> CashflowProjection:
         | {p.entity for p in config.pension_rules}
     )
 
-    cumulative_pension: dict[str, Decimal] = {e: Decimal("0") for e in entities}
+    # Seed from opening balances (#130); entities not listed start at 0.
+    cumulative_pension: dict[str, Decimal] = {
+        e: config.pension_opening_balances.get(e, Decimal("0")) for e in entities
+    }
+    # Net pension return after PAL-skat (#128).
+    net_pension_rate = config.pension_market_return_rate * (Decimal("1") - config.pal_skat_rate)
     flows: list[YearlyFlow] = []
 
     for t_offset in range(1, config.horizon_years + 1):
@@ -392,7 +445,10 @@ def project(config: CashflowConfig) -> CashflowProjection:
         )
 
         for entity in entities:
-            cumulative_pension[entity] += accrual_eur[entity]
+            growth = (cumulative_pension[entity] * net_pension_rate).quantize(
+                _TWO_DP, rounding=ROUND_HALF_EVEN
+            )
+            cumulative_pension[entity] = cumulative_pension[entity] + growth + accrual_eur[entity]
             flows.append(
                 YearlyFlow(
                     year=year,
@@ -400,6 +456,7 @@ def project(config: CashflowConfig) -> CashflowProjection:
                     gross_salary_eur=salary_eur[entity],
                     liquid_contribution_eur=contrib_eur[entity],
                     pension_accrual_eur=accrual_eur[entity],
+                    pension_balance_growth_eur=growth,
                     cumulative_pension_eur=cumulative_pension[entity],
                 )
             )

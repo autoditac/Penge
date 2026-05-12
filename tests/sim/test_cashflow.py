@@ -5,7 +5,7 @@ All fixtures use synthetic data only.
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Literal
 
 import pydantic
@@ -621,7 +621,9 @@ class TestPalSkat:
         assert y1.cumulative_pension_eur == Decimal("10847.00")
         # Year 2: 10847 * 0.0847 = 918.74 (rounded)
         net_rate = Decimal("0.10") * (Decimal("1") - Decimal("0.153"))
-        expected_growth_y2 = (Decimal("10847") * net_rate).quantize(Decimal("0.01"))
+        expected_growth_y2 = (Decimal("10847") * net_rate).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_EVEN
+        )
         assert y2.pension_balance_growth_eur == expected_growth_y2
 
     def test_pal_skat_rate_gte_1_raises(self) -> None:

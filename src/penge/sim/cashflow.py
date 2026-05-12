@@ -24,7 +24,9 @@ Design rationale: `docs/decisions/0011-sim-cashflow-engine.md`.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from decimal import ROUND_HALF_EVEN, Decimal
+from types import MappingProxyType
 from typing import Literal
 
 import pydantic
@@ -223,7 +225,9 @@ class CashflowConfig(pydantic.BaseModel):
     salaries: tuple[SalaryRule, ...]
     contributions: tuple[ContributionRule, ...]
     pension_rules: tuple[PensionAccrualRule, ...]
-    pension_opening_balances: dict[str, Decimal] = pydantic.Field(default_factory=dict)
+    pension_opening_balances: Mapping[str, Decimal] = pydantic.Field(
+        default_factory=lambda: MappingProxyType({})
+    )
     pension_market_return_rate: Decimal = Decimal("0")
     pal_skat_rate: Decimal = Decimal("0")
 
@@ -240,10 +244,10 @@ class CashflowConfig(pydantic.BaseModel):
 
     @pydantic.field_validator("pension_opening_balances", mode="before")
     @classmethod
-    def _coerce_opening_balances(cls, v: object) -> dict[str, Decimal]:
-        if not isinstance(v, dict):
+    def _coerce_opening_balances(cls, v: object) -> MappingProxyType[str, Decimal]:
+        if not isinstance(v, Mapping):
             raise ValueError("pension_opening_balances must be a mapping")
-        return {k: _to_decimal(val) for k, val in v.items()}
+        return MappingProxyType({str(k): _to_decimal(val) for k, val in v.items()})
 
     @pydantic.model_validator(mode="after")
     def _validate(self) -> CashflowConfig:

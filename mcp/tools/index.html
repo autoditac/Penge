@@ -1,0 +1,4160 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Private personal-finance & FIRE-modeling platform">
+      
+      
+      
+        <link rel="canonical" href="https://autoditac.github.io/Penge/mcp/tools/">
+      
+      
+        <link rel="prev" href="../../dbt/">
+      
+      
+        <link rel="next" href="../../sim/return-model/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Tool reference - Penge</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#mcp-tool-reference" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Penge
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Tool reference
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/autoditac/Penge" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    autoditac/Penge
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Penge
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/autoditac/Penge" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    autoditac/Penge
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../architecture/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Architecture
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../connectors/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Connectors
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_3" id="__nav_3_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Connectors
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ECB daily FX rates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/gls/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GLS Bank (Enable Banking)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Evangelische Bank (Enable Banking)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/lunar/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lunar (Enable Banking)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/growney/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Growney / Sutor Bank (PDF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/pfa/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PFA pension (PDF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nordnet (DK CSV)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/abis/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Skat ABIS list
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/manual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Manual entries
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analytics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Analytics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../dbt/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    dbt
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    MCP
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    MCP
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool reference
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tool reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _meta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#query_net_worth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        query_net_worth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="query_net_worth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#breakdown-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breakdown semantics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example response
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#query_cashflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        query_cashflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="query_cashflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#period-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Period semantics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-response_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example response
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compute_tax_year" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_tax_year
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="compute_tax_year">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inputs-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#currency-conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Currency conversion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Categories
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run_scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_scenario
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_scenario">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#params-for-house_purchase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        params for house_purchase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#params-for-work_reduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        params for work_reduction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search_documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        search_documents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="search_documents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#privacy-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Privacy notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Simulation
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Simulation
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../sim/return-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Return model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tax
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Tax
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tax/dk/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DK
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../tax/de/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runbook
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Runbook
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/monthly-ritual/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monthly ritual (1-hour close)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/monthly-report/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Monthly automated report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web dashboard
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/abis-yearly-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIS yearly refresh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/branch-protection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branch protection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/vault-watcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault watcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/healthchecks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Healthchecks (Uptime Kuma + Sentry)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/backup-restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Encrypted backups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/restore-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Restore drill log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../decisions/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0001 Self-hosted Postgres + DuckDB stack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0002 Custom monorepo over off-the-shelf PFM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0004 EUR and DKK shown in parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0005 LLM access via MCP only
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0006 Trunk-based + Conventional Commits + ADRs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0007 Initial relational data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0008 Nordnet account modelling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0009 ABIS list & instrument tax treatment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0010 Simulation return model: historical block-bootstrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0011 Simulation cashflow engine: deterministic projection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0012 FIRE goal evaluation model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0013 Simulation tax overlay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0014 Monte-Carlo FIRE runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0015 Scenario engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0016 Tax-lot tracker (gennemsnitsmetoden)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0017 Lagerbeskatning calculator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0018 Aktiesparekonto handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0019 PAL-skat tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0020 SKAT report generator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0021 DE Vorabpauschale calculator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0022 Streamlit projection dashboard tab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0023 MCP server architecture (TypeScript skeleton)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0024 Vault layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0025 Encrypted backups: age + Parquet snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0026 Retire GoCardless; standardize on Enable Banking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/adr-template/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR template
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../privacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Privacy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../terms/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Terms
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#_meta" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        _meta
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#query_net_worth" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        query_net_worth
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="query_net_worth">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#breakdown-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Breakdown semantics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-response" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example response
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#query_cashflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        query_cashflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="query_cashflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#period-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Period semantics
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-response_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example response
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compute_tax_year" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_tax_year
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="compute_tax_year">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#inputs-file" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inputs file
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#currency-conversion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Currency conversion
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#categories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Categories
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#run_scenario" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        run_scenario
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="run_scenario">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Input">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#params-for-house_purchase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        params for house_purchase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#params-for-work_reduction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        params for work_reduction
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search_documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        search_documents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="search_documents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#privacy-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Privacy notes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#errors_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#audit_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/mcp/tools.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="mcp-tool-reference">MCP tool reference<a class="headerlink" href="#mcp-tool-reference" title="Permanent link">&para;</a></h1>
+<p>Reference for tools exposed by the Penge MCP server (<code>apps/mcp</code>). Each
+entry describes the tool's purpose, JSON Schema (derived from Zod), and
+an example call/response.</p>
+<p>The MCP server is <strong>read-only</strong> by construction: every Postgres
+connection is forced to <code>default_transaction_read_only = on</code>, and tool
+output schemas are validated before being returned to the host. Tools
+return aggregates only — never raw transactions or account numbers.</p>
+<h2 id="_meta"><code>_meta</code><a class="headerlink" href="#_meta" title="Permanent link">&para;</a></h2>
+<p>Health-check tool. Returns server identity, the list of registered tool
+names, and a UTC timestamp. Useful for clients to verify connectivity
+and discover available tools.</p>
+<h2 id="query_net_worth"><code>query_net_worth</code><a class="headerlink" href="#query_net_worth" title="Permanent link">&para;</a></h2>
+<p>Aggregated daily net worth from the dbt mart <code>mart_net_worth_daily</code>.
+Returns one row per date (and optional breakdown key) within the
+requested date range, valued in the requested currency.</p>
+<h3 id="input">Input<a class="headerlink" href="#input" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>date_range</code></td>
+<td><code>{ from: string; to: string }</code></td>
+<td>ISO <code>YYYY-MM-DD</code>. <code>from</code> must be on or before <code>to</code>.</td>
+</tr>
+<tr>
+<td><code>currency</code></td>
+<td><code>"EUR" \| "DKK"</code></td>
+<td>Both are first-class; pick whichever the consumer needs.</td>
+</tr>
+<tr>
+<td><code>breakdown_by</code></td>
+<td><code>"none" \| "account" \| "asset_class"</code></td>
+<td>See semantics below.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h3>
+<p>Array of:</p>
+<div class="highlight"><pre><span></span><code>{
+  &quot;date&quot;: &quot;2024-01-31&quot;, // ISO YYYY-MM-DD
+  &quot;currency&quot;: &quot;EUR&quot;, // echoes the request
+  &quot;breakdown_key&quot;: &quot;brokerage&quot;, // omitted when breakdown_by = &quot;none&quot;
+  &quot;value&quot;: 123456.78, // numeric, summed across the breakdown
+}
+</code></pre></div>
+<h3 id="breakdown-semantics">Breakdown semantics<a class="headerlink" href="#breakdown-semantics" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>none</code></strong> — one row per <code>as_of</code>, value summed across all accounts in
+  the household.</li>
+<li><strong><code>account</code></strong> — one row per (<code>as_of</code>, <code>account_id</code>).
+  <code>breakdown_key</code> is the account UUID. The MCP host should not display
+  the UUID to the user verbatim — it is opaque, not an account number.</li>
+<li><strong><code>asset_class</code></strong> — one row per (<code>as_of</code>, <code>account.kind</code>).
+  <code>breakdown_key</code> is the account kind (<code>bank</code>, <code>brokerage</code>, <code>pension</code>,
+  <code>cash</code>, ...). The mart does not yet carry an instrument-level asset
+  class; we map <code>asset_class ≡ account.kind</code> from <code>public.account</code>.
+  When a future mart exposes a true instrument asset class, the wire
+  schema will not change.</li>
+</ul>
+<h3 id="example-call">Example call<a class="headerlink" href="#example-call" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;query_net_worth&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;date_range&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;from&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;to&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-03&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;breakdown_by&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;asset_class&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="example-response">Example response<a class="headerlink" href="#example-response" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bank&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">12000.0</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;brokerage&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">84500.5</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-02&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bank&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">12100.0</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-02&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;brokerage&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">85010.2</span><span class="w"> </span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+<h3 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Invalid input (bad date format, unknown currency, <code>from &gt; to</code>,
+  unknown <code>breakdown_by</code>, extra keys) → <code>tool/input_invalid</code>.</li>
+<li>Database errors (e.g. mart not yet built) propagate as the underlying
+  Postgres error message.</li>
+</ul>
+<h3 id="audit">Audit<a class="headerlink" href="#audit" title="Permanent link">&para;</a></h3>
+<p>Every call is recorded by the MCP audit logger
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+status, and duration.</p>
+<h2 id="query_cashflow"><code>query_cashflow</code><a class="headerlink" href="#query_cashflow" title="Permanent link">&para;</a></h2>
+<p>Aggregated cashflow from the dbt mart <code>mart_cashflow_daily</code>, rolled up
+to the requested granularity. Returns one row per period within the
+requested date range, with summed inflow, outflow, and net cash
+movement valued in the requested currency.</p>
+<h3 id="input_1">Input<a class="headerlink" href="#input_1" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>date_range</code></td>
+<td><code>{ from: string; to: string }</code></td>
+<td>ISO <code>YYYY-MM-DD</code>. <code>from</code> must be on or before <code>to</code>.</td>
+</tr>
+<tr>
+<td><code>granularity</code></td>
+<td><code>"day" \| "week" \| "month" \| "year"</code></td>
+<td>Bucket size. The mart is daily-grain; coarser buckets are summed in SQL.</td>
+</tr>
+<tr>
+<td><code>currency</code></td>
+<td><code>"EUR" \| "DKK"</code> (optional)</td>
+<td>Defaults to <code>EUR</code>. Both are first-class throughout Penge.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="output_1">Output<a class="headerlink" href="#output_1" title="Permanent link">&para;</a></h3>
+<p>Array of:</p>
+<div class="highlight"><pre><span></span><code>{
+  &quot;period_start&quot;: &quot;2024-01-01&quot;, // ISO YYYY-MM-DD, clipped to date_range.from
+  &quot;period_end&quot;: &quot;2024-01-31&quot;, // ISO YYYY-MM-DD, clipped to date_range.to
+  &quot;currency&quot;: &quot;EUR&quot;, // echoes the request (or the default)
+  &quot;inflow&quot;: 12345.67, // sum of positive cashflows in the bucket
+  &quot;outflow&quot;: 2345.67, // absolute value of summed negatives
+  &quot;net&quot;: 10000.0, // inflow - outflow
+}
+</code></pre></div>
+<h3 id="period-semantics">Period semantics<a class="headerlink" href="#period-semantics" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>period_start</code> / <code>period_end</code> are <strong>inclusive</strong> and <strong>clipped</strong> to the
+  requested <code>date_range</code>. A <code>month</code> bucket containing 2024-01 with
+  <code>date_range.from = 2024-01-15</code> reports <code>period_start = 2024-01-15</code>.</li>
+<li>Days within the range that have no cashflow contribute zero. Buckets
+  with no transactions at all are simply absent from the response — the
+  consumer should treat absence as zero, not as an error.</li>
+<li>Week boundaries follow Postgres <code>date_trunc('week', ...)</code>, i.e.
+  ISO weeks starting Monday.</li>
+</ul>
+<h3 id="example-call_1">Example call<a class="headerlink" href="#example-call_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;query_cashflow&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;date_range&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;from&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;to&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-03-31&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;granularity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;month&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="example-response_1">Example response<a class="headerlink" href="#example-response_1" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">[</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;period_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;period_end&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-31&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;inflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">4200.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;outflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">3100.5</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;net&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1099.5</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;period_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-02-01&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;period_end&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-02-29&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;inflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">4250.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;outflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">2900.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;net&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1350.0</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;period_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-03-01&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;period_end&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-03-31&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;inflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">4300.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;outflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">3050.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;net&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1250.0</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">]</span>
+</code></pre></div>
+<h3 id="errors_1">Errors<a class="headerlink" href="#errors_1" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Invalid input (bad date format, unknown currency, unknown
+  granularity, <code>from &gt; to</code>, extra keys) → <code>tool/input_invalid</code>.</li>
+<li>Database errors (e.g. mart not yet built) propagate as the underlying
+  Postgres error message.</li>
+</ul>
+<h3 id="audit_1">Audit<a class="headerlink" href="#audit_1" title="Permanent link">&para;</a></h3>
+<p>Every call is recorded by the MCP audit logger
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+status, and duration.</p>
+<h2 id="compute_tax_year"><code>compute_tax_year</code><a class="headerlink" href="#compute_tax_year" title="Permanent link">&para;</a></h2>
+<p>Computes a per-jurisdiction tax report for a single tax year by
+delegating to the Phase-3 Python tax calculators (<code>penge.tax</code>). For
+<strong>DK</strong> it covers <code>lagerbeskatning</code> (mark-to-market on ABIS-listed
+funds), <code>Aktiesparekonto</code> (flat 17 % wrapper), and <code>PAL-skat</code>
+(15.3 % yield tax on Danish pension pots). For <strong>DE</strong> it covers
+<code>Vorabpauschale</code> + <code>Teilfreistellung</code> under the InvStG.</p>
+<p>The MCP server is TypeScript and the calculators are Python, so the
+tool spawns a Python subprocess (<code>python -m penge.tax …</code>) and parses
+its JSON output. The Python interpreter command is configurable via
+<code>PENGE_PYTHON</code> (defaults to <code>python3</code>); in dev the host typically
+launches the server under <code>uv run</code> so the working interpreter is the
+project's locked uv environment.</p>
+<h3 id="input_2">Input<a class="headerlink" href="#input_2" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>year</code></td>
+<td><code>number</code> (int)</td>
+<td>Tax year; 1900 ≤ year ≤ 2999.</td>
+</tr>
+<tr>
+<td><code>jurisdictions</code></td>
+<td><code>("DK" \| "DE")[]</code></td>
+<td>Non-empty, unique. One report is produced per requested entry.</td>
+</tr>
+<tr>
+<td><code>currency</code></td>
+<td><code>"EUR" \| "DKK"</code></td>
+<td>Display currency. Native DK reports are DKK; DE reports are EUR.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="output_2">Output<a class="headerlink" href="#output_2" title="Permanent link">&para;</a></h3>
+<p>Array of:</p>
+<div class="highlight"><pre><span></span><code>{
+  &quot;year&quot;: 2024,
+  &quot;jurisdiction&quot;: &quot;DK&quot;, // or &quot;DE&quot;
+  &quot;currency&quot;: &quot;EUR&quot;, // echoes the request
+  &quot;summary&quot;: {
+    // jurisdiction-specific totals (numbers)
+    &quot;gross_capital_income&quot;: 0.0,
+    &quot;taxable_capital_income&quot;: 0.0,
+    &quot;loss_carry_forward&quot;: 0.0,
+    &quot;tax_withheld_total&quot;: 0.0,
+    &quot;prior_loss_carry_forward&quot;: 0.0,
+  },
+  &quot;line_items&quot;: [
+    { &quot;category&quot;: &quot;lager&quot;, &quot;amount&quot;: 1700.0, &quot;source&quot;: &quot;lager:nordnet-1:DK0001234567&quot; },
+    { &quot;category&quot;: &quot;ask&quot;, &quot;amount&quot;: 500.0, &quot;source&quot;: &quot;ask:ask-1&quot; },
+    { &quot;category&quot;: &quot;ask_tax_withheld&quot;, &quot;amount&quot;: 85.0, &quot;source&quot;: &quot;ask:ask-1&quot; },
+  ],
+}
+</code></pre></div>
+<h3 id="inputs-file">Inputs file<a class="headerlink" href="#inputs-file" title="Permanent link">&para;</a></h3>
+<p>The CLI reads the household's holdings from
+<code>${PENGE_TAX_INPUTS_DIR:-data/tax}/&lt;year&gt;.json</code>. If the file does not
+exist the report is <strong>empty</strong> (zero totals, zero line items) rather
+than an error — this is the expected default before any year has been
+populated. The JSON shape is documented in
+<code>src/penge/tax/cli.py</code>; it accepts
+arrays of <code>LagerInput</code>, <code>AskAccount</code>, <code>PalInput</code>, and <code>VorabInput</code>
+records and an optional <code>fx</code> map for cross-jurisdiction currency
+conversion.</p>
+<h3 id="currency-conversion">Currency conversion<a class="headerlink" href="#currency-conversion" title="Permanent link">&para;</a></h3>
+<p>DK calculators are DKK-native; DE calculators are EUR-native. When
+<code>currency</code> differs from the native currency of a jurisdiction, the
+CLI converts amounts using the <code>fx</code> map in the inputs file
+(e.g. <code>"fx": {"DKK_to_EUR": "0.134"}</code>). A missing rate for a
+<strong>non-zero</strong> required conversion is a hard error; zero amounts pass
+through untouched so an empty report can always render in either
+currency.</p>
+<h3 id="categories">Categories<a class="headerlink" href="#categories" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Source ID format</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lager</code></td>
+<td><code>lager:&lt;account&gt;:&lt;isin&gt;</code></td>
+<td>DK lagerbeskatning gain/loss per ISIN.</td>
+</tr>
+<tr>
+<td><code>ask</code></td>
+<td><code>ask:&lt;account&gt;</code></td>
+<td>DK ASK net taxable gain (17 % settled at source).</td>
+</tr>
+<tr>
+<td><code>ask_tax_withheld</code></td>
+<td><code>ask:&lt;account&gt;</code></td>
+<td>DK ASK 17 % withheld via the account.</td>
+</tr>
+<tr>
+<td><code>pal</code></td>
+<td><code>pal:&lt;account&gt;</code></td>
+<td>DK pension return for the year.</td>
+</tr>
+<tr>
+<td><code>pal_tax_withheld</code></td>
+<td><code>pal:&lt;account&gt;</code></td>
+<td>DK PAL-skat (15.3 %) withheld by the pension provider.</td>
+</tr>
+<tr>
+<td><code>realised</code></td>
+<td><code>realised:&lt;acc&gt;:&lt;isin&gt;:&lt;n&gt;</code></td>
+<td>DK realised gain on a sell event (gennemsnitsmetoden).</td>
+</tr>
+<tr>
+<td><code>vorabpauschale</code></td>
+<td><code>de_vorab:&lt;isin&gt;</code></td>
+<td>DE deemed annual yield (post-cap, pre-Teilfreistellung).</td>
+</tr>
+<tr>
+<td><code>vorab_taxable</code></td>
+<td><code>de_vorab:&lt;isin&gt;</code></td>
+<td>DE Vorabpauschale × (1 − Teilfreistellung).</td>
+</tr>
+<tr>
+<td><code>vorab_tax_due</code></td>
+<td><code>de_vorab:&lt;isin&gt;</code></td>
+<td>DE Abgeltungsteuer (26.375 %) on the taxable amount.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="example-call_2">Example call<a class="headerlink" href="#example-call_2" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;compute_tax_year&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;year&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2024</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;jurisdictions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;DK&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DE&quot;</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="errors_2">Errors<a class="headerlink" href="#errors_2" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Invalid input (unknown jurisdiction, duplicates, unknown currency,
+  out-of-range year, extra keys) → <code>tool/input_invalid</code>.</li>
+<li>Subprocess failure (calculator validation error, malformed inputs
+  file, missing FX rate for a required conversion) → propagates the
+  Python <code>error: …</code> message and a non-zero exit code as
+  <code>tool/compute_tax_year_failed</code>.</li>
+</ul>
+<h3 id="audit_2">Audit<a class="headerlink" href="#audit_2" title="Permanent link">&para;</a></h3>
+<p>Every call is recorded by the MCP audit logger
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+status, and duration. The Python subprocess does not log financial
+data to stderr beyond the canonical <code>error: …</code> prefix on failure.</p>
+<h2 id="run_scenario"><code>run_scenario</code><a class="headerlink" href="#run_scenario" title="Permanent link">&para;</a></h2>
+<p>Runs a baseline + scenario Monte-Carlo comparison via the Phase-3
+scenario engine (<code>src/penge/sim/scenario.py</code>). Returns p10/p50/p90
+portfolio paths and a FIRE-year histogram for both the baseline and
+the scenario, plus a small <code>deltas</code> block (terminal-year p50 EUR
+delta and median-FIRE-year shift).</p>
+<p>The household baseline (cashflow, tax overlay, FIRE goal, return
+model, MC defaults) is loaded from
+<code>${PENGE_SIM_INPUTS_DIR:-data/sim}/baseline.json</code> — only the scenario
+itself and the <code>monte_carlo</code> overrides come from the wire. Missing or
+malformed baseline JSON is a hard error (no safe empty default).</p>
+<h3 id="input_3">Input<a class="headerlink" href="#input_3" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scenario_type</code></td>
+<td><code>"house_purchase" \| "work_reduction"</code></td>
+<td>Discriminator. Determines the shape of <code>params</code>.</td>
+</tr>
+<tr>
+<td><code>params</code></td>
+<td>scenario-specific (see below)</td>
+<td>Forwarded verbatim to <code>HousePurchaseScenario</code> / <code>WorkReductionScenario</code> constructors. Strict — extra keys are rejected.</td>
+</tr>
+<tr>
+<td><code>monte_carlo</code></td>
+<td><code>{ paths: int; seed?: int; horizon_years: int }</code></td>
+<td><code>paths</code> overrides <code>mc.n_paths</code>; <code>horizon_years</code> overrides <code>cashflow.horizon_years</code>; <code>seed</code> (when present) overrides <code>return_model.seed</code> for path reproducibility.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="params-for-house_purchase"><code>params</code> for <code>house_purchase</code><a class="headerlink" href="#params-for-house_purchase" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>year</code></td>
+<td><code>int</code> (2024–2100)</td>
+<td>Calendar year of purchase.</td>
+</tr>
+<tr>
+<td><code>price_eur</code></td>
+<td><code>number \| string</code></td>
+<td>Full purchase price, EUR. Strings preserve precision.</td>
+</tr>
+<tr>
+<td><code>downpayment_eur</code></td>
+<td><code>number \| string</code></td>
+<td>Down-payment, EUR. Must be <code>&lt;= price_eur</code>.</td>
+</tr>
+<tr>
+<td><code>mortgage_rate</code></td>
+<td><code>number \| string</code></td>
+<td>Annual nominal interest rate in <code>[0, 1]</code>.</td>
+</tr>
+<tr>
+<td><code>term_years</code></td>
+<td><code>int</code> (1–50)</td>
+<td>Mortgage term, years.</td>
+</tr>
+</tbody>
+</table>
+<h4 id="params-for-work_reduction"><code>params</code> for <code>work_reduction</code><a class="headerlink" href="#params-for-work_reduction" title="Permanent link">&para;</a></h4>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>entity</code></td>
+<td><code>string</code></td>
+<td>Entity identifier in the cashflow projection.</td>
+</tr>
+<tr>
+<td><code>year</code></td>
+<td><code>int</code> (2024–2100)</td>
+<td>First year the reduction takes effect.</td>
+</tr>
+<tr>
+<td><code>fte_fraction</code></td>
+<td><code>number \| string</code></td>
+<td>New FTE fraction in <code>(0, 1]</code> (e.g. <code>"0.8"</code> for 80 %).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="output_3">Output<a class="headerlink" href="#output_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>{
+  &quot;baseline&quot;: {
+    &quot;p10&quot;: { &quot;2025&quot;: 209028.14, &quot;2026&quot;: 218463.81 /* ... */ },
+    &quot;p50&quot;: {
+      /* ... */
+    },
+    &quot;p90&quot;: {
+      /* ... */
+    },
+    &quot;fire_year_distribution&quot;: { &quot;2032&quot;: 17, &quot;2033&quot;: 23 }, // empty when no path met the goal
+  },
+  &quot;scenario&quot;: {
+    /* same shape */
+  },
+  &quot;deltas&quot;: {
+    &quot;p50_value_eur&quot;: -54321.0, // terminal-year p50 delta (scenario - baseline)
+    &quot;fire_year_shift_years&quot;: 2, // median-FIRE-year shift, or null if undefined
+  },
+}
+</code></pre></div>
+<p><code>p50_value_eur</code> is the terminal-year (largest year key in
+<code>baseline.p50</code>) delta of the scenario p50 path versus the baseline p50
+path. <code>fire_year_shift_years</code> is <code>scenario.median_fire_year -
+baseline.median_fire_year</code>; either is <code>null</code> when the corresponding
+median FIRE year is undefined (fewer than 50 % of paths met the goal).</p>
+<h3 id="example-call_3">Example call<a class="headerlink" href="#example-call_3" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_scenario&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;scenario_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;work_reduction&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;entity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;person_dk&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;year&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2027</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;fte_fraction&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.8&quot;</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;monte_carlo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;paths&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;horizon_years&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">25</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="errors_3">Errors<a class="headerlink" href="#errors_3" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Invalid input (unknown <code>scenario_type</code>, missing required <code>params</code>,
+  out-of-range <code>paths</code> / <code>horizon_years</code>, extra keys) →
+  <code>tool/input_invalid</code>.</li>
+<li>Missing / unparseable
+  <code>${PENGE_SIM_INPUTS_DIR:-data/sim}/baseline.json</code> →
+  <code>tool/run_scenario_failed</code>.</li>
+<li>Subprocess failure (Pydantic validation error, scenario produces a
+  negative initial portfolio, malformed override) → propagates the
+  Python <code>error: …</code> message with a non-zero exit code as
+  <code>tool/run_scenario_failed</code>.</li>
+</ul>
+<h3 id="audit_3">Audit<a class="headerlink" href="#audit_3" title="Permanent link">&para;</a></h3>
+<p>Every call is recorded by the MCP audit logger
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+status, and duration.</p>
+<h2 id="search_documents"><code>search_documents</code><a class="headerlink" href="#search_documents" title="Permanent link">&para;</a></h2>
+<p>Search the on-disk document vault by filename, classifier metadata
+(year + type) and OCR sidecar text. Returns ranked references —
+<strong>never</strong> raw file contents. Excerpts are redacted with the same
+value-pattern policy described under "Privacy notes" below.</p>
+<h3 id="input_4">Input<a class="headerlink" href="#input_4" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>query</code></td>
+<td><code>string</code></td>
+<td>Min 2 characters. Matched case-insensitively.</td>
+</tr>
+<tr>
+<td><code>year</code></td>
+<td><code>number?</code></td>
+<td>Optional 4-digit year filter (e.g. <code>2024</code>).</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td><code>string?</code></td>
+<td>Optional classifier category (see list below).</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td><code>number?</code></td>
+<td>Defaults to 20. Min 1, max 100.</td>
+</tr>
+</tbody>
+</table>
+<p><code>type</code> accepts the categories defined in
+<code>src/penge/vault/classifier_rules.yaml</code>:</p>
+<p><code>lønseddel</code>, <code>gehaltsabrechnung</code>, <code>årsopgørelse</code>, <code>steuerbescheid</code>,
+<code>kontoauszug</code>, <code>depotauszug</code>, <code>pfa-statement</code>, <code>hypothek</code>,
+<code>grundbuch</code>, <code>versicherungspolice</code>, <code>unsorted</code>.</p>
+<h3 id="output_4">Output<a class="headerlink" href="#output_4" title="Permanent link">&para;</a></h3>
+<p>Array of:</p>
+<div class="highlight"><pre><span></span><code>{
+  &quot;vault_path&quot;: &quot;2024/kontoauszug/abcd…-gls-bank-january.pdf&quot;, // relative to PENGE_VAULT_ROOT
+  &quot;year&quot;: 2024, // null when the vault path does not start with a 4-digit year folder
+  &quot;type&quot;: &quot;kontoauszug&quot;,
+  &quot;classified_at&quot;: &quot;2024-02-02T08:00:00Z&quot;, // = vault index `filed_at`
+  &quot;hash&quot;: &quot;abcd…&quot;, // sha256 of the document
+  &quot;excerpt&quot;: &quot;…Kontoauszug Januar 2024. IBAN: [REDACTED] Saldo am 31.01: …&quot;,
+  &quot;confidence&quot;: 0.4, // search-relevance score in [0, 1]
+}
+</code></pre></div>
+<p>Hits are sorted by descending match count, then most-recently-filed,
+then <code>vault_path</code> for determinism. <code>confidence</code> is a saturating
+relevance score (<code>min(1, matches/5)</code>), not the classifier's own
+confidence (which is not persisted in the index today).</p>
+<h3 id="search-strategy">Search strategy<a class="headerlink" href="#search-strategy" title="Permanent link">&para;</a></h3>
+<p>For each entry in <code>&lt;PENGE_VAULT_ROOT&gt;/.index.json</code>:</p>
+<ol>
+<li>Apply optional <code>year</code> / <code>type</code> filters (derived from the vault path).</li>
+<li>Count case-insensitive occurrences of <code>query</code> in the filename, the
+   classifier type, and the OCR sidecar (<code>&lt;hash&gt;-&lt;slug&gt;.txt</code> next to the
+   document).</li>
+<li>Drop entries with zero matches; rank the remainder; build a ±50-char
+   excerpt around the first OCR match (falling back to the filename).</li>
+</ol>
+<h3 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Env var</th>
+<th>Default</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PENGE_VAULT_ROOT</code></td>
+<td><code>data/vault</code></td>
+<td>Vault root containing <code>.index.json</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="privacy-notes">Privacy notes<a class="headerlink" href="#privacy-notes" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>No file contents are returned.</strong> Only metadata and a short excerpt.</li>
+<li>Excerpts are run through <code>redactText</code> before leaving the process.
+  IBANs (contiguous and printed 4-char-group form, case-insensitive),
+  DK CPR numbers (<code>\d{6}-?\d{4}</code>) and long digit runs (<code>\d{8,}</code>) —
+  typical of account / customer numbers — are replaced with
+  <code>[REDACTED]</code>.</li>
+<li>The audit logger additionally redacts the <code>query</code> argument (and any
+  other key whose name matches the standard redaction policy in
+  <code>audit.ts</code>) before writing the audit record.</li>
+</ul>
+<h3 id="example-call_4">Example call<a class="headerlink" href="#example-call_4" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;search_documents&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Kontoauszug&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;year&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2024</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;limit&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
+<h3 id="errors_4">Errors<a class="headerlink" href="#errors_4" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Query shorter than 2 chars, unknown <code>type</code>, or <code>limit</code> out of
+  <code>[1, 100]</code> → <code>tool/input_invalid</code>.</li>
+<li>A missing or unreadable vault index degrades gracefully to an empty
+  result array (no error).</li>
+</ul>
+<h3 id="audit_4">Audit<a class="headerlink" href="#audit_4" title="Permanent link">&para;</a></h3>
+<p>Every call is recorded by the MCP audit logger
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+status, and duration.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

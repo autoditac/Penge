@@ -331,8 +331,10 @@ class LiquidDepotConfig(pydantic.BaseModel):
             depot is typically unavoidable during the bridge phase.
         aktieindkomst_threshold_dkk: Per-person progressive bracket
             threshold to use for this account's tax calculations.  Call
-            :func:`threshold_for_year` with the base year to get the
-            correct value.  For projections spanning multiple years the
+            :func:`threshold_for_year` with the **first projected year**
+            (``base_year + 1``) to get the correct value — taxes are
+            settled in the projected years, never in ``base_year``
+            itself.  For projections spanning multiple years the
             threshold is held constant — update :data:`AKTIEINDKOMST_THRESHOLDS`
             for more precise long-horizon results.
         opening_cost_basis_dkk: For *realisationsbeskatning* frie midler
@@ -757,10 +759,11 @@ def project_liquid(  # noqa: PLR0912
 
     Raises:
         LiquidDepotError: If ``horizon_years`` is less than 1, or if the
-            account is ASK and ``config.ask_lifetime_deposits_dkk`` already
-            exceeds the cap that applies to the first projected year
+            account is ASK and ``config.ask_lifetime_deposits_dkk``
+            exceeds the cap that applied at the end of ``base_year``
             (i.e. the configuration is impossible — SKAT could not have
-            allowed those deposits historically).
+            allowed those deposits in any year up to and including
+            ``base_year``).
     """
     if horizon_years < 1:
         raise LiquidDepotError("horizon_years must be >= 1")
@@ -1102,8 +1105,14 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
         opening = balance
 
         if not record_flows and balance <= Decimal("0"):
-            balance = _q(balance)
-            continue
+            # Binary-search bracket path: once the portfolio is depleted
+            # the candidate PMT has already proven "too high".  Break
+            # early and let the caller see a non-positive final balance.
+            # Continuing to apply withdrawals against a negative balance
+            # while letting it compound at ``monthly_net_rate`` (which
+            # may itself be negative) produced a path-dependent
+            # ``final_balance`` that broke monotonicity of the search.
+            break
 
         # Monthly return
         monthly_return = _q(balance * monthly_net_rate)

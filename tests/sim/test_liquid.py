@@ -554,7 +554,9 @@ class TestLiquidDepotConfigValidation:
 
     def test_seeded_ask_lifetime_deposits_above_cap_rejected(self) -> None:
         """ASK projections must reject configs where the seeded lifetime
-        deposits already exceed the cap for the first projected year."""
+        deposits exceed the cap that applied at the end of ``base_year``
+        — i.e. amounts SKAT could not have allowed by the time the
+        projection starts."""
         cfg = LiquidDepotConfig(
             account_id="x",
             account_type="ask",

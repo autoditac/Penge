@@ -5,7 +5,7 @@ All fixtures use synthetic data only.
 
 from __future__ import annotations
 
-from decimal import Decimal
+from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Literal
 
 import pydantic
@@ -471,6 +471,206 @@ class TestHouseholdScenario:
         rouven = proj.by_entity("rouven")
         for flow in rouven:
             ratio = flow.pension_accrual_eur / flow.gross_salary_eur
-            assert abs(ratio - Decimal("0.21")) < Decimal(
-                "0.001"
-            ), f"year {flow.year}: DC ratio {ratio} deviates from 0.21"
+            assert abs(ratio - Decimal("0.21")) < Decimal("0.001"), (
+                f"year {flow.year}: DC ratio {ratio} deviates from 0.21"
+            )
+
+
+# ---------------------------------------------------------------------------
+# TestOpeningBalance — issue #130
+# ---------------------------------------------------------------------------
+
+
+class TestOpeningBalance:
+    """Pension opening balance seeds cumulative_pension from year 1."""
+
+    def test_zero_opening_balance_is_default(self) -> None:
+        cfg = _config(salaries=(_salary(),), pension_rules=(_annual_pension(annual_eur="1000"),))
+        proj = project(cfg)
+        year1 = proj.by_entity("alice")[0]
+        # No opening balance, no growth → cumulative equals accrual
+        assert year1.cumulative_pension_eur == year1.pension_accrual_eur
+
+    def test_opening_balance_added_at_year_1(self) -> None:
+        opening = Decimal("50000")
+        cfg = CashflowConfig(
+            base_year=2024,
+            horizon_years=1,
+            inflation_rate=Decimal("0"),
+            eur_per_dkk=Decimal("0.134"),
+            salaries=(_salary(),),
+            contributions=(),
+            pension_rules=(_annual_pension(annual_eur="2000", index=False),),
+            pension_opening_balances={"alice": opening},
+        )
+        proj = project(cfg)
+        year1 = proj.by_entity("alice")[0]
+        # With no growth rate, cumulative = opening + accrual
+        assert year1.cumulative_pension_eur == opening + Decimal("2000")
+        assert year1.pension_balance_growth_eur == Decimal("0")
+
+    def test_opening_balance_without_accrual_rule(self) -> None:
+        """An opening balance for an entity with no pension rule is still tracked."""
+        opening = Decimal("10000")
+        cfg = CashflowConfig(
+            base_year=2024,
+            horizon_years=2,
+            inflation_rate=Decimal("0"),
+            eur_per_dkk=Decimal("0.134"),
+            salaries=(_salary(),),
+            contributions=(),
+            pension_rules=(),
+            pension_opening_balances={"alice": opening},
+        )
+        proj = project(cfg)
+        year1 = proj.by_entity("alice")[0]
+        assert year1.cumulative_pension_eur == opening
+        assert year1.pension_accrual_eur == Decimal("0")
+
+    def test_opening_balance_negative_raises(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="must be >= 0"):
+            CashflowConfig(
+                base_year=2024,
+                horizon_years=1,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.134"),
+                salaries=(_salary(),),
+                contributions=(),
+                pension_rules=(),
+                pension_opening_balances={"alice": Decimal("-1")},
+            )
+
+    def test_opening_balance_multi_entity(self) -> None:
+        """Each entity can carry a distinct opening balance."""
+        cfg = CashflowConfig(
+            base_year=2024,
+            horizon_years=1,
+            inflation_rate=Decimal("0"),
+            eur_per_dkk=Decimal("0.134"),
+            salaries=(_salary("alice"), _salary("bob")),
+            contributions=(),
+            pension_rules=(),
+            pension_opening_balances={"alice": Decimal("30000"), "bob": Decimal("5000")},
+        )
+        proj = project(cfg)
+        assert proj.by_entity("alice")[0].cumulative_pension_eur == Decimal("30000")
+        assert proj.by_entity("bob")[0].cumulative_pension_eur == Decimal("5000")
+
+
+# ---------------------------------------------------------------------------
+# TestPalSkat — issue #128
+# ---------------------------------------------------------------------------
+
+
+class TestPalSkat:
+    """PAL-skat reduces gross pension return; balance compounds net of tax."""
+
+    def _growth_config(
+        self,
+        opening: str,
+        gross_rate: str,
+        pal_rate: str,
+        horizon: int = 1,
+    ) -> CashflowConfig:
+        return CashflowConfig(
+            base_year=2024,
+            horizon_years=horizon,
+            inflation_rate=Decimal("0"),
+            eur_per_dkk=Decimal("0.134"),
+            salaries=(_salary(),),
+            contributions=(),
+            pension_rules=(),
+            pension_opening_balances={"alice": Decimal(opening)},
+            pension_market_return_rate=Decimal(gross_rate),
+            pal_skat_rate=Decimal(pal_rate),
+        )
+
+    def test_zero_rate_produces_no_growth(self) -> None:
+        cfg = self._growth_config("10000", "0", "0")
+        proj = project(cfg)
+        year1 = proj.by_entity("alice")[0]
+        assert year1.pension_balance_growth_eur == Decimal("0")
+        assert year1.cumulative_pension_eur == Decimal("10000")
+
+    def test_gross_return_without_pal_compounds_balance(self) -> None:
+        """10 % gross, 0 % PAL → balance grows by exactly 10 %."""
+        cfg = self._growth_config("10000", "0.10", "0")
+        proj = project(cfg)
+        year1 = proj.by_entity("alice")[0]
+        assert year1.pension_balance_growth_eur == Decimal("1000.00")
+        assert year1.cumulative_pension_eur == Decimal("11000.00")
+
+    def test_pal_skat_reduces_effective_return(self) -> None:
+        """10 % gross, 15.3 % PAL → net rate ≈ 8.47 %; growth ≈ 847 kr on 10 000."""
+        cfg = self._growth_config("10000", "0.10", "0.153")
+        proj = project(cfg)
+        year1 = proj.by_entity("alice")[0]
+        # net = 10000 * 0.10 * (1 - 0.153) = 10000 * 0.0847 = 847.00
+        assert year1.pension_balance_growth_eur == Decimal("847.00")
+        assert year1.cumulative_pension_eur == Decimal("10847.00")
+
+    def test_pal_skat_compounds_over_multiple_years(self) -> None:
+        """After 2 years of 10 % gross / 15.3 % PAL, balance compounds correctly."""
+        cfg = self._growth_config("10000", "0.10", "0.153", horizon=2)
+        proj = project(cfg)
+        flows = proj.by_entity("alice")
+        y1 = flows[0]
+        y2 = flows[1]
+        # Year 1: 10000 * 0.0847 = 847 → balance 10847
+        assert y1.pension_balance_growth_eur == Decimal("847.00")
+        assert y1.cumulative_pension_eur == Decimal("10847.00")
+        # Year 2: 10847 * 0.0847 = 918.74 (rounded)
+        net_rate = Decimal("0.10") * (Decimal("1") - Decimal("0.153"))
+        expected_growth_y2 = (Decimal("10847") * net_rate).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_EVEN
+        )
+        assert y2.pension_balance_growth_eur == expected_growth_y2
+
+    def test_pal_skat_rate_gte_1_raises(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="pal_skat_rate"):
+            CashflowConfig(
+                base_year=2024,
+                horizon_years=1,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.134"),
+                salaries=(_salary(),),
+                contributions=(),
+                pension_rules=(),
+                pal_skat_rate=Decimal("1"),
+            )
+
+    def test_negative_pal_skat_raises(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="pal_skat_rate"):
+            CashflowConfig(
+                base_year=2024,
+                horizon_years=1,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.134"),
+                salaries=(_salary(),),
+                contributions=(),
+                pension_rules=(),
+                pal_skat_rate=Decimal("-0.01"),
+            )
+
+    def test_growth_and_accrual_combine(self) -> None:
+        """Both balance growth (PAL net) and new accrual add to cumulative."""
+        cfg = CashflowConfig(
+            base_year=2024,
+            horizon_years=1,
+            inflation_rate=Decimal("0"),
+            eur_per_dkk=Decimal("0.134"),
+            salaries=(_salary(),),
+            contributions=(),
+            pension_rules=(_annual_pension(annual_eur="1000", index=False),),
+            pension_opening_balances={"alice": Decimal("10000")},
+            pension_market_return_rate=Decimal("0.10"),
+            pal_skat_rate=Decimal("0.153"),
+        )
+        proj = project(cfg)
+        year1 = proj.by_entity("alice")[0]
+        # growth: 10000 * 0.0847 = 847
+        # accrual: 1000
+        # cumulative: 10000 + 847 + 1000 = 11847
+        assert year1.pension_balance_growth_eur == Decimal("847.00")
+        assert year1.pension_accrual_eur == Decimal("1000.00")
+        assert year1.cumulative_pension_eur == Decimal("11847.00")

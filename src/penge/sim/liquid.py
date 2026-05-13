@@ -374,11 +374,14 @@ class YearlyLiquidFlow(pydantic.BaseModel):
             For *lager*: equals ``gross_return_dkk``.
             For *realisation*: equals the dividend portion only
             (``opening_balance * dividend_yield``).
-        tax_due_dkk: Annual tax payable to SKAT.  Zero if tax source is
-            ``"external"`` (paid outside the depot) or there is no taxable gain.
+        tax_due_dkk: Annual tax liability payable to SKAT.  Non-zero whenever
+            there is a taxable gain, regardless of ``tax_source``.  It is the
+            full gross liability — how the tax is *funded* is recorded
+            separately in ``tax_deducted_from_depot_dkk``.
         tax_deducted_from_depot_dkk: Portion of ``tax_due_dkk`` actually
             removed from the depot balance this year.  Zero when
-            ``tax_source == "external"``; equals ``tax_due_dkk`` otherwise.
+            ``tax_source == "external"`` (tax is paid from outside the depot);
+            equals ``tax_due_dkk`` otherwise.
         dividend_received_net_dkk: For *realisation* accounts — dividend paid
             out, net of Aktieindkomst tax, and reinvested.  Zero for *lager*.
         closing_balance_dkk: Balance at end of year after return, contribution,

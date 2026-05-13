@@ -529,11 +529,11 @@ class TestLiquidDepotConfigValidation:
             account_id="x",
             account_type="ask",
             tax_regime="lager",
-            opening_balance_dkk="62000",  # type: ignore[arg-type]
-            annual_contribution_dkk="1000",  # type: ignore[arg-type]
-            gross_annual_return_rate="0.10",  # type: ignore[arg-type]
-            annual_expense_ratio="0.001",  # type: ignore[arg-type]
-            aktieindkomst_threshold_dkk="61900",  # type: ignore[arg-type]
+            opening_balance_dkk="62000",  # type: ignore[arg-type]  # intentional: verifying Pydantic str→Decimal coercion
+            annual_contribution_dkk="1000",  # type: ignore[arg-type]  # intentional: verifying Pydantic str→Decimal coercion
+            gross_annual_return_rate="0.10",  # type: ignore[arg-type]  # intentional: verifying Pydantic str→Decimal coercion
+            annual_expense_ratio="0.001",  # type: ignore[arg-type]  # intentional: verifying Pydantic str→Decimal coercion
+            aktieindkomst_threshold_dkk="61900",  # type: ignore[arg-type]  # intentional: verifying Pydantic str→Decimal coercion
         )
         assert cfg.opening_balance_dkk == Decimal("62000")
 

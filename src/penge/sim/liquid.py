@@ -958,7 +958,7 @@ class BridgeConfig(pydantic.BaseModel):
         return _to_decimal(v)
 
     @pydantic.model_validator(mode="after")
-    def _validate(self) -> BridgeConfig:
+    def _validate(self) -> BridgeConfig:  # noqa: PLR0912
         if self.starting_balance_dkk <= Decimal("0"):
             raise ValueError("starting_balance_dkk must be > 0")
         if self.cost_basis_dkk < Decimal("0") or self.cost_basis_dkk > self.starting_balance_dkk:
@@ -968,6 +968,15 @@ class BridgeConfig(pydantic.BaseModel):
             )
         if self.horizon_months < 1:
             raise ValueError("horizon_months must be ≥ 1")
+        if self.tax_regime == "lager" and self.horizon_months % 12 != 0:
+            raise ValueError(
+                "horizon_months must be a multiple of 12 when "
+                "tax_regime='lager'; the lager settlement is computed "
+                "and deducted only on December boundaries, so a partial "
+                "final tax year would silently skip the settlement that "
+                "SKAT still expects.  Round horizon_months up/down to "
+                f"the nearest 12 (got {self.horizon_months})."
+            )
         if self.account_type == "ask" and self.tax_regime != "lager":
             raise ValueError("ASK accounts always use lager tax regime")
         net_rate = self.gross_annual_return_rate - self.annual_expense_ratio

@@ -870,6 +870,36 @@ class TestComputeBridgePmt:
                 aktieindkomst_threshold_dkk=Decimal("61900"),
             )
 
+    def test_bridge_config_lager_partial_year_rejected(self) -> None:
+        """Lager settlement is December-only; partial final tax year is rejected."""
+        with pytest.raises(
+            pydantic.ValidationError, match=r"multiple of 12 when tax_regime='lager'"
+        ):
+            BridgeConfig(
+                starting_balance_dkk=Decimal("1000000"),
+                cost_basis_dkk=Decimal("1000000"),
+                horizon_months=23,  # not a multiple of 12
+                gross_annual_return_rate=Decimal("0.08"),
+                annual_expense_ratio=Decimal("0.001"),
+                account_type="ask",
+                tax_regime="lager",
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
+    def test_bridge_config_realisation_partial_year_allowed(self) -> None:
+        """Realisation tax is settled each month; partial final year is fine."""
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("1000000"),
+            cost_basis_dkk=Decimal("1000000"),
+            horizon_months=23,
+            gross_annual_return_rate=Decimal("0.08"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        assert cfg.horizon_months == 23
+
     def test_bridge_monthly_flows_length(self) -> None:
         cfg = BridgeConfig(
             starting_balance_dkk=Decimal("500000"),

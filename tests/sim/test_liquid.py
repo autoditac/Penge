@@ -711,6 +711,24 @@ class TestLiquidDepotConfigValidation:
         diff = proj_default.flows[-1].cost_basis_dkk - proj_seeded.flows[-1].cost_basis_dkk
         assert diff == Decimal("50000")
 
+    def test_ask_lifetime_deposits_must_be_zero_for_frie_midler(self) -> None:
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="ask_lifetime_deposits_dkk must be 0 for non-ASK",
+        ):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="realisation",
+                opening_balance_dkk=Decimal("100000"),
+                ask_lifetime_deposits_dkk=Decimal("1000"),
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.05"),
+                annual_expense_ratio=Decimal("0.001"),
+                annual_dividend_yield=Decimal("0"),
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
 
 class TestComputeBridgePmt:
     """All tests verify PMT is found and that the final balance is near zero."""

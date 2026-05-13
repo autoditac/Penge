@@ -378,6 +378,12 @@ class LiquidDepotConfig(pydantic.BaseModel):
             )
         if self.ask_lifetime_deposits_dkk < Decimal("0"):
             raise ValueError("ask_lifetime_deposits_dkk must be ≥ 0")
+        if self.account_type != "ask" and self.ask_lifetime_deposits_dkk != Decimal("0"):
+            raise ValueError(
+                "ask_lifetime_deposits_dkk must be 0 for non-ASK accounts; "
+                "the cumulative-deposit cap is an ASK-only concept and a non-zero "
+                "seed on a frie-midler config would produce inconsistent flows"
+            )
         if self.aktieindkomst_threshold_dkk <= Decimal("0"):
             raise ValueError("aktieindkomst_threshold_dkk must be > 0")
         if self.opening_cost_basis_dkk is not None:
@@ -949,7 +955,7 @@ class MonthlyBridgeFlow(pydantic.BaseModel):
 BridgeResult.model_rebuild()  # resolve forward ref
 
 
-def _bridge_simulate(
+def _bridge_simulate(  # noqa: PLR0912
     starting_balance: Decimal,
     cost_basis: Decimal,
     monthly_withdrawal: Decimal,
@@ -1001,9 +1007,24 @@ def _bridge_simulate(
 
         # Withdrawal (with embedded realisation tax)
         if tax_regime == "realisation":
-            if balance > Decimal("0") and current_cost_basis < balance:
-                gain_fraction = (balance - current_cost_basis) / balance
+            # Cost-basis update uses an average-cost / proportional
+            # sale-of-units model.  The fraction of the portfolio being
+            # sold is ``monthly_withdrawal / balance_before_sale``;
+            # multiply by ``current_cost_basis`` to get the basis
+            # consumed by this sale.  This holds in both gain and loss
+            # states.  Taxable gain on the *gain* portion is clamped at
+            # zero in the loss case (no loss-carry-forward modelling),
+            # but the basis must still be reduced proportionally so the
+            # remaining basis stays representative of the remaining
+            # units.
+            if balance > Decimal("0"):
+                sale_fraction = monthly_withdrawal / balance
+                if current_cost_basis < balance:
+                    gain_fraction = (balance - current_cost_basis) / balance
+                else:
+                    gain_fraction = Decimal("0")
             else:
+                sale_fraction = Decimal("0")
                 gain_fraction = Decimal("0")
             gain_portion = _q(monthly_withdrawal * gain_fraction)
             # Apply progressive bracket on YTD basis: how much 27% headroom
@@ -1015,8 +1036,7 @@ def _bridge_simulate(
                 low_portion * AKTIEINDKOMST_LOW_RATE + high_portion * AKTIEINDKOMST_HIGH_RATE
             )
             ytd_realised_gain = _q(ytd_realised_gain + gain_portion)
-            # Update cost basis: remove the cost-basis portion of the withdrawal
-            cost_portion_of_withdrawal = _q(monthly_withdrawal * (Decimal("1") - gain_fraction))
+            cost_portion_of_withdrawal = _q(current_cost_basis * sale_fraction)
             current_cost_basis = max(
                 Decimal("0"), _q(current_cost_basis - cost_portion_of_withdrawal)
             )
@@ -1373,7 +1393,9 @@ def compare_liquid_strategies(
             account_type=fp.account_type,
             tax_regime=fp.tax_regime,
             opening_balance_dkk=opening_balance_dkk,
-            ask_lifetime_deposits_dkk=ask_lifetime_deposits_dkk,
+            ask_lifetime_deposits_dkk=(
+                ask_lifetime_deposits_dkk if fp.account_type == "ask" else Decimal("0")
+            ),
             annual_contribution_dkk=annual_contribution,
             gross_annual_return_rate=fp.gross_annual_return_rate,
             annual_expense_ratio=fp.annual_expense_ratio,

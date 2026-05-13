@@ -638,8 +638,15 @@ class TestComputeBridgePmt:
         # Total tax paid is positive (withdrawal tax)
         assert result.total_tax_paid_dkk > Decimal("0")
 
-    def test_monthly_net_less_than_gross_depot_tax(self) -> None:
-        """For Lager accounts, monthly net < monthly gross (tax accrual reduces net)."""
+    def test_monthly_net_equals_gross_for_lager_depot_tax(self) -> None:
+        """For Lager accounts, monthly net == monthly gross.
+
+        Lager tax is deducted from the depot balance each December inside
+        ``_bridge_simulate``, so the user receives the full gross monthly
+        withdrawal in their pocket; the PMT is solved against the
+        post-tax depot trajectory.  The annual lager tax is reported
+        separately via ``annual_avg_lager_tax_dkk``.
+        """
         cfg = BridgeConfig(
             starting_balance_dkk=Decimal("2000000"),
             cost_basis_dkk=Decimal("2000000"),
@@ -651,7 +658,8 @@ class TestComputeBridgePmt:
             aktieindkomst_threshold_dkk=Decimal("61900"),
         )
         result = compute_bridge_pmt(cfg)
-        assert result.monthly_net_to_pocket_dkk < result.monthly_gross_withdrawal_dkk
+        assert result.monthly_net_to_pocket_dkk == result.monthly_gross_withdrawal_dkk
+        assert result.annual_avg_lager_tax_dkk > Decimal("0")
 
     def test_total_gross_withdrawn_equals_pmt_times_months(self) -> None:
         cfg = BridgeConfig(

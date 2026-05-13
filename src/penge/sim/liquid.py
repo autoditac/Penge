@@ -14,8 +14,9 @@ portfolio split across one or more accounts with different tax treatment.
 **Frie midler — Lagerbeskatning**
   Annual mark-to-market tax at progressive Aktieindkomst rates:
 
-  * **27 %** on gains up to :data:`AKTIEINDKOMST_THRESHOLD_DKK` (2024: 61 900 DKK,
-    indexed annually — update :data:`AKTIEINDKOMST_THRESHOLDS` each year).
+  * **27 %** on gains up to the per-year threshold (2024: 61 900 DKK,
+    indexed annually — see :data:`AKTIEINDKOMST_THRESHOLDS` / use
+    :func:`threshold_for_year` to look up the value for a given year).
   * **42 %** on gains above the threshold.
 
   Applies to instruments on the ABIS list (e.g. most Irish-domiciled UCITS ETFs).
@@ -31,8 +32,11 @@ portfolio split across one or more accounts with different tax treatment.
 1. **Progressive bracket** computed from actual annual gain magnitude, not a
    fixed rate.  For a growing depot, the 27 % bracket is exhausted quickly:
    at ~625 000 DKK the 9.88 % annual gain already exceeds 61 900 DKK.
-2. **ASK capped routing**: contributions fill ASK first (cheaper 17 % tax),
-   then overflow to frie midler once the cumulative cap is exhausted.
+2. **ASK capped routing**: contributions fill ASK first (cheaper 17 % tax)
+   up to the per-year cumulative cap; once the cap is reached, additional
+   contributions are *not* deposited into ASK (the caller is responsible
+   for routing the overflow to a frie-midler depot — :func:`project_liquid`
+   does *not* implicitly move it).
 3. **Annual expense ratio (ÅOP)** deducted from gross return before tax, so the
    net-return base is correct for both account types.
 4. **Realisation regime**: only dividend yield taxed annually; capital gain
@@ -215,8 +219,11 @@ def compute_aktieindkomst_tax(
     * ``gain ≤ threshold_dkk``: taxed at ``low_rate`` (27 %)
     * ``gain > threshold_dkk``: excess taxed at ``high_rate`` (42 %)
 
-    Losses (negative gains) return zero — they are carried forward by the
-    caller.
+    Losses (negative gains) return zero.  This module does **not** track
+    aktieindkomst loss carry-forward across years — historical losses are
+    simply dropped.  Lager regimes in this module are projection-only and
+    are not used to file taxes; if loss carry-forward becomes material,
+    the caller must implement it on top of this primitive.
 
     Args:
         gain_dkk: Annual taxable gain in DKK.  Negative values return zero.
@@ -273,15 +280,17 @@ def ask_cap_for_year(year: int) -> Decimal:
 
     Uses :data:`_ASK_DEPOSIT_CAPS_EXTENDED` which extends the confirmed
     :data:`penge.tax.aktiesparekonto.ASK_DEPOSIT_CAPS` table with estimates
-    for future years.
+    for future years.  For years beyond the last configured year the
+    function falls back to the last known cap (conservative for planning —
+    no implicit increase).  For years before the earliest configured year
+    it raises :class:`LiquidDepotError`.
 
     Raises:
-        LiquidDepotError: If no cap is available for *year* (too far in the
-            future for even an estimate).
+        LiquidDepotError: If *year* is earlier than the earliest configured
+            year (no historical cap available).
     """
     if year in _ASK_DEPOSIT_CAPS_EXTENDED:
         return _ASK_DEPOSIT_CAPS_EXTENDED[year]
-    # Fall back to last known cap (not an increase — conservative for planning)
     last = max(_ASK_DEPOSIT_CAPS_EXTENDED)
     if year > last:
         return _ASK_DEPOSIT_CAPS_EXTENDED[last]
@@ -767,7 +776,7 @@ class MonthlyBridgeFlow(pydantic.BaseModel):
     withdrawal_tax_dkk: Decimal
     withdrawal_net_dkk: Decimal
     lager_tax_dkk: Decimal
-    """Annual lager tax deducted at December (non-zero only in month % 12 == 0)."""
+    # Annual lager tax deducted at December (non-zero only when month % 12 == 0).
     closing_balance_dkk: Decimal
     cost_basis_dkk: Decimal
 
@@ -933,7 +942,7 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
     monthly_net_rate = Decimal(str((1.0 + annual_net_float) ** (1.0 / 12.0) - 1.0))
 
     # PMT bounds: lower is 0; upper is starting_balance / horizon_months (no return)
-    lo = Decimal("1")
+    lo = Decimal("0")
     hi = _q(config.starting_balance_dkk / Decimal(str(config.horizon_months)))
 
     # If the initial hi under-withdraws (portfolio grows faster than we draw),
@@ -1010,11 +1019,17 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
         else Decimal("0")
     )
 
-    # Net to pocket: for Lager the user receives the gross withdrawal but owes
-    # the annual Lager tax separately; net = gross - avg monthly Lager tax accrual.
-    # For Realisation the tax is embedded in each withdrawal.
+    # Net to pocket:
+    #   - Lager regime: tax is deducted from the depot balance inside
+    #     `_bridge_simulate` (December of each year), so the user receives
+    #     the full monthly gross withdrawal in their pocket. The PMT was
+    #     solved against a post-tax depot trajectory, so monthly_pmt itself
+    #     is already the sustainable in-pocket amount.
+    #   - Realisation regime: tax is embedded in each monthly withdrawal
+    #     (gross - tax = net).  Average it back so the headline net figure
+    #     is comparable to the lager case.
     if config.tax_regime == "lager":
-        monthly_net = _q(monthly_pmt - avg_annual_lager / Decimal("12"))
+        monthly_net = monthly_pmt
     else:
         avg_withdrawal_tax = _q(
             sum((f.withdrawal_tax_dkk for f in flows), Decimal("0"))

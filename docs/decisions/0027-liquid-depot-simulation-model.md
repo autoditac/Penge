@@ -31,8 +31,14 @@ assumption to be explicit, year-aware, and unit-testable.
 - **Year-indexed satser.** SKAT publishes new aktieindkomst thresholds and
   ASK caps every year — the model must surface uncertainty for years that
   fall outside the confirmed table.
-- **Reproducibility.** All inputs are `Decimal`; no float arithmetic in
-  user-visible flows.
+- **Reproducibility.** All monetary inputs and outputs are `Decimal`.
+  Float arithmetic is permitted only for the one-time conversion of the
+  annual net rate to a monthly rate (`(1 + r)^(1/12) - 1`) inside
+  `compute_bridge_pmt` and in the FIRE-comparison return projection in
+  `compare_liquid_strategies`, where Decimal lacks a fractional `pow`.
+  The float result is immediately re-quantised back to `Decimal`; all
+  downstream accounting (balances, taxes, withdrawals) stays in
+  `Decimal`.
 
 ## Considered Options
 
@@ -50,10 +56,18 @@ following modelling invariants:
   (`project_liquid` → `YearlyLiquidFlow`), one per **month** in the bridge
   (`compute_bridge_pmt` → `MonthlyBridgeFlow`).
 - **ASK**: flat 17 % Lager (`penge.tax.aktiesparekonto.ASK_RATE`); annual
-  contributions hit the cumulative `ASK_DEPOSIT_CAPS_EXTENDED` cap before
-  overflowing to frie midler.
+  contributions are capped at the cumulative ASK deposit limit returned
+  by `ask_cap_for_year()` (which reads the internal
+  `_ASK_DEPOSIT_CAPS_EXTENDED` table). Contributions above the cap are
+  *not* moved into ASK; routing the overflow to a frie-midler depot is
+  the caller's responsibility (`project_liquid` does not do it
+  implicitly).
 - **Frie midler Lager**: progressive 27 %/42 % on annual mark-to-market
-  gain, threshold from `AKTIEINDKOMST_THRESHOLDS[year]`.
+  gain. The threshold used in the simulation is the per-config
+  `LiquidDepotConfig.aktieindkomst_threshold_dkk` (held constant across
+  the horizon — the caller chooses which year's value to seed it with);
+  `AKTIEINDKOMST_THRESHOLDS` / `threshold_for_year()` are exposed for
+  callers that need the per-year value.
 - **Frie midler Realisation**: dividends taxed at aktieindkomst rates in
   the year received; capital gain deferred. The bridge withdrawal computes
   the **gain fraction** from the current cost basis and taxes only that

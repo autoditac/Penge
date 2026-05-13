@@ -97,7 +97,9 @@ __all__ = [
     "TaxRegime",
     "TaxSource",
     "YearlyLiquidFlow",
+    "ask_cap_for_year",
     "compare_liquid_strategies",
+    "compute_aktieindkomst_tax",
     "compute_bridge_pmt",
     "project_liquid",
     "threshold_for_year",
@@ -414,7 +416,17 @@ class YearlyLiquidFlow(pydantic.BaseModel):
         year: Calendar year.
         account_id: Account identifier from the config.
         opening_balance_dkk: Balance at the start of the year (DKK).
-        annual_contribution_dkk: Amount added during the year (DKK).
+        annual_contribution_dkk: Amount actually deposited during the year
+            (DKK).  For ASK accounts this is the contribution after the
+            cumulative deposit-cap clamp — any portion that did not fit
+            is surfaced in ``contribution_overflow_dkk``.  For frie midler
+            this always equals the configured ``annual_contribution_dkk``.
+        contribution_overflow_dkk: Amount the caller asked to contribute
+            this year that exceeded the ASK cap and was therefore *not*
+            deposited (DKK).  Zero for frie midler.  Callers that want to
+            route the overflow into a frie-midler depot should sum this
+            field across the projection and feed it into a second
+            :func:`project_liquid` run.
         gross_return_dkk: Return on the opening balance at the net-of-ÅOP
             rate (``opening_balance * (gross_rate - ÅOP)``), in DKK.
         taxable_gain_dkk: The portion of the gain subject to annual tax.
@@ -430,7 +442,12 @@ class YearlyLiquidFlow(pydantic.BaseModel):
             ``tax_source == "external"`` (tax is paid from outside the depot);
             equals ``tax_due_dkk`` otherwise.
         dividend_received_net_dkk: For *realisation* accounts — dividend paid
-            out, net of Aktieindkomst tax, and reinvested.  Zero for *lager*.
+            out and reinvested into the depot.  When
+            ``tax_source == "depot"`` this is ``dividend_gross - tax_due``
+            (the tax is taken at the source); when
+            ``tax_source == "external"`` the full ``dividend_gross`` is
+            reinvested because the tax is settled from outside funds.
+            Zero for *lager*.
         closing_balance_dkk: Balance at end of year after return, contribution,
             dividends, and any depot-deducted tax.
         cost_basis_dkk: For *realisation* accounts — cumulative amount
@@ -447,6 +464,7 @@ class YearlyLiquidFlow(pydantic.BaseModel):
     account_id: str
     opening_balance_dkk: Decimal
     annual_contribution_dkk: Decimal
+    contribution_overflow_dkk: Decimal = Decimal("0")
     gross_return_dkk: Decimal
     taxable_gain_dkk: Decimal
     tax_due_dkk: Decimal
@@ -634,16 +652,30 @@ def project_liquid(
         )
         if is_realisation_frie:
             dividend_gross = _q(opening_balance * config.annual_dividend_yield)
-            dividend_net = _q(dividend_gross - tax_due)
+            # The dividend is paid out of the gross return.  Which net
+            # amount reinvests into the depot depends on tax_source:
+            #   - "depot":    SKAT takes its cut directly from the dividend,
+            #                 only the net flows back into the depot.
+            #   - "external": the depot reinvests the full gross dividend;
+            #                 the tax is settled from outside funds.
+            # In either case `tax_due_dkk` reports the full liability and
+            # `tax_deducted_from_depot_dkk` reports the actual depot impact.
+            if config.tax_source == "depot":
+                dividend_net = _q(dividend_gross - tax_due)
+            else:
+                dividend_net = dividend_gross
         else:
             dividend_gross = Decimal("0")
             dividend_net = Decimal("0")
 
         contribution = config.annual_contribution_dkk
+        contribution_overflow = Decimal("0")
         if config.account_type == "ask":
+            uncapped_contribution = contribution
             contribution, cumulative_ask_deposits = _apply_ask_cap(
                 config, year, contribution, cumulative_ask_deposits
             )
+            contribution_overflow = _q(uncapped_contribution - contribution)
 
         balance, cost_basis = _closing_balance_and_basis(
             config,
@@ -662,6 +694,7 @@ def project_liquid(
                 account_id=config.account_id,
                 opening_balance_dkk=opening_balance,
                 annual_contribution_dkk=contribution,
+                contribution_overflow_dkk=contribution_overflow,
                 gross_return_dkk=gross_return,
                 taxable_gain_dkk=taxable_gain,
                 tax_due_dkk=tax_due,
@@ -924,7 +957,7 @@ def _bridge_simulate(
     return balance, flows
 
 
-def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
+def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
     """Find the monthly gross withdrawal that depletes the portfolio in ``horizon_months``.
 
     Uses binary search over a full monthly simulation.  The simulation models:
@@ -1054,12 +1087,17 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
     total_tax = sum((f.withdrawal_tax_dkk + f.lager_tax_dkk for f in flows), Decimal("0"))
     total_tax = _q(total_tax)
 
-    annual_lager_taxes = [f.lager_tax_dkk for f in flows if f.lager_tax_dkk > Decimal("0")]
-    avg_annual_lager = (
-        _q(sum(annual_lager_taxes, Decimal("0")) / Decimal(str(len(annual_lager_taxes))))
-        if annual_lager_taxes
-        else Decimal("0")
-    )
+    # Average the annual lager tax over the number of full December
+    # checkpoints in the horizon (i.e., tax years actually settled),
+    # including any zero-tax years.  Averaging over only the non-zero
+    # years would bias the headline upward.  A horizon shorter than 12
+    # months has no December settlement → report zero.
+    tax_year_count = config.horizon_months // 12
+    if config.tax_regime == "lager" and tax_year_count > 0:
+        total_lager_tax = sum((f.lager_tax_dkk for f in flows), Decimal("0"))
+        avg_annual_lager = _q(total_lager_tax / Decimal(str(tax_year_count)))
+    else:
+        avg_annual_lager = Decimal("0")
 
     # Net to pocket:
     #   - Lager regime: tax is deducted from the depot balance inside

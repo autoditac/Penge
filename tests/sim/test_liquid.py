@@ -403,17 +403,37 @@ class TestProjectLiquidFrieRealisation:
         expected_tax = expected_dividend_gross * Decimal("0.27")
         assert abs(flow.tax_due_dkk - expected_tax) < Decimal("0.02")
 
-        # Gross return = 200 000 * (0.10 - 0.0049) = 200 000 * 0.0951 = 19 020
-        # Capital appreciation = gross_return - dividend_gross = 19 020 - 1 000 = 18 020
-        # Net dividend = 1 000 - 270 = 730
-        # balance = 200 000 + 18 020 + 730 = 218 750
-        expected_capital_appreciation = Decimal("200000") * (
-            Decimal("0.10") - Decimal("0.0049") - Decimal("0.005")
+        # Default tax_source is "external" → tax is settled from outside
+        # funds, so the full gross dividend is reinvested into the depot.
+        # closing = opening + gross_return + contribution
+        #         = 200_000 + 200_000 * (0.10 - 0.0049) + 0 = 219_020
+        expected_balance = Decimal("200000") + Decimal("200000") * (
+            Decimal("0.10") - Decimal("0.0049")
         )
+        assert abs(flow.closing_balance_dkk - expected_balance) < Decimal("1.00")
+        # tax_deducted_from_depot should be zero for external source
+        assert flow.tax_deducted_from_depot_dkk == Decimal("0")
+        # dividend_received_net is the full gross when paid externally
+        assert abs(flow.dividend_received_net_dkk - expected_dividend_gross) < Decimal("0.02")
+
+    def test_dividend_tax_from_depot_reduces_reinvested_amount(self) -> None:
+        """For realisation + tax_source='depot', net dividend reflects the tax."""
+        cfg = _frie_realisation_config(
+            opening="200000", dividend_yield="0.005", tax_source="depot"
+        )
+        proj = project_liquid(cfg, base_year=2024, horizon_years=1)
+        flow = proj.flows[0]
+        expected_dividend_gross = Decimal("200000") * Decimal("0.005")
+        expected_tax = expected_dividend_gross * Decimal("0.27")
+        expected_net = expected_dividend_gross - expected_tax
+        assert abs(flow.dividend_received_net_dkk - expected_net) < Decimal("0.02")
+        assert abs(flow.tax_deducted_from_depot_dkk - expected_tax) < Decimal("0.02")
+        # closing = opening + capital_appreciation + dividend_net
+        #         = 200_000 + 18_020 + 730 = 218_750
         expected_balance = (
             Decimal("200000")
-            + expected_capital_appreciation
-            + (expected_dividend_gross - expected_tax)
+            + Decimal("200000") * (Decimal("0.10") - Decimal("0.0049") - Decimal("0.005"))
+            + expected_net
         )
         assert abs(flow.closing_balance_dkk - expected_balance) < Decimal("1.00")
 

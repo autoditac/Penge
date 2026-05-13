@@ -313,10 +313,18 @@ class LiquidDepotConfig(pydantic.BaseModel):
             lager; frie midler can be either.
         opening_balance_dkk: Current account value in DKK at the start
             of the projection.  Must be ≥ 0.
-        ask_lifetime_deposits_dkk: For ASK only — total cumulative net
-            deposits ever made into the account (DKK).  Used to determine
-            how much deposit room remains before the cap is reached.
-            Ignored for frie midler.
+        ask_lifetime_deposits_dkk: For ASK only — cumulative **net**
+            deposits ever made into the account (DKK).  This is the
+            SKAT-defined accounting basis for the ASK deposit cap:
+            withdrawals reduce this running total (see
+            :func:`penge.tax.aktiesparekonto.check_deposit_cap`).  The
+            accumulation projection in this module does **not** model
+            intra-horizon withdrawals from ASK, so once seeded the value
+            only grows (capped at the per-year limit returned by
+            :func:`ask_cap_for_year`).  If you later add withdrawal
+            modelling to ASK accumulation, the per-year tracker must
+            decrement on withdrawal to preserve cap headroom.  Ignored
+            for frie midler.
         annual_contribution_dkk: Amount added to this account per year
             (DKK at base-year prices, not inflation-adjusted).
         gross_annual_return_rate: Expected annual gross return rate
@@ -547,11 +555,14 @@ def _closing_balance_and_basis(
 ) -> tuple[Decimal, Decimal]:
     """Return (closing_balance, updated_cost_basis)."""
     if config.tax_regime == "realisation" and config.account_type == "frie_midler":
-        # Capital appreciation = gross_return minus the distributed dividend
+        # Capital appreciation = gross_return minus the distributed dividend.
+        # dividend_net is already net of dividend tax, so we must NOT also
+        # subtract tax_deducted here for tax_source == "depot" — that would
+        # double-debit the dividend tax against the depot.  The full
+        # liability is reported via tax_due / total_tax_due_dkk; the
+        # balance impact lives entirely in dividend_net.
         capital_appreciation = _q(gross_return - dividend_gross)
-        closing = _q(
-            opening_balance + capital_appreciation + dividend_net - tax_deducted + contribution
-        )
+        closing = _q(opening_balance + capital_appreciation + dividend_net + contribution)
         new_cost_basis = _q(cost_basis + contribution + dividend_net)
     else:
         # Lager: full gross return, minus any depot-deducted tax
@@ -958,8 +969,18 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
             "a -100 % or worse net return cannot compound"
         )
     # Monthly rate: (1 + annual_net_rate)^(1/12) - 1
-    # Computed in float for Newton-precision, then back to Decimal
+    # Computed in float for Newton-precision, then back to Decimal.
+    # Guard against float underflow collapsing values just above -1 down to
+    # exactly -1.0 (which would produce monthly_net_rate == -1.0 and a
+    # totally-wiped trajectory).  Decimal lacks a fractional pow, so we
+    # accept a small float trip but reject the degenerate result.
     annual_net_float = float(annual_net_rate)
+    if annual_net_float <= -1.0:
+        raise LiquidDepotError(
+            f"annual net rate {annual_net_rate} collapses to ≤ -100 % when "
+            "converted to float for the fractional-exponent monthly-rate "
+            "calculation; choose a less extreme return / expense ratio."
+        )
     monthly_net_rate = Decimal(str((1.0 + annual_net_float) ** (1.0 / 12.0) - 1.0))
 
     # PMT bounds: lower is 0; upper is starting_balance / horizon_months (no return)

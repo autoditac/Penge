@@ -59,12 +59,13 @@ class ConfigComparisonResult(pydantic.BaseModel):
         total_contributions_eur: Per-entity sum of ``liquid_contribution_eur``
             across all projected years (own contributions to the liquid
             portfolio, gross of taxes).
-        total_liquid_eur: Alias of ``total_contributions_eur`` retained for
-            API compatibility with the issue spec.  Both refer to the
-            cumulative liquid contribution stream; once a tax-aware liquid
-            balance projection is integrated (see
-            :mod:`penge.sim.liquid`), this will diverge from
-            ``total_contributions_eur`` to expose the after-tax balance.
+        total_liquid_eur: Currently equal to ``total_contributions_eur`` —
+            both summarise the gross liquid contribution stream.  Retained
+            as a separate field for API stability so that, once a tax-aware
+            liquid balance projection is integrated (see
+            :mod:`penge.sim.liquid`), this can diverge to expose the
+            after-tax balance without breaking callers.  Treat the two
+            fields as semantically distinct even when the values match.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -138,9 +139,10 @@ def compare_configs(
 
     Args:
         *scenarios: One or more ``(label, CashflowConfig)`` tuples.  Labels
-            must be unique and non-empty.  At least two scenarios are
-            required for a comparison to be meaningful, but a single
-            scenario is also accepted (returns a one-element comparison).
+            must be unique and non-empty.  A single scenario is accepted
+            (the result is a one-element comparison), but the function is
+            most useful with two or more scenarios where ``diff_*`` helpers
+            actually carry information.
 
     Returns:
         A :class:`ConfigComparison` preserving input order.
@@ -171,7 +173,7 @@ def compare_configs(
                 projection=projection,
                 end_balance_eur=end_balance,
                 total_contributions_eur=total_contrib,
-                total_liquid_eur=dict(total_contrib),
+                total_liquid_eur=total_contrib,
             )
         )
 

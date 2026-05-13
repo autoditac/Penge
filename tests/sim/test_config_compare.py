@@ -131,11 +131,11 @@ def test_high_vs_low_contribution_comparison() -> None:
     assert diff["alice"] < Decimal("0")
 
 
-def test_total_liquid_alias_matches_total_contributions() -> None:
+def test_total_liquid_currently_equals_total_contributions() -> None:
+    """Until tax-aware liquid balance lands, the two summary metrics agree."""
     cmp = compare_configs(("a", _config(horizon=5)))
     only = cmp.by_label("a")
     assert only.total_liquid_eur == only.total_contributions_eur
-    assert only.total_liquid_eur is not only.total_contributions_eur
 
 
 def test_by_label_unknown_raises_keyerror() -> None:

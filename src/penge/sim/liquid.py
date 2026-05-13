@@ -1453,6 +1453,30 @@ class FundProfile(pydantic.BaseModel):
     def _coerce(cls, v: object) -> Decimal:
         return _to_decimal(v)
 
+    @pydantic.model_validator(mode="after")
+    def _validate(self) -> FundProfile:
+        # Mirror the cross-field invariants of LiquidDepotConfig so that
+        # compare_liquid_strategies never has to feed a logically invalid
+        # profile into LiquidDepotConfig (which would surface as an
+        # opaque ValidationError from deep inside the comparison loop).
+        if self.account_type == "ask" and self.tax_regime != "lager":
+            raise ValueError("ASK accounts always use lager tax regime")
+        if self.account_type == "ask" and self.annual_dividend_yield != Decimal("0"):
+            raise ValueError(
+                "ASK accounts mark to market; dividends are taxed via the "
+                "annual lager settlement, not separately"
+            )
+        if self.tax_regime == "lager" and self.annual_dividend_yield != Decimal("0"):
+            raise ValueError(
+                "lager-regime accounts roll dividends into the annual "
+                "mark-to-market settlement; set annual_dividend_yield=0"
+            )
+        if self.annual_expense_ratio < Decimal("0"):
+            raise ValueError("annual_expense_ratio must be >= 0")
+        if self.annual_dividend_yield < Decimal("0"):
+            raise ValueError("annual_dividend_yield must be >= 0")
+        return self
+
 
 class StrategyComparisonRow(pydantic.BaseModel):
     """Result row for one strategy in a multi-strategy comparison."""

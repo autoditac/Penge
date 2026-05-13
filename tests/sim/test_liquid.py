@@ -1252,3 +1252,70 @@ class TestAccumulationToBridgePipeline:
         bridge_result = compute_bridge_pmt(bridge_cfg)
         tolerance = terminal * Decimal("0.005")
         assert abs(bridge_result.final_balance_dkk) < tolerance
+
+
+class TestFundProfileValidation:
+    """FundProfile must enforce the same cross-field invariants as LiquidDepotConfig.
+
+    Otherwise ``compare_liquid_strategies`` translates a logically invalid
+    profile into an opaque ``LiquidDepotConfig`` ValidationError deep in
+    the comparison loop instead of failing fast at profile construction.
+    """
+
+    def test_ask_with_realisation_regime_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="ASK accounts"):
+            FundProfile(
+                label="bad",
+                isin="X",
+                account_type="ask",
+                tax_regime="realisation",
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("0.005"),
+            )
+
+    def test_ask_with_dividend_yield_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="ASK accounts"):
+            FundProfile(
+                label="bad",
+                isin="X",
+                account_type="ask",
+                tax_regime="lager",
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("0.005"),
+                annual_dividend_yield=Decimal("0.02"),
+            )
+
+    def test_lager_with_dividend_yield_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="lager-regime"):
+            FundProfile(
+                label="bad",
+                isin="X",
+                account_type="frie_midler",
+                tax_regime="lager",
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("0.005"),
+                annual_dividend_yield=Decimal("0.02"),
+            )
+
+    def test_negative_expense_ratio_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="annual_expense_ratio"):
+            FundProfile(
+                label="bad",
+                isin="X",
+                account_type="frie_midler",
+                tax_regime="realisation",
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("-0.001"),
+            )
+
+    def test_valid_realisation_with_dividend_accepted(self) -> None:
+        profile = FundProfile(
+            label="ok",
+            isin="X",
+            account_type="frie_midler",
+            tax_regime="realisation",
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.005"),
+            annual_dividend_yield=Decimal("0.02"),
+        )
+        assert profile.annual_dividend_yield == Decimal("0.02")

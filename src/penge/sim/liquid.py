@@ -54,11 +54,11 @@ portfolio split across one or more accounts with different tax treatment.
 
 * All monetary inputs and outputs are in **DKK**.
 * Tax payment source matters for the accumulation simulation:
-  - ``TaxSource.EXTERNAL``: Lager tax paid from salary or outside savings; the
-    depot balance grows at the full net rate — maximises compound growth.
-  - ``TaxSource.DEPOT``: tax deducted from the depot balance, forcing a notional
-    partial liquidation.  This is the only option during the bridge phase
-    (no external income to pay from).
+  - ``tax_source="external"``: Lager tax paid from salary or outside savings;
+    the depot balance grows at the full net rate — maximises compound growth.
+  - ``tax_source="depot"``: tax deducted from the depot balance, forcing a
+    notional partial liquidation.  This is the only option during the bridge
+    phase (no external income to pay from).
 * The AKTIEINDKOMST_THRESHOLDS table must be updated each year when SKAT
   publishes its satser.  Projections for future years fall back to the last
   known threshold — a conservative choice because it classifies more gain at
@@ -92,15 +92,12 @@ __all__ = [
     "AKTIEINDKOMST_HIGH_RATE",
     "AKTIEINDKOMST_LOW_RATE",
     "AKTIEINDKOMST_THRESHOLDS",
-    "AccountType",
     "BridgeConfig",
     "BridgeResult",
     "FundProfile",
     "LiquidDepotConfig",
     "LiquidDepotError",
     "LiquidProjection",
-    "TaxRegime",
-    "TaxSource",
     "YearlyLiquidFlow",
     "ask_cap_for_year",
     "compare_liquid_strategies",
@@ -151,40 +148,6 @@ _ASK_DEPOSIT_CAPS_EXTENDED: Final[Mapping[int, Decimal]] = {
 
 class LiquidDepotError(Exception):
     """Raised on invalid liquid depot configuration or calculation error."""
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Enumerations
-# ──────────────────────────────────────────────────────────────────────────────
-
-
-class AccountType(str):
-    """Values for :attr:`LiquidDepotConfig.account_type`."""
-
-    ASK = "ask"
-    FRIE_MIDLER = "frie_midler"
-
-
-class TaxRegime(str):
-    """Values for :attr:`LiquidDepotConfig.tax_regime`."""
-
-    LAGER = "lager"
-    REALISATION = "realisation"
-
-
-class TaxSource(str):
-    """Where the annual Lager tax is sourced from.
-
-    ``EXTERNAL``: paid from salary or other outside savings — the depot
-    balance is unaffected, maximising compound growth.
-
-    ``DEPOT``: tax deducted from the depot balance itself (forced notional
-    sell).  Required when there is no external income, e.g. during the bridge
-    phase.
-    """
-
-    EXTERNAL = "external"
-    DEPOT = "depot"
 
 
 # ──────────────────────────────────────────────────────────────────────────────

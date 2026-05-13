@@ -77,9 +77,10 @@ following modelling invariants:
   latest known value for *future* years (conservative — assumes no further
   indexation) and **raise `LiquidDepotError`** for years *before* the
   earliest configured year (no silent back-projection).
-- **All Decimal inputs are validated via `_to_decimal`** which rejects
-  `NaN`/`Infinity` and raises a clear `ValueError` (consistent with
-  `penge.sim.cashflow._to_decimal`).
+- **All Decimal inputs are validated via the shared sim helper
+  `penge.sim._decimal_utils.to_decimal`** (imported as `_to_decimal` in
+  both `cashflow.py` and `liquid.py`), which rejects `NaN`/`Infinity`
+  and raises a clear `ValueError`.
 - **Bridge PMT search** validates `annual_net_rate > -1` up front; grows
   the upper bracket in a loop until depletion is bracketed; aborts with a
   clear error if no positive PMT can deplete the depot within the horizon

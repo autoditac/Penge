@@ -126,7 +126,7 @@ following modelling invariants:
 - **Dividend yield is interpreted as net of ÅOP.**  Internally the
   realisation split subtracts `opening_balance × annual_dividend_yield`
   from the **post-ÅOP** `gross_return` to derive capital appreciation.
-  Suppliying a *gross* dividend yield would overstate taxable
+  Supplying a *gross* dividend yield would overstate taxable
   dividends.  Use factsheet yields that already net out ÅOP, or
   pre-adjust before passing.
 

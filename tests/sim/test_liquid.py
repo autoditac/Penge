@@ -261,23 +261,28 @@ class TestProjectLiquidAsk:
 
     def test_ask_cap_limits_contribution(self) -> None:
         """Contributions to ASK are capped at the remaining lifetime cap room."""
-        # lifetime deposits = 141 000, 2025 cap = 142 500, room = 1 500 DKK
+        # Seeded at end of base_year=2024 with 135 900 (the 2024 cap).
+        # First projected year is 2025 (cap 142 500), so the room for new
+        # deposits in 2025 is 142 500 - 135 900 = 6 600 DKK.
         cfg = _ask_config(
-            lifetime_deposits="141000",
+            lifetime_deposits="135900",
             annual_contribution="20000",  # would exceed cap
         )
         proj = project_liquid(cfg, base_year=2024, horizon_years=1)
         flow = proj.flows[0]
-        assert flow.annual_contribution_dkk == Decimal("1500")
+        assert flow.annual_contribution_dkk == Decimal("6600")
         assert flow.cumulative_ask_deposits_dkk == Decimal("142500")
 
     def test_ask_cap_exhausted_no_contribution(self) -> None:
         """No contributions allowed when cap is fully used."""
+        # base_year=2026 → seed cap = extrapolated 2026 cap = 148 000.
+        # First projected year is 2027 which the cap table extrapolates
+        # to the last known year (148 000), so no room remains.
         cfg = _ask_config(
-            lifetime_deposits="142500",  # 2025 cap
+            lifetime_deposits="148000",
             annual_contribution="10000",
         )
-        proj = project_liquid(cfg, base_year=2024, horizon_years=1)
+        proj = project_liquid(cfg, base_year=2026, horizon_years=1)
         assert proj.flows[0].annual_contribution_dkk == Decimal("0")
 
     def test_ask_multi_year_compounding(self) -> None:

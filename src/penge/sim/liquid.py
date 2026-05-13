@@ -766,12 +766,17 @@ def project_liquid(  # noqa: PLR0912
         raise LiquidDepotError("horizon_years must be >= 1")
 
     if config.account_type == "ask":
-        first_year = base_year + 1
-        applicable_cap = ask_cap_for_year(first_year)
-        if config.ask_lifetime_deposits_dkk > applicable_cap:
+        # ``ask_lifetime_deposits_dkk`` reflects deposits made up to and
+        # including ``base_year`` — by the time the first projected year
+        # (``base_year + 1``) starts, no further deposits have happened
+        # yet, so the bound that any historical deposit run must respect
+        # is the cap **of ``base_year``** (or any earlier year, which is
+        # ≤ ``base_year``'s cap given the cap is monotone non-decreasing).
+        seed_cap = ask_cap_for_year(base_year)
+        if config.ask_lifetime_deposits_dkk > seed_cap:
             raise LiquidDepotError(
                 f"ask_lifetime_deposits_dkk ({config.ask_lifetime_deposits_dkk}) "
-                f"exceeds the {first_year} ASK cap ({applicable_cap}); "
+                f"exceeds the {base_year} ASK cap ({seed_cap}); "
                 "the seeded cumulative deposits cannot exceed what SKAT "
                 "would have allowed historically. Check the configuration."
             )
@@ -1096,6 +1101,10 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
     for month in range(1, horizon_months + 1):
         opening = balance
 
+        if not record_flows and balance <= Decimal("0"):
+            balance = _q(balance)
+            continue
+
         # Monthly return
         monthly_return = _q(balance * monthly_net_rate)
         balance = balance + monthly_return
@@ -1163,6 +1172,15 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
             else:
                 # End of tax year — reset progressive headroom tracker
                 ytd_realised_gain = Decimal("0")
+
+        if tax_regime == "lager":
+            # Lager regimes mark to market every year, so the seed
+            # cost_basis is no longer meaningful after the bridge
+            # starts.  Keep ``current_cost_basis`` tracking the current
+            # balance so the reported ``MonthlyBridgeFlow.cost_basis_dkk``
+            # stays consistent with the balance instead of getting stuck
+            # at the starting value.
+            current_cost_basis = balance
 
         if record_flows:
             flows.append(

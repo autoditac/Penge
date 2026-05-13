@@ -4,9 +4,11 @@ Every sim sub-module accepts user-supplied numbers (from CSV rows,
 scenario YAML, Pydantic models) and needs to coerce them into
 ``Decimal`` while rejecting NaN / Infinity and unconvertible inputs.
 
-Historically ``cashflow.py`` and ``liquid.py`` each carried their own
-``_to_decimal`` helper, which risked drift in validation/error
-messages.  This module is the single canonical implementation.
+Some sim sub-modules previously carried their own ``_to_decimal``
+helper, which risked drift in validation/error messages.  This module
+is the single canonical implementation, re-exported as ``_to_decimal``
+by callers (e.g. ``cashflow`` and ``liquid``) that retain the leading
+underscore for backwards compatibility with their existing imports.
 """
 
 from __future__ import annotations

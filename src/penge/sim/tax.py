@@ -204,7 +204,14 @@ def apply_tax(
 
     - ``gross_salary_eur``      → ``gross_salary_eur * (1 - salary_income_tax_rate)``
     - ``pension_accrual_eur``   → ``pension_accrual_eur * (1 - pension_return_tax_rate)``
-    - ``cumulative_pension_eur`` → re-accumulated from netted accruals
+    - ``pension_balance_growth_eur`` → passed through unchanged (already net of
+      PAL-skat applied by the cashflow engine via ``pal_skat_rate``).  Callers
+      using ``CashflowConfig.pal_skat_rate`` should set
+      ``pension_return_tax_rate=0`` on the regime to avoid double-applying
+      PAL-skat.
+    - ``cumulative_pension_eur`` → adjusted by the accrual delta
+      (``original_cumulative - original_accrual + net_accrual``) so that
+      the opening balance and balance-growth components are preserved.
     - ``liquid_contribution_eur`` → unchanged (it is a fixed saving budget,
       already modelled as a post-tax amount in the caller's config)
 
@@ -220,7 +227,6 @@ def apply_tax(
     if not tax_config.enabled:
         return projection
 
-    cumulative_pension: dict[str, Decimal] = {}
     net_flows: list[YearlyFlow] = []
 
     for flow in projection.flows:
@@ -232,9 +238,9 @@ def apply_tax(
         net_salary = _apply_rate(flow.gross_salary_eur, regime.salary_income_tax_rate)
         net_accrual = _apply_rate(flow.pension_accrual_eur, regime.pension_return_tax_rate)
 
-        cumulative_pension[flow.entity] = (
-            cumulative_pension.get(flow.entity, Decimal("0")) + net_accrual
-        )
+        # Preserve opening balance and balance-growth components; only adjust
+        # the accrual portion.
+        net_cumulative = flow.cumulative_pension_eur - flow.pension_accrual_eur + net_accrual
 
         net_flows.append(
             YearlyFlow(
@@ -243,7 +249,8 @@ def apply_tax(
                 gross_salary_eur=net_salary,
                 liquid_contribution_eur=flow.liquid_contribution_eur,
                 pension_accrual_eur=net_accrual,
-                cumulative_pension_eur=cumulative_pension[flow.entity],
+                pension_balance_growth_eur=flow.pension_balance_growth_eur,
+                cumulative_pension_eur=net_cumulative,
             )
         )
 

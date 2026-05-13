@@ -1065,7 +1065,9 @@ class TestCompareLiquidStrategies:
         )
         assert len(rows) == len(profiles)
 
-    def test_sorted_by_terminal_balance_descending(self) -> None:
+    def test_sorted_by_terminal_balance_net_of_liquidation_tax_descending(
+        self,
+    ) -> None:
         profiles = self._profiles()
         rows = compare_liquid_strategies(
             profiles,
@@ -1075,7 +1077,7 @@ class TestCompareLiquidStrategies:
             base_year=2024,
             horizon_years=10,
         )
-        balances = [r.terminal_balance_dkk for r in rows]
+        balances = [r.terminal_balance_net_of_liquidation_tax_dkk for r in rows]
         assert balances == sorted(balances, reverse=True)
 
     def test_lower_aop_wins_ceteris_paribus(self) -> None:
@@ -1185,8 +1187,11 @@ class TestAccumulationToBridgePipeline:
         )
         acc_proj = project_liquid(acc_cfg, base_year=2024, horizon_years=10)
         terminal = acc_proj.terminal_balance_dkk()
-        gain_frac = acc_proj.terminal_gain_fraction
-        cost_basis = terminal * (Decimal("1") - gain_frac)
+        # Use the explicit accessor instead of back-computing
+        # ``terminal * (1 - terminal_gain_fraction)`` — the latter is
+        # only correct when the projection ends in a gain state, and
+        # silently drops the unrealised-loss case.
+        cost_basis = acc_proj.terminal_cost_basis_dkk()
 
         bridge_cfg = BridgeConfig(
             starting_balance_dkk=terminal,

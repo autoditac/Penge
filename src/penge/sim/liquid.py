@@ -531,6 +531,54 @@ class LiquidProjection(pydantic.BaseModel):
         """
         return sum((f.annual_contribution_dkk for f in self.flows), Decimal("0"))
 
+    def terminal_cost_basis_dkk(self) -> Decimal:
+        """Cost basis at the end of the projection horizon.
+
+        Prefer this over back-computing
+        ``terminal_balance * (1 - terminal_gain_fraction)``: the
+        ``terminal_gain_fraction`` accessor clamps unrealised losses to
+        zero (it cannot be negative) which loses information when the
+        projection ends in a loss state (``cost_basis > balance``).
+        Bridge / decumulation callers that need the exact basis to seed
+        :class:`BridgeConfig` should read this value directly so loss
+        states propagate correctly.
+        """
+        if not self.flows:
+            return self.config.opening_balance_dkk
+        return self.flows[-1].cost_basis_dkk
+
+    def terminal_liquidation_tax_dkk(self) -> Decimal:
+        """Hypothetical tax due if the depot were fully liquidated *today*.
+
+        For ASK and lager regimes this is zero because all gains have
+        already been taxed annually.  For realisation-regime frie midler
+        it is the progressive Aktieindkomst tax on the terminal
+        unrealised gain ``max(terminal_balance - terminal_cost_basis, 0)``.
+        Useful for comparing strategies on a like-for-like *net-of-
+        deferred-tax* basis.
+        """
+        if (
+            self.config.tax_regime != "realisation"
+            or self.config.account_type != "frie_midler"
+        ):
+            return Decimal("0")
+        unrealised_gain = max(
+            self.terminal_balance_dkk() - self.terminal_cost_basis_dkk(),
+            Decimal("0"),
+        )
+        return compute_aktieindkomst_tax(
+            gain_dkk=unrealised_gain,
+            threshold_dkk=self.config.aktieindkomst_threshold_dkk,
+        )
+
+    def terminal_balance_net_of_liquidation_tax_dkk(self) -> Decimal:
+        """Terminal balance minus the hypothetical full-liquidation tax.
+
+        See :meth:`terminal_liquidation_tax_dkk`.  This is the right
+        metric for ranking strategies on a strict net-of-tax basis.
+        """
+        return self.terminal_balance_dkk() - self.terminal_liquidation_tax_dkk()
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Core projection function
@@ -976,7 +1024,7 @@ class MonthlyBridgeFlow(pydantic.BaseModel):
 BridgeResult.model_rebuild()  # resolve forward ref
 
 
-def _bridge_simulate(  # noqa: PLR0912
+def _bridge_simulate(  # noqa: PLR0912, PLR0915
     starting_balance: Decimal,
     cost_basis: Decimal,
     monthly_withdrawal: Decimal,
@@ -1067,7 +1115,8 @@ def _bridge_simulate(  # noqa: PLR0912
             withdrawal_net = monthly_withdrawal
 
         balance = _q(balance - monthly_withdrawal)
-        year_withdrawals += monthly_withdrawal
+        if tax_regime == "lager":
+            year_withdrawals += monthly_withdrawal
 
         # Lager tax: computed and deducted at year-end (December = month % 12 == 0)
         lager_tax = Decimal("0")
@@ -1349,6 +1398,13 @@ class StrategyComparisonRow(pydantic.BaseModel):
     tax_regime: str
     annual_expense_ratio: Decimal
     terminal_balance_dkk: Decimal
+    terminal_balance_net_of_liquidation_tax_dkk: Decimal
+    # Terminal balance minus the hypothetical full-liquidation tax (zero
+    # for ASK / lager regimes; progressive Aktieindkomst tax on the
+    # unrealised gain for realisation-regime frie midler).  This is the
+    # field the result list is **sorted by** because it puts ASK/lager
+    # (already taxed annually) and realisation (deferred tax) on a
+    # like-for-like net-of-tax footing.
     opening_balance_dkk: Decimal
     # Opening balance the projection started from.  Surfaced so callers can
     # reconstruct "total invested = opening + contributions" without having
@@ -1399,8 +1455,12 @@ def compare_liquid_strategies(
             Defaults to :func:`threshold_for_year(base_year + 1)`.
 
     Returns:
-        List of :class:`StrategyComparisonRow`, sorted by terminal balance
-        (descending — best outcome first).
+        List of :class:`StrategyComparisonRow`, sorted by
+        ``terminal_balance_net_of_liquidation_tax_dkk`` (descending —
+        best net-of-deferred-tax outcome first).  This puts ASK/lager
+        (already taxed annually) and realisation (deferred tax) on a
+        like-for-like footing.  The pre-tax ``terminal_balance_dkk``
+        is also surfaced on each row for diagnostics.
     """
     if aktieindkomst_threshold_dkk is None:
         aktieindkomst_threshold_dkk = threshold_for_year(base_year + 1)
@@ -1455,6 +1515,9 @@ def compare_liquid_strategies(
                 tax_regime=fp.tax_regime,
                 annual_expense_ratio=fp.annual_expense_ratio,
                 terminal_balance_dkk=terminal,
+                terminal_balance_net_of_liquidation_tax_dkk=(
+                    proj.terminal_balance_net_of_liquidation_tax_dkk()
+                ),
                 opening_balance_dkk=opening_balance_dkk,
                 total_contributions_dkk=total_contributions,
                 total_tax_due_dkk=proj.total_tax_due_dkk(),
@@ -1463,5 +1526,7 @@ def compare_liquid_strategies(
             )
         )
 
-    rows.sort(key=lambda r: r.terminal_balance_dkk, reverse=True)
+    rows.sort(
+        key=lambda r: r.terminal_balance_net_of_liquidation_tax_dkk, reverse=True
+    )
     return rows

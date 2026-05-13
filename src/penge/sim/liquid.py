@@ -620,8 +620,12 @@ def project_liquid(
        is credited to the balance and added to the cost basis.
     4. **Contribution** is added to the balance (and to the cost basis for
        realisation accounts).  For ASK accounts the contribution is limited
-       by the remaining cap; any excess is silently dropped (the caller is
-       responsible for routing overflow to a separate frie midler config).
+       by the remaining cap; any excess is **not silently dropped** — it is
+       surfaced on each :class:`YearlyLiquidFlow` as
+       ``contribution_overflow_dkk`` so the caller can route the overflow
+       (e.g. to a separate frie-midler depot).  See the
+       :class:`YearlyLiquidFlow` docstring for the recommended year-by-year
+       routing pattern.
     5. **Closing balance** is computed:
        - ``tax_source == "external"``: balance = opening + return + net_dividend + contribution
        - ``tax_source == "depot"``: balance = opening + return + net_dividend - tax + contribution
@@ -760,6 +764,19 @@ class BridgeConfig(pydantic.BaseModel):
         tax_regime: ``"lager"`` or ``"realisation"``.
         aktieindkomst_threshold_dkk: Per-person tax threshold.  Use
             :func:`threshold_for_year` for the bridge start year.
+
+    .. note::
+
+       The bridge simulator currently models **akkumulerende** funds
+       only (no dividend distributions during decumulation).  Modelling
+       ``tax_regime == "realisation"`` with a non-zero dividend yield
+       during the bridge — where dividends would create their own
+       annual aktieindkomst tax line on top of the gain-fraction tax on
+       withdrawals — is not supported and is rejected at validation
+       time.  Construct the bridge from a realisation account by either
+       (a) using an akkumulerende fund (dividend_yield == 0) or
+       (b) modelling the dividend cashflow separately at the household
+       cashflow level.  See issue #158 for the follow-up.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -772,6 +789,7 @@ class BridgeConfig(pydantic.BaseModel):
     account_type: Literal["ask", "frie_midler"]
     tax_regime: Literal["lager", "realisation"]
     aktieindkomst_threshold_dkk: Decimal = Decimal("61900")
+    annual_dividend_yield: Decimal = Decimal("0")
 
     @pydantic.field_validator(
         "starting_balance_dkk",
@@ -779,6 +797,7 @@ class BridgeConfig(pydantic.BaseModel):
         "gross_annual_return_rate",
         "annual_expense_ratio",
         "aktieindkomst_threshold_dkk",
+        "annual_dividend_yield",
         mode="before",
     )
     @classmethod
@@ -808,6 +827,18 @@ class BridgeConfig(pydantic.BaseModel):
             raise ValueError("annual_expense_ratio must be ≥ 0")
         if self.aktieindkomst_threshold_dkk <= Decimal("0"):
             raise ValueError("aktieindkomst_threshold_dkk must be > 0")
+        if self.annual_dividend_yield < Decimal("0"):
+            raise ValueError("annual_dividend_yield must be ≥ 0")
+        if (
+            self.tax_regime == "realisation"
+            and self.annual_dividend_yield > Decimal("0")
+        ):
+            raise ValueError(
+                "bridge simulator does not yet model dividend distributions "
+                "during decumulation for tax_regime='realisation'; set "
+                "annual_dividend_yield=0 (akkumulerende) or model the "
+                "dividend at the household cashflow level. See issue #158."
+            )
         return self
 
 

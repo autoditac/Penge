@@ -763,6 +763,40 @@ class TestComputeBridgePmt:
                 aktieindkomst_threshold_dkk=Decimal("61900"),
             )
 
+    def test_realisation_bridge_rejects_dividend_yield(self) -> None:
+        """Bridge does not yet model dividend distributions for realisation."""
+        with pytest.raises(
+            pydantic.ValidationError, match="dividend distributions"
+        ):
+            BridgeConfig(
+                starting_balance_dkk=Decimal("1000000"),
+                cost_basis_dkk=Decimal("500000"),
+                horizon_months=120,
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("0.001"),
+                account_type="frie_midler",
+                tax_regime="realisation",
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+                annual_dividend_yield=Decimal("0.01"),
+            )
+
+    def test_lager_bridge_allows_dividend_yield(self) -> None:
+        """For lager regime dividend yield does not impact the tax math
+        (everything is marked to market annually), so allow it for
+        forward-compat without enforcing rejection."""
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("1000000"),
+            cost_basis_dkk=Decimal("1000000"),
+            horizon_months=24,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="lager",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=Decimal("0.01"),
+        )
+        assert cfg.annual_dividend_yield == Decimal("0.01")
+
     def test_realisation_progressive_tax_annual_basis(self) -> None:
         """Realisation withdrawal tax must respect annual progressive bracket.
 

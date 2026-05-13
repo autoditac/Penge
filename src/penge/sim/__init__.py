@@ -11,6 +11,8 @@ Subpackages:
 - :mod:`penge.sim.tax` — statutory tax overlay (issue #28, ADR-0013).
 - :mod:`penge.sim.montecarlo` — vectorized Monte-Carlo runner (issue #31, ADR-0014).
 - :mod:`penge.sim.scenario` — scenario diff engine (issue #32, ADR-0015).
+- :mod:`penge.sim.config_compare` — side-by-side comparison of N labelled
+  ``CashflowConfig`` projections (issue #127).
 """
 
 from penge.sim.cashflow import (
@@ -22,6 +24,12 @@ from penge.sim.cashflow import (
     SalaryRule,
     YearlyFlow,
     project,
+)
+from penge.sim.config_compare import (
+    ConfigCompareError,
+    ConfigComparison,
+    ConfigComparisonResult,
+    compare_configs,
 )
 from penge.sim.goal import (
     GoalConfig,
@@ -62,6 +70,9 @@ __all__ = [
     "CashflowConfig",
     "CashflowError",
     "CashflowProjection",
+    "ConfigCompareError",
+    "ConfigComparison",
+    "ConfigComparisonResult",
     "ContributionRule",
     "EntityTaxRegime",
     "GoalConfig",
@@ -81,6 +92,7 @@ __all__ = [
     "YearlyFlow",
     "apply_tax",
     "compare",
+    "compare_configs",
     "evaluate",
     "net_pension_drawdown",
     "project",

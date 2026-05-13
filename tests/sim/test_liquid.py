@@ -1298,7 +1298,7 @@ class TestFundProfileValidation:
             )
 
     def test_negative_expense_ratio_rejected(self) -> None:
-        with pytest.raises(pydantic.ValidationError, match="annual_expense_ratio"):
+        with pytest.raises(pydantic.ValidationError, match=r"annual_expense_ratio"):
             FundProfile(
                 label="bad",
                 isin="X",
@@ -1306,6 +1306,28 @@ class TestFundProfileValidation:
                 tax_regime="realisation",
                 gross_annual_return_rate=Decimal("0.07"),
                 annual_expense_ratio=Decimal("-0.001"),
+            )
+
+    def test_expense_ratio_above_one_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match=r"annual_expense_ratio"):
+            FundProfile(
+                label="bad",
+                isin="X",
+                account_type="frie_midler",
+                tax_regime="realisation",
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("1.5"),
+            )
+
+    def test_gross_return_out_of_range_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match=r"gross_annual_return_rate"):
+            FundProfile(
+                label="bad",
+                isin="X",
+                account_type="frie_midler",
+                tax_regime="realisation",
+                gross_annual_return_rate=Decimal("3.0"),
+                annual_expense_ratio=Decimal("0.005"),
             )
 
     def test_valid_realisation_with_dividend_accepted(self) -> None:

@@ -321,10 +321,11 @@ class LiquidDepotConfig(pydantic.BaseModel):
             **post-ÅOP** ``gross_return`` to derive the capital
             appreciation component.  Supplying a *gross* dividend yield
             here would overstate the taxable dividend (and dividend
-            tax) by the ÅOP fraction.  Pull dividend yields from fund
-            factsheets that already net out ÅOP, or compute
-            ``yield_net = yield_gross * (1 - aop / total_return)``
-            before passing here.
+            tax) by the ÅOP fraction.  Prefer the distribution yields
+            published on fund factsheets — for most accumulating
+            (akkumulerende) funds this is ``0``; for distributing
+            (udloddende) funds the factsheet figure is already a
+            post-fee distribution and can be passed in directly.
         tax_source: Whether Lager tax is paid from external income
             (``"external"``) or from the depot balance (``"depot"``).
             External is optimal during accumulation (full compounding);
@@ -1459,6 +1460,12 @@ class FundProfile(pydantic.BaseModel):
         # compare_liquid_strategies never has to feed a logically invalid
         # profile into LiquidDepotConfig (which would surface as an
         # opaque ValidationError from deep inside the comparison loop).
+        if not (Decimal("-0.5") <= self.gross_annual_return_rate <= Decimal("2")):
+            raise ValueError("gross_annual_return_rate must be in [-0.5, 2.0]")
+        if not (Decimal("0") <= self.annual_expense_ratio < Decimal("1")):
+            raise ValueError("annual_expense_ratio must be in [0, 1)")
+        if not (Decimal("0") <= self.annual_dividend_yield < Decimal("1")):
+            raise ValueError("annual_dividend_yield must be in [0, 1)")
         if self.account_type == "ask" and self.tax_regime != "lager":
             raise ValueError("ASK accounts always use lager tax regime")
         if self.account_type == "ask" and self.annual_dividend_yield != Decimal("0"):
@@ -1471,10 +1478,6 @@ class FundProfile(pydantic.BaseModel):
                 "lager-regime accounts roll dividends into the annual "
                 "mark-to-market settlement; set annual_dividend_yield=0"
             )
-        if self.annual_expense_ratio < Decimal("0"):
-            raise ValueError("annual_expense_ratio must be >= 0")
-        if self.annual_dividend_yield < Decimal("0"):
-            raise ValueError("annual_dividend_yield must be >= 0")
         return self
 
 

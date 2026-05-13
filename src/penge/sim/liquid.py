@@ -376,6 +376,13 @@ class LiquidDepotConfig(pydantic.BaseModel):
                 "annual_dividend_yield must be 0 for ASK accounts (dividend yield "
                 "is only relevant for Realisationsbeskatning frie midler accounts)"
             )
+        if self.tax_regime == "lager" and self.annual_dividend_yield != Decimal("0"):
+            raise ValueError(
+                "annual_dividend_yield must be 0 for lager-regime accounts; "
+                "lager taxes the full mark-to-market change every year, so any "
+                "dividend yield is already captured in gross_annual_return_rate "
+                "and would be ignored by the model"
+            )
         if self.ask_lifetime_deposits_dkk < Decimal("0"):
             raise ValueError("ask_lifetime_deposits_dkk must be ≥ 0")
         if self.account_type != "ask" and self.ask_lifetime_deposits_dkk != Decimal("0"):
@@ -659,6 +666,20 @@ def project_liquid(  # noqa: PLR0912
 
     Returns:
         :class:`LiquidProjection` with one :class:`YearlyLiquidFlow` per year.
+
+    Note on contribution timing:
+        Contributions are applied **after** the year's gross return and tax
+        are computed; they therefore earn no return in the year they are
+        deposited.  This is equivalent to a year-end / December 31 lump-sum
+        deposit.  Real-world DCA into a depot is closer to a monthly
+        contribution that compounds for an average of ~6 months — so for
+        long horizons the year-end model slightly underestimates the
+        terminal balance compared to a true monthly-contribution model
+        (typically by ``annual_contribution * net_rate / 2`` per year).
+        For projection-grade accuracy at multi-decade horizons this is
+        acceptable; for short horizons or precise comparisons, scale
+        contributions by ``(1 + net_rate * 0.5)`` before passing them in,
+        or model contributions on a monthly cadence outside this function.
 
     Raises:
         LiquidDepotError: If ``horizon_years`` is less than 1, or if the

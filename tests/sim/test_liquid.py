@@ -729,6 +729,23 @@ class TestLiquidDepotConfigValidation:
                 aktieindkomst_threshold_dkk=Decimal("61900"),
             )
 
+    def test_lager_dividend_yield_must_be_zero(self) -> None:
+        with pytest.raises(
+            pydantic.ValidationError,
+            match="annual_dividend_yield must be 0 for lager-regime",
+        ):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="lager",
+                opening_balance_dkk=Decimal("100000"),
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.05"),
+                annual_expense_ratio=Decimal("0.001"),
+                annual_dividend_yield=Decimal("0.01"),
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
 
 class TestComputeBridgePmt:
     """All tests verify PMT is found and that the final balance is near zero."""

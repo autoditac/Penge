@@ -1478,6 +1478,12 @@ class FundProfile(pydantic.BaseModel):
                 "lager-regime accounts roll dividends into the annual "
                 "mark-to-market settlement; set annual_dividend_yield=0"
             )
+        net_return = self.gross_annual_return_rate - self.annual_expense_ratio
+        if net_return <= Decimal("-1"):
+            raise ValueError(
+                "gross_annual_return_rate - annual_expense_ratio must be > -1 "
+                "(a net return <= -100%/yr would wipe out the depot in <1 yr)"
+            )
         return self
 
 

@@ -1330,6 +1330,17 @@ class TestFundProfileValidation:
                 annual_expense_ratio=Decimal("0.005"),
             )
 
+    def test_net_return_below_minus_one_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match=r"must be > -1"):
+            FundProfile(
+                label="bad",
+                isin="X",
+                account_type="frie_midler",
+                tax_regime="realisation",
+                gross_annual_return_rate=Decimal("-0.5"),
+                annual_expense_ratio=Decimal("0.6"),
+            )
+
     def test_valid_realisation_with_dividend_accepted(self) -> None:
         profile = FundProfile(
             label="ok",

@@ -545,17 +545,28 @@ def _compute_annual_tax(
     config: LiquidDepotConfig,
     opening_balance: Decimal,
     gross_return: Decimal,
-) -> tuple[Decimal, Decimal]:
-    """Return (taxable_gain, tax_due) for one annual step."""
+) -> tuple[Decimal, Decimal, Decimal]:
+    """Return ``(taxable_gain, tax_due, dividend_gross)`` for one annual step.
+
+    ``dividend_gross`` is the distributed dividend used to compute
+    ``taxable_gain`` for the realisation regime; it is zero for ASK and
+    for lager-regime frie midler.  Returning it here lets callers (e.g.
+    :func:`project_liquid`) reuse the value when reinvesting the net
+    dividend into the depot, instead of recomputing
+    ``opening_balance * annual_dividend_yield`` and risking a rounding
+    drift between the two call sites.
+    """
     if config.account_type == "ask":
         taxable_gain = gross_return
         tax_due = _q(taxable_gain * ASK_RATE) if taxable_gain > Decimal("0") else Decimal("0")
+        dividend_gross = Decimal("0")
     elif config.tax_regime == "lager":
         taxable_gain = gross_return
         tax_due = compute_aktieindkomst_tax(
             gain_dkk=taxable_gain,
             threshold_dkk=config.aktieindkomst_threshold_dkk,
         )
+        dividend_gross = Decimal("0")
     else:
         # Realisation: only dividend portion taxed annually
         dividend_gross = _q(opening_balance * config.annual_dividend_yield)
@@ -564,16 +575,21 @@ def _compute_annual_tax(
             gain_dkk=dividend_gross,
             threshold_dkk=config.aktieindkomst_threshold_dkk,
         )
-    return taxable_gain, tax_due
+    return taxable_gain, tax_due, dividend_gross
 
 
 def _apply_ask_cap(
-    config: LiquidDepotConfig,
     year: int,
     contribution: Decimal,
     cumulative_ask_deposits: Decimal,
 ) -> tuple[Decimal, Decimal]:
-    """Return (capped_contribution, updated_cumulative_deposits) for ASK."""
+    """Return ``(capped_contribution, updated_cumulative_deposits)`` for ASK.
+
+    Caller is responsible for only invoking this on ASK configurations;
+    no ``config`` parameter is needed because every input is either
+    derived from the running cumulative-deposit total or from the year
+    being projected.
+    """
     cap = ask_cap_for_year(year)
     max_deposit = cap - cumulative_ask_deposits
     contribution = Decimal("0") if max_deposit <= Decimal("0") else min(contribution, max_deposit)
@@ -690,14 +706,15 @@ def project_liquid(
         opening_balance = balance
 
         gross_return = _q(opening_balance * net_return_rate)
-        taxable_gain, tax_due = _compute_annual_tax(config, opening_balance, gross_return)
+        taxable_gain, tax_due, dividend_gross = _compute_annual_tax(
+            config, opening_balance, gross_return
+        )
         tax_deducted = tax_due if config.tax_source == "depot" else Decimal("0")
 
         is_realisation_frie = (
             config.tax_regime == "realisation" and config.account_type == "frie_midler"
         )
         if is_realisation_frie:
-            dividend_gross = _q(opening_balance * config.annual_dividend_yield)
             # The dividend is paid out of the gross return.  Which net
             # amount reinvests into the depot depends on tax_source:
             #   - "depot":    SKAT takes its cut directly from the dividend,
@@ -711,7 +728,6 @@ def project_liquid(
             else:
                 dividend_net = dividend_gross
         else:
-            dividend_gross = Decimal("0")
             dividend_net = Decimal("0")
 
         contribution = config.annual_contribution_dkk
@@ -719,7 +735,7 @@ def project_liquid(
         if config.account_type == "ask":
             uncapped_contribution = contribution
             contribution, cumulative_ask_deposits = _apply_ask_cap(
-                config, year, contribution, cumulative_ask_deposits
+                year, contribution, cumulative_ask_deposits
             )
             contribution_overflow = _q(uncapped_contribution - contribution)
 

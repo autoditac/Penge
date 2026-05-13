@@ -340,12 +340,17 @@ class LiquidDepotConfig(pydantic.BaseModel):
         opening_cost_basis_dkk: For *realisationsbeskatning* frie midler
             only — the depot's accumulated cost basis (DKK) at the start
             of the projection.  Real-world depots typically carry
-            unrealised gains or losses, so basis ≠ balance.  Must be in
-            ``[0, opening_balance_dkk]``.  When ``None`` (default), the
-            cost basis is seeded to ``opening_balance_dkk`` (i.e. no
-            unrealised gain at t=0) to preserve backwards-compatible
-            behaviour.  Ignored for ASK and for lager-regime accounts,
-            both of which mark to market every year and therefore carry
+            unrealised gains or losses, so basis ≠ balance.  Must be
+            ``>= 0`` but **may exceed** ``opening_balance_dkk`` — that
+            represents an unrealised loss, which the engine handles by
+            clamping the taxable gain fraction at zero (it does not
+            track loss carry-forward; see
+            :func:`compute_aktieindkomst_tax`).  When ``None``
+            (default), the cost basis is seeded to
+            ``opening_balance_dkk`` (i.e. no unrealised gain at t=0)
+            to preserve backwards-compatible behaviour.  Ignored for
+            ASK and for lager-regime accounts, both of which mark to
+            market every year and therefore carry
             ``cost_basis == balance`` by construction.
     """
 
@@ -424,12 +429,12 @@ class LiquidDepotConfig(pydantic.BaseModel):
         if self.opening_cost_basis_dkk is not None:
             if self.opening_cost_basis_dkk < Decimal("0"):
                 raise ValueError("opening_cost_basis_dkk must be ≥ 0")
-            if self.opening_cost_basis_dkk > self.opening_balance_dkk:
-                raise ValueError(
-                    "opening_cost_basis_dkk must be ≤ opening_balance_dkk "
-                    "(a cost basis above the current market value implies an "
-                    "unrealised loss larger than the depot itself)"
-                )
+            # ``opening_cost_basis_dkk > opening_balance_dkk`` is allowed
+            # — it represents an unrealised loss state, which is common
+            # for real depots that bought into a peak.  The realisation
+            # tax path already clamps ``gain_fraction`` at 0 in this
+            # case (no loss-carry-forward), so the rest of the engine
+            # is loss-state safe.  Reject negative bases only.
             if not (
                 self.tax_regime == "realisation" and self.account_type == "frie_midler"
             ):

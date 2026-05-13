@@ -637,20 +637,29 @@ class TestLiquidDepotConfigValidation:
                 aktieindkomst_threshold_dkk=Decimal("61900"),
             )
 
-    def test_opening_cost_basis_above_balance_rejected(self) -> None:
-        with pytest.raises(pydantic.ValidationError, match="opening_cost_basis_dkk must be ≤"):
-            LiquidDepotConfig(
-                account_id="x",
-                account_type="frie_midler",
-                tax_regime="realisation",
-                opening_balance_dkk=Decimal("100000"),
-                annual_contribution_dkk=Decimal("0"),
-                gross_annual_return_rate=Decimal("0.05"),
-                annual_expense_ratio=Decimal("0.001"),
-                annual_dividend_yield=Decimal("0"),
-                aktieindkomst_threshold_dkk=Decimal("61900"),
-                opening_cost_basis_dkk=Decimal("100001"),
-            )
+    def test_opening_cost_basis_above_balance_allowed(self) -> None:
+        """A cost basis above the current market value represents an
+        unrealised loss and is allowed (the engine clamps the taxable
+        gain fraction at zero in this state)."""
+        cfg = LiquidDepotConfig(
+            account_id="x",
+            account_type="frie_midler",
+            tax_regime="realisation",
+            opening_balance_dkk=Decimal("100000"),
+            annual_contribution_dkk=Decimal("0"),
+            gross_annual_return_rate=Decimal("0.05"),
+            annual_expense_ratio=Decimal("0.001"),
+            annual_dividend_yield=Decimal("0"),
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            opening_cost_basis_dkk=Decimal("120000"),
+        )
+        proj = project_liquid(cfg, base_year=2025, horizon_years=1)
+        # Cost basis carries over (no realised gain on accumulation
+        # without withdrawals or dividends).
+        assert proj.flows[-1].cost_basis_dkk == Decimal("120000")
+        # Terminal gain fraction is clamped at zero because the depot
+        # is still in a loss state.
+        assert proj.terminal_gain_fraction == Decimal("0")
 
     def test_opening_cost_basis_negative_rejected(self) -> None:
         with pytest.raises(pydantic.ValidationError, match="opening_cost_basis_dkk must be ≥ 0"):

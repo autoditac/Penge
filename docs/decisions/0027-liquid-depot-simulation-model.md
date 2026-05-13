@@ -110,6 +110,26 @@ following modelling invariants:
   Acceptable for now; tracked as a follow-up if the bracket-creep over
   10 years becomes material.
 
+#### Known limitations
+
+- **No loss carry-forward.** `compute_aktieindkomst_tax` returns zero
+  for negative gains and does not track losses across years.  Real
+  Aktieindkomst (frie midler) allows indefinite carry-forward of
+  capital losses against future gains; ASK nets gains against losses
+  via the all-time deposit basis at withdrawal.  Projections that
+  cross a drawdown followed by a recovery will therefore overstate
+  tax in the recovery year(s).  Callers that need fidelity in loss
+  scenarios must implement carry-forward state on top of this
+  primitive.  Tracked as a follow-up; current users (FIRE
+  modelling at ≥ 10 y horizon) work with expected paths and accept
+  the bias.
+- **Dividend yield is interpreted as net of ÅOP.**  Internally the
+  realisation split subtracts `opening_balance × annual_dividend_yield`
+  from the **post-ÅOP** `gross_return` to derive capital appreciation.
+  Suppliying a *gross* dividend yield would overstate taxable
+  dividends.  Use factsheet yields that already net out ÅOP, or
+  pre-adjust before passing.
+
 ### Neutral
 
 - Net rate is computed from `gross_return_rate − annual_expense_ratio`;

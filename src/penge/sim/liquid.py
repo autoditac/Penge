@@ -175,9 +175,22 @@ def compute_aktieindkomst_tax(
 
     Losses (negative gains) return zero.  This module does **not** track
     aktieindkomst loss carry-forward across years — historical losses are
-    simply dropped.  Lager regimes in this module are projection-only and
-    are not used to file taxes; if loss carry-forward becomes material,
-    the caller must implement it on top of this primitive.
+    simply dropped.
+
+    .. warning::
+
+       **This is a known model limitation, not a SKAT rule.**  Both
+       Aktieindkomst (frie midler) and Aktiesparekonto in real life
+       allow losses to offset gains in later years (Aktieindkomst:
+       indefinite carry-forward; ASK: net of all-time deposits at
+       withdrawal).  Projections that span a down year followed by a
+       recovery will therefore **overstate** tax in those years.  If
+       this is material for the scenario at hand the caller must
+       implement loss carry-forward on top of this primitive — see
+       ADR-0027 § "Known limitations" — or only use this primitive on
+       scenarios that are monotonically increasing on the relevant
+       horizon.  Lager regimes in this module are projection-only and
+       are not used to file taxes.
 
     Args:
         gain_dkk: Annual taxable gain in DKK.  Negative values return zero.
@@ -299,6 +312,19 @@ class LiquidDepotConfig(pydantic.BaseModel):
             dividend each year (taxed annually as Aktieindkomst).
             Use ``Decimal("0")`` for accumulating (akkumulerende)
             instruments.
+
+            **Convention — net of ÅOP.**  This yield is interpreted as
+            the dividend already *net of* the fund's expense ratio,
+            i.e. what actually lands in the depot as a distribution.
+            The realisation split internally subtracts
+            ``opening_balance * annual_dividend_yield`` from the
+            **post-ÅOP** ``gross_return`` to derive the capital
+            appreciation component.  Supplying a *gross* dividend yield
+            here would overstate the taxable dividend (and dividend
+            tax) by the ÅOP fraction.  Pull dividend yields from fund
+            factsheets that already net out ÅOP, or compute
+            ``yield_net = yield_gross * (1 - aop / total_return)``
+            before passing here.
         tax_source: Whether Lager tax is paid from external income
             (``"external"``) or from the depot balance (``"depot"``).
             External is optimal during accumulation (full compounding);

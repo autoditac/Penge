@@ -8,7 +8,10 @@ portfolio split across one or more accounts with different tax treatment.
 **Aktiesparekonto (ASK)**
   Flat **17 %** mark-to-market (lager) tax on annual gains.  Annual deposits
   are capped by SKAT's cumulative lifetime deposit limit; see
-  :data:`penge.tax.aktiesparekonto.ASK_DEPOSIT_CAPS` for the per-year table.
+  :data:`penge.tax.aktiesparekonto.ASK_DEPOSIT_CAPS` for the per-year
+  confirmed table.  The simulation uses :data:`_ASK_DEPOSIT_CAPS_EXTENDED`
+  (an extension of that table with estimates for future years) via
+  :func:`ask_cap_for_year`.
   All instruments inside ASK are taxed at 17 % regardless of instrument type.
 
 **Frie midler — Lagerbeskatning**
@@ -400,6 +403,8 @@ class LiquidDepotConfig(pydantic.BaseModel):
             )
         if self.ask_lifetime_deposits_dkk < Decimal("0"):
             raise ValueError("ask_lifetime_deposits_dkk must be ≥ 0")
+        if self.aktieindkomst_threshold_dkk <= Decimal("0"):
+            raise ValueError("aktieindkomst_threshold_dkk must be > 0")
         net_return = self.gross_annual_return_rate - self.annual_expense_ratio
         if net_return <= Decimal("-1"):
             raise ValueError(
@@ -423,10 +428,15 @@ class YearlyLiquidFlow(pydantic.BaseModel):
             this always equals the configured ``annual_contribution_dkk``.
         contribution_overflow_dkk: Amount the caller asked to contribute
             this year that exceeded the ASK cap and was therefore *not*
-            deposited (DKK).  Zero for frie midler.  Callers that want to
-            route the overflow into a frie-midler depot should sum this
-            field across the projection and feed it into a second
-            :func:`project_liquid` run.
+            deposited (DKK).  Zero for frie midler.  This value is
+            **year-specific** — it cannot be summed and re-injected as a
+            constant annual contribution because :func:`project_liquid`
+            only models a single constant ``annual_contribution_dkk``.
+            Callers that want to route overflow into a frie-midler depot
+            should run two projections in lock-step (year-by-year),
+            feeding each year's overflow into a separate frie-midler
+            cashflow for that year — or use a higher-level multi-account
+            engine.
         gross_return_dkk: Return on the opening balance at the net-of-ÅOP
             rate (``opening_balance * (gross_rate - ÅOP)``), in DKK.
         taxable_gain_dkk: The portion of the gain subject to annual tax.
@@ -707,7 +717,14 @@ def project_liquid(
         )
 
     if config.tax_regime == "realisation" and balance > Decimal("0"):
-        terminal_gain_fraction = _q(max(balance - cost_basis, Decimal("0")) / balance)
+        # Keep higher precision than money: this ratio is later multiplied
+        # by withdrawal amounts to compute the taxable gain portion, so
+        # rounding to 0.01 here would introduce ~1 % error in withdrawal
+        # tax.  Quantize to 8 decimal places — well below the precision of
+        # any downstream Decimal money operation.
+        terminal_gain_fraction = (
+            max(balance - cost_basis, Decimal("0")) / balance
+        ).quantize(Decimal("0.00000001"))
     else:
         terminal_gain_fraction = Decimal("0")
 
@@ -789,6 +806,8 @@ class BridgeConfig(pydantic.BaseModel):
             )
         if self.annual_expense_ratio < Decimal("0"):
             raise ValueError("annual_expense_ratio must be ≥ 0")
+        if self.aktieindkomst_threshold_dkk <= Decimal("0"):
+            raise ValueError("aktieindkomst_threshold_dkk must be > 0")
         return self
 
 
@@ -858,8 +877,16 @@ def _bridge_simulate(
     account_type: str,
     tax_regime: str,
     threshold_dkk: Decimal,
+    *,
+    record_flows: bool = True,
 ) -> tuple[Decimal, list[MonthlyBridgeFlow]]:
     """Internal simulation: returns (final_balance, monthly_flows).
+
+    When ``record_flows`` is ``False`` no :class:`MonthlyBridgeFlow` objects
+    are constructed and an empty list is returned — this is the fast path
+    used during PMT bracketing / binary search, where only the final
+    balance matters.  The final simulation in :func:`compute_bridge_pmt`
+    is always run with ``record_flows=True`` to populate the result.
 
     The monthly net rate is ``(1 + annual_net_before_tax_rate)^(1/12) - 1``
     where ``annual_net_before_tax_rate = gross_rate - expense_ratio``.
@@ -940,19 +967,20 @@ def _bridge_simulate(
                 # End of tax year — reset progressive headroom tracker
                 ytd_realised_gain = Decimal("0")
 
-        flows.append(
-            MonthlyBridgeFlow(
-                month=month,
-                opening_balance_dkk=opening,
-                monthly_return_dkk=monthly_return,
-                withdrawal_gross_dkk=monthly_withdrawal,
-                withdrawal_tax_dkk=withdrawal_tax,
-                withdrawal_net_dkk=withdrawal_net,
-                lager_tax_dkk=lager_tax,
-                closing_balance_dkk=balance,
-                cost_basis_dkk=current_cost_basis,
+        if record_flows:
+            flows.append(
+                MonthlyBridgeFlow(
+                    month=month,
+                    opening_balance_dkk=opening,
+                    monthly_return_dkk=monthly_return,
+                    withdrawal_gross_dkk=monthly_withdrawal,
+                    withdrawal_tax_dkk=withdrawal_tax,
+                    withdrawal_net_dkk=withdrawal_net,
+                    lager_tax_dkk=lager_tax,
+                    closing_balance_dkk=balance,
+                    cost_basis_dkk=current_cost_basis,
+                )
             )
-        )
 
     return balance, flows
 
@@ -1032,6 +1060,7 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
             config.account_type,
             config.tax_regime,
             config.aktieindkomst_threshold_dkk,
+            record_flows=False,
         )
         if final_hi <= Decimal("0"):
             break
@@ -1042,8 +1071,12 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
             "than any tested withdrawal rate. Check return / expense inputs."
         )
 
-    # Binary search: find PMT such that final_balance ≈ 0
-    for _ in range(60):  # 60 iterations → <0.0001 DKK precision
+    # Binary search: find PMT such that final_balance ≈ 0.
+    # 60 iterations is far more than needed in theory — `mid` is
+    # quantized to 0.01 DKK on every step, so the search saturates at
+    # cent-level resolution (~30 iterations over a typical bracket).
+    # The extra headroom is cheap and keeps the loop simple.
+    for _ in range(60):
         mid = _q((lo + hi) / Decimal("2"))
         final_balance, _ = _bridge_simulate(
             config.starting_balance_dkk,
@@ -1054,6 +1087,7 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
             config.account_type,
             config.tax_regime,
             config.aktieindkomst_threshold_dkk,
+            record_flows=False,
         )
         if final_balance > Decimal("0"):
             lo = mid  # underdrawing: need higher PMT

@@ -547,6 +547,32 @@ class TestLiquidDepotConfigValidation:
         with pytest.raises(LiquidDepotError):
             project_liquid(cfg, base_year=2024, horizon_years=0)
 
+    def test_zero_aktieindkomst_threshold_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="threshold_dkk must be > 0"):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="lager",
+                opening_balance_dkk=Decimal("1000"),
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.10"),
+                annual_expense_ratio=Decimal("0.001"),
+                aktieindkomst_threshold_dkk=Decimal("0"),
+            )
+
+    def test_negative_aktieindkomst_threshold_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="threshold_dkk must be > 0"):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="lager",
+                opening_balance_dkk=Decimal("1000"),
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.10"),
+                annual_expense_ratio=Decimal("0.001"),
+                aktieindkomst_threshold_dkk=Decimal("-100"),
+            )
+
     def test_string_decimal_coercion(self) -> None:
         """Pydantic should coerce string values to Decimal."""
         cfg = LiquidDepotConfig(

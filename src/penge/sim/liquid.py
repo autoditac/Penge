@@ -628,8 +628,16 @@ def project_liquid(
        :class:`YearlyLiquidFlow` docstring for the recommended year-by-year
        routing pattern.
     5. **Closing balance** is computed:
-       - ``tax_source == "external"``: balance = opening + return + net_dividend + contribution
-       - ``tax_source == "depot"``: balance = opening + return + net_dividend - tax + contribution
+       - *Lager* regime: balance = opening + return + contribution - tax
+         (the entire annual gain is taxed; ``tax_source == "depot"``
+         deducts ``tax`` from the depot, while ``"external"`` leaves the
+         depot whole and reports zero ``tax_deducted_from_depot_dkk``).
+       - *Realisation* regime: balance = opening + capital_appreciation
+         + net_dividend + contribution.  The dividend tax is already
+         embedded in ``net_dividend`` (gross when ``tax_source ==
+         "external"``, gross - tax when ``"depot"``); the deferred
+         capital gain is *not* taxed here — it accrues against the
+         cost basis until the bridge phase.
 
     Args:
         config: Account configuration.
@@ -640,10 +648,25 @@ def project_liquid(
         :class:`LiquidProjection` with one :class:`YearlyLiquidFlow` per year.
 
     Raises:
-        LiquidDepotError: If ``horizon_years`` is less than 1.
+        LiquidDepotError: If ``horizon_years`` is less than 1, or if the
+            account is ASK and ``config.ask_lifetime_deposits_dkk`` already
+            exceeds the cap that applies to the first projected year
+            (i.e. the configuration is impossible — SKAT could not have
+            allowed those deposits historically).
     """
     if horizon_years < 1:
         raise LiquidDepotError("horizon_years must be >= 1")
+
+    if config.account_type == "ask":
+        first_year = base_year + 1
+        applicable_cap = ask_cap_for_year(first_year)
+        if config.ask_lifetime_deposits_dkk > applicable_cap:
+            raise LiquidDepotError(
+                f"ask_lifetime_deposits_dkk ({config.ask_lifetime_deposits_dkk}) "
+                f"exceeds the {first_year} ASK cap ({applicable_cap}); "
+                "the seeded cumulative deposits cannot exceed what SKAT "
+                "would have allowed historically. Check the configuration."
+            )
 
     net_return_rate = config.gross_annual_return_rate - config.annual_expense_ratio
     balance = config.opening_balance_dkk
@@ -1348,7 +1371,12 @@ def compare_liquid_strategies(
             effective_rate = None
         elif terminal > Decimal("0") and opening_balance_dkk > Decimal("0"):
             ratio_float = float(terminal / opening_balance_dkk)
-            effective_rate = _q(Decimal(str(ratio_float ** (1.0 / horizon_years) - 1.0)))
+            # Quantize to 0.0001 (1 basis point) — the field is a *rate*,
+            # not a money amount.  The money-style 0.01 quantizer would
+            # round 0.078 → 0.08 (~10 % error in the reported rate).
+            effective_rate = Decimal(
+                str(ratio_float ** (1.0 / horizon_years) - 1.0)
+            ).quantize(Decimal("0.0001"))
         else:
             effective_rate = Decimal("0")
 

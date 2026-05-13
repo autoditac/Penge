@@ -547,6 +547,23 @@ class TestLiquidDepotConfigValidation:
         with pytest.raises(LiquidDepotError):
             project_liquid(cfg, base_year=2024, horizon_years=0)
 
+    def test_seeded_ask_lifetime_deposits_above_cap_rejected(self) -> None:
+        """ASK projections must reject configs where the seeded lifetime
+        deposits already exceed the cap for the first projected year."""
+        cfg = LiquidDepotConfig(
+            account_id="x",
+            account_type="ask",
+            tax_regime="lager",
+            opening_balance_dkk=Decimal("200000"),
+            ask_lifetime_deposits_dkk=Decimal("999999"),  # well above any cap
+            annual_contribution_dkk=Decimal("0"),
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        with pytest.raises(LiquidDepotError, match=r"exceeds the .* ASK cap"):
+            project_liquid(cfg, base_year=2024, horizon_years=5)
+
     def test_zero_aktieindkomst_threshold_rejected(self) -> None:
         with pytest.raises(pydantic.ValidationError, match="threshold_dkk must be > 0"):
             LiquidDepotConfig(

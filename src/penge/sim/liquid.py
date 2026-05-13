@@ -333,8 +333,16 @@ class LiquidDepotConfig(pydantic.BaseModel):
             for frie midler.
         annual_contribution_dkk: Amount added to this account per year
             (DKK at base-year prices, not inflation-adjusted).
-        gross_annual_return_rate: Expected annual gross return rate
-            *before* ÅOP, e.g. ``Decimal("0.10")`` for 10 %.
+        gross_annual_return_rate: Expected **total** annual return rate
+            *before* ÅOP, **including any dividend yield**, e.g.
+            ``Decimal("0.10")`` for 10 % total return.  For
+            *realisationsbeskatning* (udloddende) funds the realisation
+            path internally splits this total into a dividend component
+            (``opening_balance * annual_dividend_yield``) and a capital-
+            appreciation component (``gross_return - dividend_gross``);
+            do **not** supply price-only return here in addition to a
+            non-zero ``annual_dividend_yield`` or dividends will be
+            double-counted.
         annual_expense_ratio: Total annual fund cost (ÅOP), e.g.
             ``Decimal("0.0012")`` for 0.12 % (iShares ETF) or
             ``Decimal("0.0049")`` for 0.49 % (Sparinvest fond).
@@ -781,8 +789,10 @@ class BridgeConfig(pydantic.BaseModel):
             this should equal ``starting_balance_dkk`` (all gains taxed).
         horizon_months: Number of months over which to deplete the portfolio.
             Typically 120 (10 years) for a bridge to a pension start.
-        gross_annual_return_rate: Expected gross return during drawdown (same
-            assumption as accumulation, or more conservative).
+        gross_annual_return_rate: Expected **total** gross return during
+            drawdown (same assumption as accumulation or more conservative),
+            **including any dividend yield**.  Do not pass price-only
+            return together with a non-zero ``annual_dividend_yield``.
         annual_expense_ratio: Fund ÅOP during drawdown.
         account_type: ``"ask"`` or ``"frie_midler"``.
         tax_regime: ``"lager"`` or ``"realisation"``.
@@ -1057,8 +1067,12 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
     * **Realisation accounts**: tax on the gain fraction of each withdrawal;
       the monthly withdrawal is gross, net-to-pocket is lower.
 
-    The binary search converges to within 1 DKK of the "exact" PMT; the
-    residual balance after ``horizon_months`` months is returned for inspection.
+    The binary search runs 60 iterations with the PMT (``mid``) quantized
+    to 0.01 DKK each step, so the PMT resolution is cent-level — well
+    below the residual noise introduced by discrete annual tax timing
+    and Decimal rounding inside ``_bridge_simulate``.  In practice the
+    final balance after ``horizon_months`` months is a few DKK away
+    from zero; the residual is returned for inspection.
 
     Comparison to Gemini's closed-form approach:
 

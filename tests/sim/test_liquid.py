@@ -704,19 +704,18 @@ class TestComputeBridgePmt:
         assert len(result.monthly_flows) == 24
 
     def test_total_wipe_out_net_rate_rejected(self) -> None:
-        """A net rate ≤ -100 % cannot compound — must raise."""
-        cfg = BridgeConfig(
-            starting_balance_dkk=Decimal("1000000"),
-            cost_basis_dkk=Decimal("1000000"),
-            horizon_months=120,
-            gross_annual_return_rate=Decimal("-0.5"),
-            annual_expense_ratio=Decimal("0.5"),
-            account_type="frie_midler",
-            tax_regime="lager",
-            aktieindkomst_threshold_dkk=Decimal("61900"),
-        )
-        with pytest.raises(LiquidDepotError, match="net rate"):
-            compute_bridge_pmt(cfg)
+        """A net rate ≤ -100 % cannot compound — must raise at config time."""
+        with pytest.raises(pydantic.ValidationError, match="must be > -1"):
+            BridgeConfig(
+                starting_balance_dkk=Decimal("1000000"),
+                cost_basis_dkk=Decimal("1000000"),
+                horizon_months=120,
+                gross_annual_return_rate=Decimal("-0.5"),
+                annual_expense_ratio=Decimal("0.5"),
+                account_type="frie_midler",
+                tax_regime="lager",
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
 
     def test_realisation_progressive_tax_annual_basis(self) -> None:
         """Realisation withdrawal tax must respect annual progressive bracket.

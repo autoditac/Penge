@@ -480,6 +480,16 @@ class LiquidProjection(pydantic.BaseModel):
         """Sum of all tax due (both depot-deducted and externally paid)."""
         return sum((f.tax_due_dkk for f in self.flows), Decimal("0"))
 
+    def total_contributions_dkk(self) -> Decimal:
+        """Sum of contributions actually deposited across all years.
+
+        For ASK accounts this excludes any contribution overflow that was
+        capped (and dropped) by the cumulative deposit limit.  This is the
+        amount of new money that entered the depot — it does *not* include
+        the opening balance.
+        """
+        return sum((f.annual_contribution_dkk for f in self.flows), Decimal("0"))
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Core projection function
@@ -727,6 +737,14 @@ class BridgeConfig(pydantic.BaseModel):
             raise ValueError("horizon_months must be ≥ 1")
         if self.account_type == "ask" and self.tax_regime != "lager":
             raise ValueError("ASK accounts always use lager tax regime")
+        net_rate = self.gross_annual_return_rate - self.annual_expense_ratio
+        if net_rate <= Decimal("-1"):
+            raise ValueError(
+                "gross_annual_return_rate - annual_expense_ratio must be > -1 "
+                f"(got {net_rate}); a ≤ -100 % net return cannot compound"
+            )
+        if self.annual_expense_ratio < Decimal("0"):
+            raise ValueError("annual_expense_ratio must be ≥ 0")
         return self
 
 
@@ -738,8 +756,11 @@ class BridgeResult(pydantic.BaseModel):
             month (DKK).  For Lager accounts, the user receives this in full;
             separately, an annual Lager tax bill is due each December.
         monthly_net_to_pocket_dkk: Estimated monthly cash after all taxes.
-            For Lager: gross minus the average monthly Lager tax accrual
-            (``annual_lager_tax / 12``).
+            For Lager: equal to ``monthly_gross_withdrawal_dkk``; the annual
+            Lager tax is deducted directly from the depot balance each
+            December inside the simulation, so the user receives the full
+            gross amount in their pocket (the annual tax bill is reported
+            separately via ``annual_avg_lager_tax_dkk``).
             For Realisation: gross minus the embedded capital-gains tax on
             the gain fraction of each withdrawal.
         annual_avg_lager_tax_dkk: Average annual Lager mark-to-market tax
@@ -1101,11 +1122,22 @@ class StrategyComparisonRow(pydantic.BaseModel):
     tax_regime: str
     annual_expense_ratio: Decimal
     terminal_balance_dkk: Decimal
+    opening_balance_dkk: Decimal
+    # Opening balance the projection started from.  Surfaced so callers can
+    # reconstruct "total invested = opening + contributions" without having
+    # to thread the comparison input through separately.
     total_contributions_dkk: Decimal
+    # Sum of contributions actually deposited across the horizon (after ASK
+    # capping for ASK accounts).  Excludes the opening balance.
     total_tax_due_dkk: Decimal
     terminal_gain_fraction: Decimal
-    effective_net_annual_rate: Decimal
-    """Approximate effective net annual return: (terminal/opening)^(1/n) - 1."""
+    effective_net_annual_rate: Decimal | None
+    # CAGR of the depot, ``(terminal / opening) ** (1 / years) - 1``.
+    # Reported only for the **zero-contribution** case where the depot
+    # compounds a single lump sum and a CAGR is meaningful.  When
+    # ``total_contributions_dkk > 0`` this field is ``None`` because a
+    # cashflow-aware return measure (MWRR/IRR) would be needed and is not
+    # computed here.
 
 
 def compare_liquid_strategies(
@@ -1166,14 +1198,18 @@ def compare_liquid_strategies(
         proj = project_liquid(cfg, base_year=base_year, horizon_years=horizon_years)
 
         terminal = proj.terminal_balance_dkk()
-        total_contributions = _q(
-            opening_balance_dkk + annual_contribution * Decimal(str(horizon_years))
-        )
+        total_contributions = proj.total_contributions_dkk()
 
-        # Effective net annual rate: solve terminal = opening * (1+r)^n for r
-        if terminal > Decimal("0") and opening_balance_dkk > Decimal("0"):
+        # Effective net annual rate is only meaningful when no contributions
+        # are added (pure lump-sum compounding).  With contributions the
+        # CAGR would mix capital and return and mislead callers; expose
+        # ``None`` and document that MWRR/IRR is the right metric there.
+        effective_rate: Decimal | None
+        if total_contributions > Decimal("0"):
+            effective_rate = None
+        elif terminal > Decimal("0") and opening_balance_dkk > Decimal("0"):
             ratio_float = float(terminal / opening_balance_dkk)
-            effective_rate = Decimal(str(ratio_float ** (1.0 / horizon_years) - 1.0))
+            effective_rate = _q(Decimal(str(ratio_float ** (1.0 / horizon_years) - 1.0)))
         else:
             effective_rate = Decimal("0")
 
@@ -1185,10 +1221,11 @@ def compare_liquid_strategies(
                 tax_regime=fp.tax_regime,
                 annual_expense_ratio=fp.annual_expense_ratio,
                 terminal_balance_dkk=terminal,
+                opening_balance_dkk=opening_balance_dkk,
                 total_contributions_dkk=total_contributions,
                 total_tax_due_dkk=proj.total_tax_due_dkk(),
                 terminal_gain_fraction=proj.terminal_gain_fraction,
-                effective_net_annual_rate=_q(effective_rate),
+                effective_net_annual_rate=effective_rate,
             )
         )
 

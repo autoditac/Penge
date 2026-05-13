@@ -31,6 +31,8 @@ from typing import Literal
 
 import pydantic
 
+from penge.sim._decimal_utils import to_decimal as _to_decimal
+
 __all__ = [
     "CashflowConfig",
     "CashflowError",
@@ -48,18 +50,6 @@ class CashflowError(Exception):
 
 
 _TWO_DP = Decimal("0.01")
-
-
-def _to_decimal(v: object) -> Decimal:
-    """Coerce *v* to ``Decimal`` and reject NaN / Infinity values.
-
-    Raises:
-        ValueError: If the resulting Decimal is non-finite.
-    """
-    d = Decimal(str(v))
-    if not d.is_finite():
-        raise ValueError(f"Decimal value must be finite, got {d}")
-    return d
 
 
 def _compound(base: Decimal, rate: Decimal, periods: int) -> Decimal:

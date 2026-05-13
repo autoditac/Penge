@@ -80,11 +80,12 @@ from __future__ import annotations
 
 import math
 from collections.abc import Mapping, Sequence
-from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
+from decimal import ROUND_HALF_EVEN, Decimal
 from typing import Final, Literal
 
 import pydantic
 
+from penge.sim._decimal_utils import to_decimal as _to_decimal
 from penge.tax.aktiesparekonto import ASK_DEPOSIT_CAPS, ASK_RATE
 
 __all__ = [
@@ -110,22 +111,6 @@ __all__ = [
 ]
 
 _DP2 = Decimal("0.01")
-
-
-def _to_decimal(v: object) -> Decimal:
-    """Coerce *v* to a finite Decimal or raise ``ValueError``.
-
-    Mirrors :func:`penge.sim.cashflow._to_decimal` so liquid-depot config
-    validation rejects ``NaN``/``Infinity`` and surfaces a clear error
-    instead of leaking :class:`decimal.InvalidOperation`.
-    """
-    try:
-        d = Decimal(str(v))
-    except (InvalidOperation, ValueError, TypeError) as exc:
-        raise ValueError(f"cannot convert {v!r} to Decimal") from exc
-    if not d.is_finite():
-        raise ValueError(f"value must be finite, got {v!r}")
-    return d
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -361,6 +346,16 @@ class LiquidDepotConfig(pydantic.BaseModel):
             correct value.  For projections spanning multiple years the
             threshold is held constant — update :data:`AKTIEINDKOMST_THRESHOLDS`
             for more precise long-horizon results.
+        opening_cost_basis_dkk: For *realisationsbeskatning* frie midler
+            only — the depot's accumulated cost basis (DKK) at the start
+            of the projection.  Real-world depots typically carry
+            unrealised gains or losses, so basis ≠ balance.  Must be in
+            ``[0, opening_balance_dkk]``.  When ``None`` (default), the
+            cost basis is seeded to ``opening_balance_dkk`` (i.e. no
+            unrealised gain at t=0) to preserve backwards-compatible
+            behaviour.  Ignored for ASK and for lager-regime accounts,
+            both of which mark to market every year and therefore carry
+            ``cost_basis == balance`` by construction.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -376,6 +371,7 @@ class LiquidDepotConfig(pydantic.BaseModel):
     annual_dividend_yield: Decimal = Decimal("0")
     tax_source: Literal["external", "depot"] = "external"
     aktieindkomst_threshold_dkk: Decimal = Decimal("61900")
+    opening_cost_basis_dkk: Decimal | None = None
 
     @pydantic.field_validator(
         "opening_balance_dkk",
@@ -391,8 +387,15 @@ class LiquidDepotConfig(pydantic.BaseModel):
     def _coerce(cls, v: object) -> Decimal:
         return _to_decimal(v)
 
+    @pydantic.field_validator("opening_cost_basis_dkk", mode="before")
+    @classmethod
+    def _coerce_optional(cls, v: object) -> Decimal | None:
+        if v is None:
+            return None
+        return _to_decimal(v)
+
     @pydantic.model_validator(mode="after")
-    def _validate(self) -> LiquidDepotConfig:
+    def _validate(self) -> LiquidDepotConfig:  # noqa: PLR0912
         if self.opening_balance_dkk < Decimal("0"):
             raise ValueError("opening_balance_dkk must be ≥ 0")
         if self.annual_contribution_dkk < Decimal("0"):
@@ -414,6 +417,23 @@ class LiquidDepotConfig(pydantic.BaseModel):
             raise ValueError("ask_lifetime_deposits_dkk must be ≥ 0")
         if self.aktieindkomst_threshold_dkk <= Decimal("0"):
             raise ValueError("aktieindkomst_threshold_dkk must be > 0")
+        if self.opening_cost_basis_dkk is not None:
+            if self.opening_cost_basis_dkk < Decimal("0"):
+                raise ValueError("opening_cost_basis_dkk must be ≥ 0")
+            if self.opening_cost_basis_dkk > self.opening_balance_dkk:
+                raise ValueError(
+                    "opening_cost_basis_dkk must be ≤ opening_balance_dkk "
+                    "(a cost basis above the current market value implies an "
+                    "unrealised loss larger than the depot itself)"
+                )
+            if not (
+                self.tax_regime == "realisation" and self.account_type == "frie_midler"
+            ):
+                raise ValueError(
+                    "opening_cost_basis_dkk only applies to realisation-regime "
+                    "frie midler; ASK and lager accounts mark to market every "
+                    "year and therefore have cost_basis == balance by construction"
+                )
         net_return = self.gross_annual_return_rate - self.annual_expense_ratio
         if net_return <= Decimal("-1"):
             raise ValueError(
@@ -625,7 +645,7 @@ def _closing_balance_and_basis(
     return closing, new_cost_basis
 
 
-def project_liquid(
+def project_liquid(  # noqa: PLR0912
     config: LiquidDepotConfig,
     *,
     base_year: int,
@@ -695,8 +715,19 @@ def project_liquid(
     net_return_rate = config.gross_annual_return_rate - config.annual_expense_ratio
     balance = config.opening_balance_dkk
     # cost_basis tracks total cash invested for realisation accounts.
-    # For lager accounts cost_basis == balance (no deferred gain).
-    cost_basis = config.opening_balance_dkk
+    # For lager accounts cost_basis == balance (no deferred gain).  For
+    # realisation-regime frie midler the caller may pass an explicit
+    # ``opening_cost_basis_dkk`` to seed an existing unrealised gain/
+    # loss; absent that we default to balance (no unrealised gain at
+    # t=0).
+    if (
+        config.opening_cost_basis_dkk is not None
+        and config.tax_regime == "realisation"
+        and config.account_type == "frie_midler"
+    ):
+        cost_basis = config.opening_cost_basis_dkk
+    else:
+        cost_basis = config.opening_balance_dkk
     cumulative_ask_deposits = config.ask_lifetime_deposits_dkk
 
     flows: list[YearlyLiquidFlow] = []

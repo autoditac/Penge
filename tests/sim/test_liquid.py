@@ -630,10 +630,86 @@ class TestLiquidDepotConfigValidation:
                 aktieindkomst_threshold_dkk=Decimal("61900"),
             )
 
+    def test_opening_cost_basis_above_balance_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="opening_cost_basis_dkk must be ≤"):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="realisation",
+                opening_balance_dkk=Decimal("100000"),
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.05"),
+                annual_expense_ratio=Decimal("0.001"),
+                annual_dividend_yield=Decimal("0"),
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+                opening_cost_basis_dkk=Decimal("100001"),
+            )
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Bridge / decumulation PMT
-# ─────────────────────────────────────────────────────────────────────────────
+    def test_opening_cost_basis_negative_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="opening_cost_basis_dkk must be ≥ 0"):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="realisation",
+                opening_balance_dkk=Decimal("100000"),
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.05"),
+                annual_expense_ratio=Decimal("0.001"),
+                annual_dividend_yield=Decimal("0"),
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+                opening_cost_basis_dkk=Decimal("-1"),
+            )
+
+    def test_opening_cost_basis_on_lager_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="only applies to realisation"):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="lager",
+                opening_balance_dkk=Decimal("100000"),
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.05"),
+                annual_expense_ratio=Decimal("0.001"),
+                annual_dividend_yield=Decimal("0"),
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+                opening_cost_basis_dkk=Decimal("50000"),
+            )
+
+    def test_opening_cost_basis_seeds_unrealised_gain(self) -> None:
+        """A pre-existing unrealised gain reduces the terminal capital gain.
+
+        Two otherwise-identical realisation projections — one with cost
+        basis equal to opening balance (default), one with a lower
+        explicit basis — must differ in their terminal-year ``cost_basis_dkk``
+        by exactly the seeded gap.  Annual flows (tax, contributions, balance)
+        are identical because realisation tax is only on dividends during
+        the accumulation phase; the basis difference is realised on sale.
+        """
+        cfg_default = LiquidDepotConfig(
+            account_id="x",
+            account_type="frie_midler",
+            tax_regime="realisation",
+            opening_balance_dkk=Decimal("200000"),
+            annual_contribution_dkk=Decimal("12000"),
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.002"),
+            annual_dividend_yield=Decimal("0"),
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        cfg_seeded = cfg_default.model_copy(
+            update={"opening_cost_basis_dkk": Decimal("150000")}
+        )
+        proj_default = project_liquid(cfg_default, base_year=2025, horizon_years=5)
+        proj_seeded = project_liquid(cfg_seeded, base_year=2025, horizon_years=5)
+
+        # Balances must match exactly: no dividend tax, no path divergence.
+        assert (
+            proj_default.flows[-1].closing_balance_dkk
+            == proj_seeded.flows[-1].closing_balance_dkk
+        )
+        # Cost basis offset preserved end-to-end.
+        diff = proj_default.flows[-1].cost_basis_dkk - proj_seeded.flows[-1].cost_basis_dkk
+        assert diff == Decimal("50000")
 
 
 class TestComputeBridgePmt:

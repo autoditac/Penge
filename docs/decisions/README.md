@@ -25,3 +25,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0007](0007-initial-relational-data-model.md) | Initial relational data model                                | Accepted |
 | [0008](0008-nordnet-account-modelling.md) | Nordnet account modelling: kinds, multi-currency cash, ASK   | Accepted |
 | [0026](0026-retire-gocardless-for-enable-banking.md) | Retire GoCardless; standardize on Enable Banking for PSD2 | Accepted |
+| [0027](0027-liquid-depot-simulation-model.md) | Liquid depot simulation model (ASK + frie midler, Lager/Realisation) | Proposed |

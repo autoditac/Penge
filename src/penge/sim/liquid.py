@@ -72,7 +72,7 @@ References:
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Final, Literal
 
 import pydantic
@@ -100,6 +100,23 @@ __all__ = [
 ]
 
 _DP2 = Decimal("0.01")
+
+
+def _to_decimal(v: object) -> Decimal:
+    """Coerce *v* to a finite Decimal or raise ``ValueError``.
+
+    Mirrors :func:`penge.sim.cashflow._to_decimal` so liquid-depot config
+    validation rejects ``NaN``/``Infinity`` and surfaces a clear error
+    instead of leaking :class:`decimal.InvalidOperation`.
+    """
+    try:
+        d = Decimal(str(v))
+    except (InvalidOperation, ValueError, TypeError) as exc:
+        raise ValueError(f"cannot convert {v!r} to Decimal") from exc
+    if not d.is_finite():
+        raise ValueError(f"value must be finite, got {v!r}")
+    return d
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Tax-rate constants and annual tables
@@ -222,18 +239,31 @@ def compute_aktieindkomst_tax(
 def threshold_for_year(year: int) -> Decimal:
     """Return the best available aktieindkomst threshold for *year* (DKK, per person).
 
-    Returns the exact value if the year is in :data:`AKTIEINDKOMST_THRESHOLDS`;
-    otherwise falls back to the last known year's value.  Callers should treat
-    projections for years beyond the table as ±5 % uncertain on the bracket.
+    Returns the exact value if the year is in :data:`AKTIEINDKOMST_THRESHOLDS`.
+    For years *after* the table, falls back to the last known year's value
+    (callers should treat such projections as ±5 % uncertain on the bracket).
+    For years *before* the earliest configured year, raises rather than
+    silently using a future threshold — historical projections should be
+    explicit about the year they cover.
 
     Args:
         year: Calendar year for the threshold lookup.
 
     Returns:
         Per-person aktieindkomst threshold in DKK.
+
+    Raises:
+        LiquidDepotError: If *year* is earlier than the earliest year in
+            :data:`AKTIEINDKOMST_THRESHOLDS`.
     """
     if year in AKTIEINDKOMST_THRESHOLDS:
         return AKTIEINDKOMST_THRESHOLDS[year]
+    first = min(AKTIEINDKOMST_THRESHOLDS)
+    if year < first:
+        raise LiquidDepotError(
+            f"no aktieindkomst threshold available for year {year} "
+            f"(earliest configured year is {first})"
+        )
     last = max(AKTIEINDKOMST_THRESHOLDS)
     return AKTIEINDKOMST_THRESHOLDS[last]
 
@@ -328,7 +358,7 @@ class LiquidDepotConfig(pydantic.BaseModel):
     )
     @classmethod
     def _coerce(cls, v: object) -> Decimal:
-        return Decimal(str(v))
+        return _to_decimal(v)
 
     @pydantic.model_validator(mode="after")
     def _validate(self) -> LiquidDepotConfig:
@@ -673,7 +703,7 @@ class BridgeConfig(pydantic.BaseModel):
     )
     @classmethod
     def _coerce(cls, v: object) -> Decimal:
-        return Decimal(str(v))
+        return _to_decimal(v)
 
     @pydantic.model_validator(mode="after")
     def _validate(self) -> BridgeConfig:
@@ -764,14 +794,19 @@ def _bridge_simulate(
     on the net gain *for that year*:
         gain = year_end_balance - year_start_balance + total_withdrawals_in_year
 
-    Realisation tax is embedded in each withdrawal: only the gain fraction
-    of each monthly withdrawal is taxed.
+    Realisation tax is computed on the **year-to-date** realised gain, with
+    the progressive bracket applied against the remaining low-bracket
+    headroom.  Each month's withdrawal pays the *marginal* aktieindkomst
+    tax for that month — early-year withdrawals get more 27 % headroom,
+    later-year ones spill over into 42 %.  This matches the way SKAT
+    settles aktieindkomst on the annual income statement.
     """
     balance = starting_balance
     current_cost_basis = cost_basis
 
     year_opening_balance = balance
     year_withdrawals = Decimal("0")
+    ytd_realised_gain = Decimal("0")
 
     flows: list[MonthlyBridgeFlow] = []
 
@@ -789,10 +824,15 @@ def _bridge_simulate(
             else:
                 gain_fraction = Decimal("0")
             gain_portion = _q(monthly_withdrawal * gain_fraction)
-            withdrawal_tax = compute_aktieindkomst_tax(
-                gain_dkk=gain_portion,
-                threshold_dkk=threshold_dkk,
+            # Apply progressive bracket on YTD basis: how much 27% headroom
+            # is still available for this tax year, then spill into 42%.
+            low_room = max(threshold_dkk - ytd_realised_gain, Decimal("0"))
+            low_portion = min(gain_portion, low_room)
+            high_portion = max(gain_portion - low_portion, Decimal("0"))
+            withdrawal_tax = _q(
+                low_portion * AKTIEINDKOMST_LOW_RATE + high_portion * AKTIEINDKOMST_HIGH_RATE
             )
+            ytd_realised_gain = _q(ytd_realised_gain + gain_portion)
             # Update cost basis: remove the cost-basis portion of the withdrawal
             cost_portion_of_withdrawal = _q(monthly_withdrawal * (Decimal("1") - gain_fraction))
             current_cost_basis = max(
@@ -808,19 +848,23 @@ def _bridge_simulate(
 
         # Lager tax: computed and deducted at year-end (December = month % 12 == 0)
         lager_tax = Decimal("0")
-        if tax_regime == "lager" and month % 12 == 0:
-            annual_gain = _q(balance - year_opening_balance + year_withdrawals)
-            if annual_gain > Decimal("0"):
-                if account_type == "ask":
-                    lager_tax = _q(annual_gain * ASK_RATE)
-                else:
-                    lager_tax = compute_aktieindkomst_tax(
-                        gain_dkk=annual_gain,
-                        threshold_dkk=threshold_dkk,
-                    )
-            balance = _q(balance - lager_tax)
-            year_opening_balance = balance
-            year_withdrawals = Decimal("0")
+        if month % 12 == 0:
+            if tax_regime == "lager":
+                annual_gain = _q(balance - year_opening_balance + year_withdrawals)
+                if annual_gain > Decimal("0"):
+                    if account_type == "ask":
+                        lager_tax = _q(annual_gain * ASK_RATE)
+                    else:
+                        lager_tax = compute_aktieindkomst_tax(
+                            gain_dkk=annual_gain,
+                            threshold_dkk=threshold_dkk,
+                        )
+                balance = _q(balance - lager_tax)
+                year_opening_balance = balance
+                year_withdrawals = Decimal("0")
+            else:
+                # End of tax year — reset progressive headroom tracker
+                ytd_realised_gain = Decimal("0")
 
         flows.append(
             MonthlyBridgeFlow(
@@ -871,11 +915,18 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
         monthly simulation.
 
     Raises:
-        LiquidDepotError: If the balance is depleted to zero before the
-            horizon is reached at any PMT value (portfolio too small for
-            the horizon).
+        LiquidDepotError: If ``gross_annual_return_rate - annual_expense_ratio``
+            is ≤ -1 (would imply a total wipe-out), if the binary search
+            cannot bracket a PMT that depletes the portfolio within the
+            horizon, or if no positive PMT produces a non-negative running
+            balance throughout the horizon.
     """
     annual_net_rate = config.gross_annual_return_rate - config.annual_expense_ratio
+    if annual_net_rate <= Decimal("-1"):
+        raise LiquidDepotError(
+            f"annual net rate must be > -1 (got {annual_net_rate}); "
+            "a -100 % or worse net return cannot compound"
+        )
     # Monthly rate: (1 + annual_net_rate)^(1/12) - 1
     # Computed in float for Newton-precision, then back to Decimal
     annual_net_float = float(annual_net_rate)
@@ -885,21 +936,27 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
     lo = Decimal("1")
     hi = _q(config.starting_balance_dkk / Decimal(str(config.horizon_months)))
 
-    # Verify hi bound (no-return scenario must still deplete in time)
-    final_hi, _ = _bridge_simulate(
-        config.starting_balance_dkk,
-        config.cost_basis_dkk,
-        hi,
-        config.horizon_months,
-        monthly_net_rate,
-        config.account_type,
-        config.tax_regime,
-        config.aktieindkomst_threshold_dkk,
-    )
-    # If even the no-return PMT doesn't deplete, extend the upper bound
-    if final_hi > Decimal("0"):
-        # Portfolio grows faster than we withdraw — can increase PMT
-        hi = _q(config.starting_balance_dkk / Decimal(str(config.horizon_months)) * Decimal("3"))
+    # If the initial hi under-withdraws (portfolio grows faster than we draw),
+    # grow it until the simulated final balance is ≤ 0 or we give up.
+    for _ in range(20):
+        final_hi, _ = _bridge_simulate(
+            config.starting_balance_dkk,
+            config.cost_basis_dkk,
+            hi,
+            config.horizon_months,
+            monthly_net_rate,
+            config.account_type,
+            config.tax_regime,
+            config.aktieindkomst_threshold_dkk,
+        )
+        if final_hi <= Decimal("0"):
+            break
+        hi = _q(hi * Decimal("2"))
+    else:
+        raise LiquidDepotError(
+            "could not bracket a depleting PMT; the portfolio grows faster "
+            "than any tested withdrawal rate. Check return / expense inputs."
+        )
 
     # Binary search: find PMT such that final_balance ≈ 0
     for _ in range(60):  # 60 iterations → <0.0001 DKK precision
@@ -930,6 +987,17 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:
         config.tax_regime,
         config.aktieindkomst_threshold_dkk,
     )
+
+    # Guard against pathological cases where the search collapses to a PMT
+    # that depletes the depot before the horizon ends — e.g. when the
+    # starting balance is too small or the return is too negative.
+    for flow in flows[:-1]:
+        if flow.closing_balance_dkk < Decimal("0"):
+            raise LiquidDepotError(
+                f"portfolio depleted to {flow.closing_balance_dkk} DKK in "
+                f"month {flow.month} of {config.horizon_months}; "
+                "starting balance is too small for the requested horizon."
+            )
 
     total_gross = _q(monthly_pmt * Decimal(str(config.horizon_months)))
     total_tax = sum((f.withdrawal_tax_dkk + f.lager_tax_dkk for f in flows), Decimal("0"))
@@ -1004,7 +1072,7 @@ class FundProfile(pydantic.BaseModel):
     )
     @classmethod
     def _coerce(cls, v: object) -> Decimal:
-        return Decimal(str(v))
+        return _to_decimal(v)
 
 
 class StrategyComparisonRow(pydantic.BaseModel):

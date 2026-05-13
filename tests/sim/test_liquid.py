@@ -191,6 +191,10 @@ class TestThresholdForYear:
         result = threshold_for_year(2025)
         assert result > Decimal("61900")  # indexed upward
 
+    def test_past_year_before_table_raises(self) -> None:
+        with pytest.raises(LiquidDepotError, match="no aktieindkomst threshold"):
+            threshold_for_year(2020)
+
 
 class TestAskCapForYear:
     def test_known_year(self) -> None:
@@ -537,6 +541,32 @@ class TestLiquidDepotConfigValidation:
         )
         assert cfg.opening_balance_dkk == Decimal("62000")
 
+    def test_nan_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="finite"):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="lager",
+                opening_balance_dkk="NaN",  # type: ignore[arg-type]  # intentional: verifying NaN rejection
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.10"),
+                annual_expense_ratio=Decimal("0.001"),
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
+    def test_infinity_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="finite"):
+            LiquidDepotConfig(
+                account_id="x",
+                account_type="frie_midler",
+                tax_regime="lager",
+                opening_balance_dkk="Infinity",  # type: ignore[arg-type]  # intentional: verifying Infinity rejection
+                annual_contribution_dkk=Decimal("0"),
+                gross_annual_return_rate=Decimal("0.10"),
+                annual_expense_ratio=Decimal("0.001"),
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Bridge / decumulation PMT
@@ -664,6 +694,68 @@ class TestComputeBridgePmt:
         )
         result = compute_bridge_pmt(cfg)
         assert len(result.monthly_flows) == 24
+
+    def test_total_wipe_out_net_rate_rejected(self) -> None:
+        """A net rate ≤ -100 % cannot compound — must raise."""
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("1000000"),
+            cost_basis_dkk=Decimal("1000000"),
+            horizon_months=120,
+            gross_annual_return_rate=Decimal("-0.5"),
+            annual_expense_ratio=Decimal("0.5"),
+            account_type="frie_midler",
+            tax_regime="lager",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        with pytest.raises(LiquidDepotError, match="net rate"):
+            compute_bridge_pmt(cfg)
+
+    def test_realisation_progressive_tax_annual_basis(self) -> None:
+        """Realisation withdrawal tax must respect annual progressive bracket.
+
+        With a 100 % gain fraction (cost_basis=0) and a horizon long enough
+        for annual realised gains to exceed the 27 % threshold, the average
+        embedded tax rate must exceed 27 % — the per-withdrawal threshold
+        application would falsely cap it at 27 %.
+        """
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("3000000"),
+            cost_basis_dkk=Decimal("0"),  # 100 % gain fraction
+            horizon_months=120,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        result = compute_bridge_pmt(cfg)
+        # Annual realised gains will be far above 61 900 DKK, so average
+        # effective tax rate must be between 27 % and 42 % (closer to 42 %).
+        avg_tax_rate = result.total_tax_paid_dkk / result.total_gross_withdrawn_dkk
+        assert avg_tax_rate > Decimal("0.27")
+        assert avg_tax_rate < Decimal("0.42")
+
+    def test_realisation_low_gain_stays_in_27_bracket(self) -> None:
+        """If annual realised gain stays under the threshold, tax rate ≈ 27 %.
+
+        Tiny portfolio with low cost-basis spread: total annual gain portion
+        stays in the 27 % low bracket, so average effective tax on gain
+        should be ≈ 27 %.
+        """
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("200000"),
+            cost_basis_dkk=Decimal("0"),
+            horizon_months=120,
+            gross_annual_return_rate=Decimal("0.05"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        result = compute_bridge_pmt(cfg)
+        avg_tax_rate = result.total_tax_paid_dkk / result.total_gross_withdrawn_dkk
+        # Annual gain ≈ 24 000 DKK — well under threshold, expect 27 % bracket
+        assert avg_tax_rate < Decimal("0.30")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

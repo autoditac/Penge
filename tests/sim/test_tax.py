@@ -253,16 +253,23 @@ class TestApplyTaxPension:
         # 5_000 * (1 - 0.153) = 4_235.00
         assert net.flows[0].pension_accrual_eur == Decimal("4235.00")
 
-    def test_pension_cumulative_re_accumulated(self) -> None:
-        """Cumulative pension is re-accumulated from net accruals over 3 years."""
+    def test_pension_cumulative_adjusted_by_accrual_delta(self) -> None:
+        """Cumulative pension reflects the full balance adjusted by the accrual delta.
+
+        With no opening balance and no growth rate, cumulative_eur (gross) grows
+        as 5000, 10000, 15000.  After applying pension_return_tax_rate=0.153 the
+        accrual becomes 4235 each year; the cumulative is adjusted by the delta
+        (original_cumulative - original_accrual + net_accrual):
+          Year 1: 5000 - 5000 + 4235 = 4235
+          Year 2: 10000 - 5000 + 4235 = 9235
+          Year 3: 15000 - 5000 + 4235 = 14235
+        """
         cfg = _make_config(pension_annual="5000", horizon=3)
         proj = project(cfg)
         tc = TaxConfig(regimes={"alice": DK_DEFAULT})
         net = apply_tax(proj, tc)
-        # Each year: net accrual = 5_000 * 0.847 = 4_235
-        # Year 1 cumulative: 4_235; Year 2: 8_470; Year 3: 12_705
         cumulatives = [f.cumulative_pension_eur for f in net.flows]
-        assert cumulatives == [Decimal("4235.00"), Decimal("8470.00"), Decimal("12705.00")]
+        assert cumulatives == [Decimal("4235.00"), Decimal("9235.00"), Decimal("14235.00")]
 
     def test_zero_pension_return_tax_de(self) -> None:
         """DE default has pension_return_tax_rate=0, so accrual is unchanged."""

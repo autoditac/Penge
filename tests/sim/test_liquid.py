@@ -797,6 +797,46 @@ class TestComputeBridgePmt:
         )
         assert cfg.annual_dividend_yield == Decimal("0.01")
 
+    def test_expense_ratio_at_or_above_one_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="must be < 1"):
+            BridgeConfig(
+                starting_balance_dkk=Decimal("1000000"),
+                cost_basis_dkk=Decimal("1000000"),
+                horizon_months=24,
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("1.0"),
+                account_type="frie_midler",
+                tax_regime="lager",
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
+    def test_dividend_yield_at_or_above_one_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match="must be < 1"):
+            BridgeConfig(
+                starting_balance_dkk=Decimal("1000000"),
+                cost_basis_dkk=Decimal("1000000"),
+                horizon_months=24,
+                gross_annual_return_rate=Decimal("0.07"),
+                annual_expense_ratio=Decimal("0.001"),
+                account_type="frie_midler",
+                tax_regime="lager",
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+                annual_dividend_yield=Decimal("1.0"),
+            )
+
+    def test_gross_return_out_of_range_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match=r"\[-0.5, 2.0\]"):
+            BridgeConfig(
+                starting_balance_dkk=Decimal("1000000"),
+                cost_basis_dkk=Decimal("1000000"),
+                horizon_months=24,
+                gross_annual_return_rate=Decimal("3.0"),
+                annual_expense_ratio=Decimal("0.001"),
+                account_type="frie_midler",
+                tax_regime="lager",
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
     def test_realisation_progressive_tax_annual_basis(self) -> None:
         """Realisation withdrawal tax must respect annual progressive bracket.
 

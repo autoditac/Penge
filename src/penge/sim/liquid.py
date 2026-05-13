@@ -78,6 +78,7 @@ References:
 
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping, Sequence
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Final, Literal
@@ -825,10 +826,16 @@ class BridgeConfig(pydantic.BaseModel):
             )
         if self.annual_expense_ratio < Decimal("0"):
             raise ValueError("annual_expense_ratio must be ≥ 0")
+        if self.annual_expense_ratio >= Decimal("1"):
+            raise ValueError("annual_expense_ratio must be < 1")
+        if not (Decimal("-0.5") <= self.gross_annual_return_rate <= Decimal("2")):
+            raise ValueError("gross_annual_return_rate must be in [-0.5, 2.0]")
         if self.aktieindkomst_threshold_dkk <= Decimal("0"):
             raise ValueError("aktieindkomst_threshold_dkk must be > 0")
         if self.annual_dividend_yield < Decimal("0"):
             raise ValueError("annual_dividend_yield must be ≥ 0")
+        if self.annual_dividend_yield >= Decimal("1"):
+            raise ValueError("annual_dividend_yield must be < 1")
         if (
             self.tax_regime == "realisation"
             and self.annual_dividend_yield > Decimal("0")
@@ -1073,7 +1080,15 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
             "converted to float for the fractional-exponent monthly-rate "
             "calculation; choose a less extreme return / expense ratio."
         )
-    monthly_net_rate = Decimal(str((1.0 + annual_net_float) ** (1.0 / 12.0) - 1.0))
+    monthly_net_float = (1.0 + annual_net_float) ** (1.0 / 12.0) - 1.0
+    if not math.isfinite(monthly_net_float):
+        raise LiquidDepotError(
+            f"monthly net rate is not finite (got {monthly_net_float!r}); "
+            f"the annual net rate {annual_net_rate} overflowed during the "
+            "fractional-exponent conversion to float.  Choose a smaller "
+            "gross_annual_return_rate."
+        )
+    monthly_net_rate = Decimal(str(monthly_net_float))
 
     # PMT bounds: lower is 0; upper is starting_balance / horizon_months (no return)
     lo = Decimal("0")

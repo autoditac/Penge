@@ -578,6 +578,8 @@ class LiquidProjection(pydantic.BaseModel):
         states propagate correctly.
         """
         if not self.flows:
+            if self.config.opening_cost_basis_dkk is not None:
+                return self.config.opening_cost_basis_dkk
             return self.config.opening_balance_dkk
         return self.flows[-1].cost_basis_dkk
 

@@ -1039,9 +1039,12 @@ class TestComputeBridgePmt:
     def test_realisation_low_gain_stays_in_27_bracket(self) -> None:
         """If annual realised gain stays under the threshold, tax rate ≈ 27 %.
 
-        Tiny portfolio with low cost-basis spread: total annual gain portion
-        stays in the 27 % low bracket, so average effective tax on gain
-        should be ≈ 27 %.
+        Small portfolio with modest withdrawals: even with a fully
+        unrealised opening gain (cost basis = 0, gain fraction = 100 %),
+        the per-year *realised* gain portion of each withdrawal stays
+        below the ``aktieindkomst_threshold_dkk`` cut, so the average
+        effective tax on realised gain should sit near the 27 % low
+        bracket.
         """
         cfg = BridgeConfig(
             starting_balance_dkk=Decimal("200000"),

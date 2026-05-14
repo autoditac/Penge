@@ -43,7 +43,7 @@ consolidated figure must apply an FX rate explicitly.
 
 For a recurring rule, the effective amount in a given year is:
 
-```
+```text
 effective_amount = annual_amount × (1 + inflation_rate) ^ (year − base_year)
 ```
 

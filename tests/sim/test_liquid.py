@@ -423,9 +423,7 @@ class TestProjectLiquidFrieRealisation:
 
     def test_dividend_tax_from_depot_reduces_reinvested_amount(self) -> None:
         """For realisation + tax_source='depot', net dividend reflects the tax."""
-        cfg = _frie_realisation_config(
-            opening="200000", dividend_yield="0.005", tax_source="depot"
-        )
+        cfg = _frie_realisation_config(opening="200000", dividend_yield="0.005", tax_source="depot")
         proj = project_liquid(cfg, base_year=2024, horizon_years=1)
         flow = proj.flows[0]
         expected_dividend_gross = Decimal("200000") * Decimal("0.005")
@@ -712,16 +710,13 @@ class TestLiquidDepotConfigValidation:
             annual_dividend_yield=Decimal("0"),
             aktieindkomst_threshold_dkk=Decimal("61900"),
         )
-        cfg_seeded = cfg_default.model_copy(
-            update={"opening_cost_basis_dkk": Decimal("150000")}
-        )
+        cfg_seeded = cfg_default.model_copy(update={"opening_cost_basis_dkk": Decimal("150000")})
         proj_default = project_liquid(cfg_default, base_year=2025, horizon_years=5)
         proj_seeded = project_liquid(cfg_seeded, base_year=2025, horizon_years=5)
 
         # Balances must match exactly: no dividend tax, no path divergence.
         assert (
-            proj_default.flows[-1].closing_balance_dkk
-            == proj_seeded.flows[-1].closing_balance_dkk
+            proj_default.flows[-1].closing_balance_dkk == proj_seeded.flows[-1].closing_balance_dkk
         )
         # Cost basis offset preserved end-to-end.
         diff = proj_default.flows[-1].cost_basis_dkk - proj_seeded.flows[-1].cost_basis_dkk
@@ -967,22 +962,185 @@ class TestComputeBridgePmt:
                 aktieindkomst_threshold_dkk=Decimal("61900"),
             )
 
-    def test_realisation_bridge_rejects_dividend_yield(self) -> None:
-        """Bridge does not yet model dividend distributions for realisation."""
-        with pytest.raises(
-            pydantic.ValidationError, match="dividend distributions"
-        ):
-            BridgeConfig(
-                starting_balance_dkk=Decimal("1000000"),
-                cost_basis_dkk=Decimal("500000"),
-                horizon_months=120,
-                gross_annual_return_rate=Decimal("0.07"),
-                annual_expense_ratio=Decimal("0.001"),
-                account_type="frie_midler",
-                tax_regime="realisation",
-                aktieindkomst_threshold_dkk=Decimal("61900"),
-                annual_dividend_yield=Decimal("0.01"),
+    def test_realisation_bridge_allows_dividend_yield(self) -> None:
+        """Bridge now models dividend distributions for realisation (issue #158)."""
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("1000000"),
+            cost_basis_dkk=Decimal("500000"),
+            horizon_months=120,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=Decimal("0.01"),
+        )
+        assert cfg.annual_dividend_yield == Decimal("0.01")
+        result = compute_bridge_pmt(cfg)
+        # Should produce a valid, positive monthly PMT
+        assert result.monthly_gross_withdrawal_dkk > Decimal("0")
+        # Final balance should be near zero (PMT solved for full depletion)
+        assert abs(result.final_balance_dkk) < Decimal("200")
+
+    def test_distributing_realisation_bridge_pays_dividend_tax(self) -> None:
+        """Distributing realisation bridge deducts annual dividend tax from depot.
+
+        A fund with annual_dividend_yield=0.03 and 100% gain fraction (cost_basis=0)
+        must show strictly higher total tax than the same fund with no dividends.
+        The difference equals the aktieindkomst tax on the gross dividends.
+        """
+        base_cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("1000000"),
+            cost_basis_dkk=Decimal("0"),  # 100 % gain fraction
+            horizon_months=24,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=Decimal("0"),
+        )
+        div_cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("1000000"),
+            cost_basis_dkk=Decimal("0"),
+            horizon_months=24,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=Decimal("0.03"),
+        )
+        base_result = compute_bridge_pmt(base_cfg)
+        div_result = compute_bridge_pmt(div_cfg)
+        # Dividend tax increases total tax burden
+        assert div_result.total_tax_paid_dkk > base_result.total_tax_paid_dkk
+        # Dividend tax also makes the depot deplete faster → lower sustainable PMT
+        assert div_result.monthly_gross_withdrawal_dkk < base_result.monthly_gross_withdrawal_dkk
+
+    def test_distributing_realisation_bridge_zero_dividend_parity(self) -> None:
+        """Realisation bridge with annual_dividend_yield=0 is identical to default."""
+        cfg_default = BridgeConfig(
+            starting_balance_dkk=Decimal("800000"),
+            cost_basis_dkk=Decimal("400000"),
+            horizon_months=36,
+            gross_annual_return_rate=Decimal("0.06"),
+            annual_expense_ratio=Decimal("0.002"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        cfg_zero_yield = BridgeConfig(
+            starting_balance_dkk=Decimal("800000"),
+            cost_basis_dkk=Decimal("400000"),
+            horizon_months=36,
+            gross_annual_return_rate=Decimal("0.06"),
+            annual_expense_ratio=Decimal("0.002"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=Decimal("0"),
+        )
+        r_default = compute_bridge_pmt(cfg_default)
+        r_zero = compute_bridge_pmt(cfg_zero_yield)
+        assert r_default.monthly_gross_withdrawal_dkk == r_zero.monthly_gross_withdrawal_dkk
+        assert r_default.total_tax_paid_dkk == r_zero.total_tax_paid_dkk
+
+    def test_distributing_realisation_bridge_dividend_flows(self) -> None:
+        """dividend_tax_dkk must be non-zero in December months for distributing funds."""
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("500000"),
+            cost_basis_dkk=Decimal("0"),  # 100 % gain fraction → max dividend tax
+            horizon_months=24,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=Decimal("0.03"),
+        )
+        result = compute_bridge_pmt(cfg)
+        # Exactly 2 December checkpoints in 24 months (month 12 and 24)
+        dec_flows = [f for f in result.monthly_flows if f.month % 12 == 0]
+        assert len(dec_flows) == 2
+        for flow in dec_flows:
+            assert flow.dividend_tax_dkk > Decimal("0"), (
+                f"Expected positive dividend_tax_dkk at month {flow.month}"
             )
+        # Non-December months must have dividend_tax_dkk == 0
+        non_dec_flows = [f for f in result.monthly_flows if f.month % 12 != 0]
+        for flow in non_dec_flows:
+            assert flow.dividend_tax_dkk == Decimal("0"), (
+                f"Expected zero dividend_tax_dkk at month {flow.month}"
+            )
+
+    def test_distributing_realisation_bridge_progressive_bracket(self) -> None:
+        """Dividend tax respects the progressive aktieindkomst bracket.
+
+        Compare two portfolios that are identical except for size:
+        - Small (50 000 DKK): annual withdrawal gains << threshold (61 900 DKK),
+          so dividends land in the 27 % low bracket.
+        - Large (5 000 000 DKK): annual withdrawal gains >> threshold,
+          so dividends are pushed into the 42 % high bracket.
+
+        The year-1 dividend is computed from the known year_opening_balance
+        (= starting_balance) so we can verify the correct bracket was applied.
+        """
+        small_start = Decimal("50000")
+        large_start = Decimal("5000000")
+        yield_ = Decimal("0.03")
+
+        small_cfg = BridgeConfig(
+            starting_balance_dkk=small_start,
+            cost_basis_dkk=Decimal("0"),  # 100 % gain fraction
+            horizon_months=24,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=yield_,
+        )
+        large_cfg = BridgeConfig(
+            starting_balance_dkk=large_start,
+            cost_basis_dkk=Decimal("0"),
+            horizon_months=24,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+            annual_dividend_yield=yield_,
+        )
+        small_result = compute_bridge_pmt(small_cfg)
+        large_result = compute_bridge_pmt(large_cfg)
+
+        # Year-1 dividend gross = starting_balance * yield (year_opening_balance
+        # is initialised to starting_balance before any simulation step).
+        small_yr1_div_gross = small_start * yield_  # 1 500 DKK
+        large_yr1_div_gross = large_start * yield_  # 150 000 DKK
+
+        # Pull the month-12 flow (year-1 December checkpoint)
+        small_yr1_flow = next(f for f in small_result.monthly_flows if f.month == 12)
+        large_yr1_flow = next(f for f in large_result.monthly_flows if f.month == 12)
+
+        # Small portfolio: annual withdrawal gains ≈ 12 * ~2 000 DKK ≈ 24 000 DKK
+        # which is well within the 61 900 DKK threshold, so remaining headroom
+        # absorbs the 1 500 DKK dividend → taxed at 27 %.
+        # Allow ±50 DKK tolerance for rounding.
+        small_expected_27 = Decimal("0.27") * small_yr1_div_gross
+        assert abs(small_yr1_flow.dividend_tax_dkk - small_expected_27) < Decimal("50"), (
+            f"Expected small portfolio's year-1 dividend tax ≈ {small_expected_27} "
+            f"(27 % bracket), got {small_yr1_flow.dividend_tax_dkk}"
+        )
+
+        # Large portfolio: annual gains >> threshold, no low-bracket headroom left
+        # → full dividend taxed at 42 %.
+        large_expected_42 = Decimal("0.42") * large_yr1_div_gross
+        assert abs(large_yr1_flow.dividend_tax_dkk - large_expected_42) < Decimal("500"), (
+            f"Expected large portfolio's year-1 dividend tax ≈ {large_expected_42} "
+            f"(42 % bracket), got {large_yr1_flow.dividend_tax_dkk}"
+        )
 
     def test_lager_bridge_allows_dividend_yield(self) -> None:
         """For lager regime dividend yield does not impact the tax math

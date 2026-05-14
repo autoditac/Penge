@@ -85,6 +85,23 @@ from penge.sim.liquid import (
 )
 from penge.sim.tax import DE_DEFAULT, DK_DEFAULT
 from penge.tax.aktiesparekonto import ASK_DEPOSIT_CAPS, ASK_RATE
+from penge.tax.dk.constants_meta import ALL_PLANNING_CONSTANTS
+from penge.tax.dk.rates import (
+    DK_TOPSKAT_RATE,
+    DK_TOPSKAT_THRESHOLD_DKK,
+    FOLKEPENSION_AGE_SCHEDULE,
+    FOLKEPENSION_GRUNDBELOEB_MONTHLY_DKK,
+    FOLKEPENSION_INCOME_THRESHOLD_DKK,
+    FOLKEPENSION_MODREGNING_RATE,
+    FOLKEPENSION_TILLAEG_MARRIED_MONTHLY_DKK,
+    FOLKEPENSION_TILLAEG_SINGLE_MONTHLY_DKK,
+)
+
+# Build a lookup: constant attr name → "SKAT {source_year}" source string.
+# This ensures the audit record source strings stay in sync with constants_meta.
+_DK_SOURCE: dict[str, str] = {
+    m.constant: f"SKAT {m.source_year}" for m in ALL_PLANNING_CONSTANTS
+}
 
 __all__ = [
     "AssumptionEntry",
@@ -256,7 +273,7 @@ def build_standard_audit_record(
             name="DK PAL-skat rate",
             value=str(DK_DEFAULT.pension_return_tax_rate * 100),
             unit="%",
-            source="SKAT 2025",
+            source=_DK_SOURCE["PAL_RATE"],
             adr="ADR-0013",
             notes="Annual tax on pension-pot returns (withheld by PFA)",
         )
@@ -268,7 +285,7 @@ def build_standard_audit_record(
             name="DK top-marginal salary income tax rate",
             value=str(DK_DEFAULT.salary_income_tax_rate * 100),
             unit="%",
-            source="SKAT 2025",
+            source=_DK_SOURCE["DK_TOPSKAT_RATE"],
             adr="ADR-0013",
             notes="Bundskat + topskat + kommuneskat for salary > ~590k DKK",
         )
@@ -278,9 +295,31 @@ def build_standard_audit_record(
             name="DK pension drawdown tax rate",
             value=str(DK_DEFAULT.pension_drawdown_tax_rate * 100),
             unit="%",
-            source="SKAT 2025",
+            source=_DK_SOURCE["DK_TOPSKAT_RATE"],
             adr="ADR-0013",
             notes="Expected marginal rate in retirement (DK_DEFAULT)",
+        )
+    )
+
+    # ── Denmark — Topskat ────────────────────────────────────────────────────
+    record.add(
+        AssumptionEntry(
+            name="DK Topskat rate",
+            value=str(DK_TOPSKAT_RATE * 100),
+            unit="%",
+            source=_DK_SOURCE["DK_TOPSKAT_RATE"],
+            adr="ADR-0013",
+            notes="15 % surtax on personal income above threshold",
+        )
+    )
+    record.add(
+        AssumptionEntry(
+            name="DK Topskat threshold",
+            value=str(DK_TOPSKAT_THRESHOLD_DKK),
+            unit="DKK",
+            source=_DK_SOURCE["DK_TOPSKAT_THRESHOLD_DKK"],
+            adr="ADR-0013",
+            notes="Annual income above which Topskat is levied",
         )
     )
 
@@ -290,7 +329,7 @@ def build_standard_audit_record(
             name="DK Lagerbeskatning low rate",
             value=str(AKTIEINDKOMST_LOW_RATE * 100),
             unit="%",
-            source="SKAT 2025",
+            source=_DK_SOURCE["AKTIEINDKOMST_LOW_RATE"],
             adr="ADR-0013",
             notes="Annual mark-to-market rate on gains up to threshold",
         )
@@ -300,7 +339,7 @@ def build_standard_audit_record(
             name="DK Lagerbeskatning high rate",
             value=str(AKTIEINDKOMST_HIGH_RATE * 100),
             unit="%",
-            source="SKAT 2025",
+            source=_DK_SOURCE["AKTIEINDKOMST_HIGH_RATE"],
             adr="ADR-0013",
             notes="Annual mark-to-market rate on gains above threshold",
         )
@@ -314,7 +353,7 @@ def build_standard_audit_record(
             name=f"DK Aktieindkomst threshold per person ({latest_threshold_year})",
             value=str(latest_threshold),
             unit="DKK",
-            source="SKAT 2025",
+            source=_DK_SOURCE["AKTIEINDKOMST_THRESHOLDS"],
             adr="ADR-0013",
             notes="Gains above this are taxed at the high rate; indexed annually",
         )
@@ -326,7 +365,7 @@ def build_standard_audit_record(
             name="DK capital gains effective rate (DK_DEFAULT)",
             value=str(DK_DEFAULT.capital_gains_effective_rate * 100),
             unit="%",
-            source="SKAT 2025",
+            source=_DK_SOURCE["AKTIEINDKOMST_LOW_RATE"],
             adr="ADR-0013",
             notes=(
                 "Lagerbeskatning at lower bracket rate; raise to 42% "
@@ -341,7 +380,7 @@ def build_standard_audit_record(
             name="DK ASK tax rate",
             value=str(ASK_RATE * 100),
             unit="%",
-            source="SKAT 2025",
+            source=_DK_SOURCE["ASK_RATE"],
             adr="ADR-0018",
             notes="Flat annual mark-to-market rate inside Aktiesparekonto",
         )
@@ -354,9 +393,73 @@ def build_standard_audit_record(
             name=f"DK ASK cumulative deposit cap ({latest_ask_year})",
             value=str(latest_ask_cap),
             unit="DKK",
-            source="SKAT 2025",
+            source=_DK_SOURCE["ASK_DEPOSIT_CAPS"],
             adr="ADR-0018",
             notes="Lifetime net-deposit ceiling; indexed annually by SKAT",
+        )
+    )
+
+    # ── Denmark — Folkepension ───────────────────────────────────────────────
+    record.add(
+        AssumptionEntry(
+            name="DK Folkepension grundbeløb (monthly)",
+            value=str(FOLKEPENSION_GRUNDBELOEB_MONTHLY_DKK),
+            unit="DKK/month",
+            source=_DK_SOURCE["FOLKEPENSION_GRUNDBELOEB_MONTHLY_DKK"],
+            adr="ADR-0013",
+            notes="Universal base pension; not means-tested",
+        )
+    )
+    record.add(
+        AssumptionEntry(
+            name="DK Folkepension tillæg single (monthly max)",
+            value=str(FOLKEPENSION_TILLAEG_SINGLE_MONTHLY_DKK),
+            unit="DKK/month",
+            source=_DK_SOURCE["FOLKEPENSION_TILLAEG_SINGLE_MONTHLY_DKK"],
+            adr="ADR-0013",
+            notes="Maximum means-tested supplement for single pensioner",
+        )
+    )
+    record.add(
+        AssumptionEntry(
+            name="DK Folkepension tillæg married (monthly max)",
+            value=str(FOLKEPENSION_TILLAEG_MARRIED_MONTHLY_DKK),
+            unit="DKK/month",
+            source=_DK_SOURCE["FOLKEPENSION_TILLAEG_MARRIED_MONTHLY_DKK"],
+            adr="ADR-0013",
+            notes="Maximum means-tested supplement for married/cohabiting pensioner",
+        )
+    )
+    record.add(
+        AssumptionEntry(
+            name="DK Folkepension modregning rate",
+            value=str(FOLKEPENSION_MODREGNING_RATE * 100),
+            unit="%",
+            source=_DK_SOURCE["FOLKEPENSION_MODREGNING_RATE"],
+            adr="ADR-0013",
+            notes="Tillæg reduced by this rate on private income above threshold",
+        )
+    )
+    record.add(
+        AssumptionEntry(
+            name="DK Folkepension income threshold",
+            value=str(FOLKEPENSION_INCOME_THRESHOLD_DKK),
+            unit="DKK/year",
+            source=_DK_SOURCE["FOLKEPENSION_INCOME_THRESHOLD_DKK"],
+            adr="ADR-0013",
+            notes="No means-testing of tillæg below this annual income",
+        )
+    )
+    latest_fp_year = max(FOLKEPENSION_AGE_SCHEDULE)
+    latest_fp_age = FOLKEPENSION_AGE_SCHEDULE[latest_fp_year]
+    record.add(
+        AssumptionEntry(
+            name=f"DK Folkepensionsalder ({latest_fp_year}+)",
+            value=str(latest_fp_age),
+            unit="age (years)",
+            source=_DK_SOURCE["FOLKEPENSION_AGE_SCHEDULE"],
+            adr="ADR-0013",
+            notes="Statutory retirement age; subject to life-expectancy revision",
         )
     )
 

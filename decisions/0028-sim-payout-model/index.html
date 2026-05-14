@@ -10,31 +10,27 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0028-sim-payout-model/">
       
       
-        <link rel="prev" href="../runbook/restore-log/">
-      
-      
-        <link rel="next" href="0001-self-hosted-postgres-duckdb-stack/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Architecture Decision Records (ADRs) - Penge</title>
+        <title>0028 — Decumulation payout model: annuity factor + PMT - Penge</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,7 +49,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture-decision-records-adrs" class="md-skip">
+        <a href="#0028-decumulation-payout-model-annuity-factor-pmt" class="md-skip">
           Skip to content
         </a>
       
@@ -94,7 +90,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -114,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture Decision Records (ADRs)
+              0028 — Decumulation payout model: annuity factor + PMT
             
           </span>
         </div>
@@ -230,7 +226,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -260,7 +256,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -310,7 +306,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../architecture/" class="md-nav__link ">
+            <a href="../../architecture/" class="md-nav__link ">
               
   
   
@@ -397,7 +393,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../connectors/" class="md-nav__link ">
+            <a href="../../connectors/" class="md-nav__link ">
               
   
   
@@ -441,7 +437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/ecb_fx/" class="md-nav__link">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
         
   
   
@@ -469,7 +465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/gls/" class="md-nav__link">
+      <a href="../../connectors/gls/" class="md-nav__link">
         
   
   
@@ -497,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/evangelische-bank/" class="md-nav__link">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
         
   
   
@@ -525,7 +521,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/lunar/" class="md-nav__link">
+      <a href="../../connectors/lunar/" class="md-nav__link">
         
   
   
@@ -553,7 +549,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/growney/" class="md-nav__link">
+      <a href="../../connectors/growney/" class="md-nav__link">
         
   
   
@@ -581,7 +577,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/pfa/" class="md-nav__link">
+      <a href="../../connectors/pfa/" class="md-nav__link">
         
   
   
@@ -609,7 +605,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/nordnet/" class="md-nav__link">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
         
   
   
@@ -637,7 +633,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/abis/" class="md-nav__link">
+      <a href="../../connectors/abis/" class="md-nav__link">
         
   
   
@@ -665,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/manual/" class="md-nav__link">
+      <a href="../../connectors/manual/" class="md-nav__link">
         
   
   
@@ -756,7 +752,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dbt/" class="md-nav__link">
+      <a href="../../dbt/" class="md-nav__link">
         
   
   
@@ -847,7 +843,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mcp/tools/" class="md-nav__link">
+      <a href="../../mcp/tools/" class="md-nav__link">
         
   
   
@@ -938,7 +934,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/return-model/" class="md-nav__link">
+      <a href="../../sim/return-model/" class="md-nav__link">
         
   
   
@@ -1031,7 +1027,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/dk/" class="md-nav__link">
+      <a href="../../tax/dk/" class="md-nav__link">
         
   
   
@@ -1059,7 +1055,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/de/" class="md-nav__link">
+      <a href="../../tax/de/" class="md-nav__link">
         
   
   
@@ -1166,7 +1162,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/monthly-ritual/" class="md-nav__link">
+      <a href="../../runbook/monthly-ritual/" class="md-nav__link">
         
   
   
@@ -1194,7 +1190,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/monthly-report/" class="md-nav__link">
+      <a href="../../runbook/monthly-report/" class="md-nav__link">
         
   
   
@@ -1222,7 +1218,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/web/" class="md-nav__link">
+      <a href="../../runbook/web/" class="md-nav__link">
         
   
   
@@ -1250,7 +1246,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/abis-yearly-refresh/" class="md-nav__link">
+      <a href="../../runbook/abis-yearly-refresh/" class="md-nav__link">
         
   
   
@@ -1278,7 +1274,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/branch-protection/" class="md-nav__link">
+      <a href="../../runbook/branch-protection/" class="md-nav__link">
         
   
   
@@ -1306,7 +1302,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/vault-watcher/" class="md-nav__link">
+      <a href="../../runbook/vault-watcher/" class="md-nav__link">
         
   
   
@@ -1334,7 +1330,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/healthchecks/" class="md-nav__link">
+      <a href="../../runbook/healthchecks/" class="md-nav__link">
         
   
   
@@ -1362,7 +1358,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/backup-restore/" class="md-nav__link">
+      <a href="../../runbook/backup-restore/" class="md-nav__link">
         
   
   
@@ -1390,7 +1386,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/restore-log/" class="md-nav__link">
+      <a href="../../runbook/restore-log/" class="md-nav__link">
         
   
   
@@ -1422,8 +1418,6 @@
       
   
   
-    
-  
   
   
     
@@ -1498,15 +1492,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="./" class="md-nav__link md-nav__link--active">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -1524,13 +1518,13 @@
             </a>
             
               
-              <label class="md-nav__link md-nav__link--active" for="__nav_9" id="__nav_9_label" tabindex="">
+              <label class="md-nav__link " for="__nav_9" id="__nav_9_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1550,7 +1544,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -1578,7 +1572,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -1606,7 +1600,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -1634,7 +1628,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -1662,7 +1656,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -1690,7 +1684,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -1718,7 +1712,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -1746,7 +1740,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -1774,7 +1768,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -1802,7 +1796,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0010-sim-return-model/" class="md-nav__link">
+      <a href="../0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -1830,7 +1824,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -1858,7 +1852,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0012-sim-goal-model/" class="md-nav__link">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -1886,7 +1880,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -1914,7 +1908,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -1942,7 +1936,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -1970,7 +1964,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -1998,7 +1992,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2026,7 +2020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2054,7 +2048,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2082,7 +2076,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0020-skat-report-generator/" class="md-nav__link">
+      <a href="../0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2110,7 +2104,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2138,7 +2132,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2166,7 +2160,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2194,7 +2188,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0024-vault-layout/" class="md-nav__link">
+      <a href="../0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2222,7 +2216,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0025-encrypted-backups/" class="md-nav__link">
+      <a href="../0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2250,7 +2244,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2278,7 +2272,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2306,7 +2300,7 @@
   
   
     <li class="md-nav__item">
-      <a href="adr-template/" class="md-nav__link">
+      <a href="../adr-template/" class="md-nav__link">
         
   
   
@@ -2341,7 +2335,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../privacy/" class="md-nav__link">
+      <a href="../../privacy/" class="md-nav__link">
         
   
   
@@ -2368,7 +2362,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../terms/" class="md-nav__link">
+      <a href="../../terms/" class="md-nav__link">
         
   
   
@@ -2415,10 +2409,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-to-write-one" class="md-nav__link">
+  <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to write one
+        Context and Problem Statement
       
     </span>
   </a>
@@ -2426,10 +2420,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#format" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Format
+        Decision Drivers
       
     </span>
   </a>
@@ -2437,10 +2431,121 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#index" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Index
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-in-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives in detail
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives in detail">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-2-flat-division" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 2 — Flat division
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-full-actuarial-mortality-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 3 — Full actuarial mortality table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
       
     </span>
   </a>
@@ -2464,7 +2569,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/README.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0028-sim-payout-model.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2472,81 +2577,134 @@
   
 
 
-<h1 id="architecture-decision-records-adrs">Architecture Decision Records (ADRs)<a class="headerlink" href="#architecture-decision-records-adrs" title="Permanent link">&para;</a></h1>
-<p>This directory captures the <strong>why</strong> behind significant decisions in Penge.</p>
-<h2 id="when-to-write-one">When to write one<a class="headerlink" href="#when-to-write-one" title="Permanent link">&para;</a></h2>
-<p>See the <a href="https://github.com/autoditac/Penge/blob/main/.github/skills/write-adr/SKILL.md"><code>write-adr</code> skill</a>. Roughly: any change that adds/replaces a service, library, or external dependency, alters the data model, changes a tax-rule interpretation, alters an integration pattern, or affects a security boundary.</p>
-<h2 id="format">Format<a class="headerlink" href="#format" title="Permanent link">&para;</a></h2>
-<p>We use the <a href="https://adr.github.io/madr/">MADR</a> template — see <a href="adr-template/"><code>adr-template.md</code></a>.</p>
-<h2 id="index">Index<a class="headerlink" href="#index" title="Permanent link">&para;</a></h2>
-<!-- Keep this list sorted by ADR number. -->
-
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Title</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="0001-self-hosted-postgres-duckdb-stack/">0001</a></td>
-<td>Self-hosted Postgres + DuckDB stack over a managed lakehouse</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0002-custom-monorepo-over-off-the-shelf-pfm/">0002</a></td>
-<td>Custom monorepo over off-the-shelf PFM tools</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0003-hybrid-ingestion-psd2-and-csv-pdf/">0003</a></td>
-<td>Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers</td>
-<td>Superseded by <a href="0026-retire-gocardless-for-enable-banking/">0026</a></td>
-</tr>
-<tr>
-<td><a href="0004-eur-and-dkk-shown-in-parallel/">0004</a></td>
-<td>EUR and DKK shown in parallel; no single base currency</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0005-llm-access-via-mcp-only/">0005</a></td>
-<td>LLM access exclusively via MCP server with typed tools</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0006-trunk-based-conventional-commits-adrs/">0006</a></td>
-<td>Trunk-based development with Conventional Commits and ADRs</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0007-initial-relational-data-model/">0007</a></td>
-<td>Initial relational data model</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0008-nordnet-account-modelling/">0008</a></td>
-<td>Nordnet account modelling: kinds, multi-currency cash, ASK</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0026-retire-gocardless-for-enable-banking/">0026</a></td>
-<td>Retire GoCardless; standardize on Enable Banking for PSD2</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0027-liquid-depot-simulation-model/">0027</a></td>
-<td>Liquid depot simulation model (ASK + frie midler, Lager/Realisation)</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0028-sim-payout-model/">0028</a></td>
-<td>Decumulation payout model: annuity factor + PMT</td>
-<td>Proposed</td>
-</tr>
-</tbody>
-</table>
+<h1 id="0028-decumulation-payout-model-annuity-factor-pmt">0028 — Decumulation payout model: annuity factor + PMT<a class="headerlink" href="#0028-decumulation-payout-model-annuity-factor-pmt" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-05-12</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> sim, tax</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>Penge can model pension accumulation through <code>penge.sim.cashflow</code>, but cannot
+yet answer the core retirement question: <em>"How much will I receive per month?"</em>
+A Danish occupational pension (e.g. PFA) distributes its capital at retirement
+across up to three products — Livrente (lifelong annuity), Ratepension
+(fixed-term drawdown), and Aldersforsikring (lump sum) — each with different
+cash-flow profiles and tax treatment.</p>
+<p>We need a deterministic module that converts a projected pension balance into
+gross monthly retirement income and a one-off lump sum, so that downstream
+modules (Topskat warning #129, Folkepension modregning #131) have a concrete
+income figure to work with.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Results must be deterministic and reproducible from a small set of
+  user-controlled parameters.</li>
+<li>The annuity factor (omregningsfaktor) is published by PFA and
+  Finanstilsynet annually; hardcoding a value would make the model stale and
+  untestable. The factor must be a first-class input.</li>
+<li>Ratepension drawdowns are tax-deferred; the residual balance continues to
+  earn a return during the payout period, so a flat-division formula would
+  understate income. A PMT formula is the correct analytical tool.</li>
+<li>This module is explicitly a <em>planning tool</em>, not a contract quotation. We
+  accept model simplifications (constant annuity factor, constant PMT) in
+  exchange for closed-form tractability.</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Annuity factor for Livrente + PMT for Ratepension</strong> (chosen)</li>
+<li><strong>Flat capital division (no return during drawdown)</strong></li>
+<li><strong>Full actuarial mortality table for Livrente</strong></li>
+</ol>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>We implement <code>penge.sim.payout</code> with:</p>
+<ul>
+<li><code>PayoutConfig</code> — a frozen Pydantic model holding the entity's pension balance
+  at retirement, allocation fractions, and two model parameters
+  (<code>annuity_factor</code> and <code>growth_rate_during_payout</code>).</li>
+<li><code>PayoutProjection</code> — computed capital splits and gross monthly amounts.</li>
+<li><code>compute_payout(config) → PayoutProjection</code> — pure function, no I/O.</li>
+</ul>
+<p><strong>Livrente</strong> monthly amount:</p>
+<div class="highlight"><pre><span></span><code>monthly_livrente = livrente_capital × annuity_factor / 1_000_000
+</code></pre></div>
+<p>The annuity factor is a pure ratio (monthly/capital). PFA publishes values in
+DKK per 1 000 000 DKK, but the ratio is currency-neutral: using a DKK-factor
+with an EUR balance yields the same numerical answer as converting both to DKK
+first.</p>
+<p><strong>Ratepension</strong> monthly amount: standard present-value PMT over
+<code>ratepension_years × 12</code> months at the monthly rate derived from
+<code>growth_rate_during_payout</code>:</p>
+<div class="highlight"><pre><span></span><code>r_monthly = (1 + annual_rate)^(1/12) − 1
+PMT = capital × r_monthly / (1 − (1 + r_monthly)^(−n))
+</code></pre></div>
+<p>When <code>growth_rate_during_payout = 0</code> this degenerates to <code>capital / n</code>.</p>
+<p>The <code>(1/12)</code> exponent is computed in <code>float</code> for the single intermediate step;
+all other arithmetic uses <code>Decimal</code>. The precision loss (&lt; 1 × 10⁻¹⁴ relative)
+is negligible for a 10–30 year planning horizon.</p>
+<p><strong>Aldersforsikring</strong> is the residual:
+<code>1 − livrente_fraction − ratepension_fraction</code> of the balance, paid as a
+one-off tax-free lump sum.</p>
+<p><strong>Integration with <code>CashflowProjection</code></strong>: <code>payout_at(year, config)</code> looks up
+the accumulated pension balance for <code>config.entity</code> at <code>year</code>, overrides
+<code>pension_balance_eur</code>, and delegates to <code>compute_payout</code>. The import is
+deferred (<code>TYPE_CHECKING</code> guard + local import inside the method body) to avoid
+a circular import.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Answers the core retirement income question in a single function call.</li>
+<li>Fully testable: all parameters are explicit, no I/O or date dependencies.</li>
+<li>The annuity factor is user-supplied, so it can be updated annually without
+  a code change.</li>
+<li>Unblocks #129 (Topskat exposure) and #131 (Folkepension modregning), both
+  of which require a gross monthly income figure.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The constant-PMT assumption for Ratepension ignores PAL-skat on growth
+  inside the pension during the drawdown period. The error grows with the
+  payout horizon and the <code>growth_rate_during_payout</code> assumption. For a 5 %
+  gross rate, PAL-skat (15.3 %) reduces the net rate to ~4.23 %; using the
+  gross rate overstates monthly income by ~2 % over 20 years. Acceptable for
+  planning; note in user-facing documentation.</li>
+<li>The Livrente annuity factor does not vary by age within this model. Actual
+  factors differ between e.g. age 67 and 72 (later start → higher monthly
+  per kr of capital). The user must supply the correct age-specific factor.</li>
+<li>No mortality or survivor-benefit modelling (DB spouse pension, minimum
+  guarantee period). These are contract details that vary by provider and
+  policy.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Tax overlay (A-skat, Topskat) for the monthly Livrente and Ratepension
+  payments is out of scope for this module; see #129.</li>
+<li>The <code>growth_rate_during_payout</code> is a gross rate. Users should supply the
+  expected net-of-fees return. PAL-skat during payout is noted above.</li>
+</ul>
+<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
+<h3 id="option-2-flat-division">Option 2 — Flat division<a class="headerlink" href="#option-2-flat-division" title="Permanent link">&para;</a></h3>
+<p>Simply compute <code>monthly = capital / (years × 12)</code> regardless of whether the
+residual earns a return.  This understates income when <code>growth_rate &gt; 0</code>
+(common for Danish pension depots, which continue to be invested during
+payout).  Rejected because the error is systematic and in the conservative
+direction, which may distort FIRE planning decisions.</p>
+<h3 id="option-3-full-actuarial-mortality-table">Option 3 — Full actuarial mortality table<a class="headerlink" href="#option-3-full-actuarial-mortality-table" title="Permanent link">&para;</a></h3>
+<p>Use Finanstilsynet's published mortality tables (G82, G2020) and a discount
+rate to derive the annuity factor endogenously.  This would reduce the user's
+parameter burden (no need to input the annuity factor) but would tie the model
+to a specific discount-rate assumption, require the mortality CSV to be
+maintained in the repo, and add ~300 lines of actuarial code for marginal
+planning-accuracy benefit.  The annuity factor already encodes the provider's
+pricing; accepting it as an opaque input is both simpler and more flexible.</p>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Issue: #132</li>
+<li><code>src/penge/sim/payout.py</code></li>
+<li><code>tests/sim/test_payout.py</code></li>
+<li><code>penge.sim.cashflow.CashflowProjection.payout_at()</code></li>
+<li>ADR-0011 (cashflow engine)</li>
+<li>ADR-0027 (liquid depot simulation model — bridge PMT, related PMT approach)</li>
+</ul>
 
 
 
@@ -2596,10 +2754,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

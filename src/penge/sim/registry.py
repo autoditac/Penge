@@ -64,7 +64,7 @@ assert restored == record
 
 See ``docs/sim/registry.md`` for the full audit contract.
 See ``docs/decisions/0013-sim-tax-overlay.md`` (ADR-0013) and
-``docs/decisions/0027-ask-aktiesparekonto.md`` (ADR-0027) for background.
+``docs/decisions/0018-aktiesparekonto-handling.md`` (ADR-0018) for background.
 """
 
 from __future__ import annotations
@@ -322,7 +322,7 @@ def build_standard_audit_record(
             value=str(ASK_RATE * 100),
             unit="%",
             source="SKAT 2025",
-            adr="ADR-0027",
+            adr="ADR-0018",
             notes="Flat annual mark-to-market rate inside Aktiesparekonto",
         )
     )
@@ -335,7 +335,7 @@ def build_standard_audit_record(
             value=str(latest_ask_cap),
             unit="DKK",
             source="SKAT 2025",
-            adr="ADR-0027",
+            adr="ADR-0018",
             notes="Lifetime net-deposit ceiling; indexed annually by SKAT",
         )
     )

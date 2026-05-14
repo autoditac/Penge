@@ -231,5 +231,7 @@ conversion.
 
 - [ADR-0013 — Sim tax overlay](../decisions/0013-sim-tax-overlay.md) —
   tax-rate constants for DK and DE.
-- [ADR-0027 — ASK Aktiesparekonto](../decisions/0027-ask-aktiesparekonto.md) —
+- [ADR-0018 — Aktiesparekonto handling](../decisions/0018-aktiesparekonto-handling.md) —
   ASK rate and deposit-cap constants.
+- [ADR-0027 — Liquid depot simulation model](../decisions/0027-liquid-depot-simulation-model.md) —
+  lagerbeskatning rates and aktieindkomst thresholds.

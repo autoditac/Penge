@@ -1,6 +1,6 @@
 # 0029 — DK Topskat and Folkepension Modules
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2025-08-01
 - **Deciders:** @autoditac
 - **Tags:** tax, sim

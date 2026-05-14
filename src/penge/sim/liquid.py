@@ -367,7 +367,7 @@ class LiquidDepotConfig(pydantic.BaseModel):
     annual_expense_ratio: Decimal
     annual_dividend_yield: Decimal = Decimal("0")
     tax_source: Literal["external", "depot"] = "external"
-    aktieindkomst_threshold_dkk: Decimal = Decimal("61900")
+    aktieindkomst_threshold_dkk: Decimal
     opening_cost_basis_dkk: Decimal | None = None
 
     @pydantic.field_validator(
@@ -949,7 +949,7 @@ class BridgeConfig(pydantic.BaseModel):
     annual_expense_ratio: Decimal
     account_type: Literal["ask", "frie_midler"]
     tax_regime: Literal["lager", "realisation"]
-    aktieindkomst_threshold_dkk: Decimal = Decimal("61900")
+    aktieindkomst_threshold_dkk: Decimal
     annual_dividend_yield: Decimal = Decimal("0")
 
     @pydantic.field_validator(

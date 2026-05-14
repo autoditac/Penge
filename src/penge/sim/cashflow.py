@@ -27,11 +27,14 @@ from __future__ import annotations
 from collections.abc import Mapping
 from decimal import ROUND_HALF_EVEN, Decimal
 from types import MappingProxyType
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import pydantic
 
 from penge.sim._decimal_utils import to_decimal as _to_decimal
+
+if TYPE_CHECKING:
+    from penge.sim.payout import PayoutConfig, PayoutProjection
 
 __all__ = [
     "CashflowConfig",
@@ -363,6 +366,41 @@ class CashflowProjection(pydantic.BaseModel):
     def years(self) -> list[int]:
         """Sorted list of projected calendar years."""
         return sorted({f.year for f in self.flows})
+
+    def payout_at(self, year: int, config: PayoutConfig) -> PayoutProjection:
+        """Compute retirement payout using the pension balance at *year*.
+
+        Looks up ``config.entity``'s :attr:`YearlyFlow.cumulative_pension_eur`
+        for *year*, overrides :attr:`~penge.sim.payout.PayoutConfig
+        .pension_balance_eur` in *config* with that value, and delegates to
+        :func:`~penge.sim.payout.compute_payout`.
+
+        Args:
+            year: The calendar year (must be present in this projection).
+            config: A :class:`~penge.sim.payout.PayoutConfig` for the entity
+                whose balance to use.  ``pension_balance_eur`` is ignored and
+                replaced by the projected balance.
+
+        Returns:
+            A :class:`~penge.sim.payout.PayoutProjection` based on the
+            projected balance at *year*.
+
+        Raises:
+            KeyError: If there is no flow for ``config.entity`` in *year*.
+        """
+        from penge.sim.payout import (  # noqa: PLC0415
+            compute_payout,  # deferred to avoid circular import
+        )
+
+        matching = [f for f in self.flows if f.year == year and f.entity == config.entity]
+        if not matching:
+            raise KeyError(
+                f"No flow for entity {config.entity!r} at year {year}. "
+                f"Available years: {self.years()}, entities: {self.entities()}"
+            )
+        balance = matching[0].cumulative_pension_eur
+        updated = config.model_copy(update={"pension_balance_eur": balance})
+        return compute_payout(updated)
 
 
 def _is_active(rule: SalaryRule | ContributionRule | PensionAccrualRule, year: int) -> bool:

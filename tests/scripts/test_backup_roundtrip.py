@@ -13,6 +13,7 @@ guess, because tearing down the wrong database would be bad.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 import subprocess
 from collections.abc import Iterator
@@ -24,6 +25,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCRIPTS = REPO_ROOT / "scripts"
 
 DB_URL_ENV = "PENGE_TEST_DATABASE_URL"
+
+
+def _psql_url(sqlalchemy_url: str) -> str:
+    """Convert a SQLAlchemy URL to a psql-compatible URL.
+
+    psql does not understand the ``+driver`` dialect specifier
+    (e.g. ``postgresql+psycopg://``) and treats ``localhost`` as a
+    Unix-socket target. Strip the driver and force TCP via 127.0.0.1.
+    """
+    url = re.sub(r"^postgresql\+\w+://", "postgresql://", sqlalchemy_url)
+    return url.replace("@localhost:", "@127.0.0.1:", 1)
+
 
 requires_age = pytest.mark.skipif(shutil.which("age") is None, reason="age not installed")
 requires_pg = pytest.mark.skipif(
@@ -88,7 +101,7 @@ def scratch_schema() -> Iterator[str]:
 
     if not os.environ.get(DB_URL_ENV):
         pytest.skip(f"{DB_URL_ENV} not set")
-    db_url = os.environ[DB_URL_ENV]
+    db_url = _psql_url(os.environ[DB_URL_ENV])
 
     schema = "penge_backup_smoke"
     setup = (
@@ -123,7 +136,7 @@ def test_backup_then_restore_round_trip(
     scratch_schema: str,
 ) -> None:
     identity, pub = keypair
-    db_url = os.environ[DB_URL_ENV]
+    db_url = _psql_url(os.environ[DB_URL_ENV])
     schema = scratch_schema
 
     env = {

@@ -15,6 +15,8 @@ Subpackages:
   ``CashflowConfig`` projections (issue #127).
 - :mod:`penge.sim.payout` — decumulation payout model: Livrente + Ratepension
   + Aldersforsikring (issue #132, ADR-0028).
+- :mod:`penge.sim.spending` — household spending and target-expense model
+  (issue #174).
 """
 
 from penge.sim.cashflow import (
@@ -71,6 +73,13 @@ from penge.sim.scenario import (
     WorkReductionScenario,
     compare,
 )
+from penge.sim.spending import (
+    HouseholdSpendingPlan,
+    OneOffExpense,
+    SpendingPhase,
+    SpendingRule,
+    compute_spending,
+)
 from penge.sim.tax import (
     DE_DEFAULT,
     DK_DEFAULT,
@@ -97,9 +106,11 @@ __all__ = [
     "GoalConfig",
     "GoalResult",
     "HousePurchaseScenario",
+    "HouseholdSpendingPlan",
     "MonteCarloConfig",
     "MonteCarloResult",
     "MonthlyContributionSplit",
+    "OneOffExpense",
     "PayoutConfig",
     "PayoutError",
     "PayoutProjection",
@@ -110,6 +121,8 @@ __all__ = [
     "ScenarioComparison",
     "ScenarioError",
     "ScenarioResult",
+    "SpendingPhase",
+    "SpendingRule",
     "TaxConfig",
     "WorkReductionScenario",
     "YearlyContributionSplit",
@@ -118,6 +131,7 @@ __all__ = [
     "compare",
     "compare_configs",
     "compute_payout",
+    "compute_spending",
     "evaluate",
     "net_pension_drawdown",
     "project",

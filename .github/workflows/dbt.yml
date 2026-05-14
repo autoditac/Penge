@@ -38,7 +38,7 @@ concurrency:
 jobs:
   build:
     name: dbt build (smoke)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 10
     services:
       postgres:

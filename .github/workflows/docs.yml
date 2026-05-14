@@ -21,7 +21,7 @@ concurrency:
 jobs:
   build:
     name: Build (mkdocs --strict)
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, penge]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
@@ -39,7 +39,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, penge]
     permissions:
       contents: write  # gh-deploy pushes to the gh-pages branch
     steps:

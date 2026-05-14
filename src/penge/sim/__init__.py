@@ -54,6 +54,15 @@ from penge.sim.returns import (
     ReturnModelError,
     SampledPaths,
 )
+from penge.sim.routing import (
+    ContributionRouter,
+    ContributionRoutingError,
+    MonthlyContributionSplit,
+    YearlyContributionSplit,
+    route_contributions,
+    simulate_routing,
+    simulate_routing_monthly,
+)
 from penge.sim.scenario import (
     HousePurchaseScenario,
     ScenarioComparison,
@@ -81,6 +90,8 @@ __all__ = [
     "ConfigCompareError",
     "ConfigComparison",
     "ConfigComparisonResult",
+    "ContributionRouter",
+    "ContributionRoutingError",
     "ContributionRule",
     "EntityTaxRegime",
     "GoalConfig",
@@ -88,6 +99,7 @@ __all__ = [
     "HousePurchaseScenario",
     "MonteCarloConfig",
     "MonteCarloResult",
+    "MonthlyContributionSplit",
     "PayoutConfig",
     "PayoutError",
     "PayoutProjection",
@@ -100,6 +112,7 @@ __all__ = [
     "ScenarioResult",
     "TaxConfig",
     "WorkReductionScenario",
+    "YearlyContributionSplit",
     "YearlyFlow",
     "apply_tax",
     "compare",
@@ -108,5 +121,8 @@ __all__ = [
     "evaluate",
     "net_pension_drawdown",
     "project",
+    "route_contributions",
     "run",
+    "simulate_routing",
+    "simulate_routing_monthly",
 ]

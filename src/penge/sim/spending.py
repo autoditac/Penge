@@ -4,7 +4,7 @@ Models recurring spending rules, one-off expenses, and inflation
 indexing across FIRE lifecycle phases (accumulation, bridge, retirement).
 
 All monetary amounts remain in their source currency (EUR or DKK).
-No silent cross-currency conversion is performed.  Callers that need
+No silent cross-currency conversion is performed. Callers that need
 a single consolidated figure must apply an FX rate explicitly.
 
 Public API

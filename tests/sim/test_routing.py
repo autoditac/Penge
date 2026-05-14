@@ -30,6 +30,7 @@ from decimal import Decimal
 import pydantic
 import pytest
 
+from penge.sim.liquid import LiquidDepotConfig, project_liquid, threshold_for_year
 from penge.sim.routing import (
     ContributionRouter,
     ContributionRoutingError,
@@ -90,7 +91,7 @@ class TestContributionRouterValidation:
     def test_frozen_model(self) -> None:
         r = _router()
         with pytest.raises((pydantic.ValidationError, TypeError)):
-            r.monthly_contribution_dkk = Decimal("1")  # noqa: assignment to frozen pydantic model
+            r.monthly_contribution_dkk = Decimal("1")  # frozen model raises ValidationError
 
     def test_negative_monthly_raises(self) -> None:
         with pytest.raises(pydantic.ValidationError, match="must be ≥ 0"):
@@ -411,6 +412,22 @@ class TestEdgeCases:
         total_frie = sum(m.frie_midler_contribution_dkk for m in months)
         assert total_ask + total_frie == Decimal("833.33") * 12
 
+    def test_fractional_contribution_route_consistency(self) -> None:
+        """route_contributions and simulate_routing agree for fractional inputs."""
+        r = ContributionRouter(
+            ask_cap_dkk=Decimal("10000"),
+            ask_cumulative_deposits_dkk=Decimal("7000"),
+            monthly_contribution_dkk=Decimal("333.33"),
+        )
+        # Annual = 333.33 x 12 = 3 999.96; remaining room = 3 000
+        # Year 1: ASK = 3 000, frie = 999.96
+        # Year 2: ASK = 0,     frie = 3 999.96
+        splits = simulate_routing(r, n_years=5)
+        for k, split in enumerate(splits, start=1):
+            rc_ask, rc_frie = route_contributions(r, k)
+            assert rc_ask == split.ask_contribution_dkk, f"year {k}: ask mismatch"
+            assert rc_frie == split.frie_midler_contribution_dkk, f"year {k}: frie mismatch"
+
     def test_single_year_simulation(self) -> None:
         splits = simulate_routing(_router(), n_years=1)
         assert len(splits) == 1
@@ -445,6 +462,87 @@ class TestEdgeCases:
         months = simulate_routing_monthly(_router(), n_months=2)
         for m in months:
             assert isinstance(m, MonthlyContributionSplit)
+
+    def test_monthly_ask_cap_exhausted_flag(self) -> None:
+        """ask_cap_exhausted is False before month 6 and True from month 6 onward."""
+        months = simulate_routing_monthly(_router(), n_months=12)
+        for m in months[:5]:
+            assert m.ask_cap_exhausted is False, f"month {m.month_number} should not be exhausted"
+        for m in months[5:]:
+            assert m.ask_cap_exhausted is True, f"month {m.month_number} should be exhausted"
+
+    def test_monthly_ask_cap_remaining_drops_to_zero(self) -> None:
+        """ask_cap_remaining_dkk reaches zero at month 6 and stays zero."""
+        months = simulate_routing_monthly(_router(), n_months=12)
+        assert months[4].ask_cap_remaining_dkk == Decimal("3800")
+        assert months[5].ask_cap_remaining_dkk == Decimal("0")
+        for m in months[5:]:
+            assert m.ask_cap_remaining_dkk == Decimal("0"), f"month {m.month_number}"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Integration smoke test: routing → LiquidDepotConfig → project_liquid
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestLiquidIntegration:
+    """Smoke-test the wiring from simulate_routing into project_liquid.
+
+    Verifies the contract stated in the routing module docstring: yearly
+    contribution splits from simulate_routing feed into two separate
+    LiquidDepotConfig instances (one ASK, one frie midler) which are then
+    projected with project_liquid.
+    """
+
+    def test_two_depot_projection_from_routing_output(self) -> None:
+        router = ContributionRouter(
+            ask_cap_dkk=Decimal("140800"),
+            ask_cumulative_deposits_dkk=Decimal("62000"),
+            monthly_contribution_dkk=Decimal("15000"),
+        )
+        splits = simulate_routing(router, n_years=3)
+        # Year 1: ASK = 78 800, frie = 101 200
+        # Years 2-3: ASK = 0, frie = 180 000
+
+        base_year = 2025
+        threshold = threshold_for_year(base_year + 1)
+
+        ask_config = LiquidDepotConfig(
+            account_id="ask",
+            account_type="ask",
+            tax_regime="lager",
+            opening_balance_dkk=Decimal("62000"),
+            ask_lifetime_deposits_dkk=Decimal("62000"),
+            annual_contribution_dkk=splits[0].ask_contribution_dkk,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.002"),
+            aktieindkomst_threshold_dkk=threshold,
+        )
+        frie_config = LiquidDepotConfig(
+            account_id="frie-midler",
+            account_type="frie_midler",
+            tax_regime="lager",
+            opening_balance_dkk=Decimal("0"),
+            annual_contribution_dkk=splits[0].frie_midler_contribution_dkk,
+            gross_annual_return_rate=Decimal("0.07"),
+            annual_expense_ratio=Decimal("0.002"),
+            aktieindkomst_threshold_dkk=threshold,
+        )
+
+        ask_projection = project_liquid(ask_config, base_year=base_year, horizon_years=3)
+        frie_projection = project_liquid(frie_config, base_year=base_year, horizon_years=3)
+
+        # Both projections succeed and have the right length
+        assert len(ask_projection.flows) == 3
+        assert len(frie_projection.flows) == 3
+
+        # Year 1 ASK contribution matches routing split
+        ask_year1 = ask_projection.flows[0]
+        assert ask_year1.annual_contribution_dkk == splits[0].ask_contribution_dkk
+
+        # Closing balances are positive (compounding occurred)
+        assert ask_projection.flows[-1].closing_balance_dkk > Decimal("0")
+        assert frie_projection.flows[-1].closing_balance_dkk > Decimal("0")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

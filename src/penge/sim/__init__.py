@@ -49,6 +49,11 @@ from penge.sim.payout import (
     PayoutProjection,
     compute_payout,
 )
+from penge.sim.returns import (
+    BootstrapReturnModel,
+    ReturnModelError,
+    SampledPaths,
+)
 from penge.sim.routing import (
     ContributionRouter,
     ContributionRoutingError,
@@ -57,11 +62,6 @@ from penge.sim.routing import (
     route_contributions,
     simulate_routing,
     simulate_routing_monthly,
-)
-from penge.sim.returns import (
-    BootstrapReturnModel,
-    ReturnModelError,
-    SampledPaths,
 )
 from penge.sim.scenario import (
     HousePurchaseScenario,

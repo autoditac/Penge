@@ -207,6 +207,11 @@ class MonthlyContributionSplit(pydantic.BaseModel):
             **including** this month's contribution (DKK).  Reaches
             ``ask_cap_dkk`` at the month when the cap is first exhausted
             and remains constant thereafter.
+        ask_cap_remaining_dkk: Residual ASK deposit room at the **end** of
+            this month (DKK).  Zero once the cap has been exhausted.
+        ask_cap_exhausted: ``True`` when the cumulative deposit cap has
+            been fully absorbed by the end of this month (i.e. no further
+            deposits to ASK are possible in future months).
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -215,6 +220,8 @@ class MonthlyContributionSplit(pydantic.BaseModel):
     ask_contribution_dkk: Decimal
     frie_midler_contribution_dkk: Decimal
     cumulative_ask_deposits_dkk: Decimal
+    ask_cap_remaining_dkk: Decimal
+    ask_cap_exhausted: bool
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -381,12 +388,15 @@ def simulate_routing_monthly(
         ask = _q(min(monthly, room))
         frie = _q(monthly - ask)
         cumulative = _q(cumulative + ask)
+        remaining = _q(max(router.ask_cap_dkk - cumulative, Decimal("0")))
         results.append(
             MonthlyContributionSplit(
                 month_number=m,
                 ask_contribution_dkk=ask,
                 frie_midler_contribution_dkk=frie,
                 cumulative_ask_deposits_dkk=cumulative,
+                ask_cap_remaining_dkk=remaining,
+                ask_cap_exhausted=(remaining == Decimal("0")),
             )
         )
 

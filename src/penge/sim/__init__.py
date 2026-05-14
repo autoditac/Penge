@@ -17,6 +17,8 @@ Subpackages:
   + Aldersforsikring (issue #132, ADR-0028).
 - :mod:`penge.sim.assumptions` — investment assumption catalog for
   instruments and accounts (issue #177).
+- :mod:`penge.sim.registry` — assumption registry and projection audit record
+  (issue #173).
 """
 
 from penge.sim.assumptions import (
@@ -56,6 +58,11 @@ from penge.sim.payout import (
     PayoutProjection,
     compute_payout,
 )
+from penge.sim.registry import (
+    AssumptionEntry,
+    ProjectionAuditRecord,
+    build_standard_audit_record,
+)
 from penge.sim.returns import (
     BootstrapReturnModel,
     ReturnModelError,
@@ -88,9 +95,10 @@ from penge.sim.tax import (
 )
 
 __all__ = [
-    "AssumptionCatalog",
     "DE_DEFAULT",
     "DK_DEFAULT",
+    "AssumptionCatalog",
+    "AssumptionEntry",
     "BootstrapReturnModel",
     "CashflowConfig",
     "CashflowError",
@@ -113,6 +121,7 @@ __all__ = [
     "PayoutError",
     "PayoutProjection",
     "PensionAccrualRule",
+    "ProjectionAuditRecord",
     "ReturnModelError",
     "SalaryRule",
     "SampledPaths",
@@ -125,6 +134,7 @@ __all__ = [
     "YearlyContributionSplit",
     "YearlyFlow",
     "apply_tax",
+    "build_standard_audit_record",
     "compare",
     "compare_configs",
     "compute_payout",

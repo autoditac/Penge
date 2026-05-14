@@ -69,6 +69,8 @@ nav:
   - MCP:
       - "Tool reference": mcp/tools.md
   - Simulation:
+      - "Personas": sim/personas.md
+      - "User stories": sim/user-stories.md
       - "Return model": sim/return-model.md
       - "Investment assumptions": sim/assumptions.md
       - "Assumption registry": sim/registry.md

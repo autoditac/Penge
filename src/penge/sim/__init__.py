@@ -15,8 +15,15 @@ Subpackages:
   ``CashflowConfig`` projections (issue #127).
 - :mod:`penge.sim.payout` — decumulation payout model: Livrente + Ratepension
   + Aldersforsikring (issue #132, ADR-0028).
+- :mod:`penge.sim.assumptions` — investment assumption catalog for
+  instruments and accounts (issue #177).
 """
 
+from penge.sim.assumptions import (
+    AssumptionCatalog,
+    InstrumentAssumptions,
+    TaxRegime,
+)
 from penge.sim.cashflow import (
     CashflowConfig,
     CashflowError,
@@ -81,6 +88,7 @@ from penge.sim.tax import (
 )
 
 __all__ = [
+    "AssumptionCatalog",
     "DE_DEFAULT",
     "DK_DEFAULT",
     "BootstrapReturnModel",
@@ -97,6 +105,7 @@ __all__ = [
     "GoalConfig",
     "GoalResult",
     "HousePurchaseScenario",
+    "InstrumentAssumptions",
     "MonteCarloConfig",
     "MonteCarloResult",
     "MonthlyContributionSplit",
@@ -111,6 +120,7 @@ __all__ = [
     "ScenarioError",
     "ScenarioResult",
     "TaxConfig",
+    "TaxRegime",
     "WorkReductionScenario",
     "YearlyContributionSplit",
     "YearlyFlow",

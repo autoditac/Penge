@@ -70,6 +70,7 @@ nav:
       - "Tool reference": mcp/tools.md
   - Simulation:
       - "Return model": sim/return-model.md
+      - "Investment assumptions": sim/assumptions.md
   - Tax:
       - DK: tax/dk.md
       - DE: tax/de.md

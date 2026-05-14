@@ -69,6 +69,7 @@ nav:
   - MCP:
       - "Tool reference": mcp/tools.md
   - Simulation:
+      - "User stories": sim/user-stories.md
       - "Return model": sim/return-model.md
   - Tax:
       - DK: tax/dk.md

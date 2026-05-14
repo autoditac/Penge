@@ -436,9 +436,7 @@ class LiquidDepotConfig(pydantic.BaseModel):
             # tax path already clamps ``gain_fraction`` at 0 in this
             # case (no loss-carry-forward), so the rest of the engine
             # is loss-state safe.  Reject negative bases only.
-            if not (
-                self.tax_regime == "realisation" and self.account_type == "frie_midler"
-            ):
+            if not (self.tax_regime == "realisation" and self.account_type == "frie_midler"):
                 raise ValueError(
                     "opening_cost_basis_dkk only applies to realisation-regime "
                     "frie midler; ASK and lager accounts mark to market every "
@@ -593,10 +591,7 @@ class LiquidProjection(pydantic.BaseModel):
         Useful for comparing strategies on a like-for-like *net-of-
         deferred-tax* basis.
         """
-        if (
-            self.config.tax_regime != "realisation"
-            or self.config.account_type != "frie_midler"
-        ):
+        if self.config.tax_regime != "realisation" or self.config.account_type != "frie_midler":
             return Decimal("0")
         unrealised_gain = max(
             self.terminal_balance_dkk() - self.terminal_cost_basis_dkk(),
@@ -885,9 +880,9 @@ def project_liquid(  # noqa: PLR0912
         # rounding to 0.01 here would introduce ~1 % error in withdrawal
         # tax.  Quantize to 8 decimal places — well below the precision of
         # any downstream Decimal money operation.
-        terminal_gain_fraction = (
-            max(balance - cost_basis, Decimal("0")) / balance
-        ).quantize(Decimal("0.00000001"))
+        terminal_gain_fraction = (max(balance - cost_basis, Decimal("0")) / balance).quantize(
+            Decimal("0.00000001")
+        )
     else:
         terminal_gain_fraction = Decimal("0")
 
@@ -925,19 +920,18 @@ class BridgeConfig(pydantic.BaseModel):
         tax_regime: ``"lager"`` or ``"realisation"``.
         aktieindkomst_threshold_dkk: Per-person tax threshold.  Use
             :func:`threshold_for_year` for the bridge start year.
-
-    .. note::
-
-       The bridge simulator currently models **akkumulerende** funds
-       only (no dividend distributions during decumulation).  Modelling
-       ``tax_regime == "realisation"`` with a non-zero dividend yield
-       during the bridge — where dividends would create their own
-       annual aktieindkomst tax line on top of the gain-fraction tax on
-       withdrawals — is not supported and is rejected at validation
-       time.  Construct the bridge from a realisation account by either
-       (a) using an akkumulerende fund (dividend_yield == 0) or
-       (b) modelling the dividend cashflow separately at the household
-       cashflow level.  See issue #158 for the follow-up.
+        annual_dividend_yield: Dividend yield for *udloddende*
+            (distributing) realisation funds.  Zero for akkumulerende
+            instruments.  When non-zero with ``tax_regime='realisation'``,
+            the bridge models an annual dividend distribution at each
+            December boundary: the gross dividend
+            (``year_opening_balance * annual_dividend_yield``) is taxed as
+            aktieindkomst (respecting the YTD progressive bracket already
+            used by the year's withdrawal taxes) and the tax is deducted
+            from the depot balance.  The ``tax_source`` during the bridge
+            is always ``'depot'`` (no external income in decumulation).
+            Set to ``0`` for akkumulerende funds to preserve the existing
+            gain-fraction-only behaviour.
     """
 
     model_config = pydantic.ConfigDict(frozen=True)
@@ -970,10 +964,7 @@ class BridgeConfig(pydantic.BaseModel):
         if self.starting_balance_dkk <= Decimal("0"):
             raise ValueError("starting_balance_dkk must be > 0")
         if self.cost_basis_dkk < Decimal("0"):
-            raise ValueError(
-                "cost_basis_dkk must be >= 0; "
-                f"got {self.cost_basis_dkk}"
-            )
+            raise ValueError(f"cost_basis_dkk must be >= 0; got {self.cost_basis_dkk}")
         # ``cost_basis_dkk > starting_balance_dkk`` is allowed for the
         # realisation regime — it represents an unrealised-loss seed
         # state (depot bought at a peak, current value below basis).
@@ -1021,16 +1012,6 @@ class BridgeConfig(pydantic.BaseModel):
             raise ValueError("annual_dividend_yield must be ≥ 0")
         if self.annual_dividend_yield >= Decimal("1"):
             raise ValueError("annual_dividend_yield must be < 1")
-        if (
-            self.tax_regime == "realisation"
-            and self.annual_dividend_yield > Decimal("0")
-        ):
-            raise ValueError(
-                "bridge simulator does not yet model dividend distributions "
-                "during decumulation for tax_regime='realisation'; set "
-                "annual_dividend_yield=0 (akkumulerende) or model the "
-                "dividend at the household cashflow level. See issue #158."
-            )
         return self
 
 
@@ -1084,6 +1065,10 @@ class MonthlyBridgeFlow(pydantic.BaseModel):
     withdrawal_net_dkk: Decimal
     lager_tax_dkk: Decimal
     # Annual lager tax deducted at December (non-zero only when month % 12 == 0).
+    dividend_tax_dkk: Decimal = Decimal("0")
+    # Annual dividend tax for distributing realisation funds, deducted at
+    # December from the depot balance (non-zero only when month % 12 == 0 and
+    # tax_regime='realisation' with annual_dividend_yield > 0).
     closing_balance_dkk: Decimal
     cost_basis_dkk: Decimal
 
@@ -1101,6 +1086,7 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
     tax_regime: str,
     threshold_dkk: Decimal,
     *,
+    annual_dividend_yield: Decimal = Decimal("0"),
     record_flows: bool = True,
 ) -> tuple[Decimal, list[MonthlyBridgeFlow]]:
     """Internal simulation: returns (final_balance, monthly_flows).
@@ -1124,6 +1110,18 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
     tax for that month — early-year withdrawals get more 27 % headroom,
     later-year ones spill over into 42 %.  This matches the way SKAT
     settles aktieindkomst on the annual income statement.
+
+    For distributing (*udloddende*) realisation funds (``annual_dividend_yield
+    > 0``), an additional annual dividend tax event is applied at each
+    December boundary.  The gross dividend
+    (``year_opening_balance * annual_dividend_yield``) is taxed as
+    aktieindkomst using the remaining progressive bracket headroom after
+    the year's monthly withdrawals have already consumed their share.
+    Only the dividend *tax* is deducted from the balance; the dividend
+    itself is already embedded in the monthly compounding (total-return
+    model).  The net dividend (``dividend_gross - dividend_tax``) is added
+    to the cost basis, consistent with the accumulation-phase treatment.
+    ``tax_source`` during the bridge is always ``'depot'``.
     """
     balance = starting_balance
     current_cost_basis = cost_basis
@@ -1197,6 +1195,7 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
 
         # Lager tax: computed and deducted at year-end (December = month % 12 == 0)
         lager_tax = Decimal("0")
+        annual_dividend_tax = Decimal("0")
         if month % 12 == 0:
             if tax_regime == "lager":
                 annual_gain = _q(balance - year_opening_balance + year_withdrawals)
@@ -1212,8 +1211,36 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
                 year_opening_balance = balance
                 year_withdrawals = Decimal("0")
             else:
-                # End of tax year — reset progressive headroom tracker
+                # Realisation year-end: optional dividend distribution for
+                # udloddende (distributing) funds.  The gross dividend is
+                # computed from the year's opening balance; only the dividend
+                # *tax* is deducted (the dividend itself is already embedded
+                # in the total-return monthly compounding).  The net dividend
+                # is added to the cost basis — consistent with the
+                # accumulation-phase treatment (tax_source is always 'depot'
+                # during the bridge).
+                if annual_dividend_yield > Decimal("0"):
+                    dividend_gross = _q(year_opening_balance * annual_dividend_yield)
+                    # Apply remaining progressive bracket headroom after the
+                    # year's monthly withdrawal gains have already consumed
+                    # their share.
+                    low_room = max(threshold_dkk - ytd_realised_gain, Decimal("0"))
+                    low_portion = min(dividend_gross, low_room)
+                    high_portion = max(dividend_gross - low_portion, Decimal("0"))
+                    annual_dividend_tax = _q(
+                        low_portion * AKTIEINDKOMST_LOW_RATE
+                        + high_portion * AKTIEINDKOMST_HIGH_RATE
+                    )
+                    dividend_net = _q(dividend_gross - annual_dividend_tax)
+                    balance = _q(balance - annual_dividend_tax)
+                    # Net dividend (already-taxed cash) reinvested into the
+                    # fund increases the cost basis, matching the accumulation
+                    # model's treatment of reinvested net dividends.
+                    current_cost_basis = _q(current_cost_basis + dividend_net)
+                # Reset progressive headroom tracker and update year-opening
+                # balance for the next year's dividend computation.
                 ytd_realised_gain = Decimal("0")
+                year_opening_balance = balance
 
         if tax_regime == "lager":
             # Lager regimes mark to market every year, so the seed
@@ -1234,6 +1261,7 @@ def _bridge_simulate(  # noqa: PLR0912, PLR0915
                     withdrawal_tax_dkk=withdrawal_tax,
                     withdrawal_net_dkk=withdrawal_net,
                     lager_tax_dkk=lager_tax,
+                    dividend_tax_dkk=annual_dividend_tax,
                     closing_balance_dkk=balance,
                     cost_basis_dkk=current_cost_basis,
                 )
@@ -1329,6 +1357,7 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
             config.account_type,
             config.tax_regime,
             config.aktieindkomst_threshold_dkk,
+            annual_dividend_yield=config.annual_dividend_yield,
             record_flows=False,
         )
         if final_hi <= Decimal("0"):
@@ -1356,6 +1385,7 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
             config.account_type,
             config.tax_regime,
             config.aktieindkomst_threshold_dkk,
+            annual_dividend_yield=config.annual_dividend_yield,
             record_flows=False,
         )
         if final_balance > Decimal("0"):
@@ -1373,6 +1403,7 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
         config.account_type,
         config.tax_regime,
         config.aktieindkomst_threshold_dkk,
+        annual_dividend_yield=config.annual_dividend_yield,
     )
 
     # Guard against pathological cases where the search collapses to a PMT
@@ -1387,7 +1418,10 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
             )
 
     total_gross = _q(monthly_pmt * Decimal(str(config.horizon_months)))
-    total_tax = sum((f.withdrawal_tax_dkk + f.lager_tax_dkk for f in flows), Decimal("0"))
+    total_tax = sum(
+        (f.withdrawal_tax_dkk + f.lager_tax_dkk + f.dividend_tax_dkk for f in flows),
+        Decimal("0"),
+    )
     total_tax = _q(total_tax)
 
     # Average the annual lager tax over the number of full December
@@ -1408,9 +1442,15 @@ def compute_bridge_pmt(config: BridgeConfig) -> BridgeResult:  # noqa: PLR0912
     #     the full monthly gross withdrawal in their pocket. The PMT was
     #     solved against a post-tax depot trajectory, so monthly_pmt itself
     #     is already the sustainable in-pocket amount.
-    #   - Realisation regime: tax is embedded in each monthly withdrawal
-    #     (gross - tax = net).  Average it back so the headline net figure
-    #     is comparable to the lager case.
+    #   - Realisation regime: withdrawal tax is embedded in each monthly
+    #     withdrawal (gross - withdrawal_tax = net).  The dividend tax is
+    #     deducted from the depot balance at year-end (like lager tax), so
+    #     it does not reduce the monthly cash received — it is already
+    #     factored into the binary-search PMT.  Average withdrawal tax back
+    #     so the headline net figure reflects the monthly cash after the
+    #     gain-fraction tax; dividend tax is separately visible via
+    #     ``total_tax_paid_dkk`` and the per-month ``dividend_tax_dkk``
+    #     fields on the flows.
     if config.tax_regime == "lager":
         monthly_net = monthly_pmt
     else:
@@ -1619,9 +1659,9 @@ def compare_liquid_strategies(
             # Quantize to 0.0001 (1 basis point) — the field is a *rate*,
             # not a money amount.  The money-style 0.01 quantizer would
             # round 0.078 → 0.08 (~10 % error in the reported rate).
-            effective_rate = Decimal(
-                str(ratio_float ** (1.0 / horizon_years) - 1.0)
-            ).quantize(Decimal("0.0001"))
+            effective_rate = Decimal(str(ratio_float ** (1.0 / horizon_years) - 1.0)).quantize(
+                Decimal("0.0001")
+            )
         else:
             effective_rate = Decimal("0")
 
@@ -1644,7 +1684,5 @@ def compare_liquid_strategies(
             )
         )
 
-    rows.sort(
-        key=lambda r: r.terminal_balance_net_of_liquidation_tax_dkk, reverse=True
-    )
+    rows.sort(key=lambda r: r.terminal_balance_net_of_liquidation_tax_dkk, reverse=True)
     return rows

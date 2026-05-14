@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0001-self-hosted-postgres-duckdb-stack/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0027-liquid-depot-simulation-model/">
       
       
-        <link rel="prev" href="../">
+        <link rel="prev" href="../0026-retire-gocardless-for-enable-banking/">
       
       
-        <link rel="next" href="../0002-custom-monorepo-over-off-the-shelf-pfm/">
+        <link rel="next" href="../adr-template/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0001 Self-hosted Postgres + DuckDB stack - Penge</title>
+        <title>ADR-0027 Liquid depot simulation model (ASK + frie midler) - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0001-self-hosted-postgres-duckdb-stack-over-a-managed-lakehouse" class="md-skip">
+        <a href="#0027-liquid-depot-simulation-model-ask-frie-midler-lagerrealisation" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0001 Self-hosted Postgres + DuckDB stack
+              ADR-0027 Liquid depot simulation model (ASK + frie midler)
             
           </span>
         </div>
@@ -1547,37 +1547,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0001 Self-hosted Postgres + DuckDB stack
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -1593,181 +1566,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context and Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Drivers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#managed-lakehouse" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Managed lakehouse
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgres-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Postgres only
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sqlite-parquet" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SQLite + Parquet
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2477,10 +2275,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0027 Liquid depot simulation model (ASK + frie midler)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2496,6 +2321,148 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Negative">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#known-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Known limitations
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2692,13 +2659,14 @@
     </span>
   </a>
   
-</li>
+    <nav class="md-nav" aria-label="Negative">
+      <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
+  <a href="#known-limitations" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Neutral
+        Known limitations
       
     </span>
   </a>
@@ -2709,46 +2677,12 @@
     </nav>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#managed-lakehouse" class="md-nav__link">
+  <a href="#neutral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Managed lakehouse
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#postgres-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Postgres only
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#sqlite-parquet" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        SQLite + Parquet
+        Neutral
       
     </span>
   </a>
@@ -2788,7 +2722,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0001-self-hosted-postgres-duckdb-stack.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0027-liquid-depot-simulation-model.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2796,83 +2730,148 @@
   
 
 
-<h1 id="0001-self-hosted-postgres-duckdb-stack-over-a-managed-lakehouse">0001 — Self-hosted Postgres + DuckDB stack over a managed lakehouse<a class="headerlink" href="#0001-self-hosted-postgres-duckdb-stack-over-a-managed-lakehouse" title="Permanent link">&para;</a></h1>
+<h1 id="0027-liquid-depot-simulation-model-ask-frie-midler-lagerrealisation">0027 — Liquid depot simulation model (ASK + frie midler, Lager/Realisation)<a class="headerlink" href="#0027-liquid-depot-simulation-model-ask-frie-midler-lagerrealisation" title="Permanent link">&para;</a></h1>
 <ul>
-<li><strong>Status:</strong> Accepted</li>
-<li><strong>Date:</strong> 2026-05-06</li>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-05-13</li>
 <li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> infra, security</li>
+<li><strong>Tags:</strong> sim, tax</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>Penge is a private, single-user personal-finance and FIRE platform. It must
-hold sensitive financial data (PSD2 transactions, brokerage holdings, tax
-documents, salary slips) for many years and serve interactive analytics, dbt
-transformations, and an LLM-facing MCP layer. We need a primary store for
-mutable operational data and an analytics layer for ad-hoc queries, dashboards,
-and projections, without taking on managed-cloud cost or exposing raw financial
-data to a third-party provider.</p>
+<p>We need to project the year-by-year evolution of liquid (taxable) investment
+accounts for a DK household, then translate the end-state into a sustainable
+monthly bridge withdrawal during the gap years between FIRE and folkepension.
+A trustworthy projection has to model <strong>three distinct tax regimes</strong> —
+Aktiesparekonto (ASK), frie midler under Lagerbeskatning, and frie midler
+under Realisationsbeskatning — and the routing rules between them (ASK
+cap, then frie midler overflow).</p>
+<p>An earlier external model (Gemini sketch) used a single flat effective
+net-of-tax rate, which materially under-states bridge sustainability for
+ASK (cheaper 17 % tax) and over-states it for large frie-midler positions
+that quickly exhaust the progressive bracket. We want every modelling
+assumption to be explicit, year-aware, and unit-testable.</p>
 <h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Sovereignty: financial + tax data must stay on hardware we control.</li>
-<li>Cost: zero recurring SaaS fees; runs on a home server / single VPS.</li>
-<li>Operational simplicity: one developer, one operator — must be runnable and
-  restorable from a Docker Compose file.</li>
-<li>Analytics ergonomics: fast ad-hoc OLAP for net-worth, allocation, tax
-  simulations, and dbt models.</li>
-<li>Reversibility: data formats must be portable (SQL dumps, Parquet) so we are
-  not locked in.</li>
+<li><strong>Correctness over closed-form convenience.</strong> A wrong PMT during the
+  bridge years would have real, irreversible portfolio consequences.</li>
+<li><strong>Progressive aktieindkomst bracket is per-year, per-person.</strong> Tax must
+  be tracked on an annual basis (both for the mark-to-market lager flow
+  and for realisation withdrawals during the bridge).</li>
+<li><strong>Year-indexed satser.</strong> SKAT publishes new aktieindkomst thresholds and
+  ASK caps every year — the model must surface uncertainty for years that
+  fall outside the confirmed table.</li>
+<li><strong>Reproducibility.</strong> All monetary inputs and outputs are <code>Decimal</code>.
+  Float arithmetic is permitted only for the one-time conversion of the
+  annual net rate to a monthly rate (<code>(1 + r)^(1/12) - 1</code>) inside
+  <code>compute_bridge_pmt</code> and in the FIRE-comparison return projection in
+  <code>compare_liquid_strategies</code>, where Decimal lacks a fractional <code>pow</code>.
+  The float result is immediately re-quantised back to <code>Decimal</code>; all
+  downstream accounting (balances, taxes, withdrawals) stays in
+  <code>Decimal</code>.</li>
 </ul>
 <h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Postgres 17 (operational) + DuckDB / Parquet (analytics) + dbt-duckdb</strong> — self-hosted via Docker Compose.</li>
-<li><strong>Managed lakehouse (Snowflake / BigQuery / Databricks)</strong> — cloud OLAP with hosted SQL.</li>
-<li><strong>Postgres only</strong> — operational and analytics on the same engine, no DuckDB.</li>
-<li><strong>SQLite + Parquet</strong> — single-file operational DB, DuckDB for analytics.</li>
+<li><strong>Closed-form PMT with a flat effective net rate</strong> (Gemini baseline).</li>
+<li><strong>Monthly simulation + binary search PMT</strong> (chosen).</li>
+<li><strong>Annual-step simulation with a sub-annual interpolation</strong> for the
+   bridge phase.</li>
 </ol>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We chose <strong>Option 1: Postgres 17 + DuckDB/Parquet + dbt-duckdb</strong>.</p>
-<p>Postgres 17 is the source of truth for normalized, mutable entities (accounts,
-transactions, holdings, documents, FX rates, tax-lots). DuckDB reads exported
-Parquet snapshots and runs dbt models for analytics, projections, and the
-Streamlit dashboard. The Compose stack is the deployment unit.</p>
+<p>We chose <strong>Option 2 — monthly simulation + binary search PMT</strong> with the
+following modelling invariants:</p>
+<ul>
+<li>One projection step per <strong>year</strong> in accumulation
+  (<code>project_liquid</code> → <code>YearlyLiquidFlow</code>), one per <strong>month</strong> in the bridge
+  (<code>compute_bridge_pmt</code> → <code>MonthlyBridgeFlow</code>).</li>
+<li><strong>ASK</strong>: flat 17 % Lager (<code>penge.tax.aktiesparekonto.ASK_RATE</code>); annual
+  contributions are capped at the cumulative ASK deposit limit returned
+  by <code>ask_cap_for_year()</code> (which reads the internal
+  <code>_ASK_DEPOSIT_CAPS_EXTENDED</code> table). Contributions above the cap are
+  <em>not</em> moved into ASK; routing the overflow to a frie-midler depot is
+  the caller's responsibility (<code>project_liquid</code> does not do it
+  implicitly).</li>
+<li><strong>Frie midler Lager</strong>: progressive 27 %/42 % on annual mark-to-market
+  gain. The threshold used in the simulation is the per-config
+  <code>LiquidDepotConfig.aktieindkomst_threshold_dkk</code> (held constant across
+  the horizon — the caller chooses which year's value to seed it with);
+  <code>AKTIEINDKOMST_THRESHOLDS</code> / <code>threshold_for_year()</code> are exposed for
+  callers that need the per-year value.</li>
+<li><strong>Frie midler Realisation</strong>: dividends taxed at aktieindkomst rates in
+  the year received; capital gain deferred. The bridge withdrawal computes
+  the <strong>gain fraction</strong> from the current cost basis and taxes only that
+  portion. Year-to-date realised gains drive the progressive bracket —
+  later-year withdrawals correctly spill into 42 %.</li>
+<li><strong><code>threshold_for_year</code> and <code>ask_cap_for_year</code></strong> both fall back to the
+  latest known value for <em>future</em> years (conservative — assumes no further
+  indexation) and <strong>raise <code>LiquidDepotError</code></strong> for years <em>before</em> the
+  earliest configured year (no silent back-projection).</li>
+<li><strong>All Decimal inputs are validated via the shared sim helper
+  <code>penge.sim._decimal_utils.to_decimal</code></strong> (imported as <code>_to_decimal</code> in
+  both <code>cashflow.py</code> and <code>liquid.py</code>), which rejects <code>NaN</code>/<code>Infinity</code>
+  and raises a clear <code>ValueError</code>.</li>
+<li><strong>Bridge PMT search</strong> validates <code>annual_net_rate &gt; -1</code> up front; grows
+  the upper bracket in a loop until depletion is bracketed; aborts with a
+  clear error if no positive PMT can deplete the depot within the horizon
+  or if the chosen PMT depletes mid-simulation.</li>
+<li><strong><code>tax_due_dkk</code> is always the full liability</strong>; only the depot-deducted
+  portion changes with <code>tax_source</code> (<code>"external"</code> vs <code>"depot"</code>).</li>
+</ul>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Full data sovereignty; no third-party processor for financial records.</li>
-<li>No recurring SaaS spend; total cost ≈ home-server power.</li>
-<li>DuckDB gives near-warehouse OLAP performance on a laptop-class machine.</li>
-<li>Parquet snapshots are a portable, vendor-neutral archive format.</li>
-<li>dbt-duckdb is a proven, well-supported toolchain.</li>
+<li>Numbers are reproducible, year-indexed, and unit-testable across the
+  full ASK/Lager/Realisation matrix.</li>
+<li>Each tax regime's effect on bridge sustainability is <strong>visible</strong>
+  (cf. the strategy-compare table in <code>compare_liquid_strategies</code>).</li>
+<li>Future SKAT updates only require touching <code>AKTIEINDKOMST_THRESHOLDS</code>
+  and <code>_ASK_DEPOSIT_CAPS_EXTENDED</code> — no model code changes.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>We own backups, upgrades, monitoring, and disaster recovery.</li>
-<li>Two engines to learn and version (Postgres + DuckDB) instead of one.</li>
-<li>Concurrent multi-user analytics is not a goal; DuckDB is single-process.</li>
+<li>Monthly simulation + binary search is ~60× slower than a closed-form
+  PMT. For 60 iterations × 120 months that's ≈ 7 200 monthly steps per
+  call — still sub-millisecond in practice but materially slower than a
+  scalar formula.</li>
+<li>The model holds the aktieindkomst threshold constant during the bridge
+  (no per-year inflation indexation during the multi-year horizon).
+  Acceptable for now; tracked as a follow-up if the bracket-creep over
+  10 years becomes material.</li>
+</ul>
+<h4 id="known-limitations">Known limitations<a class="headerlink" href="#known-limitations" title="Permanent link">&para;</a></h4>
+<ul>
+<li><strong>No loss carry-forward.</strong> <code>compute_aktieindkomst_tax</code> returns zero
+  for negative gains and does not track losses across years.  Real
+  Aktieindkomst (frie midler) allows indefinite carry-forward of
+  capital losses against future gains; ASK nets gains against losses
+  via the all-time deposit basis at withdrawal.  Projections that
+  cross a drawdown followed by a recovery will therefore overstate
+  tax in the recovery year(s).  Callers that need fidelity in loss
+  scenarios must implement carry-forward state on top of this
+  primitive.  Tracked as a follow-up; current users (FIRE
+  modelling at ≥ 10 y horizon) work with expected paths and accept
+  the bias.</li>
+<li><strong>Dividend yield is interpreted as net of ÅOP.</strong>  Internally the
+  realisation split subtracts <code>opening_balance × annual_dividend_yield</code>
+  from the <strong>post-ÅOP</strong> <code>gross_return</code> to derive capital appreciation.
+  Supplying a <em>gross</em> dividend yield would overstate taxable
+  dividends.  Use factsheet yields that already net out ÅOP, or
+  pre-adjust before passing.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
-<li>pgvector (in Postgres) covers semantic-search needs without an extra service.</li>
-<li>Migrating off this stack later is feasible because data lives in standard
-  Postgres dumps and Parquet files.</li>
+<li>Net rate is computed from <code>gross_return_rate − annual_expense_ratio</code>;
+  ÅOP is therefore symmetric (compounds against accumulating funds and
+  separate from dividend yield for distributing funds).</li>
 </ul>
-<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="managed-lakehouse">Managed lakehouse<a class="headerlink" href="#managed-lakehouse" title="Permanent link">&para;</a></h3>
-<p>Rejected: cost (≥ tens of EUR/month idle), data residency, and the requirement
-to ship raw transaction-level data to a US/EU SaaS provider conflict with the
-sovereignty driver.</p>
-<h3 id="postgres-only">Postgres only<a class="headerlink" href="#postgres-only" title="Permanent link">&para;</a></h3>
-<p>Rejected: workable but slower for the column-oriented aggregations central to
-net-worth, allocation, and FIRE projections; also forces analytics queries to
-contend with operational load.</p>
-<h3 id="sqlite-parquet">SQLite + Parquet<a class="headerlink" href="#sqlite-parquet" title="Permanent link">&para;</a></h3>
-<p>Rejected: SQLite lacks pgvector and concurrent-writer guarantees we want for
-the ingestion pipeline and document vault.</p>
 <h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
 <ul>
-<li>ADR-0002 (custom monorepo over off-the-shelf PFM)</li>
-<li><code>compose.yaml</code></li>
-<li><code>pyproject.toml</code></li>
+<li>Code: <code>src/penge/sim/liquid.py</code></li>
+<li>Tests: <code>tests/sim/test_liquid.py</code></li>
+<li>Tax helpers: <code>penge.tax.aktiesparekonto</code>, <code>penge.tax.lager</code></li>
+<li>Related issues: #134 (ASK), #135 (Lager vs Realisation), #136 (ÅOP),
+  #137 (routing), #138 (fund compare), #139 (bridge decumulation),
+  #142–#146 (review findings folded into this ADR)</li>
+<li>Domain: <code>docs/tax/dk.md</code></li>
 </ul>
 
 

@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0025-encrypted-backups/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/sim/registry/">
       
       
-        <link rel="prev" href="../0024-vault-layout/">
+        <link rel="prev" href="../assumptions/">
       
       
-        <link rel="next" href="../0026-retire-gocardless-for-enable-banking/">
+        <link rel="next" href="../../tax/dk/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0025 Encrypted backups: age + Parquet snapshots - Penge</title>
+        <title>Assumption registry - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0025-encrypted-backups-age-parquet-snapshots" class="md-skip">
+        <a href="#assumption-registry-and-projection-audit-record" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0025 Encrypted backups: age + Parquet snapshots
+              Assumption registry
             
           </span>
         </div>
@@ -879,8 +879,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -899,11 +901,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
@@ -924,7 +926,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -942,7 +944,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/return-model/" class="md-nav__link">
+      <a href="../return-model/" class="md-nav__link">
         
   
   
@@ -970,7 +972,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/assumptions/" class="md-nav__link">
+      <a href="../assumptions/" class="md-nav__link">
         
   
   
@@ -995,10 +997,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../sim/registry/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Assumption registry
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1014,6 +1043,170 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#assumptionentry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AssumptionEntry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#projectionauditrecord" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ProjectionAuditRecord
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick start
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Quick start">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#build-a-standard-record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build a standard record
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#serialize-to-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Serialize to JSON
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#render-as-markdown" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Render as Markdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-custom-scenario-specific-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add custom (scenario-specific) entries
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#restore-from-json" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Restore from JSON
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#compare-two-records-diff" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compare two records (diff)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#standard-entries-captured-by-build_standard_audit_record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard entries captured by build_standard_audit_record
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR references
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1482,8 +1675,6 @@
       
   
   
-    
-  
   
   
     
@@ -1558,15 +1749,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../decisions/" class="md-nav__link ">
               
   
   
@@ -1590,7 +1781,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1610,7 +1801,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -1638,7 +1829,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -1666,7 +1857,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -1694,7 +1885,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -1722,7 +1913,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -1750,7 +1941,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -1778,7 +1969,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -1806,7 +1997,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -1834,7 +2025,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -1862,7 +2053,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0010-sim-return-model/" class="md-nav__link">
+      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -1890,7 +2081,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -1918,7 +2109,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0012-sim-goal-model/" class="md-nav__link">
+      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -1946,7 +2137,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -1974,7 +2165,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2002,7 +2193,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2030,7 +2221,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2058,7 +2249,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2086,7 +2277,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2114,7 +2305,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2142,7 +2333,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0020-skat-report-generator/" class="md-nav__link">
+      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2170,7 +2361,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2198,7 +2389,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2226,7 +2417,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2254,7 +2445,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0024-vault-layout/" class="md-nav__link">
+      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2279,37 +2470,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0025 Encrypted backups: age + Parquet snapshots
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2325,231 +2489,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context and Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Drivers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Decision">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#retention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retention
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#restore-drill-cadence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Restore drill cadence
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#key-rotation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key rotation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-2-gnupg" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — GnuPG
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-cloud-kms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — Cloud KMS
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-4-pgbackrest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 4 — pgBackRest
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2562,7 +2501,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2590,7 +2529,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2618,7 +2557,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr-template/" class="md-nav__link">
+      <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
   
@@ -2727,55 +2666,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context and Problem Statement
+        Concepts
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Drivers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Decision">
+    <nav class="md-nav" aria-label="Concepts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#pipeline" class="md-nav__link">
+  <a href="#assumptionentry" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pipeline
+        AssumptionEntry
       
     </span>
   </a>
@@ -2783,32 +2689,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#retention" class="md-nav__link">
+  <a href="#projectionauditrecord" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Retention
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#restore-drill-cadence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Restore drill cadence
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#key-rotation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key rotation
+        ProjectionAuditRecord
       
     </span>
   </a>
@@ -2821,22 +2705,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#quick-start" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        Quick start
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Consequences">
+    <nav class="md-nav" aria-label="Quick start">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
+  <a href="#build-a-standard-record" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Positive
+        Build a standard record
       
     </span>
   </a>
@@ -2844,10 +2728,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
+  <a href="#serialize-to-json" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative
+        Serialize to JSON
       
     </span>
   </a>
@@ -2855,10 +2739,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
+  <a href="#render-as-markdown" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Neutral
+        Render as Markdown
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#add-custom-scenario-specific-entries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Add custom (scenario-specific) entries
       
     </span>
   </a>
@@ -2871,60 +2766,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
+  <a href="#restore-from-json" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Alternatives in detail
+        Restore from JSON
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-2-gnupg" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — GnuPG
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-cloud-kms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — Cloud KMS
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-4-pgbackrest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 4 — pgBackRest
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
+  <a href="#compare-two-records-diff" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Links
+        Compare two records (diff)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#standard-entries-captured-by-build_standard_audit_record" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Standard entries captured by build_standard_audit_record
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adr-references" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ADR references
       
     </span>
   </a>
@@ -2948,7 +2826,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0025-encrypted-backups.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/sim/registry.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2956,208 +2834,238 @@
   
 
 
-<h1 id="0025-encrypted-backups-age-parquet-snapshots">0025 — Encrypted backups: age + Parquet snapshots<a class="headerlink" href="#0025-encrypted-backups-age-parquet-snapshots" title="Permanent link">&para;</a></h1>
-<ul>
-<li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-08</li>
-<li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> infra, security</li>
-</ul>
-<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>Penge holds DK and DE financial data: balances, transactions, holdings,
-tax lots, and PDF statements stored under the vault tree (ADR-0024).
-Loss of the Postgres database (disk failure on the home server,
-mistaken <code>DROP TABLE</code>, ransomware, hardware theft) would either erase
-years of reconciled history or — worse — leak it if the backup
-pipeline puts plaintext on a disk we don't fully control.</p>
-<p>We need a backup pipeline that is:</p>
-<ol>
-<li><strong>Encrypted at rest, end-to-end.</strong> A backup file on a USB drive in
-   the safe, an off-site Hetzner Storage Box, or an old laptop must
-   be useless to a finder without the matching private key.</li>
-<li><strong>Restorable in a fire drill.</strong> The operator must be able to
-   reproduce a working database from nothing more than the encrypted
-   artefact and an offline private key.</li>
-<li><strong>Auditable.</strong> Every artefact carries a timestamp, an integrity
-   hash, and a deterministic filename so retention pruning is safe.</li>
-<li><strong>Boring.</strong> No bespoke crypto, no key servers, no dependency on a
-   cloud KMS we don't already pay for.</li>
-</ol>
-<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
-<ul>
-<li><strong>Threat model.</strong> Adversaries we plan for: a thief who steals the
-  home server or its USB backup drive; a misbehaving cloud provider
-  that reads our object-store contents; a future Penge developer who
-  pulls the wrong tarball onto a shared workstation. Adversaries we
-  do <strong>not</strong> plan for in v1: a state-level attacker with persistent
-  on-host access; a coerced custodian.</li>
-<li><strong>Key custody.</strong> We want the private key offline (printed paper +
-  encrypted USB stick in a safe) plus on each operator device that
-  needs to decrypt. No cloud copies.</li>
-<li><strong>Operator ergonomics.</strong> The operator runs Linux + macOS at home
-  and wants a <code>just backup</code> / <code>just restore-test</code> flow, not a five-
-  step GnuPG ritual.</li>
-<li><strong>Reproducibility.</strong> Backups must be exactly reproducible from the
-  encrypted artefact alone — no out-of-band metadata required to
-  decrypt.</li>
-</ul>
-<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong><code>age</code> (pinentry-free, modern).</strong> Curve25519 + ChaCha20-Poly1305,
-   one tiny binary, X25519 recipients, simple <code>-r &lt;pubkey&gt;</code> CLI, no
-   keyrings.</li>
-<li><strong>GnuPG.</strong> Battle-tested, ubiquitous on Linux. Heavyweight
-   (keyrings, agents, web-of-trust), legendary configuration foot-
-   guns, awkward to script for non-interactive backups.</li>
-<li><strong>Cloud KMS-wrapped envelopes (AWS KMS, GCP KMS, Hashicorp Vault).</strong>
-   Strong access control on paper. Adds a hard dependency on a
-   third-party service to decrypt — exactly the property that ruins
-   day-7 disaster recovery.</li>
-<li><strong>Postgres native pgBackRest with TDE.</strong> Excellent for managed
-   fleets; overkill for a single-host home server, and pulls in a
-   stateful backup repository service we'd then need to back up too.</li>
-</ol>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We use <strong><code>age</code></strong> (Option 1) with one or more X25519 recipient public
-keys configured via <code>PENGE_BACKUP_RECIPIENTS</code>. Postgres backups are
-plain <code>pg_dump</code> output piped through <code>age</code>; DuckDB snapshots are
-per-table Parquet files packed in a tar stream and piped through
-<code>age</code>. The <code>age</code> private key (<code>age-keygen</code> output) lives in two places:</p>
-<ul>
-<li>A printed copy in the safe (page is small enough to fit on A4).</li>
-<li>An encrypted USB stick in the same safe.</li>
-</ul>
-<p>For routine restores the operator copies the identity file onto the
-machine that needs it (<code>PENGE_BACKUP_IDENTITY_FILE</code>) and removes it
-afterwards. Operator workstations may keep the identity file under
-<code>~/.config/penge/</code> with mode <code>0600</code> for convenience.</p>
-<h3 id="pipeline">Pipeline<a class="headerlink" href="#pipeline" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pg_dump --format=plain --no-owner --no-privileges
-   │
-   ▼
-age -r &lt;pubkey&gt; [-r &lt;pubkey&gt;...]
-   │
-   ▼
-backups/postgres/pg-YYYYMMDDTHHMMSSZ.sql.age   (+ .sha256 sidecar)
+<h1 id="assumption-registry-and-projection-audit-record">Assumption registry and projection audit record<a class="headerlink" href="#assumption-registry-and-projection-audit-record" title="Permanent link">&para;</a></h1>
+<p>Every projection run in Penge can be accompanied by a
+<code>ProjectionAuditRecord</code> that snapshots <strong>all</strong> constants, rates, model
+versions, and user-supplied assumptions used during that run.</p>
+<p>This makes long-term projections reproducible and auditable: if you run
+the same scenario a year later and the numbers change, a diff of the two
+records immediately shows which inputs changed (e.g. an updated tax
+threshold or a different expected-return assumption).</p>
+<hr />
+<h2 id="concepts">Concepts<a class="headerlink" href="#concepts" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Concept</th>
+<th>Class / function</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Single assumption</td>
+<td><code>AssumptionEntry</code></td>
+<td>One named constant: value, unit, source, optional ADR link</td>
+</tr>
+<tr>
+<td>Audit snapshot</td>
+<td><code>ProjectionAuditRecord</code></td>
+<td>Ordered collection of entries + run metadata</td>
+</tr>
+<tr>
+<td>Standard factory</td>
+<td><code>build_standard_audit_record()</code></td>
+<td>Builds a record from Penge's built-in constants</td>
+</tr>
+</tbody>
+</table>
+<h3 id="assumptionentry"><code>AssumptionEntry</code><a class="headerlink" href="#assumptionentry" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">AssumptionEntry</span><span class="p">:</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># e.g. &quot;DK PAL-skat rate&quot;</span>
+    <span class="n">value</span><span class="p">:</span> <span class="nb">str</span>    <span class="c1"># always str — JSON round-trips are trivial</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># e.g. &quot;%&quot;, &quot;DKK&quot;, &quot;EUR&quot;, &quot;fraction&quot;</span>
+    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>   <span class="c1"># e.g. &quot;SKAT 2025&quot;, &quot;ECB&quot;, &quot;user input&quot;</span>
+    <span class="n">adr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="c1"># e.g. &quot;ADR-0013&quot;</span>
+    <span class="n">notes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
 </code></pre></div>
-<p>The DuckDB path is symmetric:</p>
-<div class="highlight"><pre><span></span><code>duckdb COPY ... TO &#39;tbl.parquet&#39; (FORMAT PARQUET)   (per table, in a scratch dir)
-   │
-   ▼  (tar stream of {manifest.tsv, *.parquet})
-   │
-   ▼
-age -r &lt;pubkey&gt; [-r &lt;pubkey&gt;...]
-   │
-   ▼
-backups/duckdb/duckdb-YYYYMMDDTHHMMSSZ.tar.age   (+ .sha256 sidecar)
+<p><code>value</code> is always a <code>str</code> so that the record serialises to JSON without
+a custom encoder.  Convert <code>Decimal</code> or numeric values before creating an
+entry: <code>value=str(my_decimal)</code>.</p>
+<h3 id="projectionauditrecord"><code>ProjectionAuditRecord</code><a class="headerlink" href="#projectionauditrecord" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">ProjectionAuditRecord</span><span class="p">:</span>
+    <span class="n">run_id</span><span class="p">:</span> <span class="nb">str</span>           <span class="c1"># stable label for this run</span>
+    <span class="n">captured_at</span><span class="p">:</span> <span class="nb">str</span>      <span class="c1"># ISO-8601 UTC datetime</span>
+    <span class="n">penge_version</span><span class="p">:</span> <span class="nb">str</span>    <span class="c1"># importlib.metadata version at capture time</span>
+    <span class="n">assumptions</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">AssumptionEntry</span><span class="p">]</span>
 </code></pre></div>
-<p>The unencrypted dump never lands on disk: pg_dump writes to the pipe,
-age writes the ciphertext directly to the destination file. The
-DuckDB scratch directory lives under the backup root (never <code>/tmp</code>)
-and is deleted on every exit path via a <code>trap</code>.</p>
-<h3 id="retention">Retention<a class="headerlink" href="#retention" title="Permanent link">&para;</a></h3>
-<p><code>scripts/prune.sh</code> keeps <strong>14 daily</strong> + <strong>8 weekly</strong> + <strong>12 monthly</strong>
-artefacts by default. The defaults are configurable per invocation
-(<code>--daily</code>, <code>--weekly</code>, <code>--monthly</code>) and via env
-(<code>PENGE_BACKUP_RETENTION_*</code>). Buckets are derived from the timestamp
-embedded in the filename, not file mtime, so syncing artefacts across
-hosts doesn't reshuffle the policy.</p>
-<h3 id="restore-drill-cadence">Restore drill cadence<a class="headerlink" href="#restore-drill-cadence" title="Permanent link">&para;</a></h3>
-<p>We exercise restore quarterly (Q1 / Q2 / Q3 / Q4 — first weekend of
-the quarter):</p>
-<ol>
-<li>Decrypt the most recent <code>pg-*.sql.age</code> into a throwaway database.</li>
-<li>Run a <code>pg_dump --schema-only</code> diff against the live database.</li>
-<li>Compare row counts on the headline tables (<code>account</code>,
-   <code>transaction</code>, <code>instrument</code>, <code>holding</code>).</li>
-</ol>
-<p>CI runs the same round-trip (<code>.github/workflows/backup-roundtrip.yml</code>)
-on every PR that touches <code>scripts/**</code>, so the script-level invariant
-is continuously tested.</p>
-<h3 id="key-rotation">Key rotation<a class="headerlink" href="#key-rotation" title="Permanent link">&para;</a></h3>
-<p>Rotation is straightforward because <code>age</code> recipients are independent
-public keys, not a keyring with a web of trust:</p>
-<ol>
-<li><code>age-keygen -o new-identity.txt</code> → publish the new public key.</li>
-<li>Add the new public key to <code>PENGE_BACKUP_RECIPIENTS</code> next to the
-   existing one (comma-separated). New artefacts are now decryptable
-   by <strong>either</strong> key.</li>
-<li>Run a manual <code>just backup</code> and verify a restore drill against the
-   new key.</li>
-<li>After 90 days, remove the old public key from
-   <code>PENGE_BACKUP_RECIPIENTS</code>. The old key still decrypts artefacts
-   from before the rotation; new artefacts cannot.</li>
-<li>Securely destroy the old private-key paper and wipe the old USB
-   stick (single overwrite + physical destruction is sufficient
-   given the threat model).</li>
-</ol>
-<p>We <strong>never</strong> re-encrypt historical artefacts. If an old key is
-compromised, that breach exposes whatever data is in the artefacts
-that key encrypted — and the appropriate response is to assume that
-window of history is leaked, not to attempt to scrub the artefacts.</p>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<p>The <code>penge_version</code> field records which release of the Penge package
+generated the record.  If you upgrade Penge and re-run the same scenario,
+the version difference in the record is an immediate signal to re-check all
+constants.  It is set to <code>"dev"</code> when running from source without an
+installed release.</p>
+<hr />
+<h2 id="quick-start">Quick start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<h3 id="build-a-standard-record">Build a standard record<a class="headerlink" href="#build-a-standard-record" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_standard_audit_record</span>
+
+<span class="n">record</span> <span class="o">=</span> <span class="n">build_standard_audit_record</span><span class="p">(</span><span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;2025-01-baseline&quot;</span><span class="p">)</span>
+</code></pre></div>
+<p><code>build_standard_audit_record</code> accesses the <strong>current values</strong> of constants at
+call time from the authoritative source modules (<code>penge.sim.tax</code>,
+<code>penge.sim.liquid</code>, <code>penge.tax.aktiesparekonto</code>).  The modules are imported once
+at package load, but the constant values are looked up when the function is
+called — so the record always reflects the installed values, with no magic
+numbers.</p>
+<h3 id="serialize-to-json">Serialize to JSON<a class="headerlink" href="#serialize-to-json" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">json_str</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
+<span class="c1"># write to disk, attach to a report, store in a database …</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2025-01.json&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json_str</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="render-as-markdown">Render as Markdown<a class="headerlink" href="#render-as-markdown" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="n">md</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">to_markdown</span><span class="p">()</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">md</span><span class="p">)</span>
+</code></pre></div>
+<p>Output example:</p>
+<div class="highlight"><pre><span></span><code># Projection audit: 2025-01-baseline
+
+Captured: 2025-01-15T08:30:00+00:00
+Penge version: 1.2.3
+
+| Assumption | Value | Unit | Source | ADR | Notes |
+|---|---|---|---|---|---|
+| DK PAL-skat rate | 15.3 | % | SKAT 2025 | ADR-0013 | Annual tax on pension-pot returns (withheld by PFA) |
+| DK ASK tax rate | 17 | % | SKAT 2025 | ADR-0018 | Flat annual mark-to-market rate inside Aktiesparekonto |
+…
+</code></pre></div>
+<h3 id="add-custom-scenario-specific-entries">Add custom (scenario-specific) entries<a class="headerlink" href="#add-custom-scenario-specific-entries" title="Permanent link">&para;</a></h3>
+<p>Pass <code>extra_entries</code> to append your own assumptions after the standard ones:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">decimal</span><span class="w"> </span><span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssumptionEntry</span><span class="p">,</span> <span class="n">build_standard_audit_record</span>
+
+<span class="n">record</span> <span class="o">=</span> <span class="n">build_standard_audit_record</span><span class="p">(</span>
+    <span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;2025-01-optimistic&quot;</span><span class="p">,</span>
+    <span class="n">extra_entries</span><span class="o">=</span><span class="p">[</span>
+        <span class="n">AssumptionEntry</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Portfolio expected real return&quot;</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="s2">&quot;5.5&quot;</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;%&quot;</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;user input&quot;</span><span class="p">,</span>
+            <span class="n">notes</span><span class="o">=</span><span class="s2">&quot;MSCI World 30-year geometric mean estimate&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">AssumptionEntry</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;EUR/DKK FX rate&quot;</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;7.4604&quot;</span><span class="p">)),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;DKK per EUR&quot;</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;ECB 2025-01-01&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+        <span class="n">AssumptionEntry</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Inflation assumption&quot;</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;%&quot;</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;ECB target&quot;</span><span class="p">,</span>
+            <span class="n">notes</span><span class="o">=</span><span class="s2">&quot;Used to deflate nominal returns&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>You can also build a record entirely from scratch:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssumptionEntry</span><span class="p">,</span> <span class="n">ProjectionAuditRecord</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
+
+<span class="n">record</span> <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="p">(</span>
+    <span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;manual-run&quot;</span><span class="p">,</span>
+    <span class="n">captured_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
+    <span class="n">penge_version</span><span class="o">=</span><span class="s2">&quot;dev&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">record</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">AssumptionEntry</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;My rate&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;3.5&quot;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;%&quot;</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;estimate&quot;</span><span class="p">))</span>
+</code></pre></div>
+<hr />
+<h2 id="restore-from-json">Restore from JSON<a class="headerlink" href="#restore-from-json" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProjectionAuditRecord</span>
+
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2025-01.json&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+    <span class="n">restored</span> <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+
+<span class="k">assert</span> <span class="n">restored</span><span class="o">.</span><span class="n">run_id</span> <span class="o">==</span> <span class="s2">&quot;2025-01-baseline&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="compare-two-records-diff">Compare two records (diff)<a class="headerlink" href="#compare-two-records-diff" title="Permanent link">&para;</a></h2>
+<p>The registry does not provide a built-in diff utility, but you can compare
+two records with standard Python:</p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">diff_records</span><span class="p">(</span>
+    <span class="n">before</span><span class="p">:</span> <span class="n">ProjectionAuditRecord</span><span class="p">,</span>
+    <span class="n">after</span><span class="p">:</span> <span class="n">ProjectionAuditRecord</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return lines describing changed / added / removed assumptions.&quot;&quot;&quot;</span>
+    <span class="n">before_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">e</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">before</span><span class="o">.</span><span class="n">assumptions</span><span class="p">}</span>
+    <span class="n">after_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">e</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">after</span><span class="o">.</span><span class="n">assumptions</span><span class="p">}</span>
+    <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">all_names</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">before_map</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span> <span class="o">|</span> <span class="n">after_map</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">all_names</span><span class="p">:</span>
+        <span class="n">b</span> <span class="o">=</span> <span class="n">before_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="n">a</span> <span class="o">=</span> <span class="n">after_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">b</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;+ ADDED   </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">a</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- REMOVED </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="n">b</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;~ CHANGED </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+    <span class="k">return</span> <span class="n">lines</span>
+
+
+<span class="n">before</span> <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2024-12.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+<span class="n">after</span>  <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2025-01.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+<span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">diff_records</span><span class="p">(</span><span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
+</code></pre></div>
+<p>Example output after a SKAT threshold update:</p>
+<div class="highlight"><pre><span></span><code>~ CHANGED DK Aktieindkomst threshold per person (2026): 70700 DKK → 73100 DKK
+</code></pre></div>
+<hr />
+<h2 id="standard-entries-captured-by-build_standard_audit_record">Standard entries captured by <code>build_standard_audit_record</code><a class="headerlink" href="#standard-entries-captured-by-build_standard_audit_record" title="Permanent link">&para;</a></h2>
+<p>The factory captures the following categories of assumptions:</p>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Key entries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DK pension</td>
+<td>PAL-skat rate (15.3%), salary income tax rate, pension drawdown rate</td>
+</tr>
+<tr>
+<td>DK Lagerbeskatning</td>
+<td>Low rate (27%), high rate (42%), aktieindkomst threshold (per-person, DKK)</td>
+</tr>
+<tr>
+<td>DK capital gains effective (DK_DEFAULT)</td>
+<td>Effective rate for the default DK regime</td>
+</tr>
+<tr>
+<td>DK ASK</td>
+<td>ASK rate (17%), cumulative deposit cap (DKK, latest confirmed year)</td>
+</tr>
+<tr>
+<td>DE income tax</td>
+<td>Salary rate, pension return rate, pension drawdown rate</td>
+</tr>
+<tr>
+<td>DE capital gains</td>
+<td>Abgeltungsteuer gross (25%), Solidaritätszuschlag (5.5%), Teilfreistellung (30%), effective rate</td>
+</tr>
+</tbody>
+</table>
+<p>All monetary values are in <strong>DKK</strong> or <strong>EUR</strong> as labelled; all rates are in
+<strong>%</strong> (not fractions) so that audit output is human-readable without mental
+conversion.</p>
+<hr />
+<h2 id="adr-references">ADR references<a class="headerlink" href="#adr-references" title="Permanent link">&para;</a></h2>
 <ul>
-<li>One small binary (<code>age</code>) on every host that takes or restores
-  backups; no keyrings, no agents, no daemons.</li>
-<li>Multiple recipients are first-class: rotation and shared access
-  (e.g. spouse) just work.</li>
-<li>Encrypted artefacts are self-contained — restorable on a fresh
-  laptop with nothing but <code>age</code>, <code>psql</code>/<code>duckdb</code>, and the identity
-  file from the safe.</li>
-<li>The <code>.sha256</code> sidecar lets the operator detect bit-rot before
-  attempting a restore on cold storage.</li>
-</ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>age</code> is younger than GnuPG and has a smaller pool of public
-  cryptographic review. We mitigate by pinning the package version
-  and tracking <a href="https://github.com/FiloSottile/age/security/advisories">the <code>age</code> advisory feed</a>.</li>
-<li>Plain SQL dumps are larger than custom-format dumps. Restore is
-  also single-threaded (<code>psql -f -</code>) compared to <code>pg_restore --jobs</code>.
-  At Penge's data volume (10⁵–10⁶ rows) this is a non-issue; if it
-  becomes one we switch to <code>--format=custom</code>, which is a one-line
-  change in <code>scripts/backup.sh</code>.</li>
-<li>Compromise of the on-device identity file exposes all artefacts
-  that recipient could decrypt. Mitigated by file mode <code>0600</code>,
-  full-disk encryption on the host, and the rotation procedure above.</li>
-</ul>
-<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Postgres backups are logical (<code>pg_dump</code>) rather than physical
-  (PITR). Penge has no SLO for sub-day RPO, and logical backups are
-  trivially portable across major Postgres versions, which fits the
-  home-server upgrade cadence.</li>
-</ul>
-<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="option-2-gnupg">Option 2 — GnuPG<a class="headerlink" href="#option-2-gnupg" title="Permanent link">&para;</a></h3>
-<p>GnuPG would also work, but the operational surface is hostile:
-keyrings carry per-host state, <code>gpg-agent</code> interferes with
-non-interactive cron jobs, and the Web-of-Trust UX is irrelevant
-to a single-operator threat model. The
-<a href="https://age-encryption.org/"><em>age</em> design notes</a> explicitly target
-this gap.</p>
-<h3 id="option-3-cloud-kms">Option 3 — Cloud KMS<a class="headerlink" href="#option-3-cloud-kms" title="Permanent link">&para;</a></h3>
-<p>A KMS-wrapped envelope ties our disaster-recovery path to a vendor
-account. The first thing we'd want during an actual disaster (a
-fresh laptop on a flaky hotel Wi-Fi) is to <strong>not</strong> depend on cloud
-auth.</p>
-<h3 id="option-4-pgbackrest">Option 4 — pgBackRest<a class="headerlink" href="#option-4-pgbackrest" title="Permanent link">&para;</a></h3>
-<p>pgBackRest is the right answer for a fleet of managed Postgres
-instances. For one home server it adds a stateful repository service
-that itself needs encryption, retention, and monitoring — pushing the
-problem one level down without solving it.</p>
-<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>scripts/backup.sh</code></li>
-<li><code>scripts/snapshot.sh</code></li>
-<li><code>scripts/restore.sh</code></li>
-<li><code>scripts/prune.sh</code></li>
-<li><a href="../../runbook/backup-restore/"><code>docs/runbook/backup-restore.md</code></a></li>
-<li><code>.github/workflows/backup-roundtrip.yml</code></li>
-<li><a href="https://age-encryption.org/">age — A simple, modern and secure encryption tool</a></li>
-<li>ADR-0001 — Self-hosted Postgres + DuckDB stack</li>
-<li>ADR-0024 — Vault layout</li>
+<li><a href="../../decisions/0013-sim-tax-overlay/">ADR-0013 — Sim tax overlay</a> —
+  tax-rate constants for DK and DE.</li>
+<li><a href="../../decisions/0018-aktiesparekonto-handling/">ADR-0018 — Aktiesparekonto handling</a> —
+  ASK rate and deposit-cap constants.</li>
+<li><a href="../../decisions/0027-liquid-depot-simulation-model/">ADR-0027 — Liquid depot simulation model</a> —
+  lagerbeskatning rates and aktieindkomst thresholds.</li>
 </ul>
 
 

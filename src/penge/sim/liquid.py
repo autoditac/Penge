@@ -969,10 +969,26 @@ class BridgeConfig(pydantic.BaseModel):
     def _validate(self) -> BridgeConfig:  # noqa: PLR0912
         if self.starting_balance_dkk <= Decimal("0"):
             raise ValueError("starting_balance_dkk must be > 0")
-        if self.cost_basis_dkk < Decimal("0") or self.cost_basis_dkk > self.starting_balance_dkk:
+        if self.cost_basis_dkk < Decimal("0"):
             raise ValueError(
-                "cost_basis_dkk must be in [0, starting_balance_dkk]; "
-                f"got {self.cost_basis_dkk} with balance {self.starting_balance_dkk}"
+                "cost_basis_dkk must be >= 0; "
+                f"got {self.cost_basis_dkk}"
+            )
+        # ``cost_basis_dkk > starting_balance_dkk`` is allowed for the
+        # realisation regime — it represents an unrealised-loss seed
+        # state (depot bought at a peak, current value below basis).
+        # ``_bridge_simulate`` already clamps ``gain_fraction`` to 0 in
+        # that case and reduces basis pro-rata on each withdrawal, so
+        # the rest of the engine is loss-state safe.  Lager and ASK
+        # mark to market every year and therefore must have
+        # cost_basis == balance.
+        if self.tax_regime != "realisation" and self.cost_basis_dkk > self.starting_balance_dkk:
+            raise ValueError(
+                "cost_basis_dkk > starting_balance_dkk only makes sense "
+                "for tax_regime='realisation' (an unrealised-loss seed); "
+                "lager and ASK mark to market every year, so basis must "
+                "equal balance.  Got cost_basis="
+                f"{self.cost_basis_dkk}, balance={self.starting_balance_dkk}"
             )
         if self.horizon_months < 1:
             raise ValueError("horizon_months must be ≥ 1")

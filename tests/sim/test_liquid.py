@@ -866,11 +866,41 @@ class TestComputeBridgePmt:
         expected_total = result.monthly_gross_withdrawal_dkk * Decimal("60")
         assert abs(result.total_gross_withdrawn_dkk - expected_total) < Decimal("0.02")
 
-    def test_bridge_config_invalid_cost_basis_above_balance(self) -> None:
-        with pytest.raises(pydantic.ValidationError):
+    def test_bridge_config_cost_basis_above_balance_allowed_realisation(self) -> None:
+        """Realisation regime accepts cost_basis > balance (unrealised-loss seed)."""
+        cfg = BridgeConfig(
+            starting_balance_dkk=Decimal("1000000"),
+            cost_basis_dkk=Decimal("1500000"),
+            horizon_months=120,
+            gross_annual_return_rate=Decimal("0.10"),
+            annual_expense_ratio=Decimal("0.001"),
+            account_type="frie_midler",
+            tax_regime="realisation",
+            aktieindkomst_threshold_dkk=Decimal("61900"),
+        )
+        # _bridge_simulate clamps gain_fraction to 0 in the loss state
+        result = compute_bridge_pmt(cfg)
+        assert result.monthly_gross_withdrawal_dkk > Decimal("0")
+
+    def test_bridge_config_cost_basis_above_balance_rejected_lager(self) -> None:
+        """Lager / ASK mark-to-market: cost_basis must equal balance."""
+        with pytest.raises(pydantic.ValidationError, match=r"realisation"):
             BridgeConfig(
                 starting_balance_dkk=Decimal("1000000"),
-                cost_basis_dkk=Decimal("1500000"),  # > starting_balance
+                cost_basis_dkk=Decimal("1500000"),
+                horizon_months=120,
+                gross_annual_return_rate=Decimal("0.10"),
+                annual_expense_ratio=Decimal("0.001"),
+                account_type="ask",
+                tax_regime="lager",
+                aktieindkomst_threshold_dkk=Decimal("61900"),
+            )
+
+    def test_bridge_config_negative_cost_basis_rejected(self) -> None:
+        with pytest.raises(pydantic.ValidationError, match=r"cost_basis_dkk must be"):
+            BridgeConfig(
+                starting_balance_dkk=Decimal("1000000"),
+                cost_basis_dkk=Decimal("-1"),
                 horizon_months=120,
                 gross_annual_return_rate=Decimal("0.10"),
                 annual_expense_ratio=Decimal("0.001"),

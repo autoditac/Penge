@@ -37,10 +37,10 @@ def _cfg(
     **kwargs: object,
 ) -> FolkepensionConfig:
     return FolkepensionConfig(
-        civil_status=civil_status,  # type: ignore[arg-type]
+        civil_status=civil_status,  # type: ignore[arg-type]  # str param for test flexibility
         folkepension_age=folkepension_age,
         annual_private_pension_income_dkk=annual_private_pension_income_dkk,
-        **kwargs,  # type: ignore[arg-type]
+        **kwargs,  # type: ignore[arg-type]  # dict[str, object] used for test convenience
     )
 
 
@@ -245,6 +245,35 @@ class TestValidation:
         with pytest.raises(FolkepensionError, match="tillaeg_max_monthly_dkk must be >= 0"):
             compute_folkepension(_cfg(tillaeg_max_monthly_dkk=Decimal("-1")))
 
+    def test_nan_income_raises(self) -> None:
+        with pytest.raises(FolkepensionError, match="must be a finite Decimal"):
+            compute_folkepension(_cfg(annual_private_pension_income_dkk=Decimal("NaN")))
+
+    def test_infinity_income_raises(self) -> None:
+        with pytest.raises(FolkepensionError, match="must be a finite Decimal"):
+            compute_folkepension(_cfg(annual_private_pension_income_dkk=Decimal("Infinity")))
+
+    def test_nan_eur_per_dkk_raises(self) -> None:
+        proj = compute_payout(_make_payout_cfg())
+        with pytest.raises(FolkepensionError, match="must be a finite Decimal"):
+            folkepension_from_payout(
+                proj, civil_status="single", folkepension_age=67, eur_per_dkk=Decimal("NaN")
+            )
+
+    def test_infinity_eur_per_dkk_raises(self) -> None:
+        proj = compute_payout(_make_payout_cfg())
+        with pytest.raises(FolkepensionError, match="must be a finite Decimal"):
+            folkepension_from_payout(
+                proj,
+                civil_status="single",
+                folkepension_age=67,
+                eur_per_dkk=Decimal("Infinity"),
+            )
+
+    def test_invalid_civil_status_raises(self) -> None:
+        with pytest.raises(FolkepensionError, match="Unknown civil_status"):
+            compute_folkepension(_cfg("divorced"))
+
 
 # ---------------------------------------------------------------------------
 # Immutability
@@ -255,7 +284,7 @@ class TestImmutability:
     def test_result_is_frozen(self) -> None:
         result = compute_folkepension(_cfg())
         with pytest.raises(dataclasses.FrozenInstanceError):
-            result.total_monthly_dkk = Decimal("0")  # type: ignore[misc]
+            result.total_monthly_dkk = Decimal("0")  # type: ignore[misc]  # intentionally mutating frozen dataclass to verify FrozenInstanceError
 
 
 # ---------------------------------------------------------------------------
@@ -275,7 +304,7 @@ def _make_payout_cfg(**kwargs: object) -> PayoutConfig:
         "growth_rate_during_payout": Decimal("0"),
     }
     defaults.update(kwargs)
-    return PayoutConfig(**defaults)  # type: ignore[arg-type]
+    return PayoutConfig(**defaults)  # type: ignore[arg-type]  # dict[str, object] used for test convenience
 
 
 class TestFolkepensionFromPayout:

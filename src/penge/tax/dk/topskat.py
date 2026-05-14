@@ -55,6 +55,11 @@ def _q(v: Decimal) -> Decimal:
     return v.quantize(_TWO_DP, rounding=ROUND_HALF_EVEN)
 
 
+def _assert_finite_topskat(value: Decimal, name: str) -> None:
+    if not value.is_finite():
+        raise TopskatError(f"{name} must be a finite Decimal value (got {value!r})")
+
+
 class TopskatError(Exception):
     """Raised when inputs to Topskat computation are inconsistent."""
 
@@ -114,8 +119,10 @@ def check_topskat_exposure(
         TopskatError: If ``annual_pension_income_dkk`` or
             ``topskat_threshold_dkk`` are negative.
     """
+    _assert_finite_topskat(annual_pension_income_dkk, "annual_pension_income_dkk")
     if annual_pension_income_dkk < Decimal("0"):
         raise TopskatError("annual_pension_income_dkk must be >= 0")
+    _assert_finite_topskat(topskat_threshold_dkk, "topskat_threshold_dkk")
     if topskat_threshold_dkk <= Decimal("0"):
         raise TopskatError("topskat_threshold_dkk must be > 0")
 
@@ -141,9 +148,9 @@ def _primary_suggestion(annual_income: Decimal, threshold: Decimal) -> str:
         return ""
     excess_fraction = (annual_income - threshold) / threshold
     # Severity-ordered suggestions:
-    #   > 100 % over threshold  → extend drawdown period aggressively
+    #   > 100 % over threshold  → extend drawdown period aggressively + Aldersforsikring
     #   > 30 % over threshold   → combination: drawdown extension + Aldersforsikring
-    #   otherwise               → extend Ratepension drawdown period
+    #   otherwise               → delay pension start or extend Ratepension drawdown period
     if excess_fraction > Decimal("1"):
         return (
             "Income is more than double the Topskat threshold. "
@@ -157,8 +164,8 @@ def _primary_suggestion(annual_income: Decimal, threshold: Decimal) -> str:
             "the Aldersforsikring allocation to shift taxable income below the Topskat threshold."
         )
     return (
-        "Consider extending the Ratepension drawdown period to spread income "
-        "over more years and reduce exposure to the Topskat bracket."
+        "Consider delaying pension commencement or extending the Ratepension drawdown period "
+        "to spread income over more years and reduce exposure to the Topskat bracket."
     )
 
 
@@ -187,6 +194,7 @@ def topskat_from_payout(
     Raises:
         TopskatError: If ``eur_per_dkk`` is not positive.
     """
+    _assert_finite_topskat(eur_per_dkk, "eur_per_dkk")
     if eur_per_dkk <= Decimal("0"):
         raise TopskatError("eur_per_dkk must be > 0")
 

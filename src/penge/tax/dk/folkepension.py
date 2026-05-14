@@ -84,6 +84,11 @@ def _q(v: Decimal) -> Decimal:
     return v.quantize(_TWO_DP, rounding=ROUND_HALF_EVEN)
 
 
+def _assert_finite_fp(value: Decimal, name: str) -> None:
+    if not value.is_finite():
+        raise FolkepensionError(f"{name} must be a finite Decimal value (got {value!r})")
+
+
 class FolkepensionError(Exception):
     """Raised when Folkepension inputs are inconsistent."""
 
@@ -193,12 +198,16 @@ def compute_folkepension(config: FolkepensionConfig) -> FolkepensionResult:
         FolkepensionError: If any input amount is negative, or if
             ``folkepension_age`` is below 60.
     """
+    _assert_finite_fp(config.annual_private_pension_income_dkk, "annual_private_pension_income_dkk")
     if config.annual_private_pension_income_dkk < Decimal("0"):
         raise FolkepensionError("annual_private_pension_income_dkk must be >= 0")
+    _assert_finite_fp(config.grundbeloeb_monthly_dkk, "grundbeloeb_monthly_dkk")
     if config.grundbeloeb_monthly_dkk < Decimal("0"):
         raise FolkepensionError("grundbeloeb_monthly_dkk must be >= 0")
+    _assert_finite_fp(config.modregning_rate, "modregning_rate")
     if config.modregning_rate < Decimal("0") or config.modregning_rate > Decimal("1"):
         raise FolkepensionError("modregning_rate must be in [0, 1]")
+    _assert_finite_fp(config.income_threshold_dkk, "income_threshold_dkk")
     if config.income_threshold_dkk < Decimal("0"):
         raise FolkepensionError("income_threshold_dkk must be >= 0")
     if config.folkepension_age < _MIN_FOLKEPENSION_AGE:
@@ -213,9 +222,12 @@ def compute_folkepension(config: FolkepensionConfig) -> FolkepensionResult:
         Decimal("0"),
     )
     annual_modregning = annual_excess * config.modregning_rate
-    monthly_modregning = _q(annual_modregning / Decimal("12"))
+    monthly_modregning_raw = _q(annual_modregning / Decimal("12"))
+    # Cap the reported reduction at the maximum tillæg: modregning cannot
+    # reduce the tillæg below zero, so the effective reduction is limited.
+    monthly_modregning = _q(min(monthly_modregning_raw, tillaeg_max))
 
-    tillaeg_after = _q(max(tillaeg_max - monthly_modregning, Decimal("0")))
+    tillaeg_after = _q(max(tillaeg_max - monthly_modregning_raw, Decimal("0")))
     total = _q(config.grundbeloeb_monthly_dkk + tillaeg_after)
 
     return FolkepensionResult(
@@ -262,6 +274,7 @@ def folkepension_from_payout(
     Raises:
         FolkepensionError: If ``eur_per_dkk`` is not positive.
     """
+    _assert_finite_fp(eur_per_dkk, "eur_per_dkk")
     if eur_per_dkk <= Decimal("0"):
         raise FolkepensionError("eur_per_dkk must be > 0")
 
@@ -282,7 +295,12 @@ def folkepension_from_payout(
 
 def _resolve_tillaeg_max(config: FolkepensionConfig) -> Decimal:
     if config.tillaeg_max_monthly_dkk is not None:
+        _assert_finite_fp(config.tillaeg_max_monthly_dkk, "tillaeg_max_monthly_dkk")
         return config.tillaeg_max_monthly_dkk
     if config.civil_status == "single":
         return FOLKEPENSION_TILLAEG_SINGLE_MONTHLY_DKK
-    return FOLKEPENSION_TILLAEG_MARRIED_MONTHLY_DKK
+    if config.civil_status == "married":
+        return FOLKEPENSION_TILLAEG_MARRIED_MONTHLY_DKK
+    raise FolkepensionError(
+        f"Unknown civil_status {config.civil_status!r}; expected 'single' or 'married'"
+    )

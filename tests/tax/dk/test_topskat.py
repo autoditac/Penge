@@ -156,6 +156,28 @@ class TestValidation:
         with pytest.raises(TopskatError, match="topskat_threshold_dkk must be > 0"):
             check_topskat_exposure(Decimal("100000"), topskat_threshold_dkk=Decimal("-1"))
 
+    def test_nan_income_raises(self) -> None:
+        with pytest.raises(TopskatError, match="must be a finite Decimal"):
+            check_topskat_exposure(Decimal("NaN"))
+
+    def test_infinity_income_raises(self) -> None:
+        with pytest.raises(TopskatError, match="must be a finite Decimal"):
+            check_topskat_exposure(Decimal("Infinity"))
+
+    def test_nan_threshold_raises(self) -> None:
+        with pytest.raises(TopskatError, match="must be a finite Decimal"):
+            check_topskat_exposure(Decimal("500000"), topskat_threshold_dkk=Decimal("NaN"))
+
+    def test_nan_eur_per_dkk_raises(self) -> None:
+        proj = compute_payout(_make_payout_cfg())
+        with pytest.raises(TopskatError, match="must be a finite Decimal"):
+            topskat_from_payout(proj, eur_per_dkk=Decimal("NaN"))
+
+    def test_infinity_eur_per_dkk_raises(self) -> None:
+        proj = compute_payout(_make_payout_cfg())
+        with pytest.raises(TopskatError, match="must be a finite Decimal"):
+            topskat_from_payout(proj, eur_per_dkk=Decimal("Infinity"))
+
 
 # ---------------------------------------------------------------------------
 # Immutability
@@ -166,7 +188,7 @@ class TestImmutability:
     def test_warning_is_frozen(self) -> None:
         w = check_topskat_exposure(Decimal("700000"))
         with pytest.raises(dataclasses.FrozenInstanceError):
-            w.in_topskat = False  # type: ignore[misc]
+            w.in_topskat = False  # type: ignore[misc]  # intentionally mutating frozen dataclass to verify FrozenInstanceError
 
 
 # ---------------------------------------------------------------------------
@@ -186,7 +208,7 @@ def _make_payout_cfg(**kwargs: object) -> PayoutConfig:
         "growth_rate_during_payout": Decimal("0"),
     }
     defaults.update(kwargs)
-    return PayoutConfig(**defaults)  # type: ignore[arg-type]
+    return PayoutConfig(**defaults)  # type: ignore[arg-type]  # dict[str, object] used for test convenience
 
 
 class TestTopskatFromPayout:

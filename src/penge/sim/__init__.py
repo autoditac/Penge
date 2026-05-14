@@ -19,6 +19,8 @@ Subpackages:
   instruments and accounts (issue #177).
 - :mod:`penge.sim.registry` — assumption registry and projection audit record
   (issue #173).
+- :mod:`penge.sim.snapshot` — household planning snapshot from ingested
+  accounts (issue #176).
 """
 
 from penge.sim.assumptions import (
@@ -85,6 +87,13 @@ from penge.sim.scenario import (
     WorkReductionScenario,
     compare,
 )
+from penge.sim.snapshot import (
+    AccountKind,
+    AccountSnapshot,
+    HoldingSnapshot,
+    HouseholdSnapshot,
+    SnapshotBuilder,
+)
 from penge.sim.tax import (
     DE_DEFAULT,
     DK_DEFAULT,
@@ -97,6 +106,8 @@ from penge.sim.tax import (
 __all__ = [
     "DE_DEFAULT",
     "DK_DEFAULT",
+    "AccountKind",
+    "AccountSnapshot",
     "AssumptionCatalog",
     "AssumptionEntry",
     "BootstrapReturnModel",
@@ -112,6 +123,8 @@ __all__ = [
     "EntityTaxRegime",
     "GoalConfig",
     "GoalResult",
+    "HoldingSnapshot",
+    "HouseholdSnapshot",
     "HousePurchaseScenario",
     "InstrumentAssumptions",
     "MonteCarloConfig",
@@ -128,6 +141,7 @@ __all__ = [
     "ScenarioComparison",
     "ScenarioError",
     "ScenarioResult",
+    "SnapshotBuilder",
     "TaxConfig",
     "TaxRegime",
     "WorkReductionScenario",

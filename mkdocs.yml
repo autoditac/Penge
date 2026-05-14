@@ -74,6 +74,7 @@ nav:
       - "Return model": sim/return-model.md
       - "Investment assumptions": sim/assumptions.md
       - "Assumption registry": sim/registry.md
+      - "Planning snapshot": sim/snapshot.md
   - Tax:
       - DK: tax/dk.md
       - DE: tax/de.md

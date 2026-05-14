@@ -50,9 +50,11 @@ We implement `penge.sim.payout` with:
 - `compute_payout(config) → PayoutProjection` — pure function, no I/O.
 
 **Livrente** monthly amount:
-```
+
+```text
 monthly_livrente = livrente_capital × annuity_factor / 1_000_000
 ```
+
 The annuity factor is a pure ratio (monthly/capital). PFA publishes values in
 DKK per 1 000 000 DKK, but the ratio is currency-neutral: using a DKK-factor
 with an EUR balance yields the same numerical answer as converting both to DKK
@@ -61,10 +63,12 @@ first.
 **Ratepension** monthly amount: standard present-value PMT over
 `ratepension_years × 12` months at the monthly rate derived from
 `growth_rate_during_payout`:
-```
+
+```text
 r_monthly = (1 + annual_rate)^(1/12) − 1
 PMT = capital × r_monthly / (1 − (1 + r_monthly)^(−n))
 ```
+
 When `growth_rate_during_payout = 0` this degenerates to `capital / n`.
 
 The `(1/12)` exponent is computed in `float` for the single intermediate step;

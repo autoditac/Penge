@@ -47,7 +47,7 @@ concurrency:
 jobs:
   source-sbom:
     name: Source SBOM + provenance
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 15
     permissions:
       contents: write
@@ -87,7 +87,7 @@ jobs:
     # names once Containerfiles land. Each entry must have a matching
     # `apps/<name>/Containerfile` (or equivalent path the build step uses).
     if: ${{ false }}
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 30
     permissions:
       contents: read

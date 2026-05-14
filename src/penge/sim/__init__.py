@@ -15,8 +15,17 @@ Subpackages:
   ``CashflowConfig`` projections (issue #127).
 - :mod:`penge.sim.payout` — decumulation payout model: Livrente + Ratepension
   + Aldersforsikring (issue #132, ADR-0028).
+- :mod:`penge.sim.assumptions` — investment assumption catalog for
+  instruments and accounts (issue #177).
+- :mod:`penge.sim.registry` — assumption registry and projection audit record
+  (issue #173).
 """
 
+from penge.sim.assumptions import (
+    AssumptionCatalog,
+    InstrumentAssumptions,
+    TaxRegime,
+)
 from penge.sim.cashflow import (
     CashflowConfig,
     CashflowError,
@@ -48,6 +57,11 @@ from penge.sim.payout import (
     PayoutError,
     PayoutProjection,
     compute_payout,
+)
+from penge.sim.registry import (
+    AssumptionEntry,
+    ProjectionAuditRecord,
+    build_standard_audit_record,
 )
 from penge.sim.returns import (
     BootstrapReturnModel,
@@ -83,6 +97,8 @@ from penge.sim.tax import (
 __all__ = [
     "DE_DEFAULT",
     "DK_DEFAULT",
+    "AssumptionCatalog",
+    "AssumptionEntry",
     "BootstrapReturnModel",
     "CashflowConfig",
     "CashflowError",
@@ -97,6 +113,7 @@ __all__ = [
     "GoalConfig",
     "GoalResult",
     "HousePurchaseScenario",
+    "InstrumentAssumptions",
     "MonteCarloConfig",
     "MonteCarloResult",
     "MonthlyContributionSplit",
@@ -104,6 +121,7 @@ __all__ = [
     "PayoutError",
     "PayoutProjection",
     "PensionAccrualRule",
+    "ProjectionAuditRecord",
     "ReturnModelError",
     "SalaryRule",
     "SampledPaths",
@@ -111,10 +129,12 @@ __all__ = [
     "ScenarioError",
     "ScenarioResult",
     "TaxConfig",
+    "TaxRegime",
     "WorkReductionScenario",
     "YearlyContributionSplit",
     "YearlyFlow",
     "apply_tax",
+    "build_standard_audit_record",
     "compare",
     "compare_configs",
     "compute_payout",

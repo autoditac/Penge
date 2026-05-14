@@ -2,7 +2,8 @@
 
 This page records the user-visible stories that motivated the delivered simulation and tax features.
 It is not a backlog.
-It is a product map: each story describes a household question Penge can now answer, with links to the implemented capability, documentation page, or decision record where one exists.
+It is a product map: each story describes a household question Penge can now answer.
+Where an ADR or documentation page exists for the underlying implementation, a link is included; stories that share the same technical foundation may reference the same record.
 
 ## Household FIRE projection
 

@@ -13,6 +13,8 @@ Subpackages:
 - :mod:`penge.sim.scenario` — scenario diff engine (issue #32, ADR-0015).
 - :mod:`penge.sim.config_compare` — side-by-side comparison of N labelled
   ``CashflowConfig`` projections (issue #127).
+- :mod:`penge.sim.payout` — decumulation payout model: Livrente + Ratepension
+  + Aldersforsikring (issue #132, ADR-0028).
 """
 
 from penge.sim.cashflow import (
@@ -40,6 +42,12 @@ from penge.sim.montecarlo import (
     MonteCarloConfig,
     MonteCarloResult,
     run,
+)
+from penge.sim.payout import (
+    PayoutConfig,
+    PayoutError,
+    PayoutProjection,
+    compute_payout,
 )
 from penge.sim.returns import (
     BootstrapReturnModel,
@@ -80,6 +88,9 @@ __all__ = [
     "HousePurchaseScenario",
     "MonteCarloConfig",
     "MonteCarloResult",
+    "PayoutConfig",
+    "PayoutError",
+    "PayoutProjection",
     "PensionAccrualRule",
     "ReturnModelError",
     "SalaryRule",
@@ -93,6 +104,7 @@ __all__ = [
     "apply_tax",
     "compare",
     "compare_configs",
+    "compute_payout",
     "evaluate",
     "net_pension_drawdown",
     "project",

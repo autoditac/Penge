@@ -60,9 +60,11 @@ jobs:
     runs-on: [self-hosted, linux, x64, penge]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - name: Install yamllint
-        run: python3 -m pip install --user yamllint --quiet
-      - run: python3 -m yamllint -s .
+      - uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6.3.1
+        with:
+          version: "0.7.3"
+      - name: Run YAML lint
+        run: uvx yamllint -s .
 
   gitleaks:
     name: Secret scan (gitleaks)

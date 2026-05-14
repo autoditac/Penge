@@ -10,9 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0027-self-hosted-actions-runner/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/sim/user-stories/">
       
       
+        <link rel="prev" href="../personas/">
+      
+      
+        <link rel="next" href="../return-model/">
       
       
         
@@ -23,7 +27,7 @@
     
     
       
-        <title>0027 — Self-hosted GitHub Actions runner on Ubuntu KVM VM - Penge</title>
+        <title>User stories - Penge</title>
       
     
     
@@ -74,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0027-self-hosted-github-actions-runner-on-ubuntu-kvm-vm" class="md-skip">
+        <a href="#simulation-user-stories" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              0027 — Self-hosted GitHub Actions runner on Ubuntu KVM VM
+              User stories
             
           </span>
         </div>
@@ -875,8 +879,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -899,11 +905,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
@@ -924,7 +930,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -942,7 +948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/personas/" class="md-nav__link">
+      <a href="../personas/" class="md-nav__link">
         
   
   
@@ -967,10 +973,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../sim/user-stories/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User stories
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -986,6 +1019,226 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#household-fire-projection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Household FIRE projection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Household FIRE projection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#story-see-whether-we-are-on-track" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: See whether we are on track
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-compare-life-choices-side-by-side" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Compare life choices side by side
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#liquid-investing-during-accumulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Liquid investing during accumulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Liquid investing during accumulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#story-split-money-between-ask-and-frie-midler-correctly" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Split money between ASK and frie midler correctly
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-model-ask-and-normal-depot-taxes-separately" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Model ASK and normal depot taxes separately
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-choose-between-lagerbeskatning-and-realisationsbeskatning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Choose between Lagerbeskatning and Realisationsbeskatning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-compare-fund-cost-and-tax-drag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Compare fund cost and tax drag
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#bridge-and-decumulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bridge and decumulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bridge and decumulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#story-plan-the-bridge-from-fire-to-pension-age" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Plan the bridge from FIRE to pension age
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-include-dividends-during-bridge-withdrawals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Include dividends during bridge withdrawals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-convert-pension-wealth-into-retirement-income" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Convert pension wealth into retirement income
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#danish-tax-visibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Danish tax visibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Danish tax visibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#story-know-whether-retirement-income-triggers-topskat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Know whether retirement income triggers Topskat
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-estimate-folkepension-modregning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Estimate Folkepension modregning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-use-these-stories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to use these stories
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -998,7 +1251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/return-model/" class="md-nav__link">
+      <a href="../return-model/" class="md-nav__link">
         
   
   
@@ -1026,7 +1279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/assumptions/" class="md-nav__link">
+      <a href="../assumptions/" class="md-nav__link">
         
   
   
@@ -1054,7 +1307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/registry/" class="md-nav__link">
+      <a href="../registry/" class="md-nav__link">
         
   
   
@@ -1620,7 +1873,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../decisions/" class="md-nav__link ">
               
   
   
@@ -1664,7 +1917,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -1692,7 +1945,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -1720,7 +1973,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -1748,7 +2001,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -1776,7 +2029,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -1804,7 +2057,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -1832,7 +2085,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -1860,7 +2113,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -1888,7 +2141,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -1916,7 +2169,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0010-sim-return-model/" class="md-nav__link">
+      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -1944,7 +2197,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -1972,7 +2225,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0012-sim-goal-model/" class="md-nav__link">
+      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2000,7 +2253,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2028,7 +2281,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2056,7 +2309,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2084,7 +2337,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2112,7 +2365,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2140,7 +2393,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2168,7 +2421,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2196,7 +2449,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0020-skat-report-generator/" class="md-nav__link">
+      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2224,7 +2477,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2252,7 +2505,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2280,7 +2533,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2308,7 +2561,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0024-vault-layout/" class="md-nav__link">
+      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2336,7 +2589,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0025-encrypted-backups/" class="md-nav__link">
+      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2364,7 +2617,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2392,7 +2645,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2420,7 +2673,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr-template/" class="md-nav__link">
+      <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
   
@@ -2529,66 +2782,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#household-fire-projection" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context and Problem Statement
+        Household FIRE projection
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Drivers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
+    <nav class="md-nav" aria-label="Household FIRE projection">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
+  <a href="#story-see-whether-we-are-on-track" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Positive
+        Story: See whether we are on track
       
     </span>
   </a>
@@ -2596,21 +2805,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
+  <a href="#story-compare-life-choices-side-by-side" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#security-tradeoffs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Security tradeoffs
+        Story: Compare life choices side by side
       
     </span>
   </a>
@@ -2623,22 +2821,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
+  <a href="#liquid-investing-during-accumulation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Alternatives in detail
+        Liquid investing during accumulation
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Alternatives in detail">
+    <nav class="md-nav" aria-label="Liquid investing during accumulation">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#option-1-github-hosted-runners" class="md-nav__link">
+  <a href="#story-split-money-between-ask-and-frie-midler-correctly" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 1 — GitHub-hosted runners
+        Story: Split money between ASK and frie midler correctly
       
     </span>
   </a>
@@ -2646,10 +2844,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#option-2-native-runner-on-centos-host" class="md-nav__link">
+  <a href="#story-model-ask-and-normal-depot-taxes-separately" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 2 — Native runner on CentOS host
+        Story: Model ASK and normal depot taxes separately
       
     </span>
   </a>
@@ -2657,10 +2855,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#option-3-containerized-runner-rootless-podman" class="md-nav__link">
+  <a href="#story-choose-between-lagerbeskatning-and-realisationsbeskatning" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 3 — Containerized runner (rootless podman)
+        Story: Choose between Lagerbeskatning and Realisationsbeskatning
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-compare-fund-cost-and-tax-drag" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Compare fund cost and tax drag
       
     </span>
   </a>
@@ -2673,10 +2882,99 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
+  <a href="#bridge-and-decumulation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Links
+        Bridge and decumulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bridge and decumulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#story-plan-the-bridge-from-fire-to-pension-age" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Plan the bridge from FIRE to pension age
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-include-dividends-during-bridge-withdrawals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Include dividends during bridge withdrawals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-convert-pension-wealth-into-retirement-income" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Convert pension wealth into retirement income
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#danish-tax-visibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Danish tax visibility
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Danish tax visibility">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#story-know-whether-retirement-income-triggers-topskat" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Know whether retirement income triggers Topskat
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#story-estimate-folkepension-modregning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Story: Estimate Folkepension modregning
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-to-use-these-stories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to use these stories
       
     </span>
   </a>
@@ -2700,7 +2998,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0027-self-hosted-actions-runner.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/sim/user-stories.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2708,102 +3006,62 @@
   
 
 
-<h1 id="0027-self-hosted-github-actions-runner-on-ubuntu-kvm-vm">0027 — Self-hosted GitHub Actions runner on Ubuntu KVM VM<a class="headerlink" href="#0027-self-hosted-github-actions-runner-on-ubuntu-kvm-vm" title="Permanent link">&para;</a></h1>
-<ul>
-<li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-14</li>
-<li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> infra, ci</li>
-</ul>
-<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>All GitHub Actions CI jobs were failing immediately with the error:</p>
-<blockquote>
-<p>"The job was not started because recent account payments have failed or your spending limit needs to be increased."</p>
-</blockquote>
-<p>The repository is private and hosted under a personal GitHub account. Actions minutes on private repositories consume the free-tier quota; once exhausted or when billing fails, all jobs are blocked. The team cannot merge PRs or validate changes without working CI.</p>
-<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
-<ul>
-<li>CI must be available without depending on GitHub-hosted minutes billing.</li>
-<li>Workflows use <code>services: postgres</code>, <code>sudo apt-get</code>, PGDG apt repos, and <code>tesseract-ocr</code> — all Ubuntu-specific tooling.</li>
-<li>The runner host (<code>192.168.2.238</code>, CentOS Stream 8) cannot run the workflows natively due to OS mismatch.</li>
-<li>A containerized runner (Docker-in-Docker) cannot cleanly handle <code>services:</code> blocks that inject sidecar containers.</li>
-<li>An Ubuntu 24.04 KVM VM on the existing host provides native apt, Docker CE, and full service container support.</li>
-</ul>
-<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>GitHub-hosted runners (ubuntu-latest)</strong> — current/default</li>
-<li><strong>Native runner on CentOS host</strong> — runner binary on <code>192.168.2.238</code> directly</li>
-<li><strong>Containerized runner (rootless podman)</strong> — <code>myoung34/github-runner</code> image</li>
-<li><strong>Ubuntu 24.04 KVM VM on CentOS host</strong> — runner binary inside Ubuntu guest</li>
-</ol>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We chose <strong>Option 4</strong> (Ubuntu 24.04 KVM VM), because:</p>
-<ul>
-<li>All existing workflow steps work unchanged (apt, PGDG, tesseract, Docker CE).</li>
-<li><code>services:</code> blocks work natively with Docker CE installed inside the VM.</li>
-<li>No billing dependency on GitHub-hosted minutes.</li>
-<li>The CentOS host has KVM support, 14 GB RAM, and a 200 GB LVM volume — sufficient for a small runner VM.</li>
-<li>The Ubuntu base cloud image provides a reproducible, well-understood environment.</li>
-</ul>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
-<ul>
-<li>CI is no longer gated by GitHub Actions billing.</li>
-<li>All existing workflow files need only a one-line <code>runs-on:</code> change.</li>
-<li>Runner is persistent (systemd service inside VM, survives reboots).</li>
-<li>Ubuntu VM is familiar; adding new apt dependencies in workflows is straightforward.</li>
-</ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Runner availability depends on home-lab uptime (<code>192.168.2.238</code>).</li>
-<li>No auto-scaling: if multiple jobs queue simultaneously they execute serially.</li>
-<li>VM consumes ~2 GB RAM and ~5 GB disk permanently on the host.</li>
-<li>Re-registration requires a new registration token (short-lived); a PAT with <code>repo</code> scope or fine-grained "Administration: Write" can automate this via <code>config.sh --pat</code>.</li>
-</ul>
-<h3 id="security-tradeoffs">Security tradeoffs<a class="headerlink" href="#security-tradeoffs" title="Permanent link">&para;</a></h3>
-<p>Using one persistent runner for both <code>pull_request</code> and trusted (<code>push</code>/<code>release</code>) workflows creates
-a shared-state risk: malicious or compromised PR code could alter the runner environment (installed
-binaries, cached credentials, environment files) and then affect later trusted jobs that run on the
-same label with elevated permissions (<code>contents: write</code>, <code>id-token: write</code>, secrets).</p>
-<p><strong>Mitigations accepted for this private, single-owner repository:</strong></p>
-<ul>
-<li>The GitHub repository is <strong>private</strong> with no external contributors. All PRs originate from the
-  same owner account; there is no untrusted-contributor threat model.</li>
-<li>The runner service runs as a dedicated unprivileged system account (<code>ghrunner</code>, uid 999); it has
-  no access to host secrets outside the runner work directory.</li>
-<li>GitHub Actions sandboxes each job in a fresh work directory and clears the <code>GITHUB_TOKEN</code>
-  between runs.</li>
-</ul>
-<p><strong>If the repository ever goes public or admits external contributors</strong>, this decision must be
-revisited. Recommended mitigations at that point:</p>
-<ol>
-<li><strong>Ephemeral runners</strong>: terminate and re-provision the runner VM after each job (e.g., via
-   <code>--once</code> flag + a systemd <code>Restart=always</code> policy or an autoscaling solution such as
-   <code>actions-runner-controller</code>).</li>
-<li>
-<p><strong>Separate labels</strong>: use a <code>penge-trusted</code> label for release/deploy/ingest jobs and a
-   <code>penge-pr</code> label for PR jobs, running on isolated infrastructure.</p>
-</li>
-<li>
-<p>Runner version must be manually updated (or a cron job added) when new versions of <code>actions/runner</code> are released.</p>
-</li>
-<li>The runner is registered with labels <code>self-hosted, linux, x64, penge, ubuntu-vm</code> — all workflow files use the <code>penge</code> label as the selector.</li>
-</ol>
-<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="option-1-github-hosted-runners">Option 1 — GitHub-hosted runners<a class="headerlink" href="#option-1-github-hosted-runners" title="Permanent link">&para;</a></h3>
-<p>Simplest default. Blocked by billing failure on private repos. Acceptable for public repos or with a paid plan, but not reliable for this setup.</p>
-<h3 id="option-2-native-runner-on-centos-host">Option 2 — Native runner on CentOS host<a class="headerlink" href="#option-2-native-runner-on-centos-host" title="Permanent link">&para;</a></h3>
-<p>Tried and abandoned. The CentOS 8 system lacks <code>tesseract-ocr</code>, uses <code>dnf</code> not <code>apt</code>, and PGDG apt repo steps cannot run. Adapting all workflows to be OS-agnostic would require substantial ongoing maintenance.</p>
-<h3 id="option-3-containerized-runner-rootless-podman">Option 3 — Containerized runner (rootless podman)<a class="headerlink" href="#option-3-containerized-runner-rootless-podman" title="Permanent link">&para;</a></h3>
-<p>Runner <code>myoung34/github-runner</code> works well for simple jobs but cannot run <code>services:</code> blocks that require Docker daemon to start sidecar containers. The <code>ci.yml</code> pytest and alembic-roundtrip jobs both need a Postgres service container.</p>
-<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="https://github.com/actions/runner/releases/tag/v2.334.0">actions/runner v2.334.0</a></li>
-<li><a href="https://github.com/myoung34/docker-github-actions-runner">myoung34/github-runner</a> — Option 3, not chosen</li>
-<li><a href="https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners">GitHub docs: self-hosted runners</a></li>
-<li>Runner host: <code>192.168.2.238</code> (<code>nederby.eigmueller.de</code>), VM: <code>192.168.122.50</code></li>
-<li>VM disk: <code>/data/vms/gh-runner-ubuntu.qcow2</code> (overlay on Ubuntu 24.04 cloud image)</li>
-</ul>
+<h1 id="simulation-user-stories">Simulation user stories<a class="headerlink" href="#simulation-user-stories" title="Permanent link">&para;</a></h1>
+<p>This page records the user-visible stories that motivated the delivered simulation and tax features.
+It is not a backlog.
+It is a product map: each story describes a household question Penge can now answer.
+Where an ADR or documentation page exists for the underlying implementation, a link is included; stories that share the same technical foundation may reference the same record.</p>
+<h2 id="household-fire-projection">Household FIRE projection<a class="headerlink" href="#household-fire-projection" title="Permanent link">&para;</a></h2>
+<h3 id="story-see-whether-we-are-on-track">Story: See whether we are on track<a class="headerlink" href="#story-see-whether-we-are-on-track" title="Permanent link">&para;</a></h3>
+<p>As a DK/DE household planning for financial independence, I want to project salary, savings, pension accrual, taxes, and inflation over time, so that I can see whether our projected assets cover our target spending.</p>
+<p>Penge supports this with deterministic cashflow projections, time-bounded income and contribution rules, opening pension balances, PAL-skat on pension growth, and historical bootstrap return paths.
+The architectural rationale is captured in <a href="../../decisions/0010-sim-return-model/">ADR-0010</a>, <a href="../../decisions/0011-sim-cashflow-engine/">ADR-0011</a>, <a href="../../decisions/0012-sim-goal-model/">ADR-0012</a>, and <a href="../../decisions/0014-sim-montecarlo-runner/">ADR-0014</a>.</p>
+<h3 id="story-compare-life-choices-side-by-side">Story: Compare life choices side by side<a class="headerlink" href="#story-compare-life-choices-side-by-side" title="Permanent link">&para;</a></h3>
+<p>As a household making decisions such as reduced working hours, buying property, or changing savings rates, I want to compare labelled scenarios side by side, so that I can see the effect on FIRE timing and terminal balances.</p>
+<p>Penge supports this through scenario comparison and scenario-diff simulation.
+The scenario architecture is documented in <a href="../../decisions/0015-sim-scenario-engine/">ADR-0015</a>.</p>
+<h2 id="liquid-investing-during-accumulation">Liquid investing during accumulation<a class="headerlink" href="#liquid-investing-during-accumulation" title="Permanent link">&para;</a></h2>
+<h3 id="story-split-money-between-ask-and-frie-midler-correctly">Story: Split money between ASK and frie midler correctly<a class="headerlink" href="#story-split-money-between-ask-and-frie-midler-correctly" title="Permanent link">&para;</a></h3>
+<p>As a saver who still has room in an Aktiesparekonto (ASK), I want monthly contributions to fill ASK first and then overflow to frie midler once the SKAT deposit cap is exhausted, so that the projection follows the real contribution constraint.</p>
+<p>Penge supports this with the contribution router documented in <a href="../../decisions/0030-sim-contribution-routing/">ADR-0030</a>.
+It can show the year-level split and the exact month where the cap is reached.</p>
+<h3 id="story-model-ask-and-normal-depot-taxes-separately">Story: Model ASK and normal depot taxes separately<a class="headerlink" href="#story-model-ask-and-normal-depot-taxes-separately" title="Permanent link">&para;</a></h3>
+<p>As a household with both ASK and normal brokerage accounts, I want each account projected with its own tax regime, so that ASK's 17% Lager tax is not mixed with frie midler taxation.</p>
+<p>Penge supports this through the liquid depot simulation model documented in <a href="../../decisions/0027-liquid-depot-simulation-model/">ADR-0027</a>.
+ASK accounts are modelled separately from frie midler, with account-specific tax treatment and contribution-cap tracking.</p>
+<h3 id="story-choose-between-lagerbeskatning-and-realisationsbeskatning">Story: Choose between Lagerbeskatning and Realisationsbeskatning<a class="headerlink" href="#story-choose-between-lagerbeskatning-and-realisationsbeskatning" title="Permanent link">&para;</a></h3>
+<p>As an investor comparing Danish ETF and fund choices, I want to see the difference between Lagerbeskatning and Realisationsbeskatning, so that the projection reflects when tax is paid and how compounding changes.</p>
+<p>Penge supports this in the liquid depot model documented in <a href="../../decisions/0027-liquid-depot-simulation-model/">ADR-0027</a>.
+Lager funds tax annual mark-to-market gains, while realisation funds defer capital-gain taxation until sale and can separately model dividend distributions.</p>
+<h3 id="story-compare-fund-cost-and-tax-drag">Story: Compare fund cost and tax drag<a class="headerlink" href="#story-compare-fund-cost-and-tax-drag" title="Permanent link">&para;</a></h3>
+<p>As an investor choosing between instruments, I want to compare ÅOP, tax regime, return assumptions, and FX conversion costs together, so that I can evaluate the net result rather than a single headline fee.</p>
+<p>Penge supports this through liquid-depot projections documented in <a href="../../decisions/0027-liquid-depot-simulation-model/">ADR-0027</a>, combining gross return, expense ratio, tax treatment, dividend yield, and EUR/DKK conversion assumptions.
+The household can compare terminal balances or depletion paths under realistic cost and tax inputs.</p>
+<h2 id="bridge-and-decumulation">Bridge and decumulation<a class="headerlink" href="#bridge-and-decumulation" title="Permanent link">&para;</a></h2>
+<h3 id="story-plan-the-bridge-from-fire-to-pension-age">Story: Plan the bridge from FIRE to pension age<a class="headerlink" href="#story-plan-the-bridge-from-fire-to-pension-age" title="Permanent link">&para;</a></h3>
+<p>As a household retiring before public and occupational pensions start, I want to simulate monthly withdrawals from liquid assets over a fixed bridge horizon, so that I can test whether the bridge depot lasts until pension income begins.</p>
+<p>Penge supports this with bridge decumulation on liquid depots, extending the liquid-depot model documented in <a href="../../decisions/0027-liquid-depot-simulation-model/">ADR-0027</a>.
+The model accounts for monthly withdrawals, remaining cost basis, realised gains, progressive Danish aktieindkomst tax, and depletion timing.</p>
+<h3 id="story-include-dividends-during-bridge-withdrawals">Story: Include dividends during bridge withdrawals<a class="headerlink" href="#story-include-dividends-during-bridge-withdrawals" title="Permanent link">&para;</a></h3>
+<p>As a household holding distributing realisation funds during the bridge phase, I want dividend distributions and their annual aktieindkomst tax included in the depletion path, so that the required safe monthly withdrawal is not overstated.</p>
+<p>Penge now models dividend tax during bridge decumulation for realisation funds as part of the liquid-depot bridge model documented in <a href="../../decisions/0027-liquid-depot-simulation-model/">ADR-0027</a>.
+When <code>annual_dividend_yield</code> is zero, the bridge behaves like the existing accumulating-fund path.</p>
+<h3 id="story-convert-pension-wealth-into-retirement-income">Story: Convert pension wealth into retirement income<a class="headerlink" href="#story-convert-pension-wealth-into-retirement-income" title="Permanent link">&para;</a></h3>
+<p>As a household approaching pension age, I want projected pension wealth converted into monthly Livrente and Ratepension income plus Aldersforsikring lump sum, so that I can reason about gross retirement cashflow rather than only account balances.</p>
+<p>Penge supports this through the payout model documented in <a href="../../decisions/0028-sim-payout-model/">ADR-0028</a>.
+It models annuity-factor Livrente, PMT-style Ratepension, and lump-sum Aldersforsikring splits.</p>
+<h2 id="danish-tax-visibility">Danish tax visibility<a class="headerlink" href="#danish-tax-visibility" title="Permanent link">&para;</a></h2>
+<h3 id="story-know-whether-retirement-income-triggers-topskat">Story: Know whether retirement income triggers Topskat<a class="headerlink" href="#story-know-whether-retirement-income-triggers-topskat" title="Permanent link">&para;</a></h3>
+<p>As a household projecting high pension income, I want to see whether annual gross income exceeds the Topskat threshold, so that I can adjust payout timing or product mix before retirement.</p>
+<p>Penge supports this with the DK Topskat exposure model documented in <a href="../../decisions/0029-dk-topskat-folkepension/">ADR-0029</a>.
+It reports threshold excess, estimated surtax, and planning suggestions.</p>
+<h3 id="story-estimate-folkepension-modregning">Story: Estimate Folkepension modregning<a class="headerlink" href="#story-estimate-folkepension-modregning" title="Permanent link">&para;</a></h3>
+<p>As a household with private pension income, I want to estimate how much Folkepension pensionstillæg is reduced by private income, so that the public pension component is not over-counted in retirement plans.</p>
+<p>Penge supports this with the Folkepension modregning model documented in <a href="../../decisions/0029-dk-topskat-folkepension/">ADR-0029</a>.
+It models grundbeløb, pensionstillæg, civil-status-specific thresholds, and income-based reduction.</p>
+<h2 id="how-to-use-these-stories">How to use these stories<a class="headerlink" href="#how-to-use-these-stories" title="Permanent link">&para;</a></h2>
+<p>Use these stories as a checklist when adding scenario presets, dashboard views, or MCP tools.
+Each user-facing surface should answer one or more of these household questions directly, rather than exposing implementation modules as isolated knobs.</p>
 
 
 

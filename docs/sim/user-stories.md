@@ -2,7 +2,7 @@
 
 This page records the user-visible stories that motivated the delivered simulation and tax features.
 It is not a backlog.
-It is a product map: each story describes a household question Penge can now answer, with links to the implemented capability or decision record.
+It is a product map: each story describes a household question Penge can now answer, with links to the implemented capability, documentation page, or decision record where one exists.
 
 ## Household FIRE projection
 
@@ -40,14 +40,14 @@ ASK accounts are modelled separately from frie midler, with account-specific tax
 
 As an investor comparing Danish ETF and fund choices, I want to see the difference between Lagerbeskatning and Realisationsbeskatning, so that the projection reflects when tax is paid and how compounding changes.
 
-Penge supports this in the liquid depot model.
+Penge supports this in the liquid depot model documented in [ADR-0027](../decisions/0027-liquid-depot-simulation-model.md).
 Lager funds tax annual mark-to-market gains, while realisation funds defer capital-gain taxation until sale and can separately model dividend distributions.
 
 ### Story: Compare fund cost and tax drag
 
 As an investor choosing between instruments, I want to compare ÅOP, tax regime, return assumptions, and FX conversion costs together, so that I can evaluate the net result rather than a single headline fee.
 
-Penge supports this through liquid-depot projections that combine gross return, expense ratio, tax treatment, dividend yield, and EUR/DKK conversion assumptions.
+Penge supports this through liquid-depot projections documented in [ADR-0027](../decisions/0027-liquid-depot-simulation-model.md), combining gross return, expense ratio, tax treatment, dividend yield, and EUR/DKK conversion assumptions.
 The household can compare terminal balances or depletion paths under realistic cost and tax inputs.
 
 ## Bridge and decumulation
@@ -56,14 +56,14 @@ The household can compare terminal balances or depletion paths under realistic c
 
 As a household retiring before public and occupational pensions start, I want to simulate monthly withdrawals from liquid assets over a fixed bridge horizon, so that I can test whether the bridge depot lasts until pension income begins.
 
-Penge supports this with bridge decumulation on liquid depots.
+Penge supports this with bridge decumulation on liquid depots, extending the liquid-depot model documented in [ADR-0027](../decisions/0027-liquid-depot-simulation-model.md).
 The model accounts for monthly withdrawals, remaining cost basis, realised gains, progressive Danish aktieindkomst tax, and depletion timing.
 
 ### Story: Include dividends during bridge withdrawals
 
 As a household holding distributing realisation funds during the bridge phase, I want dividend distributions and their annual aktieindkomst tax included in the depletion path, so that the required safe monthly withdrawal is not overstated.
 
-Penge now models dividend tax during bridge decumulation for realisation funds.
+Penge now models dividend tax during bridge decumulation for realisation funds as part of the liquid-depot bridge model documented in [ADR-0027](../decisions/0027-liquid-depot-simulation-model.md).
 When `annual_dividend_yield` is zero, the bridge behaves like the existing accumulating-fund path.
 
 ### Story: Convert pension wealth into retirement income

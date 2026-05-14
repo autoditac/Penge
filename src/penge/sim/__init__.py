@@ -21,6 +21,8 @@ Subpackages:
   (issue #173).
 - :mod:`penge.sim.snapshot` — household planning snapshot from ingested
   accounts (issue #176).
+- :mod:`penge.sim.spending` — household spending and target-expense model
+  (issue #174).
 """
 
 from penge.sim.assumptions import (
@@ -94,6 +96,13 @@ from penge.sim.snapshot import (
     HouseholdSnapshot,
     SnapshotBuilder,
 )
+from penge.sim.spending import (
+    HouseholdSpendingPlan,
+    OneOffExpense,
+    SpendingPhase,
+    SpendingRule,
+    compute_spending,
+)
 from penge.sim.tax import (
     DE_DEFAULT,
     DK_DEFAULT,
@@ -127,9 +136,11 @@ __all__ = [
     "HouseholdSnapshot",
     "HousePurchaseScenario",
     "InstrumentAssumptions",
+    "HouseholdSpendingPlan",
     "MonteCarloConfig",
     "MonteCarloResult",
     "MonthlyContributionSplit",
+    "OneOffExpense",
     "PayoutConfig",
     "PayoutError",
     "PayoutProjection",
@@ -142,6 +153,8 @@ __all__ = [
     "ScenarioError",
     "ScenarioResult",
     "SnapshotBuilder",
+    "SpendingPhase",
+    "SpendingRule",
     "TaxConfig",
     "TaxRegime",
     "WorkReductionScenario",
@@ -152,6 +165,7 @@ __all__ = [
     "compare",
     "compare_configs",
     "compute_payout",
+    "compute_spending",
     "evaluate",
     "net_pension_drawdown",
     "project",

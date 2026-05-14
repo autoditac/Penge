@@ -979,8 +979,9 @@ class TestComputeBridgePmt:
         result = compute_bridge_pmt(cfg)
         # Should produce a valid, positive monthly PMT
         assert result.monthly_gross_withdrawal_dkk > Decimal("0")
-        # Final balance should be near zero (PMT solved for full depletion)
-        assert abs(result.final_balance_dkk) < Decimal("200")
+        # Final balance should be near zero (PMT solved for full depletion) —
+        # use the same relative tolerance as the other TestComputeBridgePmt cases.
+        assert abs(result.final_balance_dkk) < self._tolerance(cfg.starting_balance_dkk)
 
     def test_distributing_realisation_bridge_pays_dividend_tax(self) -> None:
         """Distributing realisation bridge deducts annual dividend tax from depot.

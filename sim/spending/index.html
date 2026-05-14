@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0016-tax-lot-tracker/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/sim/spending/">
       
       
-        <link rel="prev" href="../0015-sim-scenario-engine/">
+        <link rel="prev" href="../snapshot/">
       
       
-        <link rel="next" href="../0017-lagerbeskatning-calculator/">
+        <link rel="next" href="../../tax/dk/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0016 Tax-lot tracker (gennemsnitsmetoden) - Penge</title>
+        <title>Spending model - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0016-tax-lot-tracker-uses-gennemsnitsmetoden-single-aggregate-per-isin" class="md-skip">
+        <a href="#household-spending-target-expense-model" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0016 Tax-lot tracker (gennemsnitsmetoden)
+              Spending model
             
           </span>
         </div>
@@ -879,8 +879,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -907,11 +909,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
@@ -932,7 +934,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -950,7 +952,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/personas/" class="md-nav__link">
+      <a href="../personas/" class="md-nav__link">
         
   
   
@@ -978,7 +980,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/user-stories/" class="md-nav__link">
+      <a href="../user-stories/" class="md-nav__link">
         
   
   
@@ -1006,7 +1008,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/return-model/" class="md-nav__link">
+      <a href="../return-model/" class="md-nav__link">
         
   
   
@@ -1034,7 +1036,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/assumptions/" class="md-nav__link">
+      <a href="../assumptions/" class="md-nav__link">
         
   
   
@@ -1062,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/registry/" class="md-nav__link">
+      <a href="../registry/" class="md-nav__link">
         
   
   
@@ -1090,7 +1092,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../sim/snapshot/" class="md-nav__link">
+      <a href="../snapshot/" class="md-nav__link">
         
   
   
@@ -1115,10 +1117,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../sim/spending/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Spending model
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1134,6 +1163,209 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#concepts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concepts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Concepts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spending-phases" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spending phases
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recurring-rules-spendingrule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recurring rules (SpendingRule)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#one-off-expenses-oneoffexpense" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One-off expenses (OneOffExpense)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#currency-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Currency isolation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inflation-indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inflation indexing
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Inflation indexing">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spendingphase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpendingPhase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spendingrule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpendingRule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#oneoffexpense" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OneOffExpense
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#householdspendingplan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HouseholdSpendingPlan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_spending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_spending
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-fire-scenario-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full FIRE scenario example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assumptions-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assumptions and limitations
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1602,8 +1834,6 @@
       
   
   
-    
-  
   
   
     
@@ -1678,15 +1908,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../decisions/" class="md-nav__link ">
               
   
   
@@ -1710,7 +1940,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1730,7 +1960,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -1758,7 +1988,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -1786,7 +2016,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -1814,7 +2044,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -1842,7 +2072,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -1870,7 +2100,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -1898,7 +2128,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -1926,7 +2156,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -1954,7 +2184,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -1982,7 +2212,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0010-sim-return-model/" class="md-nav__link">
+      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2010,7 +2240,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2038,7 +2268,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0012-sim-goal-model/" class="md-nav__link">
+      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2066,7 +2296,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2094,7 +2324,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2122,7 +2352,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2147,37 +2377,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0016 Tax-lot tracker (gennemsnitsmetoden)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2193,170 +2396,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context and Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Drivers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-2-lot-list-with-fifo" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — Lot-list with FIFO
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-replay-on-read" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — Replay on read
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2369,7 +2408,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2397,7 +2436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2425,7 +2464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2453,7 +2492,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0020-skat-report-generator/" class="md-nav__link">
+      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2481,7 +2520,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2509,7 +2548,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2537,7 +2576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2565,7 +2604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0024-vault-layout/" class="md-nav__link">
+      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2593,7 +2632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0025-encrypted-backups/" class="md-nav__link">
+      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2621,7 +2660,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2649,7 +2688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2677,7 +2716,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr-template/" class="md-nav__link">
+      <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
   
@@ -2786,66 +2825,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#concepts" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context and Problem Statement
+        Concepts
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Drivers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
+    <nav class="md-nav" aria-label="Concepts">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
+  <a href="#spending-phases" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Positive
+        Spending phases
       
     </span>
   </a>
@@ -2853,10 +2848,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
+  <a href="#recurring-rules-spendingrule" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative
+        Recurring rules (SpendingRule)
       
     </span>
   </a>
@@ -2864,10 +2859,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
+  <a href="#one-off-expenses-oneoffexpense" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Neutral
+        One-off expenses (OneOffExpense)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#currency-isolation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Currency isolation
       
     </span>
   </a>
@@ -2880,33 +2886,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
+  <a href="#inflation-indexing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Alternatives in detail
+        Inflation indexing
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Alternatives in detail">
+    <nav class="md-nav" aria-label="Inflation indexing">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#option-2-lot-list-with-fifo" class="md-nav__link">
+  <a href="#example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Option 2 — Lot-list with FIFO
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-replay-on-read" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — Replay on read
+        Example
       
     </span>
   </a>
@@ -2919,10 +2914,93 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
+  <a href="#api-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Links
+        API reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#spendingphase" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpendingPhase
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#spendingrule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SpendingRule
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#oneoffexpense" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OneOffExpense
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#householdspendingplan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HouseholdSpendingPlan
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute_spending" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        compute_spending
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#full-fire-scenario-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Full FIRE scenario example
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assumptions-and-limitations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assumptions and limitations
       
     </span>
   </a>
@@ -2946,7 +3024,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0016-tax-lot-tracker.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/sim/spending.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -2954,87 +3032,291 @@
   
 
 
-<h1 id="0016-tax-lot-tracker-uses-gennemsnitsmetoden-single-aggregate-per-isin">0016 — Tax-lot tracker uses gennemsnitsmetoden (single aggregate per ISIN)<a class="headerlink" href="#0016-tax-lot-tracker-uses-gennemsnitsmetoden-single-aggregate-per-isin" title="Permanent link">&para;</a></h1>
+<h1 id="household-spending-target-expense-model">Household Spending &amp; Target-Expense Model<a class="headerlink" href="#household-spending-target-expense-model" title="Permanent link">&para;</a></h1>
+<p>The spending model lets you declare what a household <em>needs</em> to spend each year
+across the three FIRE lifecycle phases, so that FIRE readiness is assessed
+against household needs rather than only asset balances.</p>
+<hr />
+<h2 id="concepts">Concepts<a class="headerlink" href="#concepts" title="Permanent link">&para;</a></h2>
+<h3 id="spending-phases">Spending phases<a class="headerlink" href="#spending-phases" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>accumulation</code></td>
+<td>Working years; salary income covers expenses.</td>
+</tr>
+<tr>
+<td><code>bridge</code></td>
+<td>Post-employment, pre-pension; portfolio drawdown or part-time income fills the gap.</td>
+</tr>
+<tr>
+<td><code>retirement</code></td>
+<td>Full pension income phase.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="recurring-rules-spendingrule">Recurring rules (<code>SpendingRule</code>)<a class="headerlink" href="#recurring-rules-spendingrule" title="Permanent link">&para;</a></h3>
+<p>A <code>SpendingRule</code> describes an annual outgoing that may be:</p>
 <ul>
-<li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-10</li>
-<li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> tax, dk</li>
+<li><strong>time-bounded</strong> — active only between <code>active_from</code> and <code>active_until</code> (both inclusive, both optional).</li>
+<li><strong>phase-specific</strong> — applies only to one lifecycle phase; <code>phase=None</code> means all phases.</li>
+<li><strong>inflation-indexed</strong> — the base-year amount is compounded by <code>inflation_rate</code> (per-rule; default 2 %) for each year since the base year.</li>
 </ul>
-<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>Phase 3 needs an authoritative cost-basis ledger for <em>realisationsbeskattede</em>
-instruments — non-ABIS funds and individual stocks held in a Danish depot.
-Danish tax rules prescribe <strong>gennemsnitsmetoden</strong>: a single running average
-cost per ISIN per depot (account). Sales realise gain at that average; the
-average itself is unaffected by partial sales.</p>
-<p>This is distinct from US-style FIFO/LIFO/specific-identification: there are
-no separate "lots" by purchase date. The book per <code>(account_id, isin)</code> is
-a single quantity + cost-basis pair that is mutated by buy / sell / split /
-merger events.</p>
-<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Correctness against Danish law (skat.dk: <em>Aktieavancebeskatningslovens § 24-26</em>).</li>
-<li>Auditability: every realisation produces a record we can later sum into a
-  SKAT report (#39).</li>
-<li>Determinism: feeding the same chronological event sequence must produce
-  identical lots and gains. No floating-point arithmetic on currency.</li>
-<li>Currency safety: a single <code>(account, isin)</code> cannot mix EUR and DKK. The
-  book never converts; FX is the caller's responsibility.</li>
-</ul>
-<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<h3 id="one-off-expenses-oneoffexpense">One-off expenses (<code>OneOffExpense</code>)<a class="headerlink" href="#one-off-expenses-oneoffexpense" title="Permanent link">&para;</a></h3>
+<p>A single expense that occurs in exactly one calendar year (e.g. a kitchen
+renovation or a car purchase).  One-off amounts are added to the recurring
+total for that year only.</p>
+<h3 id="currency-isolation">Currency isolation<a class="headerlink" href="#currency-isolation" title="Permanent link">&para;</a></h3>
+<p>All amounts stay in their declared currency (<code>"EUR"</code> or <code>"DKK"</code>).
+<code>compute_spending()</code> returns a dict with <strong>separate</strong> <code>"EUR"</code> and <code>"DKK"</code> keys.
+<strong>No implicit currency conversion is performed.</strong>  Callers that need a
+consolidated figure must apply an FX rate explicitly.</p>
+<hr />
+<h2 id="inflation-indexing">Inflation indexing<a class="headerlink" href="#inflation-indexing" title="Permanent link">&para;</a></h2>
+<p>For a recurring rule, the effective amount in a given year is:</p>
+<div class="highlight"><pre><span></span><code>effective_amount = annual_amount × (1 + inflation_rate) ^ (year − base_year)
+</code></pre></div>
+<p>The <code>base_year</code> is resolved in this priority order:</p>
 <ol>
-<li><strong>Single aggregate per <code>(account, isin)</code></strong> — quantity and cost-basis are
-   mutated in place; the lot's average cost is <code>cost / quantity</code>.</li>
-<li><strong>Lot-list with FIFO consumption</strong> — keep a list of dated lots and
-   consume on sell. Allows specific-identification reports later.</li>
-<li><strong>Replay-from-events on every read</strong> — never store state; recompute
-   from the event log on demand.</li>
+<li><code>inflation_base_year</code> on the rule (explicit override).</li>
+<li><code>active_from</code> on the rule (rule start year).</li>
+<li>The target <code>year</code> itself — meaning <strong>no compounding</strong> when neither bound is
+   known.</li>
 </ol>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We chose <strong>Option 1</strong>, because it is exactly what Danish law requires and
-nothing more: gennemsnitsmetoden does not let the taxpayer pick which lot
-to dispose of. Encoding FIFO would add complexity that we would then have
-to actively <em>suppress</em> on every realisation. Option 3 is too slow for
-interactive use and would still require a snapshot type for reports.</p>
-<p>The book is mutable internally; reads return frozen Pydantic snapshots
-(<code>TaxLot</code>, <code>RealisedGain</code>). The realisation log is append-only.</p>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Module is small (~300 lines) with a single source of truth per pair.</li>
-<li>Tests cross-validate against a hand-calculated example and 80
-  hypothesis-generated trade sequences.</li>
-<li>Splits and mergers preserve cost basis exactly; only quantity changes.</li>
-</ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
-<ul>
-<li>We cannot retroactively switch to FIFO without replaying the event log
-  through a different reducer. (Acceptable: DK tax law forbids the switch.)</li>
-<li>Mixing currencies on the same pair is rejected, not auto-converted.
-  Callers that need FX must convert at the event level.</li>
-</ul>
-<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
-<ul>
-<li>The book is in-memory only. Persistence (Postgres backing) is out of
-  scope for #35; #39 will materialise the realised-gains stream into a
-  mart for reporting.</li>
-</ul>
-<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="option-2-lot-list-with-fifo">Option 2 — Lot-list with FIFO<a class="headerlink" href="#option-2-lot-list-with-fifo" title="Permanent link">&para;</a></h3>
-<p>Useful for jurisdictions that allow specific-identification (US). Adds an
-ordering decision on every sell that DK law does not give us.</p>
-<h3 id="option-3-replay-on-read">Option 3 — Replay on read<a class="headerlink" href="#option-3-replay-on-read" title="Permanent link">&para;</a></h3>
-<p>Pure-functional, audit-friendly, but every aggregation read becomes O(N)
-in event count. The mutable book is itself a deterministic reducer over
-the event stream, so determinism is preserved without the cost.</p>
-<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Issue: <a href="https://github.com/autoditac/Penge/issues/35">#35</a></li>
-<li>Code: <code>src/penge/tax/lots.py</code>, <code>tests/tax/test_lots.py</code></li>
-<li>Domain: <a href="../../tax/dk/">docs/tax/dk.md</a> ("Realisationsbeskatning")</li>
-<li>Related ADRs: <a href="../0009-abis-list-and-instrument-tax-treatment/">ADR-0009</a>
-  (ABIS list determines whether gennemsnitsmetoden applies at all).</li>
-</ul>
+<p>This means inflation is <strong>per-rule</strong>; there is no global inflation override.
+Different spending categories can carry different inflation rates (e.g. housing
+CPI vs. healthcare CPI).</p>
+<h3 id="example">Example<a class="headerlink" href="#example" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">decimal</span><span class="w"> </span><span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.spending</span><span class="w"> </span><span class="kn">import</span> <span class="n">SpendingRule</span><span class="p">,</span> <span class="n">SpendingPhase</span>
+
+<span class="c1"># Rent inflates at 3 % per year from 2025</span>
+<span class="n">rent</span> <span class="o">=</span> <span class="n">SpendingRule</span><span class="p">(</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;rent&quot;</span><span class="p">,</span>
+    <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;12000&quot;</span><span class="p">),</span>
+    <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+    <span class="n">active_from</span><span class="o">=</span><span class="mi">2025</span><span class="p">,</span>
+    <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.03&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="c1"># In 2030: 12 000 × 1.03^5 = 13 911.29 EUR</span>
+</code></pre></div>
+<hr />
+<h2 id="api-reference">API reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
+<h3 id="spendingphase"><code>SpendingPhase</code><a class="headerlink" href="#spendingphase" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SpendingPhase</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
+    <span class="n">ACCUMULATION</span> <span class="o">=</span> <span class="s2">&quot;accumulation&quot;</span>
+    <span class="n">BRIDGE</span> <span class="o">=</span> <span class="s2">&quot;bridge&quot;</span>
+    <span class="n">RETIREMENT</span> <span class="o">=</span> <span class="s2">&quot;retirement&quot;</span>
+</code></pre></div>
+<h3 id="spendingrule"><code>SpendingRule</code><a class="headerlink" href="#spendingrule" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>—</td>
+<td>Human-readable name</td>
+</tr>
+<tr>
+<td><code>annual_amount</code></td>
+<td><code>Decimal</code></td>
+<td>—</td>
+<td>Base-year annual spending (must be &gt; 0)</td>
+</tr>
+<tr>
+<td><code>currency</code></td>
+<td><code>"EUR" \| "DKK"</code></td>
+<td>—</td>
+<td>Source currency</td>
+</tr>
+<tr>
+<td><code>phase</code></td>
+<td><code>SpendingPhase \| None</code></td>
+<td><code>None</code></td>
+<td>Phase filter; <code>None</code> = all phases</td>
+</tr>
+<tr>
+<td><code>active_from</code></td>
+<td><code>int \| None</code></td>
+<td><code>None</code></td>
+<td>First active year (inclusive)</td>
+</tr>
+<tr>
+<td><code>active_until</code></td>
+<td><code>int \| None</code></td>
+<td><code>None</code></td>
+<td>Last active year (inclusive)</td>
+</tr>
+<tr>
+<td><code>inflation_rate</code></td>
+<td><code>Decimal</code></td>
+<td><code>0.02</code></td>
+<td>Per-rule annual inflation rate</td>
+</tr>
+<tr>
+<td><code>inflation_base_year</code></td>
+<td><code>int \| None</code></td>
+<td><code>None</code></td>
+<td>Explicit inflation base year</td>
+</tr>
+</tbody>
+</table>
+<h3 id="oneoffexpense"><code>OneOffExpense</code><a class="headerlink" href="#oneoffexpense" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>label</code></td>
+<td><code>str</code></td>
+<td>Human-readable name</td>
+</tr>
+<tr>
+<td><code>year</code></td>
+<td><code>int</code></td>
+<td>Calendar year the expense occurs</td>
+</tr>
+<tr>
+<td><code>amount</code></td>
+<td><code>Decimal</code></td>
+<td>Positive monetary amount</td>
+</tr>
+<tr>
+<td><code>currency</code></td>
+<td><code>"EUR" \| "DKK"</code></td>
+<td>Source currency</td>
+</tr>
+</tbody>
+</table>
+<h3 id="householdspendingplan"><code>HouseholdSpendingPlan</code><a class="headerlink" href="#householdspendingplan" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">HouseholdSpendingPlan</span><span class="p">(</span><span class="n">pydantic</span><span class="o">.</span><span class="n">BaseModel</span><span class="p">):</span>
+    <span class="n">model_config</span> <span class="o">=</span> <span class="n">pydantic</span><span class="o">.</span><span class="n">ConfigDict</span><span class="p">(</span><span class="n">frozen</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="n">rules</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">SpendingRule</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+    <span class="n">one_offs</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">OneOffExpense</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+</code></pre></div>
+<h3 id="compute_spending"><code>compute_spending</code><a class="headerlink" href="#compute_spending" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">compute_spending</span><span class="p">(</span>
+    <span class="n">plan</span><span class="p">:</span> <span class="n">HouseholdSpendingPlan</span><span class="p">,</span>
+    <span class="n">year</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">phase</span><span class="p">:</span> <span class="n">SpendingPhase</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span> <span class="s2">&quot;DKK&quot;</span><span class="p">],</span> <span class="n">Decimal</span><span class="p">]:</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>Returns <code>{"EUR": &lt;total&gt;, "DKK": &lt;total&gt;}</code> — always both keys, zero if
+nothing applies.</p>
+<hr />
+<h2 id="full-fire-scenario-example">Full FIRE scenario example<a class="headerlink" href="#full-fire-scenario-example" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">decimal</span><span class="w"> </span><span class="kn">import</span> <span class="n">Decimal</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.spending</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HouseholdSpendingPlan</span><span class="p">,</span>
+    <span class="n">OneOffExpense</span><span class="p">,</span>
+    <span class="n">SpendingPhase</span><span class="p">,</span>
+    <span class="n">SpendingRule</span><span class="p">,</span>
+    <span class="n">compute_spending</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">plan</span> <span class="o">=</span> <span class="n">HouseholdSpendingPlan</span><span class="p">(</span>
+    <span class="n">rules</span><span class="o">=</span><span class="p">[</span>
+        <span class="c1"># Base living costs — all phases, CPI-indexed from 2025</span>
+        <span class="n">SpendingRule</span><span class="p">(</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;living_costs&quot;</span><span class="p">,</span>
+            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;36000&quot;</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+            <span class="n">active_from</span><span class="o">=</span><span class="mi">2025</span><span class="p">,</span>
+            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.02&quot;</span><span class="p">),</span>
+        <span class="p">),</span>
+        <span class="c1"># Commuting costs — accumulation phase only</span>
+        <span class="n">SpendingRule</span><span class="p">(</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;commuting&quot;</span><span class="p">,</span>
+            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;3600&quot;</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+            <span class="n">phase</span><span class="o">=</span><span class="n">SpendingPhase</span><span class="o">.</span><span class="n">ACCUMULATION</span><span class="p">,</span>
+            <span class="n">active_from</span><span class="o">=</span><span class="mi">2025</span><span class="p">,</span>
+            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.02&quot;</span><span class="p">),</span>
+        <span class="p">),</span>
+        <span class="c1"># Danish pension supplementary costs in DKK — bridge phase</span>
+        <span class="n">SpendingRule</span><span class="p">(</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;dk_bridge_costs&quot;</span><span class="p">,</span>
+            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;60000&quot;</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
+            <span class="n">phase</span><span class="o">=</span><span class="n">SpendingPhase</span><span class="o">.</span><span class="n">BRIDGE</span><span class="p">,</span>
+            <span class="n">active_from</span><span class="o">=</span><span class="mi">2042</span><span class="p">,</span>
+            <span class="n">active_until</span><span class="o">=</span><span class="mi">2051</span><span class="p">,</span>
+            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.025&quot;</span><span class="p">),</span>
+        <span class="p">),</span>
+    <span class="p">],</span>
+    <span class="n">one_offs</span><span class="o">=</span><span class="p">[</span>
+        <span class="c1"># Kitchen renovation in 2028</span>
+        <span class="n">OneOffExpense</span><span class="p">(</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;kitchen_renovation&quot;</span><span class="p">,</span>
+            <span class="n">year</span><span class="o">=</span><span class="mi">2028</span><span class="p">,</span>
+            <span class="n">amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;20000&quot;</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+        <span class="p">),</span>
+    <span class="p">],</span>
+<span class="p">)</span>
+
+<span class="c1"># Accumulation year 2030</span>
+<span class="n">acc</span> <span class="o">=</span> <span class="n">compute_spending</span><span class="p">(</span><span class="n">plan</span><span class="p">,</span> <span class="mi">2030</span><span class="p">,</span> <span class="n">SpendingPhase</span><span class="o">.</span><span class="n">ACCUMULATION</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span>  <span class="c1"># {&#39;EUR&#39;: ..., &#39;DKK&#39;: Decimal(&#39;0.00&#39;)}</span>
+
+<span class="c1"># Bridge year 2045</span>
+<span class="n">brg</span> <span class="o">=</span> <span class="n">compute_spending</span><span class="p">(</span><span class="n">plan</span><span class="p">,</span> <span class="mi">2045</span><span class="p">,</span> <span class="n">SpendingPhase</span><span class="o">.</span><span class="n">BRIDGE</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">brg</span><span class="p">)</span>  <span class="c1"># {&#39;EUR&#39;: ..., &#39;DKK&#39;: ...}</span>
+</code></pre></div>
+<hr />
+<h2 id="assumptions-and-limitations">Assumptions and limitations<a class="headerlink" href="#assumptions-and-limitations" title="Permanent link">&para;</a></h2>
+<ol>
+<li>
+<p><strong>No global inflation override.</strong> Each rule carries its own <code>inflation_rate</code>.
+   If you want a unified CPI across all rules, set the same <code>inflation_rate</code>
+   on every rule (or derive them from a shared constant).</p>
+</li>
+<li>
+<p><strong>No implicit FX conversion.</strong> EUR and DKK buckets are always separate.
+   Bridge/retirement readiness calculations must apply an explicit FX rate if
+   a single consolidated figure is required.</p>
+</li>
+<li>
+<p><strong>Annual granularity.</strong> Spending is modelled yearly.  Within-year
+   timing (e.g. a mid-year redundancy payment) is not captured.</p>
+</li>
+<li>
+<p><strong>No dependency on salary or portfolio.</strong> The spending model is
+   intentionally decoupled from the cashflow engine.  Use the output of
+   <code>compute_spending()</code> as an input constraint to your FIRE readiness
+   calculation.</p>
+</li>
+<li>
+<p><strong>One-off expenses are not inflation-adjusted.</strong> They are expressed in
+   nominal terms for the year in which they occur.</p>
+</li>
+<li>
+<p><strong>Negative spending is not supported.</strong> All <code>annual_amount</code> and <code>amount</code>
+   values must be strictly positive.  Model income as a negative-spending
+   offset via the cashflow engine, not here.</p>
+</li>
+</ol>
 
 
 

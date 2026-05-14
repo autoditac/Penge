@@ -27,7 +27,7 @@ accepts one account / holding at a time, validates each entry, and accumulates
 all warnings about missing or unsupported data into
 `HouseholdSnapshot.missing_assumptions`.
 
-```
+```text
 SnapshotBuilder("2025-01-15")
   .add_account(...)    # cash, ASK, frie_midler, pension, or manual
   .add_holding(...)    # instrument in an account
@@ -157,9 +157,9 @@ running a simulation.
 | Trigger | Warning message |
 |---------|----------------|
 | Unrecognised `kind` | `"account 'id' ('name'): unrecognised kind '…'; cannot determine tax treatment. Set kind to one of […]"` |
-| Unsupported `currency` (not EUR or DKK) | `"account 'id' ('name'): unsupported currency '…'; only EUR and DKK are supported"` |
+| Unsupported `currency` (not EUR or DKK) | `"account 'id' ('name'): unsupported currency '…'; only EUR and DKK are supported. Account skipped — correct the currency and re-add it."` |
 | `cost_basis=None` on a holding | `"holding 'ISIN' in account 'id': cost_basis not available; bridge depletion calculation will be approximate"` |
-| Unsupported `currency` on a holding | `"holding 'ISIN' in account 'id': unsupported currency '…'"` |
+| Unsupported `currency` on a holding | `"holding 'ISIN' in account 'id': unsupported currency '…'. Holding skipped — correct the currency and re-add it."` |
 
 ### How to resolve
 

@@ -35,10 +35,11 @@ each entry, and collects all warnings about missing or unsupported data into
 * ``missing_assumptions`` is a *list of strings*, not exceptions, so the
   builder accumulates *all* problems in one pass instead of stopping at the
   first error.
-* ``type: ignore[arg-type]`` annotations are used in exactly two places where
-  the raw ``kind`` and ``currency`` strings have been validated at runtime but
-  cannot be narrowed to the ``Literal`` type by mypy without the ignore; the
-  surrounding validation ensures correctness.
+* ``type: ignore[arg-type]`` annotations are used in three places (``kind``
+  and ``currency`` in ``add_account``; ``currency`` in ``add_holding``) where
+  the raw strings have been validated at runtime but cannot be narrowed to the
+  ``Literal`` type by mypy without the ignore; the surrounding validation
+  ensures correctness.
 
 See ``docs/sim/snapshot.md`` (issue #176).
 """
@@ -289,13 +290,15 @@ class SnapshotBuilder:
         if currency not in _VALID_CURRENCIES:
             self._missing.append(
                 f"account {account_id!r} ({account_name!r}): "
-                f"unsupported currency {currency!r}; only EUR and DKK are supported"
+                f"unsupported currency {currency!r}; only EUR and DKK are supported. "
+                f"Account skipped — correct the currency and re-add it."
             )
             logger.warning(
-                "SnapshotBuilder: account %r has unsupported currency %r",
+                "SnapshotBuilder: account %r has unsupported currency %r; skipping",
                 account_id,
                 currency,
             )
+            return self
 
         self._accounts.append(
             AccountSnapshot(
@@ -354,14 +357,16 @@ class SnapshotBuilder:
 
         if currency not in _VALID_CURRENCIES:
             self._missing.append(
-                f"holding {isin!r} in account {account_id!r}: unsupported currency {currency!r}"
+                f"holding {isin!r} in account {account_id!r}: unsupported currency {currency!r}. "
+                f"Holding skipped — correct the currency and re-add it."
             )
             logger.warning(
-                "SnapshotBuilder: holding %r in account %r has unsupported currency %r",
+                "SnapshotBuilder: holding %r in account %r has unsupported currency %r; skipping",
                 isin,
                 account_id,
                 currency,
             )
+            return self
 
         self._holdings.append(
             HoldingSnapshot(

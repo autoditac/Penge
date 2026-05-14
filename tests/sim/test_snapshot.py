@@ -206,6 +206,8 @@ def test_unsupported_currency_triggers_missing_assumption() -> None:
     assert len(snapshot.missing_assumptions) == 1
     assert "USD" in snapshot.missing_assumptions[0]
     assert "acc-usd" in snapshot.missing_assumptions[0]
+    # Account must be skipped — not stored — to avoid KeyError in total_by_kind()
+    assert len(snapshot.accounts) == 0
 
 
 # ---------------------------------------------------------------------------

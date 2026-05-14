@@ -58,9 +58,11 @@ assert restored == record
   entry.
 * :class:`ProjectionAuditRecord` is a plain dataclass (not Pydantic) so it
   has no runtime dependency beyond the standard library.
-* :func:`build_standard_audit_record` imports the actual constant objects
-  (e.g. :data:`~penge.sim.liquid.AKTIEINDKOMST_LOW_RATE`) at call time, so
-  the registry automatically reflects any future constant updates.
+* :func:`build_standard_audit_record` accesses the current values of constants
+  (e.g. :data:`~penge.sim.liquid.AKTIEINDKOMST_LOW_RATE`) when called.  The
+  source modules are imported once at package load; the constant values are
+  looked up at call time, so the registry automatically reflects any future
+  constant updates.
 
 See ``docs/sim/registry.md`` for the full audit contract.
 See ``docs/decisions/0013-sim-tax-overlay.md`` (ADR-0013) and
@@ -155,8 +157,15 @@ class ProjectionAuditRecord:
         """Render the record as a Markdown document with a table.
 
         Returns a string that starts with a level-1 heading and contains
-        a pipe-delimited Markdown table of all assumptions.
+        a pipe-delimited Markdown table of all assumptions.  Pipe characters
+        and newlines within field values are escaped so the table remains
+        well-formed even when ``extra_entries`` contain free-text notes.
         """
+
+        def _cell(text: str) -> str:
+            """Escape ``|`` and newlines for use inside a Markdown table cell."""
+            return text.replace("|", "\\|").replace("\n", " ")
+
         lines: list[str] = [
             f"# Projection audit: {self.run_id}",
             "",
@@ -167,7 +176,8 @@ class ProjectionAuditRecord:
             "|---|---|---|---|---|---|",
         ]
         for a in self.assumptions:
-            lines.append(f"| {a.name} | {a.value} | {a.unit} | {a.source} | {a.adr} | {a.notes} |")
+            cells = [_cell(v) for v in (a.name, a.value, a.unit, a.source, a.adr, a.notes)]
+            lines.append("| " + " | ".join(cells) + " |")
         return "\n".join(lines)
 
     @classmethod
@@ -183,13 +193,22 @@ class ProjectionAuditRecord:
         Raises:
             json.JSONDecodeError: If *data* is not valid JSON.
             KeyError: If required fields are missing from the JSON.
+            ValueError: If ``assumptions`` is not a JSON array or contains
+                non-object elements.
         """
         d: dict[str, object] = json.loads(data)
         raw_assumptions = d.pop("assumptions")
         if not isinstance(raw_assumptions, list):
             raise ValueError("'assumptions' must be a JSON array")
-        # Each element is a dict produced by json.loads — keys/values are str.
-        entries = [AssumptionEntry(**e) for e in raw_assumptions]
+        entries: list[AssumptionEntry] = []
+        for i, e in enumerate(raw_assumptions):
+            if not isinstance(e, dict):
+                raise ValueError(f"assumptions[{i}] must be a JSON object, got {type(e).__name__}")
+            # Coerce every field value to str to guard against numeric JSON
+            # values (e.g. 0.17 instead of "0.17") that would violate the
+            # str-only invariant of AssumptionEntry.
+            str_e: dict[str, str] = {k: str(v) for k, v in e.items()}
+            entries.append(AssumptionEntry(**str_e))
         record = cls(**d)  # type: ignore[arg-type]  # runtime-safe: remaining keys match ProjectionAuditRecord fields
         record.assumptions = entries
         return record
@@ -202,10 +221,11 @@ def build_standard_audit_record(
 ) -> ProjectionAuditRecord:
     """Build a standard audit record capturing Penge's built-in constants.
 
-    All monetary and rate constants are read at call time from the
-    authoritative source modules (:mod:`penge.sim.tax`,
-    :mod:`penge.sim.liquid`, :mod:`penge.tax.aktiesparekonto`) so that
-    the record always reflects the currently installed values.
+    The source modules (:mod:`penge.sim.tax`, :mod:`penge.sim.liquid`,
+    :mod:`penge.tax.aktiesparekonto`) are imported at package load time, but
+    all constant **values** (e.g. ``AKTIEINDKOMST_LOW_RATE``, ``ASK_RATE``)
+    are accessed when this function is called, so the record always reflects
+    the currently installed values.
 
     Args:
         run_id: Optional stable identifier for this projection run.

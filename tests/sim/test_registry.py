@@ -203,6 +203,70 @@ class TestProjectionAuditRecord:
         with pytest.raises(json.JSONDecodeError):
             ProjectionAuditRecord.from_json("not json")
 
+    def test_from_json_assumptions_not_list_raises(self) -> None:
+        record = _make_record()
+        d = json.loads(record.to_json())
+        d["assumptions"] = "not-a-list"
+        with pytest.raises(ValueError, match="JSON array"):
+            ProjectionAuditRecord.from_json(json.dumps(d))
+
+    def test_from_json_assumption_not_dict_raises(self) -> None:
+        record = _make_record()
+        d = json.loads(record.to_json())
+        d["assumptions"] = [42]
+        with pytest.raises(ValueError, match="JSON object"):
+            ProjectionAuditRecord.from_json(json.dumps(d))
+
+    def test_from_json_numeric_values_coerced_to_str(self) -> None:
+        """JSON with numeric value fields must be coerced to str round-trip."""
+        record = _make_record()
+        d = json.loads(record.to_json())
+        # Simulate a JSON file where 'value' was stored as a number
+        d["assumptions"][0]["value"] = 15.3
+        restored = ProjectionAuditRecord.from_json(json.dumps(d))
+        assert isinstance(restored.assumptions[0].value, str)
+
+    def test_to_markdown_escapes_pipe_in_fields(self) -> None:
+        entry = AssumptionEntry(
+            name="rate|check",
+            value="10",
+            unit="%",
+            source="test|src",
+            notes="a|b",
+        )
+        record = ProjectionAuditRecord(
+            run_id="r",
+            captured_at="2025-01-01T00:00:00+00:00",
+            penge_version="0",
+            assumptions=[entry],
+        )
+        md = record.to_markdown()
+        # Raw pipes inside values must be escaped so the table stays valid
+        assert "rate\\|check" in md
+        assert "test\\|src" in md
+        assert "a\\|b" in md
+
+    def test_to_markdown_escapes_newlines_in_fields(self) -> None:
+        entry = AssumptionEntry(
+            name="rate",
+            value="10",
+            unit="%",
+            source="src",
+            notes="line1\nline2",
+        )
+        record = ProjectionAuditRecord(
+            run_id="r",
+            captured_at="2025-01-01T00:00:00+00:00",
+            penge_version="0",
+            assumptions=[entry],
+        )
+        md = record.to_markdown()
+        # The notes row must not contain a bare newline inside the table
+        table_lines = [ln for ln in md.splitlines() if "line1" in ln]
+        assert table_lines, "entry row not found in markdown output"
+        assert "\n" not in table_lines[0]
+        assert "line1 line2" in table_lines[0]
+
 
 # ---------------------------------------------------------------------------
 # build_standard_audit_record

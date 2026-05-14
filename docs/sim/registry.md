@@ -65,10 +65,12 @@ from penge.sim.registry import build_standard_audit_record
 record = build_standard_audit_record(run_id="2025-01-baseline")
 ```
 
-`build_standard_audit_record` reads constants **at call time** from the
-authoritative source modules (`penge.sim.tax`, `penge.sim.liquid`,
-`penge.tax.aktiesparekonto`), so the record always reflects the installed
-values — no magic numbers.
+`build_standard_audit_record` accesses the **current values** of constants at
+call time from the authoritative source modules (`penge.sim.tax`,
+`penge.sim.liquid`, `penge.tax.aktiesparekonto`).  The modules are imported once
+at package load, but the constant values are looked up when the function is
+called — so the record always reflects the installed values, with no magic
+numbers.
 
 ### Serialize to JSON
 
@@ -88,7 +90,7 @@ print(md)
 
 Output example:
 
-```
+```text
 # Projection audit: 2025-01-baseline
 
 Captured: 2025-01-15T08:30:00+00:00
@@ -97,7 +99,7 @@ Penge version: 1.2.3
 | Assumption | Value | Unit | Source | ADR | Notes |
 |---|---|---|---|---|---|
 | DK PAL-skat rate | 15.3 | % | SKAT 2025 | ADR-0013 | Annual tax on pension-pot returns (withheld by PFA) |
-| DK ASK tax rate | 17 | % | SKAT 2025 | ADR-0027 | Flat annual mark-to-market rate inside Aktiesparekonto |
+| DK ASK tax rate | 17 | % | SKAT 2025 | ADR-0018 | Flat annual mark-to-market rate inside Aktiesparekonto |
 …
 ```
 
@@ -202,7 +204,7 @@ for line in diff_records(before, after):
 
 Example output after a SKAT threshold update:
 
-```
+```text
 ~ CHANGED DK Aktieindkomst threshold per person (2026): 70700 DKK → 73100 DKK
 ```
 

@@ -21,11 +21,11 @@ See ``docs/sim/spending.md`` for full usage guidance and assumptions.
 
 from __future__ import annotations
 
-import logging
-from dataclasses import dataclass, field
 from decimal import ROUND_HALF_EVEN, Decimal
 from enum import StrEnum
 from typing import Literal
+
+import pydantic
 
 __all__ = [
     "HouseholdSpendingPlan",
@@ -34,8 +34,6 @@ __all__ = [
     "SpendingRule",
     "compute_spending",
 ]
-
-_logger = logging.getLogger(__name__)
 
 _TWO_DP = Decimal("0.01")
 
@@ -64,8 +62,7 @@ class SpendingPhase(StrEnum):
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class OneOffExpense:
+class OneOffExpense(pydantic.BaseModel):
     """A single non-recurring expense in a specific year.
 
     Args:
@@ -75,14 +72,18 @@ class OneOffExpense:
         currency: ``"EUR"`` or ``"DKK"``; no implicit conversion is applied.
     """
 
+    model_config = pydantic.ConfigDict(frozen=True)
+
     label: str
     year: int
     amount: Decimal
     currency: Literal["EUR", "DKK"]
 
-    def __post_init__(self) -> None:
+    @pydantic.model_validator(mode="after")
+    def _validate(self) -> OneOffExpense:
         if self.amount <= Decimal("0"):
             raise ValueError(f"OneOffExpense '{self.label}': amount must be positive")
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -90,8 +91,7 @@ class OneOffExpense:
 # ---------------------------------------------------------------------------
 
 
-@dataclass(frozen=True)
-class SpendingRule:
+class SpendingRule(pydantic.BaseModel):
     """A recurring annual-spending rule, optionally time-bounded and inflation-indexed.
 
     The rule is *active* in a given year if all of the following hold:
@@ -112,7 +112,8 @@ class SpendingRule:
 
     where ``base_year`` defaults to ``inflation_base_year`` if set, then to
     ``active_from`` if set, and finally to ``year`` itself (i.e. no compounding
-    when neither bound is known).
+    when neither bound is known — ``periods == 0`` and ``inflation_rate`` has
+    no effect).
 
     Args:
         label: Human-readable description.
@@ -123,8 +124,14 @@ class SpendingRule:
         active_until: Last calendar year (inclusive) the rule is active.
         inflation_rate: Per-rule annualised inflation rate; default 2 %.
         inflation_base_year: Explicit base year for inflation compounding.
-            Overrides the ``active_from`` fallback.
+            Overrides the ``active_from`` fallback.  When this is ``None``
+            and ``active_from`` is also ``None``, the effective base year
+            equals the target year, which means **no compounding**; pass
+            an explicit ``inflation_base_year`` to enable full indexing
+            on rules without time bounds.
     """
+
+    model_config = pydantic.ConfigDict(frozen=True)
 
     label: str
     annual_amount: Decimal
@@ -135,7 +142,8 @@ class SpendingRule:
     inflation_rate: Decimal = Decimal("0.02")
     inflation_base_year: int | None = None
 
-    def __post_init__(self) -> None:
+    @pydantic.model_validator(mode="after")
+    def _validate(self) -> SpendingRule:
         if self.annual_amount <= Decimal("0"):
             raise ValueError(f"SpendingRule '{self.label}': annual_amount must be positive")
         if (
@@ -147,6 +155,7 @@ class SpendingRule:
                 f"SpendingRule '{self.label}': active_from ({self.active_from}) "
                 f"must be <= active_until ({self.active_until})"
             )
+        return self
 
     def is_active(self, year: int) -> bool:
         """Return ``True`` if this rule is active in *year*."""
@@ -190,8 +199,7 @@ class SpendingRule:
 # ---------------------------------------------------------------------------
 
 
-@dataclass
-class HouseholdSpendingPlan:
+class HouseholdSpendingPlan(pydantic.BaseModel):
     """A collection of spending rules and one-off expenses for a household.
 
     Args:
@@ -199,8 +207,8 @@ class HouseholdSpendingPlan:
         one_offs: List of :class:`OneOffExpense` instances.
     """
 
-    rules: list[SpendingRule] = field(default_factory=list)
-    one_offs: list[OneOffExpense] = field(default_factory=list)
+    rules: list[SpendingRule] = pydantic.Field(default_factory=list)
+    one_offs: list[OneOffExpense] = pydantic.Field(default_factory=list)
 
 
 # ---------------------------------------------------------------------------
@@ -251,14 +259,6 @@ def compute_spending(
             total_eur += amount
         else:
             total_dkk += amount
-        _logger.debug(
-            "spending_rule_applied: label=%s year=%d phase=%s currency=%s amount=%s",
-            rule.label,
-            year,
-            phase.value,
-            rule.currency,
-            str(amount),
-        )
 
     for one_off in plan.one_offs:
         if one_off.year != year:
@@ -267,23 +267,8 @@ def compute_spending(
             total_eur += one_off.amount
         else:
             total_dkk += one_off.amount
-        _logger.debug(
-            "one_off_expense_applied: label=%s year=%d currency=%s amount=%s",
-            one_off.label,
-            year,
-            one_off.currency,
-            str(one_off.amount),
-        )
 
     eur = total_eur.quantize(_TWO_DP, rounding=ROUND_HALF_EVEN)
     dkk = total_dkk.quantize(_TWO_DP, rounding=ROUND_HALF_EVEN)
-
-    _logger.debug(
-        "compute_spending_result: year=%d phase=%s eur=%s dkk=%s",
-        year,
-        phase.value,
-        str(eur),
-        str(dkk),
-    )
 
     return {"EUR": eur, "DKK": dkk}

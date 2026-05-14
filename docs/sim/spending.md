@@ -72,7 +72,7 @@ rent = SpendingRule(
     active_from=2025,
     inflation_rate=Decimal("0.03"),
 )
-# In 2030: 12 000 × 1.03^5 = 13 927.68 EUR
+# In 2030: 12 000 × 1.03^5 = 13 911.29 EUR
 ```
 
 ---
@@ -113,10 +113,11 @@ class SpendingPhase(str, Enum):
 ### `HouseholdSpendingPlan`
 
 ```python
-@dataclass
-class HouseholdSpendingPlan:
-    rules: list[SpendingRule] = field(default_factory=list)
-    one_offs: list[OneOffExpense] = field(default_factory=list)
+class HouseholdSpendingPlan(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    rules: tuple[SpendingRule, ...] = ()
+    one_offs: tuple[OneOffExpense, ...] = ()
 ```
 
 ### `compute_spending`

@@ -27,6 +27,8 @@ from typing import Literal
 
 import pydantic
 
+from penge.sim._decimal_utils import to_decimal as _to_decimal
+
 __all__ = [
     "HouseholdSpendingPlan",
     "OneOffExpense",
@@ -78,6 +80,11 @@ class OneOffExpense(pydantic.BaseModel):
     year: int
     amount: Decimal
     currency: Literal["EUR", "DKK"]
+
+    @pydantic.field_validator("amount", mode="before")
+    @classmethod
+    def _coerce_amount(cls, v: object) -> Decimal:
+        return _to_decimal(v)
 
     @pydantic.model_validator(mode="after")
     def _validate(self) -> OneOffExpense:
@@ -142,10 +149,20 @@ class SpendingRule(pydantic.BaseModel):
     inflation_rate: Decimal = Decimal("0.02")
     inflation_base_year: int | None = None
 
+    @pydantic.field_validator("annual_amount", "inflation_rate", mode="before")
+    @classmethod
+    def _coerce_decimal(cls, v: object) -> Decimal:
+        return _to_decimal(v)
+
     @pydantic.model_validator(mode="after")
     def _validate(self) -> SpendingRule:
         if self.annual_amount <= Decimal("0"):
             raise ValueError(f"SpendingRule '{self.label}': annual_amount must be positive")
+        if self.inflation_rate <= Decimal("-1"):
+            raise ValueError(
+                f"SpendingRule '{self.label}': inflation_rate must be > -1, "
+                f"got {self.inflation_rate}"
+            )
         if (
             self.active_from is not None
             and self.active_until is not None
@@ -189,7 +206,7 @@ class SpendingRule(pydantic.BaseModel):
         )
         periods = year - base
         if periods == 0:
-            return self.annual_amount
+            return self.annual_amount.quantize(_TWO_DP, rounding=ROUND_HALF_EVEN)
         amount = self.annual_amount * (Decimal("1") + self.inflation_rate) ** periods
         return amount.quantize(_TWO_DP, rounding=ROUND_HALF_EVEN)
 
@@ -203,12 +220,14 @@ class HouseholdSpendingPlan(pydantic.BaseModel):
     """A collection of spending rules and one-off expenses for a household.
 
     Args:
-        rules: List of :class:`SpendingRule` instances.
-        one_offs: List of :class:`OneOffExpense` instances.
+        rules: Spending rules; order is preserved but not significant.
+        one_offs: One-off expenses; order is preserved but not significant.
     """
 
-    rules: list[SpendingRule] = pydantic.Field(default_factory=list)
-    one_offs: list[OneOffExpense] = pydantic.Field(default_factory=list)
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    rules: tuple[SpendingRule, ...] = ()
+    one_offs: tuple[OneOffExpense, ...] = ()
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +263,7 @@ def compute_spending(
         ... )
         >>> plan = HouseholdSpendingPlan(rules=[rule])
         >>> compute_spending(plan, 2030, SpendingPhase.ACCUMULATION)
-        {'EUR': Decimal('30000'), 'DKK': Decimal('0')}
+        {'EUR': Decimal('30000.00'), 'DKK': Decimal('0.00')}
     """
     total_eur = Decimal("0")
     total_dkk = Decimal("0")

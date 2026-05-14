@@ -60,8 +60,9 @@ jobs:
     runs-on: [self-hosted, linux, x64, penge]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - run: pipx install yamllint
-      - run: yamllint -s .
+      - name: Install yamllint
+        run: python3 -m pip install --user yamllint --quiet
+      - run: python3 -m yamllint -s .
 
   gitleaks:
     name: Secret scan (gitleaks)

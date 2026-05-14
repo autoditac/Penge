@@ -1,6 +1,6 @@
 # 0027 — Self-hosted GitHub Actions runner on Ubuntu KVM VM
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2026-05-14
 - **Deciders:** @autoditac
 - **Tags:** infra, ci
@@ -53,7 +53,30 @@ We chose **Option 4** (Ubuntu 24.04 KVM VM), because:
 - VM consumes ~2 GB RAM and ~5 GB disk permanently on the host.
 - Re-registration requires a new registration token (short-lived); a PAT with `repo` scope or fine-grained "Administration: Write" can automate this via `config.sh --pat`.
 
-### Neutral
+### Security tradeoffs
+
+Using one persistent runner for both `pull_request` and trusted (`push`/`release`) workflows creates
+a shared-state risk: malicious or compromised PR code could alter the runner environment (installed
+binaries, cached credentials, environment files) and then affect later trusted jobs that run on the
+same label with elevated permissions (`contents: write`, `id-token: write`, secrets).
+
+**Mitigations accepted for this private, single-owner repository:**
+
+- The GitHub repository is **private** with no external contributors. All PRs originate from the
+  same owner account; there is no untrusted-contributor threat model.
+- The runner service runs as a dedicated unprivileged system account (`ghrunner`, uid 999); it has
+  no access to host secrets outside the runner work directory.
+- GitHub Actions sandboxes each job in a fresh work directory and clears the `GITHUB_TOKEN`
+  between runs.
+
+**If the repository ever goes public or admits external contributors**, this decision must be
+revisited. Recommended mitigations at that point:
+
+1. **Ephemeral runners**: terminate and re-provision the runner VM after each job (e.g., via
+   `--once` flag + a systemd `Restart=always` policy or an autoscaling solution such as
+   `actions-runner-controller`).
+2. **Separate labels**: use a `penge-trusted` label for release/deploy/ingest jobs and a
+   `penge-pr` label for PR jobs, running on isolated infrastructure.
 
 - Runner version must be manually updated (or a cron job added) when new versions of `actions/runner` are released.
 - The runner is registered with labels `self-hosted, linux, x64, penge, ubuntu-vm` — all workflow files use the `penge` label as the selector.

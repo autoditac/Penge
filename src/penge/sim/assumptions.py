@@ -75,33 +75,29 @@ class TaxRegime(enum.Enum):
 class InstrumentAssumptions:
     """All assumptions for a single instrument or account type.
 
-    Parameters
-    ----------
-    isin:
-        ISIN or other unique identifier for the instrument.
-    label:
-        Human-readable name, e.g. ``"iShares Core MSCI World UCITS ETF (Acc)"``.
-    currency:
-        Native currency of the instrument, either ``"EUR"`` or ``"DKK"``.
-    tax_regime:
-        Tax regime that applies to gains in this instrument.
-    expense_ratio:
-        Annual total expense ratio (ÅOP) as a decimal fraction,
-        e.g. ``Decimal("0.002")`` for 0.20 %.
-    dividend_yield:
-        Expected annual dividend yield as a decimal fraction in ``[0, 1]``,
-        e.g. ``Decimal("0.015")`` for 1.5 %.  Use ``Decimal("0")`` for
-        accumulation-class funds.
-    ask_eligible:
-        ``True`` if the instrument is eligible for deposit into an ASK
-        account.  Should be paired with ``tax_regime=TaxRegime.ASK`` when
-        the instrument is actually held in ASK.
-    fx_cost:
-        One-way FX conversion cost per trade as a decimal fraction,
-        e.g. ``Decimal("0.0025")`` for 0.25 %.  Should be ``Decimal("0")``
-        for DKK-denominated instruments unless there is an explicit reason.
-    notes:
-        Free-text explanation for manual overrides or non-obvious choices.
+    Args:
+        isin: ISIN or other unique identifier for the instrument.
+        label: Human-readable name, e.g.
+            ``"iShares Core MSCI World UCITS ETF (Acc)"``.
+        currency: Native currency of the instrument; must be ``"EUR"`` or
+            ``"DKK"``.  Validated at construction time.
+        tax_regime: Tax regime that applies to gains in this instrument.
+        expense_ratio: Annual total expense ratio (ÅOP) as a decimal
+            fraction, e.g. ``Decimal("0.002")`` for 0.20 %.  Must be
+            non-negative.
+        dividend_yield: Expected annual dividend yield as a decimal fraction
+            in ``[0, 1]``, e.g. ``Decimal("0.015")`` for 1.5 %.  Use
+            ``Decimal("0")`` for accumulation-class funds.
+        ask_eligible: ``True`` if the instrument is eligible for deposit
+            into an ASK account.  Should be paired with
+            ``tax_regime=TaxRegime.ASK`` when the instrument is actually
+            held in ASK.
+        fx_cost: One-way FX conversion cost per trade as a decimal fraction,
+            e.g. ``Decimal("0.0025")`` for 0.25 %.  Should be
+            ``Decimal("0")`` for DKK-denominated instruments unless there is
+            an explicit reason.
+        notes: Free-text explanation for manual overrides or non-obvious
+            choices.
     """
 
     isin: str
@@ -115,6 +111,8 @@ class InstrumentAssumptions:
     notes: str = ""
 
     def __post_init__(self) -> None:
+        if self.currency not in ("EUR", "DKK"):
+            raise ValueError(f"currency must be 'EUR' or 'DKK' (got {self.currency!r})")
         if self.expense_ratio < 0:
             raise ValueError(f"expense_ratio cannot be negative (got {self.expense_ratio})")
         if not (Decimal("0") <= self.dividend_yield <= Decimal("1")):

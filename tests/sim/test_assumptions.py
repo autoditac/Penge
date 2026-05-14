@@ -394,4 +394,20 @@ def test_validate_multiple_warnings_returned() -> None:
 def test_instrument_assumptions_is_frozen() -> None:
     entry = _msci_world()
     with pytest.raises((AttributeError, TypeError)):
-        entry.expense_ratio = Decimal("0.999")  # type: ignore[misc]
+        entry.expense_ratio = Decimal("0.999")  # type: ignore[misc]  # frozen=True raises FrozenInstanceError
+
+
+# ---------------------------------------------------------------------------
+# Additional: unsupported currency raises ValueError
+# ---------------------------------------------------------------------------
+
+
+def test_unsupported_currency_raises() -> None:
+    with pytest.raises(ValueError, match="currency must be 'EUR' or 'DKK'"):
+        InstrumentAssumptions(
+            isin=MSCI_WORLD_ISIN,
+            label="USD fund",
+            currency="USD",  # type: ignore[arg-type]  # intentional invalid value for test
+            tax_regime=TaxRegime.LAGER,
+            expense_ratio=Decimal("0.002"),
+        )  # frozen=True raises FrozenInstanceError

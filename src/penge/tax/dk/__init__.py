@@ -6,4 +6,5 @@ Sub-modules:
 - :mod:`penge.tax.dk.topskat` — Topskat exposure check for projected pension income.
 - :mod:`penge.tax.dk.folkepension` — Folkepension grundbeløb + pensionstillæg with
   means-testing (modregning) against private pension income.
+- :mod:`penge.tax.dk.constants_meta` — metadata registry for annual constants refresh.
 """

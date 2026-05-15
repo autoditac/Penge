@@ -40,7 +40,7 @@ lint:
     pre-commit run --all-files
 
 test:
-    @echo "no tests yet — see Phase 1+ backlog"
+    uv run pytest tests/ -q
 
 # --- Migrations ---------------------------------------------------------------
 

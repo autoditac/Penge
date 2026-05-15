@@ -79,6 +79,7 @@ nav:
   - Tax:
       - DK: tax/dk.md
       - DE: tax/de.md
+      - DK Refresh Checklist: tax/dk-refresh-checklist.md
   - Runbook:
       - "Monthly ritual (1-hour close)": runbook/monthly-ritual.md
       - "Monthly automated report": runbook/monthly-report.md

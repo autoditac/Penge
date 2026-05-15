@@ -9,11 +9,21 @@ import json
 
 import pytest
 
+from penge.sim.liquid import AKTIEINDKOMST_THRESHOLDS
 from penge.sim.registry import (
     AssumptionEntry,
     ProjectionAuditRecord,
     build_standard_audit_record,
 )
+from penge.tax.aktiesparekonto import ASK_DEPOSIT_CAPS
+from penge.tax.dk.constants_meta import ALL_PLANNING_CONSTANTS
+
+
+def _dk_source_year(constant: str) -> int:
+    """Return the confirmed source_year for a DK constant from constants_meta."""
+    meta = next((m for m in ALL_PLANNING_CONSTANTS if m.constant == constant), None)
+    assert meta is not None, f"No ConstantMeta found for {constant!r}"
+    return meta.source_year
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -391,3 +401,35 @@ class TestBuildStandardAuditRecord:
         assert data["run_id"]
         assert isinstance(data["assumptions"], list)
         assert len(data["assumptions"]) >= 5
+
+    def test_aktieindkomst_threshold_source_marks_estimated_years(self) -> None:
+        """When the latest threshold year exceeds the confirmed source year, the
+        audit entry source must contain '(estimated)' to flag unconfirmed values."""
+        record = build_standard_audit_record()
+        threshold_entry = next(
+            (e for e in record.assumptions if "aktieindkomst" in e.name.lower()), None
+        )
+        assert threshold_entry is not None, "Expected an Aktieindkomst threshold entry"
+        latest_year = max(AKTIEINDKOMST_THRESHOLDS)
+        confirmed_year = _dk_source_year("AKTIEINDKOMST_THRESHOLDS")
+        if latest_year > confirmed_year:
+            assert "(estimated)" in threshold_entry.source, (
+                f"Year {latest_year} > confirmed source_year {confirmed_year}; "
+                f"source should contain '(estimated)', got: {threshold_entry.source!r}"
+            )
+        else:
+            assert "(estimated)" not in threshold_entry.source
+
+    def test_ask_cap_source_marks_estimated_years(self) -> None:
+        """ASK deposit cap audit entry marks unconfirmed future years as estimated."""
+        record = build_standard_audit_record()
+        ask_cap_entry = next(
+            (e for e in record.assumptions if "ASK" in e.name and "cap" in e.name.lower()), None
+        )
+        assert ask_cap_entry is not None, "Expected an ASK cumulative deposit cap entry"
+        latest_year = max(ASK_DEPOSIT_CAPS)
+        confirmed_year = _dk_source_year("ASK_DEPOSIT_CAPS")
+        if latest_year > confirmed_year:
+            assert "(estimated)" in ask_cap_entry.source
+        else:
+            assert "(estimated)" not in ask_cap_entry.source

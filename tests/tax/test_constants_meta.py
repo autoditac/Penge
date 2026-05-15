@@ -171,3 +171,12 @@ class TestCheckFreshnessValidation:
         # max_age=0 means the constant must be confirmed for *current_year*
         result = check_freshness(current_year=2026, max_age=0)
         assert isinstance(result, list)
+
+    def test_bool_current_year_raises(self) -> None:
+        # bool is a subclass of int but must be rejected for this audit helper
+        with pytest.raises(TypeError, match="current_year"):
+            check_freshness(current_year=True)
+
+    def test_bool_max_age_raises(self) -> None:
+        with pytest.raises(TypeError, match="max_age"):
+            check_freshness(current_year=2026, max_age=False)

@@ -85,7 +85,7 @@ from penge.sim.liquid import (
 )
 from penge.sim.tax import DE_DEFAULT, DK_DEFAULT
 from penge.tax.aktiesparekonto import ASK_DEPOSIT_CAPS, ASK_RATE
-from penge.tax.dk.constants_meta import ALL_PLANNING_CONSTANTS
+from penge.tax.dk.constants_meta import ALL_PLANNING_CONSTANTS, ConstantMeta
 from penge.tax.dk.rates import (
     DK_TOPSKAT_RATE,
     DK_TOPSKAT_THRESHOLD_DKK,
@@ -97,12 +97,21 @@ from penge.tax.dk.rates import (
     FOLKEPENSION_TILLAEG_SINGLE_MONTHLY_DKK,
 )
 
-# Build a lookup: constant attr name → "{publisher} {source_year}" source string.
-# This ensures the audit record source strings stay in sync with constants_meta,
-# and correctly attributes Ankestyrelsen/Folkepensionsloven constants.
+# Build lookups: constant attr name → source string / metadata.
+# These ensure audit record source strings stay in sync with constants_meta,
+# and correctly attribute Ankestyrelsen/Folkepensionsloven constants.
 _DK_SOURCE: dict[str, str] = {
     m.constant: f"{m.publisher} {m.source_year}" for m in ALL_PLANNING_CONSTANTS
 }
+_DK_META: dict[str, ConstantMeta] = {m.constant: m for m in ALL_PLANNING_CONSTANTS}
+
+
+def _dk_source_with_estimate(constant: str, latest_year: int) -> str:
+    """Return source string, appending '(estimated)' when *latest_year* exceeds
+    the last confirmed source year recorded in constants_meta."""
+    meta = _DK_META[constant]
+    base = _DK_SOURCE[constant]
+    return f"{base} (estimated)" if latest_year > meta.source_year else base
 
 __all__ = [
     "AssumptionEntry",
@@ -357,7 +366,7 @@ def build_standard_audit_record(
             name=f"DK Aktieindkomst threshold per person ({latest_threshold_year})",
             value=str(latest_threshold),
             unit="DKK",
-            source=_DK_SOURCE["AKTIEINDKOMST_THRESHOLDS"],
+            source=_dk_source_with_estimate("AKTIEINDKOMST_THRESHOLDS", latest_threshold_year),
             adr="ADR-0013",
             notes="Gains above this are taxed at the high rate; indexed annually",
         )
@@ -397,7 +406,7 @@ def build_standard_audit_record(
             name=f"DK ASK cumulative deposit cap ({latest_ask_year})",
             value=str(latest_ask_cap),
             unit="DKK",
-            source=_DK_SOURCE["ASK_DEPOSIT_CAPS"],
+            source=_dk_source_with_estimate("ASK_DEPOSIT_CAPS", latest_ask_year),
             adr="ADR-0018",
             notes="Lifetime net-deposit ceiling; indexed annually by SKAT",
         )

@@ -1,7 +1,7 @@
 # 0031 — HouseholdPlan: end-to-end projection orchestrator
 
 - **Status:** Accepted
-- **Date:** 2025-07-14
+- **Date:** 2026-05-15
 - **Deciders:** @autoditac
 - **Tags:** sim
 

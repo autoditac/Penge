@@ -20,6 +20,7 @@ from penge.sim.plan import (
     HouseholdPlan,
     HouseholdProjectionResult,
     PayoutTemplate,
+    ProjectionWarning,
     SpendingYear,
     _household_phase,
     project_household,
@@ -30,6 +31,7 @@ from penge.sim.spending import (
     SpendingRule,
 )
 from penge.sim.tax import DE_DEFAULT, DK_DEFAULT, TaxConfig
+from penge.tax.dk.folkepension import CivilStatus
 
 # ---------------------------------------------------------------------------
 # Helper factories
@@ -168,9 +170,9 @@ def _payout_template(
 
 def _folkepension_template(
     entity: str = "alice",
-    civil_status: str = "married",
+    civil_status: CivilStatus = "married",
 ) -> FolkepensionTemplate:
-    return FolkepensionTemplate(entity=entity, civil_status=civil_status)  # type: ignore[arg-type]
+    return FolkepensionTemplate(entity=entity, civil_status=civil_status)
 
 
 def _minimal_plan(
@@ -390,13 +392,14 @@ class TestMinimalPlan:
         result = project_household(plan)
         assert len(result.cashflow_gross.flows) > 0
 
-    def test_cashflow_net_differs_from_gross_with_tax(self) -> None:
+    def test_cashflow_net_equals_gross_without_tax_config(self) -> None:
         plan = _minimal_plan(horizon_years=3)
         result = project_household(plan)
-        # With DK_DEFAULT tax applied the net salary must be less than gross
+        # No tax_config means TaxConfig(regimes={}) — apply_tax is a no-op,
+        # so net and gross salary totals are identical.
         gross_total = sum(f.gross_salary_eur for f in result.cashflow_gross.flows)
         net_total = sum(f.gross_salary_eur for f in result.cashflow_net.flows)
-        assert net_total <= gross_total
+        assert net_total == gross_total
 
 
 # ---------------------------------------------------------------------------
@@ -487,7 +490,11 @@ class TestWarnings:
         )
         result = project_household(plan)
         assert len(result.warnings) == 1
-        assert "nonexistent" in result.warnings[0]
+        w = result.warnings[0]
+        assert isinstance(w, ProjectionWarning)
+        assert w.code == "bridge_account_not_found"
+        assert w.entity == "alice"
+        assert "nonexistent" in w.message
         assert result.bridge_results == ()
 
     def test_missing_cashflow_entity_for_payout_emits_warning(self) -> None:
@@ -514,4 +521,6 @@ class TestWarnings:
         )
         result = project_household(plan)
         assert len(result.warnings) == 1
+        w = result.warnings[0]
+        assert w.code == "payout_entity_cashflow_not_found"
         assert result.payout_projections == ()

@@ -65,16 +65,37 @@ __all__ = [
     "FolkepensionTemplate",
     "HouseholdMember",
     "HouseholdPlan",
-    "HouseholdProjectionError",
     "HouseholdProjectionResult",
     "PayoutTemplate",
+    "ProjectionWarning",
     "SpendingYear",
     "project_household",
 ]
 
 
-class HouseholdProjectionError(Exception):
-    """Raised when a :class:`HouseholdPlan` is internally inconsistent."""
+WarningCode = Literal[
+    "bridge_account_not_found",
+    "bridge_nonpositive_balance",
+    "payout_entity_cashflow_not_found",
+    "folkepension_member_not_found",
+]
+
+
+class ProjectionWarning(pydantic.BaseModel):
+    """A non-fatal anomaly emitted during :func:`project_household`.
+
+    Args:
+        code: Stable machine-readable identifier for the warning type.
+        entity: The entity (member name or template entity) that triggered
+            the warning.
+        message: Human-readable description with additional context.
+    """
+
+    model_config = pydantic.ConfigDict(frozen=True)
+
+    code: WarningCode
+    entity: str
+    message: str
 
 
 # ---------------------------------------------------------------------------
@@ -325,7 +346,7 @@ class HouseholdProjectionResult(pydantic.BaseModel):
     folkepension_results: tuple[EntityFolkepensionResult, ...]
     spending_by_year: tuple[SpendingYear, ...]
     audit_record: ProjectionAuditRecord
-    warnings: tuple[str, ...]
+    warnings: tuple[ProjectionWarning, ...]
 
 
 # ---------------------------------------------------------------------------
@@ -422,6 +443,11 @@ class HouseholdPlan(pydantic.BaseModel):
         if not self.members:
             raise ValueError("members must not be empty")
         member_names = {m.name for m in self.members}
+        for br_tmpl in self.bridge_templates:
+            if br_tmpl.entity not in member_names:
+                raise ValueError(
+                    f"BridgeTemplate entity '{br_tmpl.entity}' is not in members"
+                )
         for tmpl in self.payout_templates:
             if tmpl.entity not in member_names:
                 raise ValueError(
@@ -450,8 +476,18 @@ def _household_phase(year: int, plan: HouseholdPlan) -> SpendingPhase:
     """Return the FIRE phase for the household in *year*.
 
     - ACCUMULATION: any member is still in employment (year <= max retirement_year)
-    - RETIREMENT: any member has started public pension
+    - RETIREMENT: the earliest-retiring member has reached public pension
     - BRIDGE: the gap between the two
+
+    Note on multi-member edge cases:
+        The RETIREMENT threshold is determined by the *earliest*
+        ``public_pension_start_year`` across all members.  If that year
+        precedes another member's ``retirement_year``, the phase sequence
+        will jump directly from ACCUMULATION to RETIREMENT (no BRIDGE).
+        This is intentional: the household's spending mix shifts as soon as
+        the first public pension income arrives, even if the second member
+        has not yet retired.  Callers who need per-member phase granularity
+        should inspect the individual ``HouseholdMember`` fields directly.
     """
     max_retirement = max(m.retirement_year for m in plan.members)
     if year <= max_retirement:
@@ -489,7 +525,7 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
         liquid account) are reported in
         :attr:`~HouseholdProjectionResult.warnings` rather than raised.
     """
-    warnings: list[str] = []
+    warnings: list[ProjectionWarning] = []
 
     # ---- 1. Cashflow projection ----
     cf_config = CashflowConfig(
@@ -520,19 +556,27 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
     bridge_results: list[EntityBridgeResult] = []
     for tmpl in plan.bridge_templates:
         if tmpl.liquid_account_id not in liquid_by_account:
-            warnings.append(
-                f"BridgeTemplate for '{tmpl.entity}': liquid account "
-                f"'{tmpl.liquid_account_id}' not found in liquid_configs; skipping."
-            )
+            warnings.append(ProjectionWarning(
+                code="bridge_account_not_found",
+                entity=tmpl.entity,
+                message=(
+                    f"BridgeTemplate for '{tmpl.entity}': liquid account "
+                    f"'{tmpl.liquid_account_id}' not found in liquid_configs; skipping."
+                ),
+            ))
             continue
         liq = liquid_by_account[tmpl.liquid_account_id]
         terminal_balance = liq.terminal_balance_dkk()
         if terminal_balance <= Decimal("0"):
-            warnings.append(
-                f"BridgeTemplate for '{tmpl.entity}': liquid account "
-                f"'{tmpl.liquid_account_id}' has non-positive terminal balance "
-                f"({terminal_balance} DKK); skipping."
-            )
+            warnings.append(ProjectionWarning(
+                code="bridge_nonpositive_balance",
+                entity=tmpl.entity,
+                message=(
+                    f"BridgeTemplate for '{tmpl.entity}': liquid account "
+                    f"'{tmpl.liquid_account_id}' has non-positive terminal balance "
+                    f"({terminal_balance} DKK); skipping."
+                ),
+            ))
             continue
         bridge_cfg = BridgeConfig(
             starting_balance_dkk=terminal_balance,
@@ -566,9 +610,11 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
         try:
             proj = cashflow_net.payout_at(payout_tmpl.retirement_year, dummy_payout_cfg)
         except KeyError as exc:
-            warnings.append(
-                f"PayoutTemplate for '{payout_tmpl.entity}': {exc}; skipping."
-            )
+            warnings.append(ProjectionWarning(
+                code="payout_entity_cashflow_not_found",
+                entity=payout_tmpl.entity,
+                message=f"PayoutTemplate for '{payout_tmpl.entity}': {exc}; skipping.",
+            ))
             continue
         payout_projections.append(proj)
         payout_by_entity[payout_tmpl.entity] = proj
@@ -578,11 +624,19 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
     for fp_tmpl in plan.folkepension_templates:
         member = next((m for m in plan.members if m.name == fp_tmpl.entity), None)
         if member is None:
-            warnings.append(
-                f"FolkepensionTemplate for '{fp_tmpl.entity}': member not found; skipping."
-            )
+            warnings.append(ProjectionWarning(
+                code="folkepension_member_not_found",
+                entity=fp_tmpl.entity,
+                message=(
+                    f"FolkepensionTemplate for '{fp_tmpl.entity}': member not found; skipping."
+                ),
+            ))
             continue
-        fp_age = folkepension_age_for_year(member.retirement_year)
+        fp_age = folkepension_age_for_year(
+            member.public_pension_start_year
+            if member.public_pension_start_year is not None
+            else member.retirement_year
+        )
         if fp_tmpl.entity in payout_by_entity:
             fp_result = folkepension_from_payout(
                 payout_by_entity[fp_tmpl.entity],

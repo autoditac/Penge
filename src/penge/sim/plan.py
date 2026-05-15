@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from decimal import Decimal
 from types import MappingProxyType
-from typing import Literal
+from typing import Literal, Protocol
 
 import pydantic
 
@@ -75,9 +75,10 @@ __all__ = [
 
 WarningCode = Literal[
     "bridge_account_not_found",
+    "bridge_config_invalid",
     "bridge_nonpositive_balance",
-    "payout_entity_cashflow_not_found",
     "folkepension_member_not_found",
+    "payout_entity_cashflow_not_found",
 ]
 
 
@@ -101,6 +102,12 @@ class ProjectionWarning(pydantic.BaseModel):
 # ---------------------------------------------------------------------------
 # Sub-configuration helpers
 # ---------------------------------------------------------------------------
+
+
+class _HasEntity(Protocol):
+    """Protocol for template objects that carry an ``entity`` member name."""
+
+    entity: str
 
 
 class HouseholdMember(pydantic.BaseModel):
@@ -440,19 +447,42 @@ class HouseholdPlan(pydantic.BaseModel):
             raise ValueError("inflation_rate must be in [-0.5, 1.0]")
         if not (Decimal("0") <= self.pal_skat_rate < Decimal("1")):
             raise ValueError("pal_skat_rate must be in [0, 1)")
+        self._validate_members()
+        self._validate_templates()
+        return self
+
+    def _validate_members(self) -> None:
         if not self.members:
             raise ValueError("members must not be empty")
+        names = [m.name for m in self.members]
+        if len(names) != len(set(names)):
+            dupes = {n for n in names if names.count(n) > 1}
+            raise ValueError(f"Duplicate member names: {sorted(dupes)}")
+        if len(self.liquid_configs) != len({c.account_id for c in self.liquid_configs}):
+            raise ValueError("Duplicate liquid_configs account_id values")
+
+    def _validate_templates(self) -> None:
         member_names = {m.name for m in self.members}
-        for br_tmpl in self.bridge_templates:
-            if br_tmpl.entity not in member_names:
-                raise ValueError(
-                    f"BridgeTemplate entity '{br_tmpl.entity}' is not in members"
-                )
-        for tmpl in self.payout_templates:
+        self._check_template_entities("bridge_templates", self.bridge_templates, member_names)
+        self._check_template_entities("payout_templates", self.payout_templates, member_names)
+        self._check_folkepension_templates(member_names)
+
+    def _check_template_entities(
+        self,
+        field: str,
+        templates: tuple[_HasEntity, ...],
+        member_names: set[str],
+    ) -> None:
+        entities: list[str] = []
+        for tmpl in templates:
             if tmpl.entity not in member_names:
-                raise ValueError(
-                    f"PayoutTemplate entity '{tmpl.entity}' is not in members"
-                )
+                raise ValueError(f"{field} entity '{tmpl.entity}' is not in members")
+            entities.append(tmpl.entity)
+        if len(entities) != len(set(entities)):
+            raise ValueError(f"Duplicate {field} entities")
+
+    def _check_folkepension_templates(self, member_names: set[str]) -> None:
+        entities: list[str] = []
         for fp_tmpl in self.folkepension_templates:
             if fp_tmpl.entity not in member_names:
                 raise ValueError(
@@ -464,7 +494,15 @@ class HouseholdPlan(pydantic.BaseModel):
                     f"FolkepensionTemplate entity '{fp_tmpl.entity}' has jurisdiction "
                     f"'{member.jurisdiction}'; Folkepension only applies to DK members"
                 )
-        return self
+            if member.public_pension_start_year is None:
+                raise ValueError(
+                    f"FolkepensionTemplate entity '{fp_tmpl.entity}' has no "
+                    f"public_pension_start_year; set it to determine the correct "
+                    f"statutory folkepensionsalder"
+                )
+            entities.append(fp_tmpl.entity)
+        if len(entities) != len(set(entities)):
+            raise ValueError("Duplicate folkepension_templates entities")
 
 
 # ---------------------------------------------------------------------------
@@ -578,20 +616,29 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
                 ),
             ))
             continue
-        bridge_cfg = BridgeConfig(
-            starting_balance_dkk=terminal_balance,
-            cost_basis_dkk=liq.terminal_cost_basis_dkk(),
-            horizon_months=tmpl.horizon_months,
-            gross_annual_return_rate=tmpl.gross_annual_return_rate,
-            annual_expense_ratio=tmpl.annual_expense_ratio,
-            account_type=tmpl.account_type,
-            tax_regime=tmpl.tax_regime,
-            aktieindkomst_threshold_dkk=tmpl.aktieindkomst_threshold_dkk,
-            annual_dividend_yield=tmpl.annual_dividend_yield,
-        )
-        bridge_results.append(
-            EntityBridgeResult(entity=tmpl.entity, result=compute_bridge_pmt(bridge_cfg))
-        )
+        try:
+            bridge_cfg = BridgeConfig(
+                starting_balance_dkk=terminal_balance,
+                cost_basis_dkk=liq.terminal_cost_basis_dkk(),
+                horizon_months=tmpl.horizon_months,
+                gross_annual_return_rate=tmpl.gross_annual_return_rate,
+                annual_expense_ratio=tmpl.annual_expense_ratio,
+                account_type=tmpl.account_type,
+                tax_regime=tmpl.tax_regime,
+                aktieindkomst_threshold_dkk=tmpl.aktieindkomst_threshold_dkk,
+                annual_dividend_yield=tmpl.annual_dividend_yield,
+            )
+            bridge_results.append(
+                EntityBridgeResult(entity=tmpl.entity, result=compute_bridge_pmt(bridge_cfg))
+            )
+        except (ValueError, pydantic.ValidationError) as exc:
+            warnings.append(ProjectionWarning(
+                code="bridge_config_invalid",
+                entity=tmpl.entity,
+                message=(
+                    f"BridgeTemplate for '{tmpl.entity}': invalid bridge config: {exc}; skipping."
+                ),
+            ))
 
     # ---- 4. Pension payout ----
     payout_projections: list[PayoutProjection] = []
@@ -632,11 +679,7 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
                 ),
             ))
             continue
-        fp_age = folkepension_age_for_year(
-            member.public_pension_start_year
-            if member.public_pension_start_year is not None
-            else member.retirement_year
-        )
+        fp_age = folkepension_age_for_year(member.public_pension_start_year)  # type: ignore[arg-type]  # validated non-None above
         if fp_tmpl.entity in payout_by_entity:
             fp_result = folkepension_from_payout(
                 payout_by_entity[fp_tmpl.entity],

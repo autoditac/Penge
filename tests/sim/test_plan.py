@@ -60,7 +60,7 @@ def _de_member(
     name: str = "bob",
     birth_year: int = 1982,
     retirement_year: int = 2050,
-    public_pension_start_year: int | None = 2015 + 67,  # ~2082 - no public pension modelled here
+    public_pension_start_year: int | None = 2015 + 67,  # 2082; DE statutory pension start
 ) -> HouseholdMember:
     return HouseholdMember(
         name=name,
@@ -284,7 +284,7 @@ class TestHouseholdPlanValidation:
             )
 
     def test_payout_template_unknown_entity_rejected(self) -> None:
-        with pytest.raises(ValueError, match="PayoutTemplate entity 'ghost'"):
+        with pytest.raises(ValueError, match="payout_templates entity 'ghost'"):
             HouseholdPlan(
                 base_year=2024,
                 horizon_years=10,
@@ -303,6 +303,69 @@ class TestHouseholdPlanValidation:
                 eur_per_dkk=Decimal("0.13"),
                 members=(_de_member(name="bob"),),
                 folkepension_templates=(_folkepension_template(entity="bob"),),
+            )
+
+    def test_duplicate_member_names_rejected(self) -> None:
+        with pytest.raises(ValueError, match="Duplicate member names"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(_dk_member(name="alice"), _dk_member(name="alice")),
+            )
+
+    def test_duplicate_liquid_account_ids_rejected(self) -> None:
+        dup_cfg = _ask_account(account_id="acc1")
+        with pytest.raises(ValueError, match="Duplicate liquid_configs account_id"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(_dk_member(),),
+                liquid_configs=(dup_cfg, dup_cfg),
+            )
+
+    def test_duplicate_bridge_entities_rejected(self) -> None:
+        with pytest.raises(ValueError, match="Duplicate bridge_templates entities"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(_dk_member(name="alice"),),
+                bridge_templates=(
+                    _bridge_template(entity="alice"),
+                    _bridge_template(entity="alice"),
+                ),
+            )
+
+    def test_duplicate_payout_entities_rejected(self) -> None:
+        with pytest.raises(ValueError, match="Duplicate payout_templates entities"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(_dk_member(name="alice"),),
+                payout_templates=(
+                    _payout_template(entity="alice"),
+                    _payout_template(entity="alice"),
+                ),
+            )
+
+    def test_folkepension_missing_public_pension_start_year_rejected(self) -> None:
+        with pytest.raises(ValueError, match="public_pension_start_year"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(
+                    _dk_member(name="alice", public_pension_start_year=None),
+                ),
+                folkepension_templates=(_folkepension_template(entity="alice"),),
             )
 
 

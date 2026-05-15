@@ -138,10 +138,12 @@ def _bridge_template(
     entity: str = "alice",
     liquid_account_id: str = "alice-ask",
     horizon_months: int = 120,
+    bridge_start_year: int = 2055,
 ) -> BridgeTemplate:
     return BridgeTemplate(
         entity=entity,
         liquid_account_id=liquid_account_id,
+        bridge_start_year=bridge_start_year,
         horizon_months=horizon_months,
         gross_annual_return_rate=Decimal("0.06"),
         annual_expense_ratio=Decimal("0.005"),

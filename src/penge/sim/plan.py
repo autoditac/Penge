@@ -77,7 +77,6 @@ WarningCode = Literal[
     "bridge_account_not_found",
     "bridge_config_invalid",
     "bridge_nonpositive_balance",
-    "folkepension_member_not_found",
     "payout_entity_cashflow_not_found",
 ]
 
@@ -155,16 +154,21 @@ class HouseholdMember(pydantic.BaseModel):
 class BridgeTemplate(pydantic.BaseModel):
     """Bridge-phase drawdown configuration for one entity.
 
-    The starting balance and cost basis are derived automatically from the
-    terminal state of the matching :class:`~penge.sim.liquid.LiquidProjection`
-    in :func:`project_household`; they must **not** be specified here.
+    The starting balance and cost basis are read from the
+    :class:`~penge.sim.liquid.YearlyLiquidFlow` for ``bridge_start_year`` in
+    the matching :class:`~penge.sim.liquid.LiquidProjection`; they must **not**
+    be specified here.
 
     Args:
         entity: Entity identifier used in result labelling.
         liquid_account_id: The :attr:`~penge.sim.liquid.LiquidDepotConfig
-            .account_id` of the liquid account whose terminal balance seeds
-            the bridge.  Must be present in
-            :attr:`HouseholdPlan.liquid_configs`.
+            .account_id` of the liquid account that funds the bridge.  Must be
+            present in :attr:`HouseholdPlan.liquid_configs`.
+        bridge_start_year: Calendar year at which bridge drawdown begins.
+            The closing balance and cost basis of the liquid account at the
+            *end* of this year are used as the bridge starting balance.
+            Typically the member's last year of employment
+            (``HouseholdMember.retirement_year``).
         horizon_months: Bridge duration in months.  Must be a multiple of
             12 when ``tax_regime='lager'``.
         gross_annual_return_rate: Expected gross total return during drawdown
@@ -182,6 +186,7 @@ class BridgeTemplate(pydantic.BaseModel):
 
     entity: str
     liquid_account_id: str
+    bridge_start_year: int
     horizon_months: int
     gross_annual_return_rate: Decimal
     annual_expense_ratio: Decimal
@@ -211,7 +216,10 @@ class PayoutTemplate(pydantic.BaseModel):
     Args:
         entity: Entity identifier (must appear in the cashflow projection).
         retirement_year: Calendar year at which the pension balance snapshot
-            is taken.  Typically the member's last year of employment.
+            is taken.  Pass the member's last year of employment (i.e.
+            ``HouseholdMember.retirement_year``).  The snapshot is taken at
+            the *end* of this year, which is also the start of the first
+            retirement year per :class:`HouseholdMember` semantics.
         retirement_age: Age at which payout begins (for documentation and
             validation inside :class:`~penge.sim.payout.PayoutConfig`).
         livrente_fraction: Share of pension balance allocated to lifelong
@@ -433,6 +441,8 @@ class HouseholdPlan(pydantic.BaseModel):
     @pydantic.field_validator("pension_opening_balances", mode="before")
     @classmethod
     def _coerce_opening_balances(cls, v: object) -> MappingProxyType[str, Decimal]:
+        if v is None:
+            return MappingProxyType({})
         if not isinstance(v, Mapping):
             raise ValueError("pension_opening_balances must be a mapping")
         return MappingProxyType({str(k): _to_decimal(val) for k, val in v.items()})
@@ -448,6 +458,7 @@ class HouseholdPlan(pydantic.BaseModel):
         if not (Decimal("0") <= self.pal_skat_rate < Decimal("1")):
             raise ValueError("pal_skat_rate must be in [0, 1)")
         self._validate_members()
+        self._validate_liquid_configs()
         self._validate_templates()
         return self
 
@@ -458,6 +469,8 @@ class HouseholdPlan(pydantic.BaseModel):
         if len(names) != len(set(names)):
             dupes = {n for n in names if names.count(n) > 1}
             raise ValueError(f"Duplicate member names: {sorted(dupes)}")
+
+    def _validate_liquid_configs(self) -> None:
         if len(self.liquid_configs) != len({c.account_id for c in self.liquid_configs}):
             raise ValueError("Duplicate liquid_configs account_id values")
 
@@ -514,18 +527,19 @@ def _household_phase(year: int, plan: HouseholdPlan) -> SpendingPhase:
     """Return the FIRE phase for the household in *year*.
 
     - ACCUMULATION: any member is still in employment (year <= max retirement_year)
-    - RETIREMENT: the earliest-retiring member has reached public pension
+    - RETIREMENT: any member's public pension has started
+      (year >= earliest public_pension_start_year across all members)
     - BRIDGE: the gap between the two
 
     Note on multi-member edge cases:
-        The RETIREMENT threshold is determined by the *earliest*
-        ``public_pension_start_year`` across all members.  If that year
-        precedes another member's ``retirement_year``, the phase sequence
-        will jump directly from ACCUMULATION to RETIREMENT (no BRIDGE).
-        This is intentional: the household's spending mix shifts as soon as
-        the first public pension income arrives, even if the second member
-        has not yet retired.  Callers who need per-member phase granularity
-        should inspect the individual ``HouseholdMember`` fields directly.
+        The RETIREMENT threshold is the *earliest* ``public_pension_start_year``
+        across all members.  If that year precedes another member's
+        ``retirement_year``, the phase sequence will jump directly from
+        ACCUMULATION to RETIREMENT (no BRIDGE phase).
+        This is intentional: the household spending mix shifts as soon as
+        *any* member's public pension starts, even if another member has not
+        yet retired.  Callers who need per-member phase granularity should
+        inspect the individual ``HouseholdMember`` fields directly.
     """
     max_retirement = max(m.retirement_year for m in plan.members)
     if year <= max_retirement:
@@ -604,22 +618,36 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
             ))
             continue
         liq = liquid_by_account[tmpl.liquid_account_id]
-        terminal_balance = liq.terminal_balance_dkk()
-        if terminal_balance <= Decimal("0"):
+        bridge_flow = next(
+            (f for f in liq.flows if f.year == tmpl.bridge_start_year), None
+        )
+        if bridge_flow is None:
+            warnings.append(ProjectionWarning(
+                code="bridge_account_not_found",
+                entity=tmpl.entity,
+                message=(
+                    f"BridgeTemplate for '{tmpl.entity}': bridge_start_year "
+                    f"{tmpl.bridge_start_year} not in liquid projection "
+                    f"(base_year={plan.base_year}, horizon_years={plan.horizon_years}); skipping."
+                ),
+            ))
+            continue
+        bridge_balance = bridge_flow.closing_balance_dkk
+        if bridge_balance <= Decimal("0"):
             warnings.append(ProjectionWarning(
                 code="bridge_nonpositive_balance",
                 entity=tmpl.entity,
                 message=(
                     f"BridgeTemplate for '{tmpl.entity}': liquid account "
-                    f"'{tmpl.liquid_account_id}' has non-positive terminal balance "
-                    f"({terminal_balance} DKK); skipping."
+                    f"'{tmpl.liquid_account_id}' closing balance at {tmpl.bridge_start_year} "
+                    f"is non-positive ({bridge_balance} DKK); skipping."
                 ),
             ))
             continue
         try:
             bridge_cfg = BridgeConfig(
-                starting_balance_dkk=terminal_balance,
-                cost_basis_dkk=liq.terminal_cost_basis_dkk(),
+                starting_balance_dkk=bridge_balance,
+                cost_basis_dkk=bridge_flow.cost_basis_dkk,
                 horizon_months=tmpl.horizon_months,
                 gross_annual_return_rate=tmpl.gross_annual_return_rate,
                 annual_expense_ratio=tmpl.annual_expense_ratio,
@@ -669,17 +697,8 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
     # ---- 5. DK Folkepension ----
     folkepension_results: list[EntityFolkepensionResult] = []
     for fp_tmpl in plan.folkepension_templates:
-        member = next((m for m in plan.members if m.name == fp_tmpl.entity), None)
-        if member is None:
-            warnings.append(ProjectionWarning(
-                code="folkepension_member_not_found",
-                entity=fp_tmpl.entity,
-                message=(
-                    f"FolkepensionTemplate for '{fp_tmpl.entity}': member not found; skipping."
-                ),
-            ))
-            continue
-        fp_age = folkepension_age_for_year(member.public_pension_start_year)  # type: ignore[arg-type]  # validated non-None above
+        member = next(m for m in plan.members if m.name == fp_tmpl.entity)
+        fp_age = folkepension_age_for_year(member.public_pension_start_year)  # type: ignore[arg-type]  # validated non-None in _check_folkepension_templates
         if fp_tmpl.entity in payout_by_entity:
             fp_result = folkepension_from_payout(
                 payout_by_entity[fp_tmpl.entity],

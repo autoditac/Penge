@@ -370,6 +370,20 @@ class TestHouseholdPlanValidation:
                 folkepension_templates=(_folkepension_template(entity="alice"),),
             )
 
+    def test_duplicate_folkepension_entities_rejected(self) -> None:
+        with pytest.raises(ValueError, match="Duplicate folkepension_templates entities"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(_dk_member(name="alice"),),
+                folkepension_templates=(
+                    _folkepension_template(entity="alice"),
+                    _folkepension_template(entity="alice"),
+                ),
+            )
+
 
 # ---------------------------------------------------------------------------
 # Phase helper tests

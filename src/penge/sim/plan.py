@@ -77,6 +77,7 @@ WarningCode = Literal[
     "bridge_account_not_found",
     "bridge_config_invalid",
     "bridge_nonpositive_balance",
+    "bridge_start_year_not_in_projection",
     "payout_entity_cashflow_not_found",
 ]
 
@@ -623,7 +624,7 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
         )
         if bridge_flow is None:
             warnings.append(ProjectionWarning(
-                code="bridge_account_not_found",
+                code="bridge_start_year_not_in_projection",
                 entity=tmpl.entity,
                 message=(
                     f"BridgeTemplate for '{tmpl.entity}': bridge_start_year "

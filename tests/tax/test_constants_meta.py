@@ -46,6 +46,18 @@ class TestConstantMetaIntegrity:
         for meta in ALL_PLANNING_CONSTANTS:
             assert meta.unit, f"Empty unit for {meta.name!r}"
 
+    def test_all_constants_have_publisher(self) -> None:
+        for meta in ALL_PLANNING_CONSTANTS:
+            assert meta.publisher, f"Empty publisher for {meta.name!r}"
+
+    def test_folkepension_publisher_is_not_skat(self) -> None:
+        for meta in ALL_PLANNING_CONSTANTS:
+            if "folkepension" in meta.constant.lower() or "folkepension" in meta.name.lower():
+                assert meta.publisher != "SKAT", (
+                    f"{meta.name!r} should have publisher 'Ankestyrelsen' or "
+                    f"'Folkepensionsloven', not 'SKAT'"
+                )
+
     def test_constant_names_are_unique(self) -> None:
         names = [m.name for m in ALL_PLANNING_CONSTANTS]
         assert len(names) == len(set(names)), "Duplicate constant names in registry"
@@ -122,7 +134,7 @@ class TestCoverage:
         missing = self.EXPECTED_CONSTANTS - registered
         assert not missing, f"Constants missing from registry: {missing}"
 
-    @pytest.mark.parametrize("constant", list(EXPECTED_CONSTANTS))
+    @pytest.mark.parametrize("constant", sorted(EXPECTED_CONSTANTS))
     def test_constant_has_metadata(self, constant: str) -> None:
         meta = next(
             (m for m in ALL_PLANNING_CONSTANTS if m.constant == constant), None
@@ -130,3 +142,32 @@ class TestCoverage:
         assert meta is not None, f"{constant!r} not found in ALL_PLANNING_CONSTANTS"
         assert meta.source_year >= 2024
         assert meta.source_url.startswith("http")
+
+
+class TestCheckFreshnessValidation:
+    """check_freshness raises on invalid inputs."""
+
+    def test_negative_max_age_raises(self) -> None:
+        with pytest.raises(ValueError, match="max_age"):
+            check_freshness(current_year=2026, max_age=-1)
+
+    def test_zero_current_year_raises(self) -> None:
+        with pytest.raises(ValueError, match="current_year"):
+            check_freshness(current_year=0)
+
+    def test_negative_current_year_raises(self) -> None:
+        with pytest.raises(ValueError, match="current_year"):
+            check_freshness(current_year=-1)
+
+    def test_float_current_year_raises(self) -> None:
+        with pytest.raises(TypeError, match="current_year"):
+            check_freshness(current_year=2026.0)  # type: ignore[arg-type]
+
+    def test_float_max_age_raises(self) -> None:
+        with pytest.raises(TypeError, match="max_age"):
+            check_freshness(current_year=2026, max_age=1.5)  # type: ignore[arg-type]
+
+    def test_zero_max_age_allowed(self) -> None:
+        # max_age=0 means the constant must be confirmed for *current_year*
+        result = check_freshness(current_year=2026, max_age=0)
+        assert isinstance(result, list)

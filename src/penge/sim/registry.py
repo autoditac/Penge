@@ -97,10 +97,11 @@ from penge.tax.dk.rates import (
     FOLKEPENSION_TILLAEG_SINGLE_MONTHLY_DKK,
 )
 
-# Build a lookup: constant attr name → "SKAT {source_year}" source string.
-# This ensures the audit record source strings stay in sync with constants_meta.
+# Build a lookup: constant attr name → "{publisher} {source_year}" source string.
+# This ensures the audit record source strings stay in sync with constants_meta,
+# and correctly attributes Ankestyrelsen/Folkepensionsloven constants.
 _DK_SOURCE: dict[str, str] = {
-    m.constant: f"SKAT {m.source_year}" for m in ALL_PLANNING_CONSTANTS
+    m.constant: f"{m.publisher} {m.source_year}" for m in ALL_PLANNING_CONSTANTS
 }
 
 __all__ = [
@@ -285,9 +286,12 @@ def build_standard_audit_record(
             name="DK top-marginal salary income tax rate",
             value=str(DK_DEFAULT.salary_income_tax_rate * 100),
             unit="%",
-            source=_DK_SOURCE["DK_TOPSKAT_RATE"],
+            source="ADR-0013 / model assumption",
             adr="ADR-0013",
-            notes="Bundskat + topskat + kommuneskat for salary > ~590k DKK",
+            notes=(
+                "Composite effective rate: bundskat + topskat + kommuneskat "
+                "for salary > ~590k DKK; not a single statutory constant"
+            ),
         )
     )
     record.add(
@@ -295,9 +299,9 @@ def build_standard_audit_record(
             name="DK pension drawdown tax rate",
             value=str(DK_DEFAULT.pension_drawdown_tax_rate * 100),
             unit="%",
-            source=_DK_SOURCE["DK_TOPSKAT_RATE"],
+            source="ADR-0013 / model assumption",
             adr="ADR-0013",
-            notes="Expected marginal rate in retirement (DK_DEFAULT)",
+            notes="Expected composite marginal rate in retirement (DK_DEFAULT)",
         )
     )
 

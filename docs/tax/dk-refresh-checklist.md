@@ -16,7 +16,7 @@ year (typically November–December).
 Run the freshness check after updating constants::
 
 ```bash
-python - <<'EOF'
+uv run python - <<'EOF'
 import datetime
 from penge.tax.dk.constants_meta import check_freshness
 
@@ -147,7 +147,7 @@ changed and update `source_year` each year.
 ## See also
 
 - [`docs/tax/dk.md`](dk.md) — simulation model documentation
-- [`penge.tax.dk.constants_meta`][penge.tax.dk.constants_meta] — Python metadata registry
-- [`penge.sim.registry`][penge.sim.registry] — audit record builder
+- [`penge.tax.dk.constants_meta`](https://github.com/autoditac/Penge/blob/main/src/penge/tax/dk/constants_meta.py) — Python metadata registry
+- [`penge.sim.registry`](https://github.com/autoditac/Penge/blob/main/src/penge/sim/registry.py) — audit record builder
 - [ADR-0013](../decisions/0013-sim-tax-overlay.md) — tax overlay design
 - [ADR-0018](../decisions/0018-aktiesparekonto-handling.md) — ASK handling

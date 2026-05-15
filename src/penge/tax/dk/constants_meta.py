@@ -49,6 +49,9 @@ class ConstantMeta:
         constant: Python attribute name, e.g. ``"ASK_RATE"``.
         module: Dotted module path where the constant is defined,
             e.g. ``"penge.tax.aktiesparekonto"``.
+        publisher: Authority that publishes this value, e.g. ``"SKAT"``,
+            ``"Ankestyrelsen"``, ``"Folkepensionsloven"``.  Used in audit
+            record source strings (``"{publisher} {source_year}"``).
         source_year: The calendar year for which the value was confirmed
             from an official source.  Update this each time the constant
             is refreshed.
@@ -60,6 +63,7 @@ class ConstantMeta:
     name: str
     constant: str
     module: str
+    publisher: str
     source_year: int
     source_url: str
     unit: str
@@ -74,6 +78,7 @@ _ASK_RATE = ConstantMeta(
     name="DK ASK tax rate",
     constant="ASK_RATE",
     module="penge.tax.aktiesparekonto",
+    publisher="SKAT",
     source_year=2026,
     source_url="https://skat.dk/borger/aktier-og-investeringsbeviser/aktiesparekonto",
     unit="%",
@@ -84,6 +89,7 @@ _ASK_DEPOSIT_CAPS = ConstantMeta(
     name="DK ASK cumulative deposit cap",
     constant="ASK_DEPOSIT_CAPS",
     module="penge.tax.aktiesparekonto",
+    publisher="SKAT",
     source_year=2025,
     source_url="https://skat.dk/data/satser",
     unit="DKK",
@@ -102,6 +108,7 @@ _PAL_RATE = ConstantMeta(
     name="DK PAL-skat rate",
     constant="PAL_RATE",
     module="penge.tax.pal",
+    publisher="SKAT",
     source_year=2026,
     source_url="https://skat.dk/borger/pension/pensionsafkastskat",
     unit="%",
@@ -116,6 +123,7 @@ _AKTIEINDKOMST_LOW_RATE = ConstantMeta(
     name="DK Aktieindkomst low rate",
     constant="AKTIEINDKOMST_LOW_RATE",
     module="penge.sim.liquid",
+    publisher="SKAT",
     source_year=2026,
     source_url="https://skat.dk/data/satser/skattesatser-2026",
     unit="%",
@@ -126,6 +134,7 @@ _AKTIEINDKOMST_HIGH_RATE = ConstantMeta(
     name="DK Aktieindkomst high rate",
     constant="AKTIEINDKOMST_HIGH_RATE",
     module="penge.sim.liquid",
+    publisher="SKAT",
     source_year=2026,
     source_url="https://skat.dk/data/satser/skattesatser-2026",
     unit="%",
@@ -136,6 +145,7 @@ _AKTIEINDKOMST_THRESHOLDS = ConstantMeta(
     name="DK Aktieindkomst threshold per person",
     constant="AKTIEINDKOMST_THRESHOLDS",
     module="penge.sim.liquid",
+    publisher="SKAT",
     source_year=2025,
     source_url="https://skat.dk/data/satser",
     unit="DKK",
@@ -153,6 +163,7 @@ _TOPSKAT_RATE = ConstantMeta(
     name="DK Topskat rate",
     constant="DK_TOPSKAT_RATE",
     module="penge.tax.dk.rates",
+    publisher="SKAT",
     source_year=2026,
     source_url="https://skat.dk/data/satser/skattesatser-2026",
     unit="%",
@@ -163,6 +174,7 @@ _TOPSKAT_THRESHOLD = ConstantMeta(
     name="DK Topskat threshold",
     constant="DK_TOPSKAT_THRESHOLD_DKK",
     module="penge.tax.dk.rates",
+    publisher="SKAT",
     source_year=2026,
     source_url="https://skat.dk/data/satser/skattesatser-2026",
     unit="DKK",
@@ -177,6 +189,7 @@ _FOLKEPENSION_GRUNDBELOEB = ConstantMeta(
     name="DK Folkepension grundbeløb (monthly)",
     constant="FOLKEPENSION_GRUNDBELOEB_MONTHLY_DKK",
     module="penge.tax.dk.rates",
+    publisher="Ankestyrelsen",
     source_year=2026,
     source_url="https://www.ankestyrelsen.dk/satser/satser-for-folkepension",
     unit="DKK/month",
@@ -187,6 +200,7 @@ _FOLKEPENSION_TILLAEG_SINGLE = ConstantMeta(
     name="DK Folkepension tillæg — single (monthly maximum)",
     constant="FOLKEPENSION_TILLAEG_SINGLE_MONTHLY_DKK",
     module="penge.tax.dk.rates",
+    publisher="Ankestyrelsen",
     source_year=2026,
     source_url="https://www.ankestyrelsen.dk/satser/satser-for-folkepension",
     unit="DKK/month",
@@ -197,6 +211,7 @@ _FOLKEPENSION_TILLAEG_MARRIED = ConstantMeta(
     name="DK Folkepension tillæg — married (monthly maximum)",
     constant="FOLKEPENSION_TILLAEG_MARRIED_MONTHLY_DKK",
     module="penge.tax.dk.rates",
+    publisher="Ankestyrelsen",
     source_year=2026,
     source_url="https://www.ankestyrelsen.dk/satser/satser-for-folkepension",
     unit="DKK/month",
@@ -207,6 +222,7 @@ _FOLKEPENSION_MODREGNING_RATE = ConstantMeta(
     name="DK Folkepension modregning rate",
     constant="FOLKEPENSION_MODREGNING_RATE",
     module="penge.tax.dk.rates",
+    publisher="Ankestyrelsen",
     source_year=2026,
     source_url="https://www.ankestyrelsen.dk/satser/satser-for-folkepension",
     unit="%",
@@ -217,6 +233,7 @@ _FOLKEPENSION_INCOME_THRESHOLD = ConstantMeta(
     name="DK Folkepension income threshold",
     constant="FOLKEPENSION_INCOME_THRESHOLD_DKK",
     module="penge.tax.dk.rates",
+    publisher="Ankestyrelsen",
     source_year=2026,
     source_url="https://www.ankestyrelsen.dk/satser/satser-for-folkepension",
     unit="DKK/year",
@@ -227,6 +244,7 @@ _FOLKEPENSION_AGE_SCHEDULE = ConstantMeta(
     name="DK Folkepensionsalder schedule",
     constant="FOLKEPENSION_AGE_SCHEDULE",
     module="penge.tax.dk.rates",
+    publisher="Folkepensionsloven",
     source_year=2026,
     source_url=(
         "https://www.borger.dk/pension-og-efterloen/folkepension"
@@ -277,15 +295,29 @@ def check_freshness(current_year: int, *, max_age: int = 1) -> list[ConstantMeta
 
     Args:
         current_year: The year to check against (typically the current
-            calendar year).
+            calendar year).  Must be a positive integer (>= 1).
         max_age: Maximum acceptable age of a constant's source in years.
             Defaults to ``1`` (i.e. a constant confirmed in ``current_year - 1``
-            is still considered fresh).
+            is still considered fresh).  Must be >= 0.
 
     Returns:
         List of :class:`ConstantMeta` entries with stale source years,
         ordered as in :data:`ALL_PLANNING_CONSTANTS`.  An empty list means
         all constants are fresh.
+
+    Raises:
+        ValueError: If *current_year* is not a positive integer or *max_age*
+            is negative.
+        TypeError: If either argument is not an integer.
     """
+    if not isinstance(current_year, int):
+        raise TypeError(f"current_year must be an int, got {type(current_year).__name__!r}")
+    if not isinstance(max_age, int):
+        raise TypeError(f"max_age must be an int, got {type(max_age).__name__!r}")
+    if current_year < 1:
+        raise ValueError(f"current_year must be >= 1, got {current_year!r}")
+    if max_age < 0:
+        raise ValueError(f"max_age must be >= 0, got {max_age!r}")
+
     cutoff = current_year - max_age - 1
     return [m for m in ALL_PLANNING_CONSTANTS if m.source_year <= cutoff]

@@ -11,12 +11,19 @@ import pytest
 
 from penge.sim.liquid import AKTIEINDKOMST_THRESHOLDS
 from penge.sim.registry import (
-    _DK_META,
     AssumptionEntry,
     ProjectionAuditRecord,
     build_standard_audit_record,
 )
 from penge.tax.aktiesparekonto import ASK_DEPOSIT_CAPS
+from penge.tax.dk.constants_meta import ALL_PLANNING_CONSTANTS
+
+
+def _dk_source_year(constant: str) -> int:
+    """Return the confirmed source_year for a DK constant from constants_meta."""
+    meta = next((m for m in ALL_PLANNING_CONSTANTS if m.constant == constant), None)
+    assert meta is not None, f"No ConstantMeta found for {constant!r}"
+    return meta.source_year
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -404,10 +411,10 @@ class TestBuildStandardAuditRecord:
         )
         assert threshold_entry is not None, "Expected an Aktieindkomst threshold entry"
         latest_year = max(AKTIEINDKOMST_THRESHOLDS)
-        meta = _DK_META["AKTIEINDKOMST_THRESHOLDS"]
-        if latest_year > meta.source_year:
+        confirmed_year = _dk_source_year("AKTIEINDKOMST_THRESHOLDS")
+        if latest_year > confirmed_year:
             assert "(estimated)" in threshold_entry.source, (
-                f"Year {latest_year} > confirmed source_year {meta.source_year}; "
+                f"Year {latest_year} > confirmed source_year {confirmed_year}; "
                 f"source should contain '(estimated)', got: {threshold_entry.source!r}"
             )
         else:
@@ -421,8 +428,8 @@ class TestBuildStandardAuditRecord:
         )
         assert ask_cap_entry is not None, "Expected an ASK cumulative deposit cap entry"
         latest_year = max(ASK_DEPOSIT_CAPS)
-        meta = _DK_META["ASK_DEPOSIT_CAPS"]
-        if latest_year > meta.source_year:
+        confirmed_year = _dk_source_year("ASK_DEPOSIT_CAPS")
+        if latest_year > confirmed_year:
             assert "(estimated)" in ask_cap_entry.source
         else:
             assert "(estimated)" not in ask_cap_entry.source

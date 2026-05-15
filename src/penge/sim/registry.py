@@ -463,18 +463,17 @@ def build_standard_audit_record(
             notes="No means-testing of tillæg below this annual income",
         )
     )
-    latest_fp_year = max(FOLKEPENSION_AGE_SCHEDULE)
-    latest_fp_age = FOLKEPENSION_AGE_SCHEDULE[latest_fp_year]
-    record.add(
-        AssumptionEntry(
-            name=f"DK Folkepensionsalder ({latest_fp_year}+)",
-            value=str(latest_fp_age),
-            unit="age (years)",
-            source=_DK_SOURCE["FOLKEPENSION_AGE_SCHEDULE"],
-            adr="ADR-0013",
-            notes="Statutory retirement age; subject to life-expectancy revision",
+    for fp_year, fp_age in sorted(FOLKEPENSION_AGE_SCHEDULE.items()):
+        record.add(
+            AssumptionEntry(
+                name=f"DK Folkepensionsalder (from {fp_year})",
+                value=str(fp_age),
+                unit="age (years)",
+                source=_DK_SOURCE["FOLKEPENSION_AGE_SCHEDULE"],
+                adr="ADR-0013",
+                notes="Statutory retirement age; subject to life-expectancy revision",
+            )
         )
-    )
 
     # ── Germany — income tax ─────────────────────────────────────────────────
     record.add(

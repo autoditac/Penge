@@ -103,7 +103,7 @@ class TestCheckFreshness:
         for item in stale:
             assert isinstance(item, ConstantMeta)
 
-    def test_empty_for_year_zero(self) -> None:
+    def test_empty_with_very_large_max_age(self) -> None:
         """With max_age=1000, nothing is stale."""
         stale = check_freshness(current_year=2026, max_age=1000)
         assert stale == []

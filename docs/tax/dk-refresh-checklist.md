@@ -13,7 +13,7 @@ year (typically November–December).
 | Lov om regulering af pensioner (5-year review) | Update `FOLKEPENSION_AGE_SCHEDULE` |
 | Any Danish tax law change affects a constant below | Open an ADR before updating the constant |
 
-Run the freshness check after updating constants::
+Run the freshness check after updating constants:
 
 ```bash
 uv run python - <<'EOF'

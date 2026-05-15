@@ -417,9 +417,9 @@ class TestBuildStandardAuditRecord:
         """ASK deposit cap audit entry marks unconfirmed future years as estimated."""
         record = build_standard_audit_record()
         ask_cap_entry = next(
-            (e for e in record.assumptions if "cap" in e.name.lower()), None
+            (e for e in record.assumptions if "ASK" in e.name and "cap" in e.name.lower()), None
         )
-        assert ask_cap_entry is not None, "Expected an ASK cap entry"
+        assert ask_cap_entry is not None, "Expected an ASK cumulative deposit cap entry"
         latest_year = max(ASK_DEPOSIT_CAPS)
         meta = _DK_META["ASK_DEPOSIT_CAPS"]
         if latest_year > meta.source_year:

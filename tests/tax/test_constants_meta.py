@@ -161,11 +161,11 @@ class TestCheckFreshnessValidation:
 
     def test_float_current_year_raises(self) -> None:
         with pytest.raises(TypeError, match="current_year"):
-            check_freshness(current_year=2026.0)  # type: ignore[arg-type]
+            check_freshness(current_year=2026.0)  # type: ignore[arg-type]  # intentional bad type
 
     def test_float_max_age_raises(self) -> None:
         with pytest.raises(TypeError, match="max_age"):
-            check_freshness(current_year=2026, max_age=1.5)  # type: ignore[arg-type]
+            check_freshness(current_year=2026, max_age=1.5)  # type: ignore[arg-type]  # intentional bad type
 
     def test_zero_max_age_allowed(self) -> None:
         # max_age=0 means the constant must be confirmed for *current_year*

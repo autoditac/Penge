@@ -310,9 +310,9 @@ def check_freshness(current_year: int, *, max_age: int = 1) -> list[ConstantMeta
             is negative.
         TypeError: If either argument is not an integer.
     """
-    if type(current_year) is not int:  # reject bool (bool is subclass of int)
+    if not isinstance(current_year, int) or isinstance(current_year, bool):  # reject bool
         raise TypeError(f"current_year must be an int, got {type(current_year).__name__!r}")
-    if type(max_age) is not int:  # reject bool
+    if not isinstance(max_age, int) or isinstance(max_age, bool):  # reject bool
         raise TypeError(f"max_age must be an int, got {type(max_age).__name__!r}")
     if current_year < 1:
         raise ValueError(f"current_year must be >= 1, got {current_year!r}")

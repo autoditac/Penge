@@ -134,7 +134,7 @@ class TestCoverage:
         missing = self.EXPECTED_CONSTANTS - registered
         assert not missing, f"Constants missing from registry: {missing}"
 
-    @pytest.mark.parametrize("constant", sorted(EXPECTED_CONSTANTS))
+    @pytest.mark.parametrize("constant", sorted(EXPECTED_CONSTANTS))  # type: ignore[misc]
     def test_constant_has_metadata(self, constant: str) -> None:
         meta = next(
             (m for m in ALL_PLANNING_CONSTANTS if m.constant == constant), None

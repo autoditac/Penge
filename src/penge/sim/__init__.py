@@ -23,6 +23,8 @@ Subpackages:
   accounts (issue #176).
 - :mod:`penge.sim.spending` — household spending and target-expense model
   (issue #174).
+- :mod:`penge.sim.plan` — household plan orchestrator: end-to-end projection
+  runner (issue #167, ADR-0031).
 """
 
 from penge.sim.assumptions import (
@@ -61,6 +63,19 @@ from penge.sim.payout import (
     PayoutError,
     PayoutProjection,
     compute_payout,
+)
+from penge.sim.plan import (
+    BridgeTemplate,
+    EntityBridgeResult,
+    EntityFolkepensionResult,
+    FolkepensionTemplate,
+    HouseholdMember,
+    HouseholdPlan,
+    HouseholdProjectionResult,
+    PayoutTemplate,
+    ProjectionWarning,
+    SpendingYear,
+    project_household,
 )
 from penge.sim.registry import (
     AssumptionEntry,
@@ -120,6 +135,7 @@ __all__ = [
     "AssumptionCatalog",
     "AssumptionEntry",
     "BootstrapReturnModel",
+    "BridgeTemplate",
     "CashflowConfig",
     "CashflowError",
     "CashflowProjection",
@@ -129,14 +145,20 @@ __all__ = [
     "ContributionRouter",
     "ContributionRoutingError",
     "ContributionRule",
+    "EntityBridgeResult",
+    "EntityFolkepensionResult",
     "EntityTaxRegime",
+    "FolkepensionTemplate",
     "GoalConfig",
     "GoalResult",
     "HoldingSnapshot",
-    "HouseholdSnapshot",
     "HousePurchaseScenario",
-    "InstrumentAssumptions",
+    "HouseholdMember",
+    "HouseholdPlan",
+    "HouseholdProjectionResult",
+    "HouseholdSnapshot",
     "HouseholdSpendingPlan",
+    "InstrumentAssumptions",
     "MonteCarloConfig",
     "MonteCarloResult",
     "MonthlyContributionSplit",
@@ -144,8 +166,10 @@ __all__ = [
     "PayoutConfig",
     "PayoutError",
     "PayoutProjection",
+    "PayoutTemplate",
     "PensionAccrualRule",
     "ProjectionAuditRecord",
+    "ProjectionWarning",
     "ReturnModelError",
     "SalaryRule",
     "SampledPaths",
@@ -155,6 +179,7 @@ __all__ = [
     "SnapshotBuilder",
     "SpendingPhase",
     "SpendingRule",
+    "SpendingYear",
     "TaxConfig",
     "TaxRegime",
     "WorkReductionScenario",
@@ -169,6 +194,7 @@ __all__ = [
     "evaluate",
     "net_pension_drawdown",
     "project",
+    "project_household",
     "route_contributions",
     "run",
     "simulate_routing",

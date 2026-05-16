@@ -35,6 +35,7 @@ from penge.sim.liquid import (
 from penge.sim.payout import (
     PayoutConfig,
     PayoutProjection,
+    compute_payout,
 )
 from penge.sim.registry import (
     ProjectionAuditRecord,
@@ -52,6 +53,7 @@ from penge.sim.tax import (
 from penge.tax.dk.folkepension import (
     CivilStatus,
     FolkepensionConfig,
+    FolkepensionError,
     FolkepensionResult,
     compute_folkepension,
     folkepension_age_for_year,
@@ -78,6 +80,8 @@ WarningCode = Literal[
     "bridge_config_invalid",
     "bridge_nonpositive_balance",
     "bridge_start_year_not_in_projection",
+    "folkepension_age_unsupported",
+    "payout_config_invalid",
     "payout_entity_cashflow_not_found",
 ]
 
@@ -206,6 +210,16 @@ class BridgeTemplate(pydantic.BaseModel):
     @classmethod
     def _coerce(cls, v: object) -> Decimal:
         return _to_decimal(v)
+
+    @pydantic.model_validator(mode="after")
+    def _validate(self) -> BridgeTemplate:
+        if self.horizon_months < 1:
+            raise ValueError("horizon_months must be >= 1")
+        if self.tax_regime == "lager" and self.horizon_months % 12 != 0:
+            raise ValueError(
+                "horizon_months must be a multiple of 12 when tax_regime='lager'"
+            )
+        return self
 
 
 class PayoutTemplate(pydantic.BaseModel):
@@ -477,8 +491,15 @@ class HouseholdPlan(pydantic.BaseModel):
 
     def _validate_templates(self) -> None:
         member_names = {m.name for m in self.members}
+        liquid_account_ids = {c.account_id for c in self.liquid_configs}
         self._check_template_entities("bridge_templates", self.bridge_templates, member_names)
         self._check_template_entities("payout_templates", self.payout_templates, member_names)
+        for bridge_tmpl in self.bridge_templates:
+            if bridge_tmpl.liquid_account_id not in liquid_account_ids:
+                raise ValueError(
+                    f"bridge_templates liquid_account_id '{bridge_tmpl.liquid_account_id}' "
+                    "is not in liquid_configs"
+                )
         self._check_folkepension_templates(member_names)
 
     def _check_template_entities(
@@ -487,16 +508,17 @@ class HouseholdPlan(pydantic.BaseModel):
         templates: tuple[_HasEntity, ...],
         member_names: set[str],
     ) -> None:
-        entities: list[str] = []
+        entities = [tmpl.entity for tmpl in templates]
+        if len(entities) != len(set(entities)):
+            raise ValueError(f"Duplicate {field} entities")
         for tmpl in templates:
             if tmpl.entity not in member_names:
                 raise ValueError(f"{field} entity '{tmpl.entity}' is not in members")
-            entities.append(tmpl.entity)
-        if len(entities) != len(set(entities)):
-            raise ValueError(f"Duplicate {field} entities")
 
     def _check_folkepension_templates(self, member_names: set[str]) -> None:
-        entities: list[str] = []
+        entities = [fp_tmpl.entity for fp_tmpl in self.folkepension_templates]
+        if len(entities) != len(set(entities)):
+            raise ValueError("Duplicate folkepension_templates entities")
         for fp_tmpl in self.folkepension_templates:
             if fp_tmpl.entity not in member_names:
                 raise ValueError(
@@ -514,9 +536,6 @@ class HouseholdPlan(pydantic.BaseModel):
                     f"public_pension_start_year; set it to determine the correct "
                     f"statutory folkepensionsalder"
                 )
-            entities.append(fp_tmpl.entity)
-        if len(entities) != len(set(entities)):
-            raise ValueError("Duplicate folkepension_templates entities")
 
 
 # ---------------------------------------------------------------------------
@@ -562,6 +581,112 @@ def _household_phase(year: int, plan: HouseholdPlan) -> SpendingPhase:
 # ---------------------------------------------------------------------------
 
 
+def _project_payouts(
+    cashflow_net: CashflowProjection,
+    templates: tuple[PayoutTemplate, ...],
+) -> tuple[
+    tuple[PayoutProjection, ...],
+    dict[str, PayoutProjection],
+    tuple[ProjectionWarning, ...],
+]:
+    payout_projections: list[PayoutProjection] = []
+    payout_by_entity: dict[str, PayoutProjection] = {}
+    warnings: list[ProjectionWarning] = []
+
+    for payout_tmpl in templates:
+        matching_flows = [
+            flow
+            for flow in cashflow_net.flows
+            if flow.year == payout_tmpl.retirement_year and flow.entity == payout_tmpl.entity
+        ]
+        if not matching_flows:
+            warnings.append(ProjectionWarning(
+                code="payout_entity_cashflow_not_found",
+                entity=payout_tmpl.entity,
+                message=(
+                    f"PayoutTemplate for '{payout_tmpl.entity}': no cashflow flow at "
+                    f"year {payout_tmpl.retirement_year}; skipping."
+                ),
+            ))
+            continue
+        try:
+            payout_cfg = PayoutConfig(
+                entity=payout_tmpl.entity,
+                pension_balance_eur=matching_flows[0].cumulative_pension_eur,
+                retirement_age=payout_tmpl.retirement_age,
+                livrente_fraction=payout_tmpl.livrente_fraction,
+                ratepension_fraction=payout_tmpl.ratepension_fraction,
+                ratepension_years=payout_tmpl.ratepension_years,
+                annuity_factor=payout_tmpl.annuity_factor,
+                growth_rate_during_payout=payout_tmpl.growth_rate_during_payout,
+            )
+            proj = compute_payout(payout_cfg)
+        except (ValueError, pydantic.ValidationError) as exc:
+            warnings.append(ProjectionWarning(
+                code="payout_config_invalid",
+                entity=payout_tmpl.entity,
+                message=(
+                    f"PayoutTemplate for '{payout_tmpl.entity}': invalid payout "
+                    f"config: {exc}; skipping."
+                ),
+            ))
+            continue
+        payout_projections.append(proj)
+        payout_by_entity[payout_tmpl.entity] = proj
+
+    return tuple(payout_projections), payout_by_entity, tuple(warnings)
+
+
+def _project_folkepension(
+    plan: HouseholdPlan,
+    payout_by_entity: Mapping[str, PayoutProjection],
+) -> tuple[tuple[EntityFolkepensionResult, ...], tuple[ProjectionWarning, ...]]:
+    folkepension_results: list[EntityFolkepensionResult] = []
+    warnings: list[ProjectionWarning] = []
+
+    for fp_tmpl in plan.folkepension_templates:
+        member = next(m for m in plan.members if m.name == fp_tmpl.entity)
+        public_pension_start_year = member.public_pension_start_year
+        if public_pension_start_year is None:
+            raise ValueError(
+                f"FolkepensionTemplate entity '{fp_tmpl.entity}' has no "
+                "public_pension_start_year"
+            )
+        try:
+            fp_age = folkepension_age_for_year(public_pension_start_year)
+        except FolkepensionError as exc:
+            warnings.append(ProjectionWarning(
+                code="folkepension_age_unsupported",
+                entity=fp_tmpl.entity,
+                message=(
+                    f"FolkepensionTemplate for '{fp_tmpl.entity}': unsupported "
+                    f"public_pension_start_year {public_pension_start_year}: "
+                    f"{exc}; skipping."
+                ),
+            ))
+            continue
+        if fp_tmpl.entity in payout_by_entity:
+            fp_result = folkepension_from_payout(
+                payout_by_entity[fp_tmpl.entity],
+                civil_status=fp_tmpl.civil_status,
+                folkepension_age=fp_age,
+                eur_per_dkk=plan.eur_per_dkk,
+            )
+        else:
+            fp_result = compute_folkepension(
+                FolkepensionConfig(
+                    civil_status=fp_tmpl.civil_status,
+                    folkepension_age=fp_age,
+                    annual_private_pension_income_dkk=Decimal("0"),
+                )
+            )
+        folkepension_results.append(
+            EntityFolkepensionResult(entity=fp_tmpl.entity, result=fp_result)
+        )
+
+    return tuple(folkepension_results), tuple(warnings)
+
+
 def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
     """Execute a full end-to-end household projection.
 
@@ -574,8 +699,8 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
 
     Returns:
         :class:`HouseholdProjectionResult` with all computed sections.
-        Non-fatal anomalies (e.g. a bridge template referencing an unknown
-        liquid account) are reported in
+        Non-fatal runtime anomalies (e.g. a bridge start year outside the
+        liquid projection horizon) are reported in
         :attr:`~HouseholdProjectionResult.warnings` rather than raised.
     """
     warnings: list[ProjectionWarning] = []
@@ -670,54 +795,18 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
             ))
 
     # ---- 4. Pension payout ----
-    payout_projections: list[PayoutProjection] = []
-    payout_by_entity: dict[str, PayoutProjection] = {}
-    for payout_tmpl in plan.payout_templates:
-        dummy_payout_cfg = PayoutConfig(
-            entity=payout_tmpl.entity,
-            pension_balance_eur=Decimal("0"),  # overridden inside payout_at()
-            retirement_age=payout_tmpl.retirement_age,
-            livrente_fraction=payout_tmpl.livrente_fraction,
-            ratepension_fraction=payout_tmpl.ratepension_fraction,
-            ratepension_years=payout_tmpl.ratepension_years,
-            annuity_factor=payout_tmpl.annuity_factor,
-            growth_rate_during_payout=payout_tmpl.growth_rate_during_payout,
-        )
-        try:
-            proj = cashflow_net.payout_at(payout_tmpl.retirement_year, dummy_payout_cfg)
-        except KeyError as exc:
-            warnings.append(ProjectionWarning(
-                code="payout_entity_cashflow_not_found",
-                entity=payout_tmpl.entity,
-                message=f"PayoutTemplate for '{payout_tmpl.entity}': {exc}; skipping.",
-            ))
-            continue
-        payout_projections.append(proj)
-        payout_by_entity[payout_tmpl.entity] = proj
+    payout_projections, payout_by_entity, payout_warnings = _project_payouts(
+        cashflow_net,
+        plan.payout_templates,
+    )
+    warnings.extend(payout_warnings)
 
     # ---- 5. DK Folkepension ----
-    folkepension_results: list[EntityFolkepensionResult] = []
-    for fp_tmpl in plan.folkepension_templates:
-        member = next(m for m in plan.members if m.name == fp_tmpl.entity)
-        fp_age = folkepension_age_for_year(member.public_pension_start_year)  # type: ignore[arg-type]  # validated non-None in _check_folkepension_templates
-        if fp_tmpl.entity in payout_by_entity:
-            fp_result = folkepension_from_payout(
-                payout_by_entity[fp_tmpl.entity],
-                civil_status=fp_tmpl.civil_status,
-                folkepension_age=fp_age,
-                eur_per_dkk=plan.eur_per_dkk,
-            )
-        else:
-            fp_result = compute_folkepension(
-                FolkepensionConfig(
-                    civil_status=fp_tmpl.civil_status,
-                    folkepension_age=fp_age,
-                    annual_private_pension_income_dkk=Decimal("0"),
-                )
-            )
-        folkepension_results.append(
-            EntityFolkepensionResult(entity=fp_tmpl.entity, result=fp_result)
-        )
+    folkepension_results, folkepension_warnings = _project_folkepension(
+        plan,
+        payout_by_entity,
+    )
+    warnings.extend(folkepension_warnings)
 
     # ---- 6. Spending by year ----
     spending_by_year_list: list[SpendingYear] = []
@@ -742,8 +831,8 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
         cashflow_net=cashflow_net,
         liquid_projections=liquid_projections,
         bridge_results=tuple(bridge_results),
-        payout_projections=tuple(payout_projections),
-        folkepension_results=tuple(folkepension_results),
+        payout_projections=payout_projections,
+        folkepension_results=folkepension_results,
         spending_by_year=tuple(spending_by_year_list),
         audit_record=audit_record,
         warnings=tuple(warnings),

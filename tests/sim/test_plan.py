@@ -39,6 +39,12 @@ from penge.tax.dk.folkepension import CivilStatus
 
 BASE_YEAR = 2024
 EUR_PER_DKK = Decimal("0.134")
+_DE_BOB_BIRTH_YEAR = 1982
+_DE_BOB_PUBLIC_PENSION_REFERENCE_YEAR = 2015
+_DE_BOB_PUBLIC_PENSION_AGE = 67
+_DE_BOB_PUBLIC_PENSION_START_YEAR = (
+    _DE_BOB_PUBLIC_PENSION_REFERENCE_YEAR + _DE_BOB_PUBLIC_PENSION_AGE
+)
 
 
 def _dk_member(
@@ -58,9 +64,9 @@ def _dk_member(
 
 def _de_member(
     name: str = "bob",
-    birth_year: int = 1982,
+    birth_year: int = _DE_BOB_BIRTH_YEAR,
     retirement_year: int = 2050,
-    public_pension_start_year: int | None = 2015 + 67,  # 2082; DE statutory pension start
+    public_pension_start_year: int | None = _DE_BOB_PUBLIC_PENSION_START_YEAR,
 ) -> HouseholdMember:
     return HouseholdMember(
         name=name,
@@ -384,6 +390,37 @@ class TestHouseholdPlanValidation:
                 ),
             )
 
+    def test_duplicate_folkepension_entities_checked_before_jurisdiction(self) -> None:
+        with pytest.raises(ValueError, match="Duplicate folkepension_templates entities"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(_de_member(name="bob"),),
+                folkepension_templates=(
+                    _folkepension_template(entity="bob"),
+                    _folkepension_template(entity="bob"),
+                ),
+            )
+
+    def test_bridge_lager_horizon_months_must_be_multiple_of_12(self) -> None:
+        with pytest.raises(ValueError, match="horizon_months must be a multiple of 12"):
+            _bridge_template(horizon_months=121)
+
+    def test_bridge_liquid_account_id_must_reference_liquid_config(self) -> None:
+        with pytest.raises(ValueError, match="liquid_account_id 'nonexistent'"):
+            HouseholdPlan(
+                base_year=2024,
+                horizon_years=10,
+                inflation_rate=Decimal("0.02"),
+                eur_per_dkk=Decimal("0.13"),
+                members=(_dk_member(name="alice"),),
+                bridge_templates=(
+                    _bridge_template(entity="alice", liquid_account_id="nonexistent"),
+                ),
+            )
+
 
 # ---------------------------------------------------------------------------
 # Phase helper tests
@@ -536,7 +573,7 @@ class TestFullPlan:
         self, result: HouseholdProjectionResult
     ) -> None:
         # The payout pension_balance_eur must equal the cashflow net balance
-        # at the entity's retirement year (not the dummy zero we passed in).
+        # at the entity's retirement year.
         payout = result.payout_projections[0]
         retirement_year = 2055
         matching = [
@@ -555,25 +592,25 @@ class TestFullPlan:
 
 
 class TestWarnings:
-    def test_missing_liquid_account_emits_warning(self) -> None:
+    def test_bridge_start_year_outside_projection_emits_warning(self) -> None:
         plan = HouseholdPlan(
             base_year=BASE_YEAR,
             horizon_years=5,
             inflation_rate=Decimal("0.025"),
             eur_per_dkk=EUR_PER_DKK,
             members=(_dk_member(),),
-            # bridge references a liquid account that is NOT in liquid_configs
+            liquid_configs=(_ask_account(),),
             bridge_templates=(
-                _bridge_template(entity="alice", liquid_account_id="nonexistent"),
+                _bridge_template(entity="alice", bridge_start_year=BASE_YEAR + 50),
             ),
         )
         result = project_household(plan)
         assert len(result.warnings) == 1
         w = result.warnings[0]
         assert isinstance(w, ProjectionWarning)
-        assert w.code == "bridge_account_not_found"
+        assert w.code == "bridge_start_year_not_in_projection"
         assert w.entity == "alice"
-        assert "nonexistent" in w.message
+        assert str(BASE_YEAR + 50) in w.message
         assert result.bridge_results == ()
 
     def test_missing_cashflow_entity_for_payout_emits_warning(self) -> None:
@@ -603,3 +640,26 @@ class TestWarnings:
         w = result.warnings[0]
         assert w.code == "payout_entity_cashflow_not_found"
         assert result.payout_projections == ()
+
+    def test_unsupported_folkepension_age_emits_warning(self) -> None:
+        plan = HouseholdPlan(
+            base_year=BASE_YEAR,
+            horizon_years=5,
+            inflation_rate=Decimal("0.025"),
+            eur_per_dkk=EUR_PER_DKK,
+            members=(
+                _dk_member(
+                    retirement_year=2020,
+                    public_pension_start_year=2025,
+                ),
+            ),
+            salaries=(_salary("alice"),),
+            folkepension_templates=(_folkepension_template(entity="alice"),),
+        )
+        result = project_household(plan)
+        assert len(result.warnings) == 1
+        w = result.warnings[0]
+        assert w.code == "folkepension_age_unsupported"
+        assert w.entity == "alice"
+        assert "2025" in w.message
+        assert result.folkepension_results == ()

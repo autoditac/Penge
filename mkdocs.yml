@@ -76,6 +76,7 @@ nav:
       - "Assumption registry": sim/registry.md
       - "Planning snapshot": sim/snapshot.md
       - "Spending model": sim/spending.md
+      - "Planning outputs": sim/planning-outputs.md
   - Tax:
       - DK: tax/dk.md
       - DE: tax/de.md

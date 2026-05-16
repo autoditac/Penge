@@ -32,6 +32,18 @@ from penge.sim.assumptions import (
     InstrumentAssumptions,
     TaxRegime,
 )
+from penge.sim.balance import (
+    HouseholdBalanceSheet,
+    HouseholdBalanceSheetRow,
+    first_liquidity_depletion,
+    project_balance_sheet,
+)
+from penge.sim.bridge_spending import (
+    BridgeSafeSpendingResult,
+    assess_bridge_spending,
+    required_starting_capital_for_bridge_spending,
+    summarize_bridge_result,
+)
 from penge.sim.cashflow import (
     CashflowConfig,
     CashflowError,
@@ -76,6 +88,11 @@ from penge.sim.plan import (
     ProjectionWarning,
     SpendingYear,
     project_household,
+)
+from penge.sim.readiness import (
+    ReadinessFinding,
+    RetirementReadinessReport,
+    generate_readiness_report,
 )
 from penge.sim.registry import (
     AssumptionEntry,
@@ -135,6 +152,7 @@ __all__ = [
     "AssumptionCatalog",
     "AssumptionEntry",
     "BootstrapReturnModel",
+    "BridgeSafeSpendingResult",
     "BridgeTemplate",
     "CashflowConfig",
     "CashflowError",
@@ -153,6 +171,8 @@ __all__ = [
     "GoalResult",
     "HoldingSnapshot",
     "HousePurchaseScenario",
+    "HouseholdBalanceSheet",
+    "HouseholdBalanceSheetRow",
     "HouseholdMember",
     "HouseholdPlan",
     "HouseholdProjectionResult",
@@ -170,6 +190,8 @@ __all__ = [
     "PensionAccrualRule",
     "ProjectionAuditRecord",
     "ProjectionWarning",
+    "ReadinessFinding",
+    "RetirementReadinessReport",
     "ReturnModelError",
     "SalaryRule",
     "SampledPaths",
@@ -186,17 +208,23 @@ __all__ = [
     "YearlyContributionSplit",
     "YearlyFlow",
     "apply_tax",
+    "assess_bridge_spending",
     "build_standard_audit_record",
     "compare",
     "compare_configs",
     "compute_payout",
     "compute_spending",
     "evaluate",
+    "first_liquidity_depletion",
+    "generate_readiness_report",
     "net_pension_drawdown",
     "project",
+    "project_balance_sheet",
     "project_household",
+    "required_starting_capital_for_bridge_spending",
     "route_contributions",
     "run",
     "simulate_routing",
     "simulate_routing_monthly",
+    "summarize_bridge_result",
 ]

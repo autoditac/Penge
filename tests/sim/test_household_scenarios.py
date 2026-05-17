@@ -32,6 +32,14 @@ def test_retire_in_year_updates_household_timeline_templates() -> None:
     assert "retirement_year -> 2027" in scenario.changed_assumptions
 
 
+def test_retire_in_year_allows_zero_bridge_public_pension_start() -> None:
+    plan = household_output_plan()
+
+    scenario = apply_scenario_preset(plan, RetireInYearPreset(year=2035))
+
+    assert scenario.plan.members[0].retirement_year == 2035
+
+
 def test_work_reduction_splits_active_rules_from_start_year() -> None:
     plan = household_output_plan()
 
@@ -55,6 +63,12 @@ def test_savings_inflation_spending_return_and_pension_presets_change_assumption
     )
     assert increased.plan.liquid_configs[0].annual_contribution_dkk == Decimal("32000.00")
     assert increased.plan.liquid_configs[1].annual_contribution_dkk == Decimal("10000")
+
+    unfiltered = apply_scenario_preset(
+        plan, IncreasedSavingsPreset(monthly_delta_dkk=Decimal("1200"))
+    )
+    assert unfiltered.plan.liquid_configs[0].annual_contribution_dkk == Decimal("27200.00")
+    assert unfiltered.plan.liquid_configs[1].annual_contribution_dkk == Decimal("17200.00")
 
     inflation = apply_scenario_preset(plan, HigherInflationPreset(inflation_rate=Decimal("0.05")))
     assert inflation.plan.inflation_rate == Decimal("0.05")

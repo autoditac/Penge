@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+import pytest
+
 from penge.sim.drawdown import (
     DrawdownAccountKind,
     DrawdownAccountState,
@@ -73,13 +75,23 @@ def test_drawdown_strategy_reports_tax_depletion_and_balances() -> None:
     frie_first = DrawdownStrategyDefinition(
         name="frie_first",
         label="Frie first",
-        order=(DrawdownAccountKind.FRIE_MIDLER, DrawdownAccountKind.ASK),
+        order=(
+            DrawdownAccountKind.FRIE_MIDLER,
+            DrawdownAccountKind.ASK,
+            DrawdownAccountKind.CASH,
+            DrawdownAccountKind.PENSION,
+        ),
         description="Use frie midler before ASK.",
     )
     ask_first = DrawdownStrategyDefinition(
         name="ask_first",
         label="ASK first",
-        order=(DrawdownAccountKind.ASK, DrawdownAccountKind.FRIE_MIDLER),
+        order=(
+            DrawdownAccountKind.ASK,
+            DrawdownAccountKind.FRIE_MIDLER,
+            DrawdownAccountKind.CASH,
+            DrawdownAccountKind.PENSION,
+        ),
         description="Use ASK before frie midler.",
     )
 
@@ -102,6 +114,73 @@ def test_drawdown_strategy_reports_tax_depletion_and_balances() -> None:
     assert untaxed_first.total_tax_paid_dkk < taxed.total_tax_paid_dkk
     assert taxed.depletion_year is None
     assert taxed.remaining_balances_dkk[DrawdownAccountKind.FRIE_MIDLER] < Decimal("100000")
+
+
+def test_drawdown_models_ask_and_pension_tax_rates() -> None:
+    accounts = (
+        DrawdownAccountState(
+            account_id="ask",
+            kind=DrawdownAccountKind.ASK,
+            balance_dkk=Decimal("100000"),
+            cost_basis_dkk=Decimal("50000"),
+            tax_regime="lager",
+            tax_rate=Decimal("0.17"),
+            accessible_from_year=2025,
+        ),
+        DrawdownAccountState(
+            account_id="pension",
+            kind=DrawdownAccountKind.PENSION,
+            balance_dkk=Decimal("100000"),
+            cost_basis_dkk=Decimal("100000"),
+            tax_regime="pension_income",
+            tax_rate=Decimal("0.37"),
+            accessible_from_year=2025,
+        ),
+    )
+    strategy = DrawdownStrategyDefinition(
+        name="ask_then_pension",
+        label="ASK then pension",
+        order=(DrawdownAccountKind.ASK, DrawdownAccountKind.PENSION),
+        description="Use ASK before pension.",
+    )
+
+    result = evaluate_drawdown_strategy(
+        accounts,
+        strategy=strategy,
+        start_year=2025,
+        annual_spending_dkk=Decimal("120000"),
+        horizon_years=1,
+    )
+
+    assert result.total_tax_paid_dkk > Decimal("0")
+    assert result.years[0].gross_withdrawal_dkk > result.years[0].net_spending_funded_dkk
+
+
+def test_drawdown_strategy_must_cover_present_account_kinds() -> None:
+    accounts = (
+        DrawdownAccountState(
+            account_id="cash",
+            kind=DrawdownAccountKind.CASH,
+            balance_dkk=Decimal("50000"),
+            cost_basis_dkk=Decimal("50000"),
+            accessible_from_year=2025,
+        ),
+    )
+    strategy = DrawdownStrategyDefinition(
+        name="ask_only",
+        label="ASK only",
+        order=(DrawdownAccountKind.ASK,),
+        description="Invalidly omits cash.",
+    )
+
+    with pytest.raises(ValueError, match=r"strategy\.order must cover"):
+        evaluate_drawdown_strategy(
+            accounts,
+            strategy=strategy,
+            start_year=2025,
+            annual_spending_dkk=Decimal("40000"),
+            horizon_years=1,
+        )
 
 
 def test_compare_drawdown_strategies_uses_default_planning_orders() -> None:

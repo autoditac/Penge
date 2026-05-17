@@ -11,6 +11,8 @@ import pydantic
 
 from penge.sim.liquid import compute_aktieindkomst_tax
 from penge.sim.plan import HouseholdProjectionResult
+from penge.sim.tax import DK_DEFAULT
+from penge.tax.aktiesparekonto import ASK_RATE
 
 __all__ = [
     "DrawdownAccountKind",
@@ -51,9 +53,16 @@ class DrawdownAccountState(pydantic.BaseModel):
     cost_basis_dkk: Decimal
     tax_regime: str = "none"
     tax_threshold_dkk: Decimal = Decimal("0")
+    tax_rate: Decimal = Decimal("0")
     accessible_from_year: int
 
-    @pydantic.field_validator("balance_dkk", "cost_basis_dkk", "tax_threshold_dkk", mode="before")
+    @pydantic.field_validator(
+        "balance_dkk",
+        "cost_basis_dkk",
+        "tax_threshold_dkk",
+        "tax_rate",
+        mode="before",
+    )
     @classmethod
     def _coerce_decimal(cls, value: object) -> Decimal:
         return Decimal(str(value))
@@ -66,6 +75,8 @@ class DrawdownAccountState(pydantic.BaseModel):
             raise ValueError("cost_basis_dkk must be >= 0")
         if self.tax_threshold_dkk < Decimal("0"):
             raise ValueError("tax_threshold_dkk must be >= 0")
+        if not (Decimal("0") <= self.tax_rate < Decimal("1")):
+            raise ValueError("tax_rate must be in [0, 1)")
         return self
 
 
@@ -216,6 +227,7 @@ def build_drawdown_accounts(
                 cost_basis_dkk=_q(flow.cost_basis_dkk),
                 tax_regime=projection.config.tax_regime,
                 tax_threshold_dkk=projection.config.aktieindkomst_threshold_dkk,
+                tax_rate=ASK_RATE if kind == DrawdownAccountKind.ASK else Decimal("0"),
                 accessible_from_year=start_year,
             )
         )
@@ -243,6 +255,8 @@ def build_drawdown_accounts(
                 kind=DrawdownAccountKind.PENSION,
                 balance_dkk=pension_balance_dkk,
                 cost_basis_dkk=pension_balance_dkk,
+                tax_regime="pension_income",
+                tax_rate=DK_DEFAULT.pension_drawdown_tax_rate,
                 accessible_from_year=pension_access_year,
             )
         )
@@ -282,14 +296,18 @@ def evaluate_drawdown_strategy(
 ) -> DrawdownResult:
     """Evaluate one drawdown-order strategy.
 
-    This is planning support only. It does not execute trades and does not model
-    exact pension taxation; pension buckets are guarded by accessibility years.
+    This is planning support only. It does not execute trades. Frie midler
+    realisation tax is estimated with the current gain fraction, ASK tax is
+    estimated on latent gains using ``tax_rate`` (default ``ASK_RATE`` for
+    accounts built from projections), and pension withdrawals use a flat
+    ``tax_rate`` after accessibility checks.
     """
 
     if annual_spending_dkk <= Decimal("0"):
         raise ValueError("annual_spending_dkk must be > 0")
     if horizon_years < 1:
         raise ValueError("horizon_years must be >= 1")
+    _validate_strategy_covers_accounts(accounts, strategy)
 
     mutable_accounts = {account.account_id: account for account in accounts}
     years: list[DrawdownYear] = []
@@ -364,6 +382,10 @@ def _withdraw_for_net_need(
     account: DrawdownAccountState,
     net_need_dkk: Decimal,
 ) -> tuple[Decimal, Decimal]:
+    if account.kind == DrawdownAccountKind.PENSION:
+        return _withdraw_with_flat_tax(account, net_need_dkk)
+    if account.kind == DrawdownAccountKind.ASK and account.tax_rate > Decimal("0"):
+        return _withdraw_with_gain_tax(account, net_need_dkk, account.tax_rate)
     if account.kind != DrawdownAccountKind.FRIE_MIDLER or account.tax_regime != "realisation":
         withdrawal = min(account.balance_dkk, net_need_dkk)
         return _q(withdrawal), Decimal("0")
@@ -395,6 +417,42 @@ def _withdraw_for_net_need(
     return withdrawal, _tax_for_frie_midler_withdrawal(account, withdrawal, gain_fraction)
 
 
+def _withdraw_with_flat_tax(
+    account: DrawdownAccountState,
+    net_need_dkk: Decimal,
+) -> tuple[Decimal, Decimal]:
+    if account.tax_rate <= Decimal("0"):
+        withdrawal = min(account.balance_dkk, net_need_dkk)
+        return _q(withdrawal), Decimal("0")
+
+    full_tax = _q(account.balance_dkk * account.tax_rate)
+    if account.balance_dkk - full_tax <= net_need_dkk:
+        return _q(account.balance_dkk), full_tax
+
+    gross_needed = net_need_dkk / (Decimal("1") - account.tax_rate)
+    withdrawal = min(account.balance_dkk, gross_needed.quantize(_TWO_DP, rounding=ROUND_CEILING))
+    return withdrawal, _q(withdrawal * account.tax_rate)
+
+
+def _withdraw_with_gain_tax(
+    account: DrawdownAccountState,
+    net_need_dkk: Decimal,
+    tax_rate: Decimal,
+) -> tuple[Decimal, Decimal]:
+    gain_fraction = _gain_fraction(account)
+    if gain_fraction <= Decimal("0"):
+        withdrawal = min(account.balance_dkk, net_need_dkk)
+        return _q(withdrawal), Decimal("0")
+
+    full_tax = _q(account.balance_dkk * gain_fraction * tax_rate)
+    if account.balance_dkk - full_tax <= net_need_dkk:
+        return _q(account.balance_dkk), full_tax
+
+    gross_needed = net_need_dkk / (Decimal("1") - gain_fraction * tax_rate)
+    withdrawal = min(account.balance_dkk, gross_needed.quantize(_TWO_DP, rounding=ROUND_CEILING))
+    return withdrawal, _q(withdrawal * gain_fraction * tax_rate)
+
+
 def _tax_for_frie_midler_withdrawal(
     account: DrawdownAccountState,
     withdrawal_dkk: Decimal,
@@ -414,7 +472,7 @@ def _remaining_cost_basis_dkk(
     remaining_balance = _q(account.balance_dkk - withdrawal_dkk)
     if remaining_balance <= Decimal("0") or account.balance_dkk <= Decimal("0"):
         return Decimal("0")
-    if account.kind == DrawdownAccountKind.FRIE_MIDLER and account.tax_regime == "realisation":
+    if account.kind in {DrawdownAccountKind.ASK, DrawdownAccountKind.FRIE_MIDLER}:
         return _q(account.cost_basis_dkk * remaining_balance / account.balance_dkk)
     return _q(max(account.cost_basis_dkk - withdrawal_dkk, Decimal("0")))
 
@@ -445,3 +503,20 @@ def _coerce_account_kind(value: object) -> DrawdownAccountKind:
     if isinstance(value, DrawdownAccountKind):
         return value
     return DrawdownAccountKind(str(value))
+
+
+def _gain_fraction(account: DrawdownAccountState) -> Decimal:
+    if account.balance_dkk <= Decimal("0"):
+        return Decimal("0")
+    return max(account.balance_dkk - account.cost_basis_dkk, Decimal("0")) / account.balance_dkk
+
+
+def _validate_strategy_covers_accounts(
+    accounts: tuple[DrawdownAccountState, ...],
+    strategy: DrawdownStrategyDefinition,
+) -> None:
+    present_kinds = {account.kind for account in accounts if account.balance_dkk > Decimal("0")}
+    missing_kinds = tuple(sorted(present_kinds - set(strategy.order), key=lambda kind: kind.value))
+    if missing_kinds:
+        labels = ", ".join(kind.value for kind in missing_kinds)
+        raise ValueError(f"strategy.order must cover account kinds present in accounts: {labels}")

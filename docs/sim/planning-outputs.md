@@ -269,8 +269,13 @@ results = compare_drawdown_strategies(
 
 Outputs include yearly gross withdrawals, net spending funded, estimated tax,
 depletion timing, and remaining balances by bucket.
-The planner respects configured pension accessibility years and estimates
-realisationsbeskatning tax for frie midler withdrawals.
+The planner respects configured pension accessibility years, estimates
+realisationsbeskatning tax for frie midler withdrawals from the current gain
+fraction, estimates ASK tax on latent gains with the account `tax_rate`
+(`ASK_RATE` for accounts built from projections), and applies a flat pension
+drawdown `tax_rate` after accessibility checks.
+It does not model exact personal-income tax brackets, loss carry-forwards, future
+portfolio growth during the drawdown horizon, or filing-grade pension tax.
 It is planning support only, not automated trading, rebalancing, or tax-filing
 advice.
 

@@ -96,10 +96,10 @@ class RetireInYearPreset(_PresetBase):
         for member in plan.members:
             if (
                 member.public_pension_start_year is not None
-                and member.public_pension_start_year <= self.year
+                and member.public_pension_start_year < self.year
             ):
                 raise ValueError(
-                    "retire_in_year must remain before every configured public pension start"
+                    "retire_in_year must not be after any configured public pension start"
                 )
         members = tuple(
             member.model_copy(update={"retirement_year": self.year}) for member in plan.members
@@ -182,13 +182,24 @@ class IncreasedSavingsPreset(_PresetBase):
 
     def apply(self, plan: HouseholdPlan) -> HouseholdScenario:
         annual_delta_dkk = _q(self.monthly_delta_dkk * Decimal("12"))
-        contribution_delta_eur = _q(annual_delta_dkk * plan.eur_per_dkk)
+        matching_contribution_count = sum(
+            1 for rule in plan.contributions if _contribution_rule_matches(rule, self)
+        )
+        matching_liquid_config_count = sum(
+            1 for config in plan.liquid_configs if _liquid_config_matches(config, self)
+        )
         contributions = tuple(
-            _increase_contribution_rule(rule, self, contribution_delta_eur)
+            _increase_contribution_rule(
+                rule,
+                self,
+                annual_delta_dkk,
+                plan.eur_per_dkk,
+                matching_contribution_count,
+            )
             for rule in plan.contributions
         )
         liquid_configs = tuple(
-            _increase_liquid_config(config, self, annual_delta_dkk)
+            _increase_liquid_config(config, self, annual_delta_dkk, matching_liquid_config_count)
             for config in plan.liquid_configs
         )
         scenario_plan = plan.model_copy(
@@ -507,14 +518,17 @@ def _work_reduced_pension_rules(
 def _increase_contribution_rule(
     rule: ContributionRule,
     preset: IncreasedSavingsPreset,
-    contribution_delta_eur: Decimal,
+    annual_delta_dkk: Decimal,
+    eur_per_dkk: Decimal,
+    matching_count: int,
 ) -> ContributionRule:
-    if preset.entity is not None and rule.entity != preset.entity:
+    if matching_count == 0 or not _contribution_rule_matches(rule, preset):
         return rule
+    per_rule_annual_delta_dkk = annual_delta_dkk / Decimal(matching_count)
     if rule.currency == "DKK":
-        annual = _q(rule.annual + preset.monthly_delta_dkk * Decimal("12"))
+        annual = _q(rule.annual + per_rule_annual_delta_dkk)
     else:
-        annual = _q(rule.annual + contribution_delta_eur)
+        annual = _q(rule.annual + per_rule_annual_delta_dkk * eur_per_dkk)
     return rule.model_copy(update={"annual": annual})
 
 
@@ -522,12 +536,32 @@ def _increase_liquid_config(
     config: LiquidDepotConfig,
     preset: IncreasedSavingsPreset,
     annual_delta_dkk: Decimal,
+    matching_count: int,
 ) -> LiquidDepotConfig:
-    if preset.account_id is not None and config.account_id != preset.account_id:
+    if matching_count == 0 or not _liquid_config_matches(config, preset):
         return config
+    per_config_annual_delta_dkk = annual_delta_dkk / Decimal(matching_count)
     return config.model_copy(
-        update={"annual_contribution_dkk": _q(config.annual_contribution_dkk + annual_delta_dkk)}
+        update={
+            "annual_contribution_dkk": _q(
+                config.annual_contribution_dkk + per_config_annual_delta_dkk
+            )
+        }
     )
+
+
+def _contribution_rule_matches(
+    rule: ContributionRule,
+    preset: IncreasedSavingsPreset,
+) -> bool:
+    return preset.entity is None or rule.entity == preset.entity
+
+
+def _liquid_config_matches(
+    config: LiquidDepotConfig,
+    preset: IncreasedSavingsPreset,
+) -> bool:
+    return preset.account_id is None or config.account_id == preset.account_id
 
 
 def _scale_spending_rule(rule: SpendingRule, factor: Decimal) -> SpendingRule:

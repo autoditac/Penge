@@ -118,7 +118,12 @@ def run_stress_tests(
     plan: HouseholdPlan,
     specs: tuple[StressTestSpec, ...] | None = None,
 ) -> HouseholdStressTestPack:
-    """Run stress tests from a household plan and rank by impact."""
+    """Run stress tests from a household plan and rank by impact.
+
+    The runner performs one full household projection for the baseline and one
+    additional projection for each stress spec, so callers should treat it as a
+    batch/reporting operation rather than a per-keystroke interactive helper.
+    """
 
     baseline = _metrics(plan)
     stress_specs = specs if specs is not None else default_stress_tests(plan)

@@ -501,3 +501,63 @@ For each entry in `<PENGE_VAULT_ROOT>/.index.json`:
 Every call is recorded by the MCP audit logger
 (`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
 status, and duration.
+
+## `answer_planning_question`
+
+Explanation-first household planning surface for common FIRE-planning questions.
+The tool delegates to `penge.sim.planning_surface_cli`, which runs a local
+`HouseholdPlan`, readiness report, risk register, and stress-test pack before
+returning direct answers linked to evidence, assumptions, risks, limitations, and
+documentation.
+
+The current plan id is `synthetic_household`.
+It is a fully synthetic DK/DE demo household used for tests and MCP golden evals;
+it is not a personal plan and contains no real financial data.
+
+### Input
+
+| Field       | Type                | Notes                                                                 |
+| ----------- | ------------------- | --------------------------------------------------------------------- |
+| `plan_id`   | `"synthetic_household"` | Optional; defaults to the synthetic household.                     |
+| `questions` | `QuestionId[]`      | Optional; defaults to the three core questions below. Unique, max 5. |
+
+Supported `QuestionId` values:
+
+| Question id | Question |
+| --- | --- |
+| `can_we_retire` | Can this household retire on the planned timeline? |
+| `what_breaks_first` | What breaks first if the plan fails? |
+| `how_do_taxes_affect_plan` | How do taxes affect this plan? |
+| `which_assumptions_matter` | Which assumptions should be reviewed before deciding? |
+| `which_scenarios_should_we_test` | Which scenarios should we test before deciding? |
+
+### Output
+
+```jsonc
+{
+  "plan_id": "synthetic_household",
+  "surface": "household_planning_questions",
+  "overall_status": "watch",
+  "questions": [
+    {
+      "question_id": "can_we_retire",
+      "status": "watch",
+      "answer": "The plan is watch for retirement in 2029...",
+      "evidence": [{ "label": "planned_retirement_year", "value": "2029", "source": "RetirementReadinessReport" }],
+      "risk_codes": ["de_vorabpauschale_not_in_household_plan"],
+      "assumption_keys": ["planned_retirement_year", "annual_spending_plan"],
+      "limitation_codes": ["planning_grade_not_filing_advice"],
+      "docs": ["docs/sim/planning-outputs.md"]
+    }
+  ],
+  "risks": [{ "code": "de_vorabpauschale_not_in_household_plan", "severity": "warning" }],
+  "assumptions": [{ "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" }],
+  "limitations": [{ "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] }],
+  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"]
+}
+```
+
+The `risk_codes`, `assumption_keys`, and `limitation_codes` fields are deliberate:
+LLM hosts should cite them rather than turning the answer into unsupported prose.
+The tool returns summaries and references only, not raw documents or raw
+transaction/account rows.

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v3";
 
 export const ConfigSchema = z.object({
   databaseUrl: z.string().url(),

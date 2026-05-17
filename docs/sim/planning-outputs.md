@@ -388,6 +388,48 @@ into `HouseholdPlan`.
 Supported assumption kinds currently include pension balance, annuity factor,
 cost basis, ÅOP, dividend yield, property value, and mortgage balance.
 
+## Explanation-first planning surface
+
+`generate_planning_surface()` packages the household planner into direct answers
+for dashboard and MCP consumers.
+It runs one `HouseholdPlan`, generates the readiness report and stress-test pack,
+and returns answers linked to evidence, assumption keys, risk codes, limitations,
+and documentation.
+
+```python
+from penge.sim.planning_surface import PlanningSurfaceRequest, generate_planning_surface
+
+surface = generate_planning_surface(
+    PlanningSurfaceRequest(
+        questions=(
+            "can_we_retire",
+            "what_breaks_first",
+            "how_do_taxes_affect_plan",
+        )
+    )
+)
+for answer in surface.questions:
+    print(answer.question, answer.answer)
+```
+
+The built-in `synthetic_household` plan is synthetic and exists for tests, demos,
+and the MCP golden-question suite.
+It is not a personal household plan.
+The surface currently answers:
+
+| Question id | Direct household question |
+| --- | --- |
+| `can_we_retire` | Can this household retire on the planned timeline? |
+| `what_breaks_first` | What breaks first if the plan fails? |
+| `how_do_taxes_affect_plan` | How do taxes affect this plan? |
+| `which_assumptions_matter` | Which assumptions should be reviewed before deciding? |
+| `which_scenarios_should_we_test` | Which stress scenarios should be tested first? |
+
+The MCP tool `answer_planning_question` exposes the same surface without sending a
+raw plan or raw document text over the wire.
+Returned answers include `assumption_keys`, `risk_codes`, and `limitation_codes`
+so a UI or LLM host can show the explanation and the audit trail together.
+
 ## Finding semantics
 
 Readiness findings use stable `code` values and one of three severities:

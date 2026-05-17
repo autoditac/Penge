@@ -37,6 +37,8 @@ Subpackages:
   (issue #181).
 - :mod:`penge.sim.source_assumptions` — document-backed planning assumption
   extraction with review status (issue #182).
+- :mod:`penge.sim.planning_surface` — explanation-first household planning
+  question surface for MCP/dashboard consumers (issue #183).
 """
 
 from penge.sim.assumptions import (
@@ -142,6 +144,18 @@ from penge.sim.plan import (
     PropertyAssetConfig,
     SpendingYear,
     project_household,
+)
+from penge.sim.planning_surface import (
+    PlanningAnswer,
+    PlanningAssumptionSummary,
+    PlanningEvidence,
+    PlanningLimitation,
+    PlanningRiskSummary,
+    PlanningSurfaceReport,
+    PlanningSurfaceRequest,
+    QuestionId,
+    build_synthetic_household_plan,
+    generate_planning_surface,
 )
 from penge.sim.readiness import (
     ReadinessFinding,
@@ -305,9 +319,17 @@ __all__ = [
     "PlanningAssumptionSource",
     "PlanningRiskFinding",
     "PlanningRiskRegister",
+    "PlanningAnswer",
+    "PlanningAssumptionSummary",
+    "PlanningEvidence",
+    "PlanningLimitation",
+    "PlanningRiskSummary",
+    "PlanningSurfaceReport",
+    "PlanningSurfaceRequest",
     "ProjectionAuditRecord",
     "ProjectionWarning",
     "PropertyAssetConfig",
+    "QuestionId",
     "ReadinessFinding",
     "RealEstateProjection",
     "RealEstateYear",
@@ -344,6 +366,7 @@ __all__ = [
     "build_drawdown_accounts",
     "build_household_tax_context",
     "build_standard_audit_record",
+    "build_synthetic_household_plan",
     "build_tax_timeline",
     "compare",
     "compare_configs",
@@ -359,6 +382,7 @@ __all__ = [
     "extract_planning_assumptions",
     "first_liquidity_depletion",
     "generate_readiness_report",
+    "generate_planning_surface",
     "generate_risk_register",
     "net_pension_drawdown",
     "project",

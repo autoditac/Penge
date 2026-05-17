@@ -21,7 +21,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { isAbsolute, join, posix, resolve, sep } from "node:path";
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import { redactText } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";

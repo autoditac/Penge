@@ -5,7 +5,7 @@ import {
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { zodToJsonSchema } from "zod-to-json-schema";
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import type { AuditLogger } from "./audit.js";
 import { ToolRegistry, type ToolContext, type ToolDefinition } from "./registry.js";

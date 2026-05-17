@@ -13,6 +13,7 @@ from penge.sim.bridge_spending import (
     summarize_bridge_result,
 )
 from penge.sim.contribution_strategy import ContributionStrategyExplanation
+from penge.sim.household_tax_context import build_household_tax_context
 from penge.sim.plan import HouseholdProjectionResult
 from penge.sim.tax_timeline import TaxTimeline, build_tax_timeline
 
@@ -61,6 +62,7 @@ def generate_risk_register(
     _append_bridge_findings(findings, _bridge_assessments(result), result)
     _append_folkepension_findings(findings, result)
     _append_ask_findings(findings, result, contribution_strategy)
+    _append_tax_context_findings(findings, result)
     _append_projection_warning_findings(findings, result)
     deduplicated_findings = _deduplicate_findings(findings)
     if not deduplicated_findings:
@@ -291,6 +293,23 @@ def _append_ask_findings(
                     next_action="Use the contribution strategy split for future savings.",
                 )
             )
+
+
+def _append_tax_context_findings(
+    findings: list[PlanningRiskFinding],
+    result: HouseholdProjectionResult,
+) -> None:
+    context = build_household_tax_context(result.plan)
+    for unsupported in context.unsupported_features:
+        findings.append(
+            PlanningRiskFinding(
+                code=unsupported.code,
+                severity="warning",
+                message=f"{unsupported.member}: {unsupported.description}",
+                source_assumption=f"{unsupported.tax_country} household tax context",
+                next_action=unsupported.next_action,
+            )
+        )
 
 
 def _append_projection_warning_findings(

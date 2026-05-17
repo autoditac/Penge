@@ -53,6 +53,7 @@ Each row separates:
 - frie midler balances;
 - active bridge drawdown balances;
 - locked pension balances;
+- home value, mortgage debt, and home equity;
 - spendable liquidity;
 - total net worth;
 - spending runway in months.
@@ -62,12 +63,62 @@ worth while still failing the bridge phase if spendable liquidity is depleted.
 When a liquid account is used by a bridge template, the balance-sheet projection
 uses the accumulation account through the bridge start year and then replaces it
 with the bridge drawdown balance in later years.
+Home equity is included in total net worth but excluded from spendable liquidity.
+If a property sale is explicitly modelled, released net sale proceeds are added
+to spendable liquidity from the sale year onward.
+
+## Real-estate and mortgage scenarios
+
+`penge.sim.real_estate` projects property value, mortgage debt, recurring
+ownership costs, interest, amortisation, equity, and explicit sale proceeds.
+`HouseholdPlan.real_estate_assets` and `HouseholdPlan.mortgages` make those rows
+available to `project_household()` and `project_balance_sheet()`.
+
+```python
+from decimal import Decimal
+
+from penge.sim.plan import HouseholdPlan, project_household
+from penge.sim.real_estate import MortgageConfig, PropertyAssetConfig
+
+plan = HouseholdPlan(
+    ...,
+    real_estate_assets=(
+        PropertyAssetConfig(
+            property_id="home",
+            label="Family home",
+            start_year=2027,
+            value_dkk=Decimal("3500000"),
+            annual_value_growth_rate=Decimal("0.02"),
+            annual_recurring_cost_dkk=Decimal("25000"),
+        ),
+    ),
+    mortgages=(
+        MortgageConfig(
+            mortgage_id="home-loan",
+            property_id="home",
+            start_year=2027,
+            principal_dkk=Decimal("2500000"),
+            annual_interest_rate=Decimal("0.035"),
+            annual_amortization_dkk=Decimal("80000"),
+        ),
+    ),
+)
+
+projection = project_household(plan)
+```
+
+The model is planning-grade and deterministic.
+It does not model refinancing, variable-rate reset schedules, tax deductibility,
+or rental-income taxation.
+Use `HomePurchasePreset` for a future purchase scenario and
+`HigherMortgageRatePreset` for interest-rate sensitivity in the stress pack.
 
 ## Retirement readiness report
 
 `generate_readiness_report()` composes the balance sheet, bridge safe-spending
-summary, tax timeline, risk register, contribution strategy, pension payout,
-Folkepension, and audit assumptions into a structured `RetirementReadinessReport`.
+summary, tax timeline, tax-country context, risk register, contribution strategy,
+pension payout, Folkepension, and audit assumptions into a structured
+`RetirementReadinessReport`.
 The report exposes both machine-readable findings and deterministic Markdown.
 
 ```python
@@ -130,6 +181,25 @@ modregning, and material year-over-year changes in total tax drag.
 is a means-tested public-pension benefit reduction, not tax owed.
 The Topskat value is a gross-salary planning estimate; use the statutory tax
 engine for filing-grade Topskat calculations.
+
+## DK/DE tax-country context
+
+`build_household_tax_context()` summarizes member-level tax-country assumptions
+from `HouseholdPlan.members` and `TaxConfig`.
+`HouseholdMember.tax_country` is optional and defaults to `jurisdiction`, but it
+can be set explicitly when residence and tax treatment need to be reviewed
+separately.
+
+The readiness report renders a tax-country assumptions table with salary,
+pension-return, pension-drawdown, and liquid capital-gains planning rates.
+For DE members it also surfaces unsupported areas:
+
+- Vorabpauschale timing is not projected per fund inside `HouseholdPlan`.
+- Splittingtarif, Kirchensteuer, Soli, allowances, and exact pension
+  Besteuerungsanteil are not computed by the household planner.
+
+Those warnings are intentionally visible in the risk register so mixed DK/DE
+plans do not silently treat a German spouse's depot as Danish.
 
 ## Planning risk register
 
@@ -278,6 +348,41 @@ It does not model exact personal-income tax brackets, loss carry-forwards, futur
 portfolio growth during the drawdown horizon, or filing-grade pension tax.
 It is planning support only, not automated trading, rebalancing, or tax-filing
 advice.
+
+## Source-backed planning assumptions
+
+`penge.sim.source_assumptions` extracts reviewable planning assumptions from
+parsed or OCR sidecar text.
+It is deterministic and rule-based.
+It does not send document text to an LLM or any external service.
+
+```python
+from pathlib import Path
+
+from penge.sim.source_assumptions import (
+    ParsedPlanningDocument,
+    accept_planning_assumption,
+    extract_planning_assumptions,
+)
+
+document = ParsedPlanningDocument(
+    document_id="synthetic-pfa-2026",
+    path=Path("vault/2026/pension/synthetic.txt"),
+    classification="pfa",
+    extracted_via="ocr",
+    text="Pensionssaldo: 1200000 EUR\nÅOP: 0.45%",
+)
+
+suggestions = extract_planning_assumptions((document,))
+accepted = accept_planning_assumption(suggestions[0])
+```
+
+Extracted assumptions carry source provenance: document ID, path, classification,
+extraction method, and text excerpt.
+They start as `suggested` and must be accepted before a caller copies the value
+into `HouseholdPlan`.
+Supported assumption kinds currently include pension balance, annuity factor,
+cost basis, ÅOP, dividend yield, property value, and mortgage balance.
 
 ## Finding semantics
 

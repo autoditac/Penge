@@ -13,12 +13,15 @@ from penge.sim.plan import (
     HouseholdMember,
     HouseholdPlan,
 )
+from penge.sim.real_estate import MortgageConfig, PropertyAssetConfig
 from penge.sim.spending import OneOffExpense, SpendingRule
 
 __all__ = [
     "DelayedPensionStartPreset",
     "HigherInflationPreset",
+    "HigherMortgageRatePreset",
     "HigherSpendingPreset",
+    "HomePurchasePreset",
     "HouseholdScenario",
     "HouseholdScenarioPreset",
     "HouseholdScenarioPresetName",
@@ -49,6 +52,8 @@ HouseholdScenarioPresetName = Literal[
     "higher_spending",
     "one_off_expense",
     "delayed_pension_start",
+    "home_purchase",
+    "higher_mortgage_rate",
 ]
 
 
@@ -420,6 +425,120 @@ class DelayedPensionStartPreset(_PresetBase):
         )
 
 
+class HomePurchasePreset(_PresetBase):
+    """Add a future property purchase and optional mortgage."""
+
+    name: Literal["home_purchase"] = "home_purchase"
+    label: str = "Buy property"
+    description: str = "Add a future real-estate purchase with mortgage assumptions."
+    property_id: str
+    label_override: str
+    start_year: int
+    value_dkk: Decimal
+    owner_entity: str | None = None
+    annual_value_growth_rate: Decimal = Decimal("0")
+    annual_recurring_cost_dkk: Decimal = Decimal("0")
+    purchase_cost_dkk: Decimal = Decimal("0")
+    mortgage_principal_dkk: Decimal = Decimal("0")
+    annual_interest_rate: Decimal = Decimal("0")
+    annual_amortization_dkk: Decimal = Decimal("0")
+
+    @pydantic.field_validator(
+        "value_dkk",
+        "annual_value_growth_rate",
+        "annual_recurring_cost_dkk",
+        "purchase_cost_dkk",
+        "mortgage_principal_dkk",
+        "annual_interest_rate",
+        "annual_amortization_dkk",
+        mode="before",
+    )
+    @classmethod
+    def _coerce_decimal(cls, value: object) -> Decimal:
+        return Decimal(str(value))
+
+    def apply(self, plan: HouseholdPlan) -> HouseholdScenario:
+        property_config = PropertyAssetConfig(
+            property_id=self.property_id,
+            label=self.label_override,
+            owner_entity=self.owner_entity,
+            start_year=self.start_year,
+            value_dkk=self.value_dkk,
+            annual_value_growth_rate=self.annual_value_growth_rate,
+            annual_recurring_cost_dkk=self.annual_recurring_cost_dkk,
+            purchase_cost_dkk=self.purchase_cost_dkk,
+        )
+        mortgages = plan.mortgages
+        if self.mortgage_principal_dkk > Decimal("0"):
+            mortgages = (
+                *mortgages,
+                MortgageConfig(
+                    mortgage_id=f"{self.property_id}-mortgage",
+                    property_id=self.property_id,
+                    start_year=self.start_year,
+                    principal_dkk=self.mortgage_principal_dkk,
+                    annual_interest_rate=self.annual_interest_rate,
+                    annual_amortization_dkk=self.annual_amortization_dkk,
+                ),
+            )
+        one_offs = plan.spending_plan.one_offs
+        if self.purchase_cost_dkk > Decimal("0"):
+            one_offs = (
+                *one_offs,
+                OneOffExpense(
+                    label=f"{self.label_override} purchase costs",
+                    year=self.start_year,
+                    amount=self.purchase_cost_dkk,
+                    currency="DKK",
+                ),
+            )
+        spending_plan = plan.spending_plan.model_copy(update={"one_offs": one_offs})
+        scenario_plan = plan.model_copy(
+            update={
+                "real_estate_assets": (*plan.real_estate_assets, property_config),
+                "mortgages": mortgages,
+                "spending_plan": spending_plan,
+            }
+        )
+        return self._scenario(
+            scenario_plan,
+            (f"buy {self.label_override} in {self.start_year}",),
+        )
+
+
+class HigherMortgageRatePreset(_PresetBase):
+    """Increase mortgage interest rates by a deterministic delta."""
+
+    name: Literal["higher_mortgage_rate"] = "higher_mortgage_rate"
+    label: str = "Higher mortgage rate"
+    description: str = "Raise mortgage interest-rate assumptions."
+    annual_interest_rate_delta: Decimal = Decimal("0.01")
+    property_id: str | None = None
+
+    @pydantic.field_validator("annual_interest_rate_delta", mode="before")
+    @classmethod
+    def _coerce_delta(cls, value: object) -> Decimal:
+        return Decimal(str(value))
+
+    def apply(self, plan: HouseholdPlan) -> HouseholdScenario:
+        mortgages = tuple(
+            mortgage.model_copy(
+                update={
+                    "annual_interest_rate": mortgage.annual_interest_rate
+                    + self.annual_interest_rate_delta
+                }
+            )
+            if self.property_id is None or mortgage.property_id == self.property_id
+            else mortgage
+            for mortgage in plan.mortgages
+        )
+        scenario_plan = plan.model_copy(update={"mortgages": mortgages})
+        return self._scenario(
+            scenario_plan,
+            (f"mortgage rates +{self.annual_interest_rate_delta}",),
+        )
+
+
 HouseholdScenarioPreset = (
     RetireInYearPreset
     | WorkReductionPreset
@@ -430,6 +549,8 @@ HouseholdScenarioPreset = (
     | HigherSpendingPreset
     | OneOffExpensePreset
     | DelayedPensionStartPreset
+    | HomePurchasePreset
+    | HigherMortgageRatePreset
 )
 
 

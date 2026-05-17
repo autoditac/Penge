@@ -13,6 +13,7 @@ from penge.sim.bridge_spending import (
     summarize_bridge_result,
 )
 from penge.sim.contribution_strategy import ContributionStrategyExplanation
+from penge.sim.household_tax_context import HouseholdTaxContext, build_household_tax_context
 from penge.sim.plan import HouseholdProjectionResult
 from penge.sim.risk import PlanningRiskRegister, generate_risk_register
 from penge.sim.tax_timeline import TaxTimeline, build_tax_timeline
@@ -28,6 +29,12 @@ _TWO_DP = Decimal("0.01")
 
 def _fmt(value: Decimal, suffix: str) -> str:
     return f"{value.quantize(_TWO_DP, rounding=ROUND_HALF_EVEN):,} {suffix}"
+
+
+def _fmt_rate(value: Decimal | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{(value * Decimal('100')).quantize(_TWO_DP, rounding=ROUND_HALF_EVEN)}%"
 
 
 class ReadinessFinding(pydantic.BaseModel):
@@ -52,6 +59,7 @@ class RetirementReadinessReport(pydantic.BaseModel):
     balance_sheet: HouseholdBalanceSheet
     bridge_assessments: tuple[BridgeSafeSpendingResult, ...]
     tax_timeline: TaxTimeline
+    tax_context: HouseholdTaxContext
     risk_register: PlanningRiskRegister
     contribution_strategy: ContributionStrategyExplanation | None = None
     findings: tuple[ReadinessFinding, ...]
@@ -70,6 +78,7 @@ def generate_readiness_report(
     balance_sheet = project_balance_sheet(result)
     bridge_assessments = _bridge_assessments(result)
     tax_timeline = build_tax_timeline(result)
+    tax_context = build_household_tax_context(result.plan)
     risk_register = generate_risk_register(
         result,
         tax_timeline=tax_timeline,
@@ -97,6 +106,7 @@ def generate_readiness_report(
         balance_sheet=balance_sheet,
         bridge_assessments=bridge_assessments,
         tax_timeline=tax_timeline,
+        tax_context=tax_context,
         risk_register=risk_register,
         contribution_strategy=contribution_strategy,
         findings=findings,
@@ -191,8 +201,9 @@ def _render_markdown(
             "",
             "## Balance sheet and liquidity runway",
             "",
-            "| Year | Spendable liquidity | Locked pension | Total net worth | Runway |",
-            "| ---: | ---: | ---: | ---: | ---: |",
+            "| Year | Spendable liquidity | Home equity | Locked pension | "
+            "Total net worth | Runway |",
+            "| ---: | ---: | ---: | ---: | ---: | ---: |",
         ]
     )
     for row in report.balance_sheet.rows[:5]:
@@ -203,6 +214,7 @@ def _render_markdown(
         )
         lines.append(
             f"| {row.year} | {_fmt(row.spendable_liquidity_dkk, 'DKK')} | "
+            f"{_fmt(row.home_equity_dkk, 'DKK')} | "
             f"{_fmt(row.locked_pension_dkk, 'DKK')} | "
             f"{_fmt(row.total_net_worth_dkk, 'DKK')} | {runway} |"
         )
@@ -253,6 +265,8 @@ def _render_markdown(
             f"{_fmt(fp_result.result.total_monthly_dkk, 'DKK/month')} Folkepension."
         )
 
+    lines.extend(_render_tax_context_markdown(report.tax_context))
+
     if report.contribution_strategy is not None:
         strategy = report.contribution_strategy
         exhaustion = (
@@ -292,3 +306,27 @@ def _render_markdown(
             f"| `{assumption.name}` | {assumption.value} {assumption.unit} | {assumption.source} |"
         )
     return "\n".join(lines) + "\n"
+
+
+def _render_tax_context_markdown(tax_context: HouseholdTaxContext) -> list[str]:
+    lines = [
+        "",
+        "## Tax-country assumptions",
+        "",
+        "| Member | Jurisdiction | Tax country | Salary tax | "
+        "Pension return tax | Capital gains rate |",
+        "| --- | --- | --- | ---: | ---: | ---: |",
+    ]
+    for context in tax_context.members:
+        lines.append(
+            f"| {context.member} | {context.jurisdiction} | {context.tax_country} | "
+            f"{_fmt_rate(context.salary_income_tax_rate)} | "
+            f"{_fmt_rate(context.pension_return_tax_rate)} | "
+            f"{_fmt_rate(context.capital_gains_effective_rate)} |"
+        )
+    for unsupported in tax_context.unsupported_features:
+        lines.append(
+            f"- `{unsupported.code}` ({unsupported.member}): "
+            f"{unsupported.description} {unsupported.next_action}"
+        )
+    return lines

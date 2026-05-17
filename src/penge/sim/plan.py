@@ -37,6 +37,12 @@ from penge.sim.payout import (
     PayoutProjection,
     compute_payout,
 )
+from penge.sim.real_estate import (
+    MortgageConfig,
+    PropertyAssetConfig,
+    RealEstateProjection,
+    project_real_estate,
+)
 from penge.sim.registry import (
     ProjectionAuditRecord,
     build_standard_audit_record,
@@ -68,8 +74,10 @@ __all__ = [
     "HouseholdMember",
     "HouseholdPlan",
     "HouseholdProjectionResult",
+    "MortgageConfig",
     "PayoutTemplate",
     "ProjectionWarning",
+    "PropertyAssetConfig",
     "SpendingYear",
     "project_household",
 ]
@@ -123,6 +131,8 @@ class HouseholdMember(pydantic.BaseModel):
             payout / Folkepension templates).
         birth_year: Calendar year of birth.
         jurisdiction: Tax jurisdiction — ``"DK"`` or ``"DE"``.
+        tax_country: Optional explicit tax country. Defaults to
+            ``jurisdiction`` and makes the member-level tax context auditable.
         retirement_year: Last calendar year the member is in employment
             (inclusive).  The following year is the first year of bridge or
             retirement income.
@@ -139,8 +149,15 @@ class HouseholdMember(pydantic.BaseModel):
     name: str
     birth_year: int
     jurisdiction: Literal["DK", "DE"]
+    tax_country: Literal["DK", "DE"] | None = None
     retirement_year: int
     public_pension_start_year: int | None = None
+
+    @property
+    def effective_tax_country(self) -> Literal["DK", "DE"]:
+        """Return the explicit tax country or the member jurisdiction."""
+
+        return self.tax_country or self.jurisdiction
 
     @pydantic.model_validator(mode="after")
     def _validate(self) -> HouseholdMember:
@@ -216,9 +233,7 @@ class BridgeTemplate(pydantic.BaseModel):
         if self.horizon_months < 1:
             raise ValueError("horizon_months must be >= 1")
         if self.tax_regime == "lager" and self.horizon_months % 12 != 0:
-            raise ValueError(
-                "horizon_months must be a multiple of 12 when tax_regime='lager'"
-            )
+            raise ValueError("horizon_months must be a multiple of 12 when tax_regime='lager'")
         return self
 
 
@@ -358,6 +373,8 @@ class HouseholdProjectionResult(pydantic.BaseModel):
             computed :class:`PayoutTemplate`.
         folkepension_results: DK Folkepension results, one per
             :class:`FolkepensionTemplate`.
+        real_estate_projections: Property/mortgage projections, one per
+            :attr:`HouseholdPlan.real_estate_assets`.
         spending_by_year: Spending totals per projected calendar year.
         audit_record: Standard assumption audit record.
         warnings: Human-readable warnings (e.g. missing account references
@@ -374,6 +391,7 @@ class HouseholdProjectionResult(pydantic.BaseModel):
     bridge_results: tuple[EntityBridgeResult, ...]
     payout_projections: tuple[PayoutProjection, ...]
     folkepension_results: tuple[EntityFolkepensionResult, ...]
+    real_estate_projections: tuple[RealEstateProjection, ...]
     spending_by_year: tuple[SpendingYear, ...]
     audit_record: ProjectionAuditRecord
     warnings: tuple[ProjectionWarning, ...]
@@ -410,6 +428,8 @@ class HouseholdPlan(pydantic.BaseModel):
         tax_config: Tax configuration for computing net cashflow.
         spending_plan: Household spending rules and one-off expenses.
         liquid_configs: Liquid investment account configurations.
+        real_estate_assets: Property assets included in household net worth.
+        mortgages: Mortgages linked to ``real_estate_assets``.
         bridge_templates: Bridge-phase drawdown configurations.
         payout_templates: Pension payout configurations.
         folkepension_templates: DK Folkepension configurations.
@@ -433,11 +453,11 @@ class HouseholdPlan(pydantic.BaseModel):
     )
 
     tax_config: TaxConfig = pydantic.Field(default_factory=TaxConfig)
-    spending_plan: HouseholdSpendingPlan = pydantic.Field(
-        default_factory=HouseholdSpendingPlan
-    )
+    spending_plan: HouseholdSpendingPlan = pydantic.Field(default_factory=HouseholdSpendingPlan)
 
     liquid_configs: tuple[LiquidDepotConfig, ...] = ()
+    real_estate_assets: tuple[PropertyAssetConfig, ...] = ()
+    mortgages: tuple[MortgageConfig, ...] = ()
     bridge_templates: tuple[BridgeTemplate, ...] = ()
     payout_templates: tuple[PayoutTemplate, ...] = ()
     folkepension_templates: tuple[FolkepensionTemplate, ...] = ()
@@ -474,6 +494,7 @@ class HouseholdPlan(pydantic.BaseModel):
             raise ValueError("pal_skat_rate must be in [0, 1)")
         self._validate_members()
         self._validate_liquid_configs()
+        self._validate_real_estate()
         self._validate_templates()
         return self
 
@@ -488,6 +509,21 @@ class HouseholdPlan(pydantic.BaseModel):
     def _validate_liquid_configs(self) -> None:
         if len(self.liquid_configs) != len({c.account_id for c in self.liquid_configs}):
             raise ValueError("Duplicate liquid_configs account_id values")
+
+    def _validate_real_estate(self) -> None:
+        property_ids = [asset.property_id for asset in self.real_estate_assets]
+        if len(property_ids) != len(set(property_ids)):
+            raise ValueError("Duplicate real_estate_assets property_id values")
+        mortgage_ids = [mortgage.mortgage_id for mortgage in self.mortgages]
+        if len(mortgage_ids) != len(set(mortgage_ids)):
+            raise ValueError("Duplicate mortgages mortgage_id values")
+        property_id_set = set(property_ids)
+        for mortgage in self.mortgages:
+            if mortgage.property_id not in property_id_set:
+                raise ValueError(
+                    f"MortgageConfig property_id '{mortgage.property_id}' "
+                    "is not in real_estate_assets"
+                )
 
     def _validate_templates(self) -> None:
         member_names = {m.name for m in self.members}
@@ -525,10 +561,10 @@ class HouseholdPlan(pydantic.BaseModel):
                     f"FolkepensionTemplate entity '{fp_tmpl.entity}' is not in members"
                 )
             member = next(m for m in self.members if m.name == fp_tmpl.entity)
-            if member.jurisdiction != "DK":
+            if member.effective_tax_country != "DK":
                 raise ValueError(
-                    f"FolkepensionTemplate entity '{fp_tmpl.entity}' has jurisdiction "
-                    f"'{member.jurisdiction}'; Folkepension only applies to DK members"
+                    f"FolkepensionTemplate entity '{fp_tmpl.entity}' has tax country "
+                    f"'{member.effective_tax_country}'; Folkepension only applies to DK members"
                 )
             if member.public_pension_start_year is None:
                 raise ValueError(
@@ -566,9 +602,7 @@ def _household_phase(year: int, plan: HouseholdPlan) -> SpendingPhase:
         return SpendingPhase.ACCUMULATION
 
     pension_years = [
-        m.public_pension_start_year
-        for m in plan.members
-        if m.public_pension_start_year is not None
+        m.public_pension_start_year for m in plan.members if m.public_pension_start_year is not None
     ]
     if pension_years and year >= min(pension_years):
         return SpendingPhase.RETIREMENT
@@ -600,14 +634,16 @@ def _project_payouts(
             if flow.year == payout_tmpl.retirement_year and flow.entity == payout_tmpl.entity
         ]
         if not matching_flows:
-            warnings.append(ProjectionWarning(
-                code="payout_entity_cashflow_not_found",
-                entity=payout_tmpl.entity,
-                message=(
-                    f"PayoutTemplate for '{payout_tmpl.entity}': no cashflow flow at "
-                    f"year {payout_tmpl.retirement_year}; skipping."
-                ),
-            ))
+            warnings.append(
+                ProjectionWarning(
+                    code="payout_entity_cashflow_not_found",
+                    entity=payout_tmpl.entity,
+                    message=(
+                        f"PayoutTemplate for '{payout_tmpl.entity}': no cashflow flow at "
+                        f"year {payout_tmpl.retirement_year}; skipping."
+                    ),
+                )
+            )
             continue
         try:
             payout_cfg = PayoutConfig(
@@ -622,14 +658,16 @@ def _project_payouts(
             )
             proj = compute_payout(payout_cfg)
         except (ValueError, pydantic.ValidationError) as exc:
-            warnings.append(ProjectionWarning(
-                code="payout_config_invalid",
-                entity=payout_tmpl.entity,
-                message=(
-                    f"PayoutTemplate for '{payout_tmpl.entity}': invalid payout "
-                    f"config: {exc}; skipping."
-                ),
-            ))
+            warnings.append(
+                ProjectionWarning(
+                    code="payout_config_invalid",
+                    entity=payout_tmpl.entity,
+                    message=(
+                        f"PayoutTemplate for '{payout_tmpl.entity}': invalid payout "
+                        f"config: {exc}; skipping."
+                    ),
+                )
+            )
             continue
         payout_projections.append(proj)
         payout_by_entity[payout_tmpl.entity] = proj
@@ -649,21 +687,22 @@ def _project_folkepension(
         public_pension_start_year = member.public_pension_start_year
         if public_pension_start_year is None:
             raise ValueError(
-                f"FolkepensionTemplate entity '{fp_tmpl.entity}' has no "
-                "public_pension_start_year"
+                f"FolkepensionTemplate entity '{fp_tmpl.entity}' has no public_pension_start_year"
             )
         try:
             fp_age = folkepension_age_for_year(public_pension_start_year)
         except FolkepensionError as exc:
-            warnings.append(ProjectionWarning(
-                code="folkepension_age_unsupported",
-                entity=fp_tmpl.entity,
-                message=(
-                    f"FolkepensionTemplate for '{fp_tmpl.entity}': unsupported "
-                    f"public_pension_start_year {public_pension_start_year}: "
-                    f"{exc}; skipping."
-                ),
-            ))
+            warnings.append(
+                ProjectionWarning(
+                    code="folkepension_age_unsupported",
+                    entity=fp_tmpl.entity,
+                    message=(
+                        f"FolkepensionTemplate for '{fp_tmpl.entity}': unsupported "
+                        f"public_pension_start_year {public_pension_start_year}: "
+                        f"{exc}; skipping."
+                    ),
+                )
+            )
             continue
         if fp_tmpl.entity in payout_by_entity:
             fp_result = folkepension_from_payout(
@@ -734,41 +773,46 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
     bridge_results: list[EntityBridgeResult] = []
     for tmpl in plan.bridge_templates:
         if tmpl.liquid_account_id not in liquid_by_account:
-            warnings.append(ProjectionWarning(
-                code="bridge_account_not_found",
-                entity=tmpl.entity,
-                message=(
-                    f"BridgeTemplate for '{tmpl.entity}': liquid account "
-                    f"'{tmpl.liquid_account_id}' not found in liquid_configs; skipping."
-                ),
-            ))
+            warnings.append(
+                ProjectionWarning(
+                    code="bridge_account_not_found",
+                    entity=tmpl.entity,
+                    message=(
+                        f"BridgeTemplate for '{tmpl.entity}': liquid account "
+                        f"'{tmpl.liquid_account_id}' not found in liquid_configs; skipping."
+                    ),
+                )
+            )
             continue
         liq = liquid_by_account[tmpl.liquid_account_id]
-        bridge_flow = next(
-            (f for f in liq.flows if f.year == tmpl.bridge_start_year), None
-        )
+        bridge_flow = next((f for f in liq.flows if f.year == tmpl.bridge_start_year), None)
         if bridge_flow is None:
-            warnings.append(ProjectionWarning(
-                code="bridge_start_year_not_in_projection",
-                entity=tmpl.entity,
-                message=(
-                    f"BridgeTemplate for '{tmpl.entity}': bridge_start_year "
-                    f"{tmpl.bridge_start_year} not in liquid projection "
-                    f"(base_year={plan.base_year}, horizon_years={plan.horizon_years}); skipping."
-                ),
-            ))
+            warnings.append(
+                ProjectionWarning(
+                    code="bridge_start_year_not_in_projection",
+                    entity=tmpl.entity,
+                    message=(
+                        f"BridgeTemplate for '{tmpl.entity}': bridge_start_year "
+                        f"{tmpl.bridge_start_year} not in liquid projection "
+                        f"(base_year={plan.base_year}, "
+                        f"horizon_years={plan.horizon_years}); skipping."
+                    ),
+                )
+            )
             continue
         bridge_balance = bridge_flow.closing_balance_dkk
         if bridge_balance <= Decimal("0"):
-            warnings.append(ProjectionWarning(
-                code="bridge_nonpositive_balance",
-                entity=tmpl.entity,
-                message=(
-                    f"BridgeTemplate for '{tmpl.entity}': liquid account "
-                    f"'{tmpl.liquid_account_id}' closing balance at {tmpl.bridge_start_year} "
-                    f"is non-positive ({bridge_balance} DKK); skipping."
-                ),
-            ))
+            warnings.append(
+                ProjectionWarning(
+                    code="bridge_nonpositive_balance",
+                    entity=tmpl.entity,
+                    message=(
+                        f"BridgeTemplate for '{tmpl.entity}': liquid account "
+                        f"'{tmpl.liquid_account_id}' closing balance at {tmpl.bridge_start_year} "
+                        f"is non-positive ({bridge_balance} DKK); skipping."
+                    ),
+                )
+            )
             continue
         try:
             bridge_cfg = BridgeConfig(
@@ -786,13 +830,16 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
                 EntityBridgeResult(entity=tmpl.entity, result=compute_bridge_pmt(bridge_cfg))
             )
         except (ValueError, pydantic.ValidationError) as exc:
-            warnings.append(ProjectionWarning(
-                code="bridge_config_invalid",
-                entity=tmpl.entity,
-                message=(
-                    f"BridgeTemplate for '{tmpl.entity}': invalid bridge config: {exc}; skipping."
-                ),
-            ))
+            warnings.append(
+                ProjectionWarning(
+                    code="bridge_config_invalid",
+                    entity=tmpl.entity,
+                    message=(
+                        f"BridgeTemplate for '{tmpl.entity}': invalid bridge "
+                        f"config: {exc}; skipping."
+                    ),
+                )
+            )
 
     # ---- 4. Pension payout ----
     payout_projections, payout_by_entity, payout_warnings = _project_payouts(
@@ -808,7 +855,15 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
     )
     warnings.extend(folkepension_warnings)
 
-    # ---- 6. Spending by year ----
+    # ---- 6. Real-estate and mortgage projections ----
+    real_estate_projections = project_real_estate(
+        plan.real_estate_assets,
+        plan.mortgages,
+        base_year=plan.base_year,
+        horizon_years=plan.horizon_years,
+    )
+
+    # ---- 7. Spending by year ----
     spending_by_year_list: list[SpendingYear] = []
     for year in range(plan.base_year + 1, plan.base_year + plan.horizon_years + 1):
         phase = _household_phase(year, plan)
@@ -822,7 +877,7 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
             )
         )
 
-    # ---- 7. Audit record ----
+    # ---- 8. Audit record ----
     audit_record = build_standard_audit_record()
 
     return HouseholdProjectionResult(
@@ -833,6 +888,7 @@ def project_household(plan: HouseholdPlan) -> HouseholdProjectionResult:
         bridge_results=tuple(bridge_results),
         payout_projections=payout_projections,
         folkepension_results=folkepension_results,
+        real_estate_projections=real_estate_projections,
         spending_by_year=tuple(spending_by_year_list),
         audit_record=audit_record,
         warnings=tuple(warnings),

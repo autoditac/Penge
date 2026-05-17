@@ -60,6 +60,11 @@ from penge.sim.config_compare import (
     ConfigComparisonResult,
     compare_configs,
 )
+from penge.sim.contribution_strategy import (
+    ContributionStrategyExplanation,
+    ContributionStrategyWarning,
+    explain_contribution_strategy,
+)
 from penge.sim.goal import (
     GoalConfig,
     GoalResult,
@@ -104,6 +109,11 @@ from penge.sim.returns import (
     ReturnModelError,
     SampledPaths,
 )
+from penge.sim.risk import (
+    PlanningRiskFinding,
+    PlanningRiskRegister,
+    generate_risk_register,
+)
 from penge.sim.routing import (
     ContributionRouter,
     ContributionRoutingError,
@@ -143,6 +153,14 @@ from penge.sim.tax import (
     apply_tax,
     net_pension_drawdown,
 )
+from penge.sim.tax_timeline import (
+    TaxAttribution,
+    TaxTimeline,
+    TaxTimelineRow,
+    TaxTimelineTotals,
+    TaxTimelineWarning,
+    build_tax_timeline,
+)
 
 __all__ = [
     "DE_DEFAULT",
@@ -163,6 +181,8 @@ __all__ = [
     "ContributionRouter",
     "ContributionRoutingError",
     "ContributionRule",
+    "ContributionStrategyExplanation",
+    "ContributionStrategyWarning",
     "EntityBridgeResult",
     "EntityFolkepensionResult",
     "EntityTaxRegime",
@@ -188,6 +208,8 @@ __all__ = [
     "PayoutProjection",
     "PayoutTemplate",
     "PensionAccrualRule",
+    "PlanningRiskFinding",
+    "PlanningRiskRegister",
     "ProjectionAuditRecord",
     "ProjectionWarning",
     "ReadinessFinding",
@@ -202,21 +224,29 @@ __all__ = [
     "SpendingPhase",
     "SpendingRule",
     "SpendingYear",
+    "TaxAttribution",
     "TaxConfig",
     "TaxRegime",
+    "TaxTimeline",
+    "TaxTimelineRow",
+    "TaxTimelineTotals",
+    "TaxTimelineWarning",
     "WorkReductionScenario",
     "YearlyContributionSplit",
     "YearlyFlow",
     "apply_tax",
     "assess_bridge_spending",
     "build_standard_audit_record",
+    "build_tax_timeline",
     "compare",
     "compare_configs",
     "compute_payout",
     "compute_spending",
     "evaluate",
+    "explain_contribution_strategy",
     "first_liquidity_depletion",
     "generate_readiness_report",
+    "generate_risk_register",
     "net_pension_drawdown",
     "project",
     "project_balance_sheet",

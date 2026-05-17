@@ -1,0 +1,292 @@
+:root {
+    color: #172033;
+    background: #eef2f7;
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+}
+
+code {
+    border-radius: 0.4rem;
+    background: #e7edf7;
+    padding: 0.1rem 0.35rem;
+}
+
+.shell {
+    min-height: 100vh;
+    padding: 2rem;
+}
+
+.hero {
+    border-radius: 2rem;
+    background: radial-gradient(circle at top left, rgba(49, 95, 244, 0.28), transparent 30rem),
+        linear-gradient(135deg, #111827, #1e3a8a);
+    color: #f8fafc;
+    padding: 2rem;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.heroGrid,
+.panelHeader,
+.metricTopline {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.hero h1,
+.panel h2 {
+    margin: 0;
+    letter-spacing: -0.04em;
+}
+
+.hero h1 {
+    max-width: 16ch;
+    font-size: clamp(2.5rem, 5vw, 5.5rem);
+    line-height: 0.92;
+}
+
+.hero p {
+    max-width: 56rem;
+    color: #dbeafe;
+    font-size: 1.1rem;
+}
+
+.eyebrow {
+    margin: 0 0 0.75rem;
+    color: #5b6f95;
+    font-size: 0.78rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.hero .eyebrow {
+    color: #93c5fd;
+}
+
+.statusCard,
+.metricCard,
+.panel {
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 1.5rem;
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+}
+
+.statusCard {
+    min-width: 18rem;
+    display: grid;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    color: #eff6ff;
+    padding: 1.25rem;
+}
+
+.statusCard span,
+.statusCard small {
+    color: #bfdbfe;
+}
+
+.statusCard strong {
+    font-size: 1.45rem;
+}
+
+.metricsGrid,
+.dashboardGrid,
+.questionGrid {
+    display: grid;
+    gap: 1rem;
+}
+
+.metricsGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    margin: 1rem 0;
+}
+
+.dashboardGrid {
+    grid-template-columns: 2fr 1fr;
+}
+
+.spanTwo {
+    grid-column: span 2;
+}
+
+.metricCard,
+.panel {
+    padding: 1.25rem;
+}
+
+.metricCard {
+    border-top: 0.35rem solid #64748b;
+}
+
+.tone-good {
+    border-top-color: #16a34a;
+}
+
+.tone-watch {
+    border-top-color: #f59e0b;
+}
+
+.tone-critical {
+    border-top-color: #dc2626;
+}
+
+.tone-info {
+    border-top-color: #2563eb;
+}
+
+.metricTopline span,
+.metricDelta,
+.supporting,
+.riskItem p,
+.questionCard p {
+    color: #64748b;
+}
+
+.metricTopline strong,
+.pill,
+.riskItem span,
+.questionCard span {
+    border-radius: 999px;
+    background: #e0ecff;
+    color: #1d4ed8;
+    padding: 0.3rem 0.65rem;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+}
+
+.metricValue {
+    margin: 1rem 0 0.2rem;
+    color: #0f172a;
+    font-size: clamp(1.5rem, 3vw, 2.15rem);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+}
+
+.metricCard small,
+.riskItem small,
+.questionCard small {
+    color: #94a3b8;
+}
+
+.chart {
+    min-height: 20rem;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1rem;
+    padding-top: 2rem;
+}
+
+.chartColumn {
+    display: grid;
+    grid-template-rows: 1fr auto;
+    gap: 0.75rem;
+    color: #64748b;
+    font-weight: 700;
+    text-align: center;
+}
+
+.barTrack {
+    position: relative;
+    min-height: 16rem;
+    overflow: hidden;
+    border-radius: 1rem;
+    background: linear-gradient(180deg, #e2e8f0, #f8fafc);
+}
+
+.bar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    transition: height 180ms ease;
+}
+
+.netWorthBar {
+    background: linear-gradient(180deg, #60a5fa, #1d4ed8);
+}
+
+.liquidityBar {
+    left: 20%;
+    width: 60%;
+    border-radius: 999px 999px 0 0;
+    background: #fbbf24;
+}
+
+.riskList,
+.questionGrid {
+    margin-top: 1rem;
+}
+
+.riskList {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.riskItem,
+.questionCard {
+    border-radius: 1rem;
+    background: #f8fafc;
+    padding: 1rem;
+}
+
+.riskItem h3,
+.questionCard h3 {
+    margin: 0.75rem 0 0.45rem;
+    color: #0f172a;
+}
+
+.severity-warning {
+    outline: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.severity-info {
+    outline: 1px solid rgba(37, 99, 235, 0.18);
+}
+
+.questionGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.status-watch {
+    outline: 1px solid rgba(245, 158, 11, 0.28);
+}
+
+@media (max-width: 900px) {
+    .shell {
+        padding: 1rem;
+    }
+
+    .heroGrid,
+    .panelHeader {
+        display: grid;
+    }
+
+    .metricsGrid,
+    .dashboardGrid,
+    .questionGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .spanTwo {
+        grid-column: auto;
+    }
+}

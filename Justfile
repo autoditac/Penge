@@ -204,6 +204,31 @@ mcp-build:
 mcp-evals:
     pnpm --filter @penge/mcp exec vitest run --config vitest.evals.config.ts
 
+# --- Modern WebUI (TypeScript) -----------------------------------------------
+#
+# React/Vite reporting-first cockpit (apps/web). The current slice uses
+# synthetic data only; see docs/web/modern-webui.md and ADR-0033.
+
+# Install WebUI workspace dependencies (idempotent).
+web-ui-install:
+    pnpm --filter @penge/web install
+
+# Run the WebUI locally with Vite.
+web-ui-dev:
+    pnpm --filter @penge/web dev
+
+# Run WebUI unit tests (vitest).
+web-ui-test:
+    pnpm --filter @penge/web test
+
+# Lint + format-check the WebUI TS package.
+web-ui-lint:
+    pnpm --filter @penge/web lint
+
+# Production WebUI build.
+web-ui-build:
+    pnpm --filter @penge/web build
+
 # --- Encrypted backups (see ADR-0025) ----------------------------------------
 #
 # All four recipes are thin wrappers around the shell scripts under

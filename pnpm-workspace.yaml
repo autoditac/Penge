@@ -1,12 +1,14 @@
 packages:
   - "apps/*"
 
-# pnpm 10+ promotes ignored build scripts to a hard error in CI. We
-# only need the binary that esbuild's lifecycle script downloads (vitest
-# loads .ts specs through it) so allow-list it explicitly. The
-# strict-dep-builds=false fallback is a belt-and-braces guard for the
-# implicit `pnpm install` that `pnpm exec` runs as a deps-status check
-# in CI; without it that nested install ignores the workspace allow-list.
+allowBuilds:
+  esbuild: true
+
+# pnpm 10+ promotes ignored build scripts to a hard error in CI. We only need
+# the binary that esbuild's lifecycle script downloads (Vite/Vitest load TS
+# through it), so allow-list it explicitly for both pnpm config generations. The
+# strict-dep-builds=false fallback is a belt-and-braces guard for the implicit
+# `pnpm install` that `pnpm exec` runs as a deps-status check in CI.
 onlyBuiltDependencies:
   - esbuild
 strictDepBuilds: false

@@ -83,9 +83,10 @@ jobs:
 
   images:
     name: Image build + SBOM + provenance
-    # Empty matrix → job is skipped today. Re-enable by listing real app
-    # names once Containerfiles land. Each entry must have a matching
-    # `apps/<name>/Containerfile` (or equivalent path the build step uses).
+    # Disabled today. Re-enable by replacing the placeholder matrix entry
+    # with real app names once Containerfiles land. Each entry must have a
+    # matching `apps/<name>/Containerfile` (or equivalent path the build step
+    # uses).
     if: ${{ false }}
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 30
@@ -97,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: []
+        app: [placeholder]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       # Real steps land with the first app; tracked in the issue thread.

@@ -197,6 +197,10 @@
          <lastmod>2026-05-17</lastmod>
     </url>
     <url>
+         <loc>https://autoditac.github.io/Penge/decisions/0033-reporting-first-react-webui/</loc>
+         <lastmod>2026-05-17</lastmod>
+    </url>
+    <url>
          <loc>https://autoditac.github.io/Penge/decisions/adr-template/</loc>
          <lastmod>2026-05-17</lastmod>
     </url>
@@ -286,6 +290,10 @@
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/tax/dk/</loc>
+         <lastmod>2026-05-17</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/web/modern-webui/</loc>
          <lastmod>2026-05-17</lastmod>
     </url>
 </urlset>

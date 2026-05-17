@@ -10,25 +10,31 @@
       
       
       
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0033-reporting-first-react-webui/">
       
+      
+        <link rel="prev" href="../0032-household-real-estate-tax-context-source-assumptions/">
+      
+      
+        <link rel="next" href="../adr-template/">
       
       
         
       
       
-      <link rel="icon" href="/Penge/assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Penge</title>
+        <title>ADR-0033 Reporting-first React WebUI - Penge</title>
       
     
     
-      <link rel="stylesheet" href="/Penge/assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="/Penge/assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -47,7 +53,7 @@
       
     
     
-    <script>__md_scope=new URL("/Penge/",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -71,6 +77,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#0033-reporting-first-react-webui" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -83,7 +94,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="/Penge/." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -103,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              
+              ADR-0033 Reporting-first React WebUI
             
           </span>
         </div>
@@ -219,7 +230,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="/Penge/." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -249,7 +260,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -299,7 +310,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="/Penge/architecture/" class="md-nav__link ">
+            <a href="../../architecture/" class="md-nav__link ">
               
   
   
@@ -386,7 +397,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="/Penge/connectors/" class="md-nav__link ">
+            <a href="../../connectors/" class="md-nav__link ">
               
   
   
@@ -430,7 +441,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/ecb_fx/" class="md-nav__link">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
         
   
   
@@ -458,7 +469,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/gls/" class="md-nav__link">
+      <a href="../../connectors/gls/" class="md-nav__link">
         
   
   
@@ -486,7 +497,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/evangelische-bank/" class="md-nav__link">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
         
   
   
@@ -514,7 +525,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/lunar/" class="md-nav__link">
+      <a href="../../connectors/lunar/" class="md-nav__link">
         
   
   
@@ -542,7 +553,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/growney/" class="md-nav__link">
+      <a href="../../connectors/growney/" class="md-nav__link">
         
   
   
@@ -570,7 +581,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/pfa/" class="md-nav__link">
+      <a href="../../connectors/pfa/" class="md-nav__link">
         
   
   
@@ -598,7 +609,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/nordnet/" class="md-nav__link">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
         
   
   
@@ -626,7 +637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/abis/" class="md-nav__link">
+      <a href="../../connectors/abis/" class="md-nav__link">
         
   
   
@@ -654,7 +665,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/connectors/manual/" class="md-nav__link">
+      <a href="../../connectors/manual/" class="md-nav__link">
         
   
   
@@ -745,7 +756,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/dbt/" class="md-nav__link">
+      <a href="../../dbt/" class="md-nav__link">
         
   
   
@@ -836,7 +847,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/web/modern-webui/" class="md-nav__link">
+      <a href="../../web/modern-webui/" class="md-nav__link">
         
   
   
@@ -927,7 +938,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/mcp/tools/" class="md-nav__link">
+      <a href="../../mcp/tools/" class="md-nav__link">
         
   
   
@@ -1032,7 +1043,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/personas/" class="md-nav__link">
+      <a href="../../sim/personas/" class="md-nav__link">
         
   
   
@@ -1060,7 +1071,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/user-stories/" class="md-nav__link">
+      <a href="../../sim/user-stories/" class="md-nav__link">
         
   
   
@@ -1088,7 +1099,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/return-model/" class="md-nav__link">
+      <a href="../../sim/return-model/" class="md-nav__link">
         
   
   
@@ -1116,7 +1127,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/assumptions/" class="md-nav__link">
+      <a href="../../sim/assumptions/" class="md-nav__link">
         
   
   
@@ -1144,7 +1155,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/registry/" class="md-nav__link">
+      <a href="../../sim/registry/" class="md-nav__link">
         
   
   
@@ -1172,7 +1183,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/snapshot/" class="md-nav__link">
+      <a href="../../sim/snapshot/" class="md-nav__link">
         
   
   
@@ -1200,7 +1211,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/spending/" class="md-nav__link">
+      <a href="../../sim/spending/" class="md-nav__link">
         
   
   
@@ -1228,7 +1239,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/sim/planning-outputs/" class="md-nav__link">
+      <a href="../../sim/planning-outputs/" class="md-nav__link">
         
   
   
@@ -1323,7 +1334,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/tax/dk/" class="md-nav__link">
+      <a href="../../tax/dk/" class="md-nav__link">
         
   
   
@@ -1351,7 +1362,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/tax/de/" class="md-nav__link">
+      <a href="../../tax/de/" class="md-nav__link">
         
   
   
@@ -1379,7 +1390,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/tax/dk-refresh-checklist/" class="md-nav__link">
+      <a href="../../tax/dk-refresh-checklist/" class="md-nav__link">
         
   
   
@@ -1486,7 +1497,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/monthly-ritual/" class="md-nav__link">
+      <a href="../../runbook/monthly-ritual/" class="md-nav__link">
         
   
   
@@ -1514,7 +1525,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/monthly-report/" class="md-nav__link">
+      <a href="../../runbook/monthly-report/" class="md-nav__link">
         
   
   
@@ -1542,7 +1553,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/web/" class="md-nav__link">
+      <a href="../../runbook/web/" class="md-nav__link">
         
   
   
@@ -1570,7 +1581,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/abis-yearly-refresh/" class="md-nav__link">
+      <a href="../../runbook/abis-yearly-refresh/" class="md-nav__link">
         
   
   
@@ -1598,7 +1609,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/branch-protection/" class="md-nav__link">
+      <a href="../../runbook/branch-protection/" class="md-nav__link">
         
   
   
@@ -1626,7 +1637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/vault-watcher/" class="md-nav__link">
+      <a href="../../runbook/vault-watcher/" class="md-nav__link">
         
   
   
@@ -1654,7 +1665,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/healthchecks/" class="md-nav__link">
+      <a href="../../runbook/healthchecks/" class="md-nav__link">
         
   
   
@@ -1682,7 +1693,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/backup-restore/" class="md-nav__link">
+      <a href="../../runbook/backup-restore/" class="md-nav__link">
         
   
   
@@ -1710,7 +1721,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/runbook/restore-log/" class="md-nav__link">
+      <a href="../../runbook/restore-log/" class="md-nav__link">
         
   
   
@@ -1742,6 +1753,8 @@
       
   
   
+    
+  
   
   
     
@@ -1820,15 +1833,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="/Penge/decisions/" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -1852,7 +1865,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1872,7 +1885,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -1900,7 +1913,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -1928,7 +1941,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -1956,7 +1969,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -1984,7 +1997,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2012,7 +2025,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2040,7 +2053,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2068,7 +2081,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2096,7 +2109,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2124,7 +2137,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0010-sim-return-model/" class="md-nav__link">
+      <a href="../0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2152,7 +2165,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2180,7 +2193,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0012-sim-goal-model/" class="md-nav__link">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2208,7 +2221,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2236,7 +2249,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2264,7 +2277,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2292,7 +2305,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2320,7 +2333,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2348,7 +2361,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2376,7 +2389,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2404,7 +2417,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0020-skat-report-generator/" class="md-nav__link">
+      <a href="../0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2432,7 +2445,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2460,7 +2473,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2488,7 +2501,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2516,7 +2529,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0024-vault-layout/" class="md-nav__link">
+      <a href="../0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2544,7 +2557,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0025-encrypted-backups/" class="md-nav__link">
+      <a href="../0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2572,7 +2585,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2600,7 +2613,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2628,7 +2641,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -2653,10 +2666,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="/Penge/decisions/0033-reporting-first-react-webui/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0033 Reporting-first React WebUI
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2672,6 +2712,170 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-in-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives in detail
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives in detail">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keep-extending-streamlit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep extending Streamlit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-rendered-nextjs-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server-rendered Next.js app
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2684,7 +2888,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/decisions/adr-template/" class="md-nav__link">
+      <a href="../adr-template/" class="md-nav__link">
         
   
   
@@ -2719,7 +2923,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/privacy/" class="md-nav__link">
+      <a href="../../privacy/" class="md-nav__link">
         
   
   
@@ -2746,7 +2950,7 @@
   
   
     <li class="md-nav__item">
-      <a href="/Penge/terms/" class="md-nav__link">
+      <a href="../../terms/" class="md-nav__link">
         
   
   
@@ -2783,6 +2987,160 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-in-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives in detail
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives in detail">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keep-extending-streamlit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keep extending Streamlit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#server-rendered-nextjs-app" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Server-rendered Next.js app
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -2795,8 +3153,129 @@
               
               <article class="md-content__inner md-typeset">
                 
-  <h1>404 - Not found</h1>
+                  
 
+
+  
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0033-reporting-first-react-webui.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
+    </a>
+  
+  
+
+
+<h1 id="0033-reporting-first-react-webui">0033 — Reporting-first React WebUI<a class="headerlink" href="#0033-reporting-first-react-webui" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-05-17</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> web, mcp, security, ux</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>Penge already has a Streamlit dashboard for the first read-only web surface and
+an MCP server that exposes typed AI-facing tools.
+The next UI needs to support richer household reporting, scenario exploration,
+and explanation-first AI workflows without turning the LLM into the source of
+financial truth.</p>
+<p>The WebUI must make classical reporting boring and auditable first.
+AI features should explain deterministic reports, compare scenarios, and guide
+review work while preserving the existing MCP-only data boundary from
+<a href="../0005-llm-access-via-mcp-only/">ADR-0005</a>.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Deterministic financial numbers must come from dbt marts, Python simulation,
+  and typed report APIs rather than from generated prose.</li>
+<li>The UI should support modern, componentized interaction beyond Streamlit:
+  scenario comparison, evidence drill-downs, and assistant panels.</li>
+<li>Any AI surface must keep assumptions, risks, source links, and limitations
+  visible next to the answer.</li>
+<li>Dependencies should be small, pinned, and already aligned with the existing
+  TypeScript workspace where possible.</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Keep extending Streamlit</strong> — fastest path, already deployed locally.</li>
+<li><strong>React + Vite app in <code>apps/web</code></strong> — modern component shell, pnpm workspace,
+   deterministic static first slice.</li>
+<li><strong>Server-rendered Next.js app</strong> — strong full-stack story, larger runtime and
+   routing surface than needed for the first cockpit.</li>
+</ol>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>We chose <strong>React + Vite in <code>apps/web</code></strong> for the next WebUI layer.</p>
+<p>The first implementation is a static, synthetic reporting cockpit that shows the
+intended information architecture:</p>
+<ul>
+<li>overview KPIs for net worth, liquidity runway, FIRE readiness, and FI year;</li>
+<li>classical reporting panel for net worth and spendable liquidity;</li>
+<li>risk register panel for reviewable watch items;</li>
+<li>MCP-backed planning-question panel aligned with <code>answer_planning_question</code>.</li>
+</ul>
+<p>React is added because the UI needs reusable, stateful components for reports,
+scenario labs, and assistant panels.
+Vite is added because it is already present in the TypeScript toolchain for
+Vitest and gives a small, fast frontend build without committing to a server
+framework.
+The first slice deliberately avoids charting and UI component dependencies; CSS
+and small deterministic components are enough until real report APIs land.</p>
+<p>The GitHub Copilot SDK remains a future integration option.
+The stable internal boundary is MCP: WebUI AI features should call typed tools
+directly or through a backend wrapper, and a future Copilot SDK agent should use
+those same tools rather than reading raw finance data.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The repo gains a modern WebUI package without replacing the existing
+  Streamlit dashboard immediately.</li>
+<li>The first app runs on synthetic data only, so screenshots and tests stay safe.</li>
+<li>Reporting and AI boundaries are visible in the UI from the first slice.</li>
+<li>Frontend build, lint, and tests reuse the existing pnpm workspace conventions.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<ul>
+<li>React adds another UI surface next to Streamlit during the transition.</li>
+<li>Real data requires a future typed API layer; this PR only establishes the
+  component and information architecture.</li>
+<li>Vite dev server is not an authenticated deployment surface; production access
+  must still be fronted by private networking or authenticated reverse proxy.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>ADR-0022 remains valid for the Streamlit projection tab.
+  This ADR defines the modern WebUI direction that can gradually absorb those
+  dashboard concepts.</li>
+</ul>
+<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
+<h3 id="keep-extending-streamlit">Keep extending Streamlit<a class="headerlink" href="#keep-extending-streamlit" title="Permanent link">&para;</a></h3>
+<p>Streamlit is useful for quick internal dashboards and already has smoke tests.
+It becomes awkward for a richer application shell with persistent assistant
+panels, evidence drawers, and report-to-scenario navigation.</p>
+<h3 id="server-rendered-nextjs-app">Server-rendered Next.js app<a class="headerlink" href="#server-rendered-nextjs-app" title="Permanent link">&para;</a></h3>
+<p>Next.js is a good candidate once authenticated deployment, API routes, and
+server-side rendering are required.
+For the first cockpit, it adds more framework surface than the current static
+reporting shell needs.</p>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../0005-llm-access-via-mcp-only/">ADR-0005 LLM access exclusively via MCP</a></li>
+<li><a href="../0022-web-projection-dashboard/">ADR-0022 Streamlit projection dashboard tab</a></li>
+<li><a href="../0023-mcp-server-architecture/">ADR-0023 MCP server architecture</a></li>
+<li><code>apps/web/</code></li>
+<li>Issue #198</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
               </article>
             </div>
           
@@ -2833,10 +3312,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "/Penge/", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "/Penge/assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="/Penge/assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

@@ -61,6 +61,16 @@ _DOC_LINKS: tuple[str, ...] = (
     "docs/tax/de.md",
     "docs/decisions/0032-household-real-estate-tax-context-source-assumptions.md",
 )
+_TAX_CONTEXT_RISK_CODES: frozenset[str] = frozenset(
+    {
+        "topskat_exposure",
+        "material_tax_drag_change",
+        "folkepension_tillaeg_fully_reduced",
+        "folkepension_reduced",
+        "de_vorabpauschale_not_in_household_plan",
+        "de_income_tax_brackets_not_modelled",
+    }
+)
 
 
 class PlanningSurfaceError(ValueError):
@@ -410,7 +420,7 @@ def _answer_tax(readiness: RetirementReadinessReport) -> PlanningAnswer:
     tax_context_risks = tuple(
         finding.code
         for finding in readiness.risk_register.findings
-        if finding.code.startswith("de_") or "tax" in finding.code
+        if finding.code in _TAX_CONTEXT_RISK_CODES
     )
     return PlanningAnswer(
         question_id="how_do_taxes_affect_plan",
@@ -441,7 +451,7 @@ def _answer_tax(readiness: RetirementReadinessReport) -> PlanningAnswer:
             ),
         ),
         risk_codes=tax_context_risks[:5],
-        assumption_keys=("tax_config", "household_tax_context", "DK_DEFAULT", "DE_DEFAULT"),
+        assumption_keys=("tax_config", "household_tax_context"),
         limitation_codes=("planning_grade_not_filing_advice",),
         docs=("docs/tax/dk.md", "docs/tax/de.md", "docs/sim/planning-outputs.md"),
     )
@@ -568,6 +578,24 @@ def _assumption_summaries(
             unit="entity regimes",
             source="TaxConfig",
         ),
+        PlanningAssumptionSummary(
+            key="liquid_depot_projection",
+            value=str(len(plan.liquid_configs)),
+            unit="accounts",
+            source="HouseholdPlan.liquid_configs",
+        ),
+        PlanningAssumptionSummary(
+            key="bridge_templates",
+            value=str(len(plan.bridge_templates)),
+            unit="templates",
+            source="HouseholdPlan.bridge_templates",
+        ),
+        PlanningAssumptionSummary(
+            key="risk_register_generation",
+            value=str(len(readiness.risk_register.findings)),
+            unit="findings",
+            source="PlanningRiskRegister",
+        ),
     ]
     audit_entries = tuple(
         _audit_assumption_summary(entry) for entry in projection.audit_record.assumptions
@@ -586,6 +614,8 @@ def _audit_assumption_summary(entry: AssumptionEntry) -> PlanningAssumptionSumma
 
 
 def _assumption_key_for_source(source_assumption: str) -> str:
+    if "household tax context" in source_assumption.lower():
+        return "household_tax_context"
     if "TaxConfig" in source_assumption or "tax" in source_assumption.lower():
         return "tax_config"
     if "spending" in source_assumption.lower():
@@ -594,7 +624,7 @@ def _assumption_key_for_source(source_assumption: str) -> str:
         return "bridge_templates"
     if "retirement" in source_assumption.lower():
         return "planned_retirement_year"
-    return source_assumption
+    return "risk_register_generation"
 
 
 def _limitations(readiness: RetirementReadinessReport) -> tuple[PlanningLimitation, ...]:

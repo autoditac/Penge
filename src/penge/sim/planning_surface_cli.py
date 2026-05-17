@@ -32,11 +32,6 @@ def main(argv: list[str] | None = None) -> int:
         prog="penge-sim-planning-surface",
         description="Generate an explanation-first household planning surface as JSON.",
     )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="Read JSON from stdin (default; flag accepted for symmetry).",
-    )
     parser.parse_args(argv)
 
     try:

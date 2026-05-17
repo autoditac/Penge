@@ -140,7 +140,7 @@ function defaultRunner(opts: {
 }): PlanningSurfaceRunner {
   return {
     async run(stdinJson) {
-      const cmdArgs = ["-m", opts.pythonModule, "--json"];
+      const cmdArgs = ["-m", opts.pythonModule];
       return new Promise((resolve, reject) => {
         const child = spawn(opts.pythonCmd, cmdArgs, {
           cwd: opts.cwd,

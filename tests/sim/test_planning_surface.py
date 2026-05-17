@@ -87,7 +87,7 @@ def test_planning_surface_cli_outputs_json(
         ),
     )
 
-    exit_code = planning_surface_main(["--json"])
+    exit_code = planning_surface_main([])
 
     captured = capsys.readouterr()
     assert exit_code == 0

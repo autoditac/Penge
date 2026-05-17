@@ -57,7 +57,7 @@ export const PLANNING_SURFACE_PAYLOAD: AnswerPlanningQuestionOutput = {
         },
       ],
       risk_codes: ["de_vorabpauschale_not_in_household_plan"],
-      assumption_keys: ["tax_config", "household_tax_context", "DK_DEFAULT", "DE_DEFAULT"],
+      assumption_keys: ["tax_config", "household_tax_context"],
       limitation_codes: ["planning_grade_not_filing_advice"],
       docs: ["docs/tax/dk.md", "docs/tax/de.md"],
     },

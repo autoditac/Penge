@@ -122,14 +122,10 @@ describe.skipIf(!HAS_UV)("answer_planning_question — integration (real subproc
     const realRunner: PlanningSurfaceRunner = {
       async run(stdinJson) {
         return new Promise((resolveP, rejectP) => {
-          const child = spawn(
-            "uv",
-            ["run", "python", "-m", "penge.sim.planning_surface_cli", "--json"],
-            {
-              cwd: repoRoot,
-              stdio: ["pipe", "pipe", "pipe"],
-            },
-          );
+          const child = spawn("uv", ["run", "python", "-m", "penge.sim.planning_surface_cli"], {
+            cwd: repoRoot,
+            stdio: ["pipe", "pipe", "pipe"],
+          });
           const out: Buffer[] = [];
           const err: Buffer[] = [];
           child.stdout.on("data", (c: Buffer) => out.push(c));

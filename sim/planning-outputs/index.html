@@ -1276,6 +1276,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scenario-presets-and-cookbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario presets and cookbook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensitivity-and-stress-test-pack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivity and stress-test pack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tax-aware-drawdown-order-planner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tax-aware drawdown-order planner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#finding-semantics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2845,6 +2878,39 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scenario-presets-and-cookbook" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scenario presets and cookbook
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sensitivity-and-stress-test-pack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sensitivity and stress-test pack
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#tax-aware-drawdown-order-planner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tax-aware drawdown-order planner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#finding-semantics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3026,6 +3092,124 @@ plain-language summary.</p>
 <p>Use this output beside the tax timeline and risk register when explaining why
 new savings should move from ASK to frie midler after the ASK lifetime deposit
 cap is exhausted.</p>
+<h2 id="scenario-presets-and-cookbook">Scenario presets and cookbook<a class="headerlink" href="#scenario-presets-and-cookbook" title="Permanent link">&para;</a></h2>
+<p><code>penge.sim.household_scenarios</code> provides typed presets that derive labelled
+<code>HouseholdScenario</code> objects from a baseline <code>HouseholdPlan</code>.
+The presets are deterministic transformations, not ad-hoc mutation of low-level
+model fields.</p>
+<p>Built-in presets cover common household questions:</p>
+<table>
+<thead>
+<tr>
+<th>Preset</th>
+<th>Use case</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RetireInYearPreset</code></td>
+<td>Move retirement, bridge, and payout start years together.</td>
+</tr>
+<tr>
+<td><code>WorkReductionPreset</code></td>
+<td>Model one member reducing salary and salary-linked pension accrual.</td>
+</tr>
+<tr>
+<td><code>IncreasedSavingsPreset</code> / <code>LowerSavingsPreset</code></td>
+<td>Change liquid savings budgets.</td>
+</tr>
+<tr>
+<td><code>LowerReturnsPreset</code></td>
+<td>Reduce pension, liquid, and bridge return assumptions.</td>
+</tr>
+<tr>
+<td><code>HigherInflationPreset</code></td>
+<td>Raise plan and spending inflation assumptions.</td>
+</tr>
+<tr>
+<td><code>HigherSpendingPreset</code></td>
+<td>Scale household spending needs.</td>
+</tr>
+<tr>
+<td><code>OneOffExpensePreset</code></td>
+<td>Add a one-off large expense.</td>
+</tr>
+<tr>
+<td><code>DelayedPensionStartPreset</code></td>
+<td>Delay public pension access assumptions.</td>
+</tr>
+</tbody>
+</table>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">decimal</span><span class="w"> </span><span class="kn">import</span> <span class="n">Decimal</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.household_scenarios</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
+    <span class="n">HigherSpendingPreset</span><span class="p">,</span>
+    <span class="n">RetireInYearPreset</span><span class="p">,</span>
+    <span class="n">compose_scenario_presets</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">scenario</span> <span class="o">=</span> <span class="n">compose_scenario_presets</span><span class="p">(</span>
+    <span class="n">plan</span><span class="p">,</span>
+    <span class="p">(</span>
+        <span class="n">RetireInYearPreset</span><span class="p">(</span><span class="n">year</span><span class="o">=</span><span class="mi">2032</span><span class="p">),</span>
+        <span class="n">HigherSpendingPreset</span><span class="p">(</span><span class="n">factor</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;1.10&quot;</span><span class="p">)),</span>
+    <span class="p">),</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;retire-2032-higher-spend&quot;</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Retire in 2032 with 10</span><span class="si">% hi</span><span class="s2">gher spending&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Presets are composable where they keep the resulting <code>HouseholdPlan</code> valid.
+The output carries a label and changed-assumptions list so reports, stress packs,
+or dashboards can explain what changed.</p>
+<h2 id="sensitivity-and-stress-test-pack">Sensitivity and stress-test pack<a class="headerlink" href="#sensitivity-and-stress-test-pack" title="Permanent link">&para;</a></h2>
+<p><code>run_stress_tests()</code> runs built-in or caller-provided stress scenarios from a
+<code>HouseholdPlan</code>.
+It ranks results by a deterministic impact score based on terminal net-worth
+delta, terminal spendable-liquidity delta, and new critical risk findings.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.stress</span><span class="w"> </span><span class="kn">import</span> <span class="n">run_stress_tests</span>
+
+<span class="n">pack</span> <span class="o">=</span> <span class="n">run_stress_tests</span><span class="p">(</span><span class="n">plan</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">result</span> <span class="ow">in</span> <span class="n">pack</span><span class="o">.</span><span class="n">results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">rank</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">label</span><span class="p">,</span> <span class="n">result</span><span class="o">.</span><span class="n">impact_score_dkk</span><span class="p">)</span>
+</code></pre></div>
+<p>The default pack includes lower returns, higher inflation, higher spending,
+lower savings, delayed pension start, and a one-off expense.
+Stress ranking is a prioritization aid: it highlights which assumptions deserve
+attention first, but it does not assign probabilities to the stressed outcomes.</p>
+<h2 id="tax-aware-drawdown-order-planner">Tax-aware drawdown-order planner<a class="headerlink" href="#tax-aware-drawdown-order-planner" title="Permanent link">&para;</a></h2>
+<p><code>penge.sim.drawdown</code> compares planning-only drawdown orders across cash, ASK,
+frie midler, and pension buckets.
+It can build starting buckets from a <code>HouseholdProjectionResult</code>, or callers can
+provide explicit <code>DrawdownAccountState</code> values.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">decimal</span><span class="w"> </span><span class="kn">import</span> <span class="n">Decimal</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.drawdown</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_drawdown_accounts</span><span class="p">,</span> <span class="n">compare_drawdown_strategies</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.plan</span><span class="w"> </span><span class="kn">import</span> <span class="n">project_household</span>
+
+<span class="n">projection</span> <span class="o">=</span> <span class="n">project_household</span><span class="p">(</span><span class="n">plan</span><span class="p">)</span>
+<span class="n">accounts</span> <span class="o">=</span> <span class="n">build_drawdown_accounts</span><span class="p">(</span>
+    <span class="n">projection</span><span class="p">,</span>
+    <span class="n">start_year</span><span class="o">=</span><span class="mi">2030</span><span class="p">,</span>
+    <span class="n">cash_balance_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;100000&quot;</span><span class="p">),</span>
+<span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">compare_drawdown_strategies</span><span class="p">(</span>
+    <span class="n">accounts</span><span class="p">,</span>
+    <span class="n">start_year</span><span class="o">=</span><span class="mi">2030</span><span class="p">,</span>
+    <span class="n">annual_spending_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;300000&quot;</span><span class="p">),</span>
+    <span class="n">horizon_years</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>Outputs include yearly gross withdrawals, net spending funded, estimated tax,
+depletion timing, and remaining balances by bucket.
+The planner respects configured pension accessibility years, estimates
+realisationsbeskatning tax for frie midler withdrawals from the current gain
+fraction, estimates ASK tax on latent gains with the account <code>tax_rate</code>
+(<code>ASK_RATE</code> for accounts built from projections), and applies a flat pension
+drawdown <code>tax_rate</code> after accessibility checks.
+It does not model exact personal-income tax brackets, loss carry-forwards, future
+portfolio growth during the drawdown horizon, or filing-grade pension tax.
+It is planning support only, not automated trading, rebalancing, or tax-filing
+advice.</p>
 <h2 id="finding-semantics">Finding semantics<a class="headerlink" href="#finding-semantics" title="Permanent link">&para;</a></h2>
 <p>Readiness findings use stable <code>code</code> values and one of three severities:</p>
 <table>

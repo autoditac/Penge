@@ -10,6 +10,7 @@ from penge.sim.balance import project_balance_sheet
 from penge.sim.household_scenarios import (
     DelayedPensionStartPreset,
     HigherInflationPreset,
+    HigherMortgageRatePreset,
     HigherSpendingPreset,
     HouseholdScenarioPreset,
     LowerReturnsPreset,
@@ -75,7 +76,7 @@ def default_stress_tests(plan: HouseholdPlan) -> tuple[StressTestSpec, ...]:
     """Return deterministic built-in household stress tests for *plan*."""
 
     first_projected_year = plan.base_year + 1
-    return (
+    specs = [
         StressTestSpec(
             name="lower_returns",
             label="Lower returns",
@@ -111,7 +112,16 @@ def default_stress_tests(plan: HouseholdPlan) -> tuple[StressTestSpec, ...]:
                 expense_label="stress large expense",
             ),
         ),
-    )
+    ]
+    if plan.mortgages:
+        specs.append(
+            StressTestSpec(
+                name="higher_mortgage_rate",
+                label="Higher mortgage rate",
+                preset=HigherMortgageRatePreset(annual_interest_rate_delta=Decimal("0.015")),
+            )
+        )
+    return tuple(specs)
 
 
 def run_stress_tests(

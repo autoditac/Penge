@@ -31,6 +31,12 @@ Subpackages:
   (issue #180).
 - :mod:`penge.sim.drawdown` — planning-only tax-aware drawdown-order comparison
   (issue #178).
+- :mod:`penge.sim.real_estate` — property and mortgage planning projection
+  (issue #185).
+- :mod:`penge.sim.household_tax_context` — DK/DE tax-context reporting
+  (issue #181).
+- :mod:`penge.sim.source_assumptions` — document-backed planning assumption
+  extraction with review status (issue #182).
 """
 
 from penge.sim.assumptions import (
@@ -90,7 +96,9 @@ from penge.sim.goal import (
 from penge.sim.household_scenarios import (
     DelayedPensionStartPreset,
     HigherInflationPreset,
+    HigherMortgageRatePreset,
     HigherSpendingPreset,
+    HomePurchasePreset,
     HouseholdScenario,
     HouseholdScenarioPreset,
     HouseholdScenarioPresetName,
@@ -102,6 +110,12 @@ from penge.sim.household_scenarios import (
     WorkReductionPreset,
     apply_scenario_preset,
     compose_scenario_presets,
+)
+from penge.sim.household_tax_context import (
+    HouseholdTaxContext,
+    MemberTaxContext,
+    UnsupportedTaxFeature,
+    build_household_tax_context,
 )
 from penge.sim.montecarlo import (
     MonteCarloConfig,
@@ -122,8 +136,10 @@ from penge.sim.plan import (
     HouseholdMember,
     HouseholdPlan,
     HouseholdProjectionResult,
+    MortgageConfig,
     PayoutTemplate,
     ProjectionWarning,
+    PropertyAssetConfig,
     SpendingYear,
     project_household,
 )
@@ -131,6 +147,11 @@ from penge.sim.readiness import (
     ReadinessFinding,
     RetirementReadinessReport,
     generate_readiness_report,
+)
+from penge.sim.real_estate import (
+    RealEstateProjection,
+    RealEstateYear,
+    project_real_estate,
 )
 from penge.sim.registry import (
     AssumptionEntry,
@@ -170,6 +191,15 @@ from penge.sim.snapshot import (
     HoldingSnapshot,
     HouseholdSnapshot,
     SnapshotBuilder,
+)
+from penge.sim.source_assumptions import (
+    ExtractedPlanningAssumption,
+    ParsedPlanningDocument,
+    PlanningAssumptionSource,
+    accept_planning_assumption,
+    accepted_assumptions,
+    extract_planning_assumptions,
+    reject_planning_assumption,
 )
 from penge.sim.spending import (
     HouseholdSpendingPlan,
@@ -232,12 +262,15 @@ __all__ = [
     "EntityBridgeResult",
     "EntityFolkepensionResult",
     "EntityTaxRegime",
+    "ExtractedPlanningAssumption",
     "FolkepensionTemplate",
     "GoalConfig",
     "GoalResult",
     "HigherInflationPreset",
+    "HigherMortgageRatePreset",
     "HigherSpendingPreset",
     "HoldingSnapshot",
+    "HomePurchasePreset",
     "HousePurchaseScenario",
     "HouseholdBalanceSheet",
     "HouseholdBalanceSheetRow",
@@ -251,25 +284,33 @@ __all__ = [
     "HouseholdSpendingPlan",
     "HouseholdStressResult",
     "HouseholdStressTestPack",
+    "HouseholdTaxContext",
     "IncreasedSavingsPreset",
     "InstrumentAssumptions",
     "LowerReturnsPreset",
     "LowerSavingsPreset",
+    "MemberTaxContext",
     "MonteCarloConfig",
     "MonteCarloResult",
     "MonthlyContributionSplit",
+    "MortgageConfig",
     "OneOffExpense",
     "OneOffExpensePreset",
+    "ParsedPlanningDocument",
     "PayoutConfig",
     "PayoutError",
     "PayoutProjection",
     "PayoutTemplate",
     "PensionAccrualRule",
+    "PlanningAssumptionSource",
     "PlanningRiskFinding",
     "PlanningRiskRegister",
     "ProjectionAuditRecord",
     "ProjectionWarning",
+    "PropertyAssetConfig",
     "ReadinessFinding",
+    "RealEstateProjection",
+    "RealEstateYear",
     "RetireInYearPreset",
     "RetirementReadinessReport",
     "ReturnModelError",
@@ -290,14 +331,18 @@ __all__ = [
     "TaxTimelineRow",
     "TaxTimelineTotals",
     "TaxTimelineWarning",
+    "UnsupportedTaxFeature",
     "WorkReductionPreset",
     "WorkReductionScenario",
     "YearlyContributionSplit",
     "YearlyFlow",
+    "accept_planning_assumption",
+    "accepted_assumptions",
     "apply_scenario_preset",
     "apply_tax",
     "assess_bridge_spending",
     "build_drawdown_accounts",
+    "build_household_tax_context",
     "build_standard_audit_record",
     "build_tax_timeline",
     "compare",
@@ -311,6 +356,7 @@ __all__ = [
     "evaluate",
     "evaluate_drawdown_strategy",
     "explain_contribution_strategy",
+    "extract_planning_assumptions",
     "first_liquidity_depletion",
     "generate_readiness_report",
     "generate_risk_register",
@@ -318,6 +364,8 @@ __all__ = [
     "project",
     "project_balance_sheet",
     "project_household",
+    "project_real_estate",
+    "reject_planning_assumption",
     "required_starting_capital_for_bridge_spending",
     "route_contributions",
     "run",

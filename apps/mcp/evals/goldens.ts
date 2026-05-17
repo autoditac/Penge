@@ -18,6 +18,10 @@ import { queryNetWorthTool, type NetWorthQueryRunner } from "../src/tools/queryN
 import { queryCashflowTool, type CashflowQueryRunner } from "../src/tools/queryCashflow.js";
 import { computeTaxYearTool, type SubprocessRunner } from "../src/tools/computeTaxYear.js";
 import {
+  answerPlanningQuestionTool,
+  type PlanningSurfaceRunner,
+} from "../src/tools/answerPlanningQuestion.js";
+import {
   runScenarioTool,
   type BaselineLoader,
   type ScenarioSubprocessRunner,
@@ -71,6 +75,7 @@ import {
   HOUSE_PURCHASE_PAYLOAD,
   WORK_REDUCTION_PAYLOAD,
 } from "./fixtures/scenarioPayloads.js";
+import { PLANNING_SURFACE_PAYLOAD } from "./fixtures/planningPayloads.js";
 import { SYNTHETIC_VAULT_DOCS, buildVault } from "./fixtures/vaultDocs.js";
 
 const CTX = { serverName: "evals", serverVersion: "0.0.0-evals" };
@@ -80,6 +85,7 @@ export type ToolName =
   | "query_cashflow"
   | "compute_tax_year"
   | "run_scenario"
+  | "answer_planning_question"
   | "search_documents";
 
 export interface Golden {
@@ -147,6 +153,14 @@ function fixedRunner<T>(payload: T): SubprocessRunner {
 }
 
 function fixedScenarioRunner(payload: unknown): ScenarioSubprocessRunner {
+  return {
+    async run() {
+      return payload;
+    },
+  };
+}
+
+function fixedPlanningSurfaceRunner(payload: unknown): PlanningSurfaceRunner {
   return {
     async run() {
       return payload;
@@ -633,6 +647,94 @@ export const GOLDENS: Golden[] = [
       const out2 = await tool2.handler(input, CTX);
       if (JSON.stringify(out1) !== JSON.stringify(out2)) {
         throw new Error("same-seed runs produced different outputs");
+      }
+    },
+  },
+
+  // ===== Household planning surface (3) ===============================
+  {
+    id: "planning-can-we-retire-links-risks",
+    question: "Can the household retire, with the answer linked to risk findings?",
+    rationale:
+      "The explanation-first surface must answer the household question directly while preserving traceability to risk findings.",
+    tool: "answer_planning_question",
+    async run() {
+      const tool = answerPlanningQuestionTool({
+        runner: fixedPlanningSurfaceRunner(PLANNING_SURFACE_PAYLOAD),
+      });
+      const out = await tool.handler(
+        {
+          plan_id: "synthetic_household",
+          questions: ["can_we_retire"],
+        },
+        CTX,
+      );
+      tool.outputSchema.parse(out);
+      const answer = out.questions.find((item) => item.question_id === "can_we_retire");
+      if (!answer) throw new Error("missing can_we_retire answer");
+      if (answer.risk_codes.length === 0) {
+        throw new Error("can_we_retire answer must link at least one risk code");
+      }
+      if (!answer.answer.toLowerCase().includes("retirement")) {
+        throw new Error(`answer does not directly discuss retirement: ${answer.answer}`);
+      }
+    },
+  },
+  {
+    id: "planning-tax-answer-cites-dk-de-docs",
+    question: "Does the planning tax answer expose DK/DE docs and tax-risk links?",
+    rationale:
+      "Mixed DK/DE planning must not hide tax limitations; the answer should cite the tax pages and linked risk codes.",
+    tool: "answer_planning_question",
+    async run() {
+      const tool = answerPlanningQuestionTool({
+        runner: fixedPlanningSurfaceRunner(PLANNING_SURFACE_PAYLOAD),
+      });
+      const out = await tool.handler(
+        {
+          plan_id: "synthetic_household",
+          questions: ["how_do_taxes_affect_plan"],
+        },
+        CTX,
+      );
+      const answer = out.questions.find((item) => item.question_id === "how_do_taxes_affect_plan");
+      if (!answer) throw new Error("missing how_do_taxes_affect_plan answer");
+      if (!answer.docs.includes("docs/tax/dk.md") || !answer.docs.includes("docs/tax/de.md")) {
+        throw new Error(`tax answer docs missing DK/DE pages: ${answer.docs.join(", ")}`);
+      }
+      if (answer.risk_codes.length === 0) {
+        throw new Error("tax answer must link tax/model limitation risk codes");
+      }
+    },
+  },
+  {
+    id: "planning-assumptions-are-linked",
+    question: "Does the planning surface link answers to named assumptions?",
+    rationale:
+      "A planning dashboard is auditable only if answer prose links back to assumption keys that the user can inspect.",
+    tool: "answer_planning_question",
+    async run() {
+      const tool = answerPlanningQuestionTool({
+        runner: fixedPlanningSurfaceRunner(PLANNING_SURFACE_PAYLOAD),
+      });
+      const out = await tool.handler(
+        {
+          plan_id: "synthetic_household",
+          questions: ["can_we_retire", "how_do_taxes_affect_plan"],
+        },
+        CTX,
+      );
+      const assumptionKeys = new Set(out.assumptions.map((item) => item.key));
+      for (const answer of out.questions) {
+        if (answer.assumption_keys.length === 0) {
+          throw new Error(`${answer.question_id} does not link assumptions`);
+        }
+        const hasResolvableKey = answer.assumption_keys.some((key) => assumptionKeys.has(key));
+        if (!hasResolvableKey) {
+          throw new Error(
+            `${answer.question_id} assumption keys do not resolve: ${answer.assumption_keys.join(", ")}`,
+          );
+        }
       }
     },
   },

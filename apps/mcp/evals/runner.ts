@@ -18,9 +18,9 @@ import { describe, expect, it } from "vitest";
 import { formatGoldenFailure } from "./format.js";
 import { GOLDENS } from "./goldens.js";
 
-describe("MCP golden questions (20)", () => {
+describe("MCP golden questions (23)", () => {
   it("dataset is the right size and shape", () => {
-    expect(GOLDENS).toHaveLength(20);
+    expect(GOLDENS).toHaveLength(23);
     const ids = GOLDENS.map((g) => g.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const golden of GOLDENS) {

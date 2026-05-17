@@ -2,7 +2,7 @@
 
 The MCP server is the only sanctioned LLM data path in Penge. Every
 new release of the tool layer is gated by a deterministic eval suite:
-twenty fixture-backed "golden questions" that exercise the real tool
+twenty-three fixture-backed "golden questions" that exercise the real tool
 handlers and assert structural and numeric invariants.
 
 The suite is **not** an LLM-in-the-loop test. It runs entirely in
@@ -37,20 +37,22 @@ apps/mcp/evals/
 ├── fixtures/
 │   ├── cashflowRows.ts     # synthetic mart_cashflow_daily rows
 │   ├── netWorthRows.ts     # synthetic mart_net_worth_daily rows
+│   ├── planningPayloads.ts # canned answer_planning_question payload
 │   ├── scenarioPayloads.ts # canned run_scenario payloads
 │   ├── taxPayloads.ts      # canned compute_tax_year payloads
 │   └── vaultDocs.ts        # synthetic vault layout + helpers
-├── goldens.ts              # the 20 golden questions
+├── goldens.ts              # the 23 golden questions
 └── runner.ts               # vitest harness (one it() per golden)
 ```
 
-## Coverage (20 goldens)
+## Coverage (23 goldens)
 
 | Area              | Count | Topics                                                                                                                                                |
 | ----------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | DK tax            | 5     | lagerbeskatning mark-to-market; AKS 17 %; PAL-skat 15.3 %; årsopgørelse summary ↔ line-items consistency; loss carry-forward                          |
 | DE tax            | 3     | Vorabpauschale base = Basiszins × NAV; Teilfreistellung 70 % equity; mixed-depot line-item completeness                                               |
 | FIRE / sim        | 4     | p10 ≤ p50 ≤ p90 ordering; work-reduction shifts FIRE later; house-purchase keeps FIRE no earlier; fixed-seed determinism                              |
+| Planning surface  | 3     | direct retirement answer linked to risks; DK/DE tax answer docs + risk links; answer assumption keys resolve to returned assumptions                  |
 | Cashflow          | 3     | monthly ≡ Σ daily; year ↔ month rollup invariant; net sign preserved across EUR ↔ DKK                                                                 |
 | Net worth         | 3     | Σ per-account = total; asset_class rollup = total; cross-currency parity within 0.5 % under fixed FX                                                  |
 | Vault search      | 2     | classifier-typed lookup never leaks across types; excerpts never carry raw IBAN / CPR / long digit runs                                               |
@@ -87,7 +89,7 @@ apps/mcp/evals/
 
 3. Update the count in the dataset-shape check at the top of
    `runner.ts` if the new golden changes the total count (the runner
-   asserts `GOLDENS.length === 20`).
+   asserts `GOLDENS.length === 23`).
 
 4. Run the suite locally:
 

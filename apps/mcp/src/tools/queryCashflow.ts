@@ -22,7 +22,7 @@
  *     entirely (the mart simply has no row for those days).
  */
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import type { ToolDefinition } from "../registry.js";
 

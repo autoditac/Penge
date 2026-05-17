@@ -117,14 +117,12 @@ jobs:
           POSTGRES_PASSWORD: penge
           POSTGRES_DB: penge
         ports:
-          - 5432:5432
+          - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
-    env:
-      DATABASE_URL: postgresql+psycopg://penge:penge@localhost:5432/penge
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -133,10 +131,16 @@ jobs:
       - name: Install db deps
         run: uv sync --group db --frozen
       - name: alembic upgrade head
+        env:
+          DATABASE_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge
         run: uv run --group db alembic upgrade head
       - name: alembic downgrade base
+        env:
+          DATABASE_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge
         run: uv run --group db alembic downgrade base
       - name: alembic upgrade head (idempotency check)
+        env:
+          DATABASE_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge
         run: uv run --group db alembic upgrade head
 
   pytest:
@@ -152,15 +156,12 @@ jobs:
           POSTGRES_PASSWORD: penge
           POSTGRES_DB: penge
         ports:
-          - 5432:5432
+          - 5432/tcp
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
-    env:
-      DATABASE_URL: postgresql+psycopg://penge:penge@localhost:5432/penge
-      PENGE_TEST_DATABASE_URL: postgresql+psycopg://penge:penge@localhost:5432/penge
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -178,4 +179,7 @@ jobs:
       - name: Install dev + db deps
         run: uv sync --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr --group vault --group report --frozen
       - name: Run tests
+        env:
+          DATABASE_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge
+          PENGE_TEST_DATABASE_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge
         run: uv run --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr --group vault --group report pytest

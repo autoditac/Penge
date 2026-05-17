@@ -21,7 +21,7 @@
 
 import { spawn } from "node:child_process";
 
-import { z } from "zod";
+import { z } from "zod/v3";
 
 import type { ToolDefinition } from "../registry.js";
 

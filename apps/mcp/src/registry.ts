@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import type { z } from "zod/v3";
 
 export interface ToolContext {
   serverName: string;
@@ -13,7 +13,7 @@ export interface ToolContext {
 export interface ToolDefinition<I = unknown, O = unknown> {
   name: string;
   description: string;
-  inputSchema: z.ZodType<I>;
+  inputSchema: z.ZodType<I, z.ZodTypeDef, unknown>;
   outputSchema: z.ZodType<O>;
   handler: (args: I, ctx: ToolContext) => Promise<O> | O;
 }

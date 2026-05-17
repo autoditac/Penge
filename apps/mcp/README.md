@@ -1,11 +1,11 @@
 # @penge/mcp
 
-Skeleton Model Context Protocol server. Read-only gateway between LLM hosts
+Model Context Protocol server. Read-only gateway between LLM hosts
 (Claude Desktop, VS Code Copilot Chat, etc.) and the Penge data platform.
 
-This package only ships the server loop, the tool registry, the audit-log
-redactor and a `_meta` health-check tool. The real query tools land in
-follow-up issues (#45, #46, #47, #49). See
+This package ships the server loop, the tool registry, the audit-log
+redactor, and the read-only tool surface for net worth, cashflow, tax,
+scenario, document-search, and household-planning questions. See
 [`docs/decisions/0023-mcp-server-architecture.md`](../../docs/decisions/0023-mcp-server-architecture.md)
 for the architectural decision and
 [`docs/decisions/0005-llm-access-via-mcp-only.md`](../../docs/decisions/0005-llm-access-via-mcp-only.md)

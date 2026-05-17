@@ -25,6 +25,7 @@ def household_output_plan(
     ask_annual_contribution_dkk: Decimal = Decimal("20000"),
     annual_spending_dkk: Decimal = Decimal("300000"),
     pension_opening_eur: Decimal = Decimal("1000000"),
+    bridge_horizon_months: int = 72,
 ) -> HouseholdPlan:
     """Return a compact synthetic plan that exercises output-report modules."""
 
@@ -97,7 +98,7 @@ def household_output_plan(
                 entity="alice",
                 liquid_account_id="alice-frie",
                 bridge_start_year=bridge_start_year,
-                horizon_months=72,
+                horizon_months=bridge_horizon_months,
                 gross_annual_return_rate=Decimal("0.04"),
                 annual_expense_ratio=Decimal("0.005"),
                 account_type="frie_midler",

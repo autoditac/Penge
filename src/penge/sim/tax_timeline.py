@@ -52,7 +52,12 @@ class TaxTimelineWarning(pydantic.BaseModel):
 
 
 class TaxTimelineRow(pydantic.BaseModel):
-    """Yearly tax and public-pension event row."""
+    """Yearly tax and public-pension event row.
+
+    ``total_tax_drag_dkk`` includes tax liabilities only. Folkepension
+    modregning is exposed separately because it is a benefit reduction, not tax
+    owed.
+    """
 
     model_config = pydantic.ConfigDict(frozen=True)
 
@@ -62,6 +67,7 @@ class TaxTimelineRow(pydantic.BaseModel):
     frie_midler_aktieindkomst_tax_dkk: Decimal
     dividend_tax_dkk: Decimal
     bridge_withdrawal_tax_dkk: Decimal
+    bridge_dividend_tax_dkk: Decimal
     bridge_lager_tax_dkk: Decimal
     topskat_exposure_dkk: Decimal
     estimated_topskat_dkk: Decimal
@@ -72,7 +78,7 @@ class TaxTimelineRow(pydantic.BaseModel):
 
 
 class TaxTimelineTotals(pydantic.BaseModel):
-    """Totals by tax type across the timeline."""
+    """Totals by tax type and public-pension reductions across the timeline."""
 
     model_config = pydantic.ConfigDict(frozen=True)
 
@@ -81,6 +87,7 @@ class TaxTimelineTotals(pydantic.BaseModel):
     frie_midler_aktieindkomst_tax_dkk: Decimal
     dividend_tax_dkk: Decimal
     bridge_withdrawal_tax_dkk: Decimal
+    bridge_dividend_tax_dkk: Decimal
     bridge_lager_tax_dkk: Decimal
     estimated_topskat_dkk: Decimal
     folkepension_modregning_dkk: Decimal
@@ -155,7 +162,6 @@ def build_tax_timeline(result: HouseholdProjectionResult) -> TaxTimeline:
             + bridge_lager_tax
             + bridge_dividend_tax
             + estimated_topskat
-            + folkepension_modregning
         )
         warnings = _warnings_for_row(
             year=year,
@@ -173,6 +179,7 @@ def build_tax_timeline(result: HouseholdProjectionResult) -> TaxTimeline:
                 frie_midler_aktieindkomst_tax_dkk=_q(frie_tax),
                 dividend_tax_dkk=_q(dividend_tax),
                 bridge_withdrawal_tax_dkk=_q(bridge_withdrawal_tax),
+                bridge_dividend_tax_dkk=_q(bridge_dividend_tax),
                 bridge_lager_tax_dkk=_q(bridge_lager_tax),
                 topskat_exposure_dkk=_q(topskat_exposure),
                 estimated_topskat_dkk=estimated_topskat,
@@ -244,6 +251,14 @@ def _bridge_taxes_for_year(
 
 
 def _topskat_exposure_for_year(result: HouseholdProjectionResult, year: int) -> Decimal:
+    """Return a conservative gross-salary-only Topskat exposure estimate.
+
+    This is a planning signal, not a filing-grade tax calculation: it does not
+    apply AM-bidrag, personal allowances, the Topskat skråloft, retirement
+    drawdowns, or per-member ``TaxConfig`` details. Use the statutory tax
+    engines for exact tax-year calculations.
+    """
+
     exposure = Decimal("0")
     dk_members = {member.name for member in result.plan.members if member.jurisdiction == "DK"}
     for flow in result.cashflow_gross.flows:
@@ -318,6 +333,9 @@ def _totals(rows: list[TaxTimelineRow]) -> TaxTimelineTotals:
         dividend_tax_dkk=_q(sum((row.dividend_tax_dkk for row in rows), Decimal("0"))),
         bridge_withdrawal_tax_dkk=_q(
             sum((row.bridge_withdrawal_tax_dkk for row in rows), Decimal("0"))
+        ),
+        bridge_dividend_tax_dkk=_q(
+            sum((row.bridge_dividend_tax_dkk for row in rows), Decimal("0"))
         ),
         bridge_lager_tax_dkk=_q(sum((row.bridge_lager_tax_dkk for row in rows), Decimal("0"))),
         estimated_topskat_dkk=_q(sum((row.estimated_topskat_dkk for row in rows), Decimal("0"))),

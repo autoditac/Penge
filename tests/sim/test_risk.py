@@ -15,9 +15,10 @@ from tests.sim.planning_output_helpers import household_output_plan
 def test_risk_register_combines_named_findings_from_planning_outputs() -> None:
     result = project_household(
         household_output_plan(
-            bridge_start_year=2040,
+            bridge_start_year=2028,
             ask_lifetime_deposits_dkk=Decimal("135000"),
             ask_annual_contribution_dkk=Decimal("200000"),
+            bridge_horizon_months=12,
         )
     )
     balance_sheet = HouseholdBalanceSheet(
@@ -61,8 +62,9 @@ def test_risk_register_combines_named_findings_from_planning_outputs() -> None:
         "topskat_exposure",
         "ask_cap_reached",
         "ask_cap_already_exhausted",
-        "bridge_start_year_not_in_projection",
+        "bridge_depletes_early",
     } <= codes
     assert {"folkepension_reduced", "folkepension_tillaeg_fully_reduced"} & codes
+    assert len(codes) == len(register.findings)
     assert all(finding.source_assumption for finding in register.findings)
     assert all(finding.next_action for finding in register.findings)

@@ -216,6 +216,8 @@ def _render_markdown(
             f"- **Bridge tax:** {_fmt(report.total_bridge_tax_dkk, 'DKK')}",
             f"- **Total timeline tax drag:** "
             f"{_fmt(report.tax_timeline.totals.total_tax_drag_dkk, 'DKK')}",
+            f"- **Folkepension reduction:** "
+            f"{_fmt(report.tax_timeline.totals.folkepension_modregning_dkk, 'DKK')}",
             "",
             "| Year | ASK tax | Frie midler tax | Topskat | Folkepension reduction | Total |",
             "| ---: | ---: | ---: | ---: | ---: | ---: |",
@@ -287,7 +289,6 @@ def _render_markdown(
     )
     for assumption in result.audit_record.assumptions[:10]:
         lines.append(
-            f"| `{assumption.name}` | {assumption.value} {assumption.unit} | "
-            f"{assumption.source} |"
+            f"| `{assumption.name}` | {assumption.value} {assumption.unit} | {assumption.source} |"
         )
     return "\n".join(lines) + "\n"

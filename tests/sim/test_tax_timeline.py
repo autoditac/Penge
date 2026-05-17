@@ -23,12 +23,21 @@ def test_tax_timeline_attributes_household_tax_events() -> None:
     assert timeline.totals.estimated_topskat_dkk > Decimal("0")
     assert timeline.totals.folkepension_modregning_dkk > Decimal("0")
     assert timeline.totals.total_tax_drag_dkk > Decimal("0")
+    assert timeline.totals.total_tax_drag_dkk == (
+        timeline.totals.pal_skat_dkk
+        + timeline.totals.ask_tax_dkk
+        + timeline.totals.frie_midler_aktieindkomst_tax_dkk
+        + timeline.totals.bridge_withdrawal_tax_dkk
+        + timeline.totals.bridge_dividend_tax_dkk
+        + timeline.totals.bridge_lager_tax_dkk
+        + timeline.totals.estimated_topskat_dkk
+    )
     assert any(attr.source == "liquid" for row in timeline.rows for attr in row.attributions)
     assert any(attr.source == "bridge" for row in timeline.rows for attr in row.attributions)
 
 
 def test_tax_timeline_surfaces_topskat_modregning_and_material_changes() -> None:
-    result = project_household(household_output_plan())
+    result = project_household(household_output_plan(bridge_horizon_months=12))
 
     timeline = build_tax_timeline(result)
 

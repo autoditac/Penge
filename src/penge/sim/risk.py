@@ -8,6 +8,10 @@ from typing import Literal
 import pydantic
 
 from penge.sim.balance import HouseholdBalanceSheet, project_balance_sheet
+from penge.sim.bridge_spending import (
+    BridgeSafeSpendingResult,
+    summarize_bridge_result,
+)
 from penge.sim.contribution_strategy import ContributionStrategyExplanation
 from penge.sim.plan import HouseholdProjectionResult
 from penge.sim.tax_timeline import TaxTimeline, build_tax_timeline
@@ -54,10 +58,12 @@ def generate_risk_register(
     findings: list[PlanningRiskFinding] = []
     _append_liquidity_findings(findings, balances, result)
     _append_tax_findings(findings, timeline)
+    _append_bridge_findings(findings, _bridge_assessments(result), result)
     _append_folkepension_findings(findings, result)
     _append_ask_findings(findings, result, contribution_strategy)
     _append_projection_warning_findings(findings, result)
-    if not findings:
+    deduplicated_findings = _deduplicate_findings(findings)
+    if not deduplicated_findings:
         findings.append(
             PlanningRiskFinding(
                 code="no_material_risks",
@@ -67,7 +73,8 @@ def generate_risk_register(
                 next_action="Review assumptions periodically.",
             )
         )
-    return PlanningRiskRegister(findings=tuple(findings))
+        deduplicated_findings = findings
+    return PlanningRiskRegister(findings=tuple(deduplicated_findings))
 
 
 def _append_liquidity_findings(
@@ -145,6 +152,66 @@ def _append_tax_findings(
                 message=material_change.message,
                 source_assumption="TaxTimeline.total_tax_drag_dkk",
                 next_action="Inspect the tax event timeline around this year.",
+            )
+        )
+
+
+def _bridge_assessments(
+    result: HouseholdProjectionResult,
+) -> tuple[BridgeSafeSpendingResult, ...]:
+    assessments: list[BridgeSafeSpendingResult] = []
+    templates = {template.entity: template for template in result.plan.bridge_templates}
+    for entity_result in result.bridge_results:
+        template = templates[entity_result.entity]
+        flow = entity_result.result.monthly_flows[0]
+        assessments.append(
+            summarize_bridge_result(
+                entity_result.result,
+                starting_balance_dkk=flow.opening_balance_dkk,
+                cost_basis_dkk=flow.cost_basis_dkk,
+                start_year=template.bridge_start_year + 1,
+            )
+        )
+    return tuple(assessments)
+
+
+def _append_bridge_findings(
+    findings: list[PlanningRiskFinding],
+    bridge_assessments: tuple[BridgeSafeSpendingResult, ...],
+    result: HouseholdProjectionResult,
+) -> None:
+    public_pension_by_entity = {
+        member.name: member.public_pension_start_year for member in result.plan.members
+    }
+    templates = {template.entity: template for template in result.plan.bridge_templates}
+    for assessment in bridge_assessments:
+        entity = next(
+            (
+                candidate.entity
+                for candidate in result.bridge_results
+                if candidate.result is assessment.bridge_result
+            ),
+            None,
+        )
+        if entity is None or entity not in templates:
+            continue
+        template = templates[entity]
+        public_pension_start_year = public_pension_by_entity.get(entity)
+        bridge_end_year = template.bridge_start_year + ((template.horizon_months - 1) // 12) + 1
+        has_gap_before_pension = (
+            public_pension_start_year is not None
+            and bridge_end_year + 1 < public_pension_start_year
+        )
+        if assessment.final_balance_dkk >= Decimal("-1") and not has_gap_before_pension:
+            continue
+        findings.append(
+            PlanningRiskFinding(
+                code="bridge_depletes_early",
+                severity="critical",
+                affected_year=assessment.depletion_year,
+                message="Bridge depot depletes before the requested pension horizon.",
+                source_assumption="BridgeTemplate horizon and public pension start year",
+                next_action="Reduce bridge spending or increase starting bridge capital.",
             )
         )
 
@@ -240,3 +307,17 @@ def _append_projection_warning_findings(
                 next_action="Inspect and correct the referenced projection input.",
             )
         )
+
+
+def _deduplicate_findings(
+    findings: list[PlanningRiskFinding],
+) -> list[PlanningRiskFinding]:
+    deduplicated: list[PlanningRiskFinding] = []
+    seen: set[tuple[str, int | None]] = set()
+    for finding in findings:
+        key = (finding.code, finding.affected_year)
+        if key in seen:
+            continue
+        seen.add(key)
+        deduplicated.append(finding)
+    return deduplicated

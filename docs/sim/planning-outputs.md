@@ -110,8 +110,8 @@ artifact.
 
 `build_tax_timeline()` derives a year-by-year `TaxTimeline` from a
 `HouseholdProjectionResult`.
-It attributes visible tax drag to liquid depots, bridge withdrawals, PAL-skat,
-Topskat exposure, and Folkepension modregning.
+It attributes visible tax drag to liquid depots, bridge withdrawals and
+dividends, PAL-skat, Topskat exposure, and Folkepension modregning.
 
 ```python
 from penge.sim.plan import project_household
@@ -126,6 +126,10 @@ print(timeline.totals.total_tax_drag_dkk)
 Rows include both per-tax amounts and account-level attributions.
 Warnings are deterministic and currently cover Topskat exposure, Folkepension
 modregning, and material year-over-year changes in total tax drag.
+`total_tax_drag_dkk` intentionally excludes Folkepension modregning because that
+is a means-tested public-pension benefit reduction, not tax owed.
+The Topskat value is a gross-salary planning estimate; use the statutory tax
+engine for filing-grade Topskat calculations.
 
 ## Planning risk register
 

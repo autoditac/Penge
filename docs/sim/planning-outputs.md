@@ -66,8 +66,8 @@ with the bridge drawdown balance in later years.
 ## Retirement readiness report
 
 `generate_readiness_report()` composes the balance sheet, bridge safe-spending
-summary, projection warnings, pension payout, Folkepension, tax drag, and audit
-assumptions into a structured `RetirementReadinessReport`.
+summary, tax timeline, risk register, contribution strategy, pension payout,
+Folkepension, and audit assumptions into a structured `RetirementReadinessReport`.
 The report exposes both machine-readable findings and deterministic Markdown.
 
 ```python
@@ -102,6 +102,80 @@ Example Markdown sections:
 | 120 months | 10,000.00 DKK | 2065 | 50,000.00 DKK |
 ```
 
+Pass a `ContributionStrategyExplanation` as `contribution_strategy=` when the
+report should include the ASK/frie-midler routing summary in the same Markdown
+artifact.
+
+## Household tax event timeline
+
+`build_tax_timeline()` derives a year-by-year `TaxTimeline` from a
+`HouseholdProjectionResult`.
+It attributes visible tax drag to liquid depots, bridge withdrawals and
+dividends, PAL-skat, Topskat exposure, and Folkepension modregning.
+
+```python
+from penge.sim.plan import project_household
+from penge.sim.tax_timeline import build_tax_timeline
+
+projection = project_household(plan)
+timeline = build_tax_timeline(projection)
+
+print(timeline.totals.total_tax_drag_dkk)
+```
+
+Rows include both per-tax amounts and account-level attributions.
+Warnings are deterministic and currently cover Topskat exposure, Folkepension
+modregning, and material year-over-year changes in total tax drag.
+`total_tax_drag_dkk` intentionally excludes Folkepension modregning because that
+is a means-tested public-pension benefit reduction, not tax owed.
+The Topskat value is a gross-salary planning estimate; use the statutory tax
+engine for filing-grade Topskat calculations.
+
+## Planning risk register
+
+`generate_risk_register()` converts projection outputs into named, actionable
+findings.
+Each `PlanningRiskFinding` carries a stable code, severity, affected year,
+source assumption, and next action.
+
+```python
+from penge.sim.risk import generate_risk_register
+
+register = generate_risk_register(projection)
+for finding in register.findings:
+    print(finding.code, finding.severity, finding.next_action)
+```
+
+The readiness report uses the same risk register internally, so the Markdown
+findings table and machine-readable risk output stay aligned.
+
+## ASK and contribution strategy explainer
+
+`explain_contribution_strategy()` wraps the existing `ContributionRouter` and
+monthly/yearly routing simulations in a deterministic explanation object.
+It reports total routed to ASK and frie midler, the exact cap-exhaustion month
+and calendar year when applicable, onward monthly split, warnings, and a
+plain-language summary.
+
+```python
+from decimal import Decimal
+
+from penge.sim.contribution_strategy import explain_contribution_strategy
+from penge.sim.routing import ContributionRouter
+
+router = ContributionRouter(
+    ask_cap_dkk=Decimal("142500"),
+    ask_cumulative_deposits_dkk=Decimal("62000"),
+    monthly_contribution_dkk=Decimal("10000"),
+)
+
+strategy = explain_contribution_strategy(router, base_year=2024, horizon_years=5)
+```
+
+Use this output beside the tax timeline and risk register when explaining why
+new savings should move from ASK to frie midler after the ASK lifetime deposit
+cap is exhausted.
+
 ## Finding semantics
 
 Readiness findings use stable `code` values and one of three severities:
@@ -112,11 +186,16 @@ Readiness findings use stable `code` values and one of three severities:
 | `warning` | A modelling assumption or tax effect materially changes the plan. |
 | `critical` | The plan fails a hard readiness check, such as liquidity depletion. |
 
-The first implemented checks are:
+The implemented checks are:
 
 | Code | Trigger |
 | --- | --- |
 | `liquidity_depleted` | Spendable liquidity is zero while annual spending remains positive. |
-| `bridge_depletes_early` | Bridge simulation ends materially below zero before the requested horizon. |
+| `locked_pension_before_access` | Pension wealth exists but spendable liquidity is gone before pension access. |
+| `topskat_exposure` | DK income exceeds the configured Topskat threshold. |
+| `material_tax_drag_change` | Total tax drag changes materially versus the prior year. |
 | `folkepension_reduced` | Folkepension pension supplement is reduced by private pension income. |
+| `folkepension_tillaeg_fully_reduced` | Folkepension pension supplement is fully reduced by private pension income. |
+| `ask_cap_reached` | ASK contributions overflow after the lifetime deposit cap is reached. |
+| Contribution strategy warning code | Warning emitted by `explain_contribution_strategy()`. |
 | Projection warning code | Any warning emitted by `project_household()`. |

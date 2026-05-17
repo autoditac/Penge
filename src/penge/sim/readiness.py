@@ -12,7 +12,10 @@ from penge.sim.bridge_spending import (
     BridgeSafeSpendingResult,
     summarize_bridge_result,
 )
+from penge.sim.contribution_strategy import ContributionStrategyExplanation
 from penge.sim.plan import HouseholdProjectionResult
+from penge.sim.risk import PlanningRiskRegister, generate_risk_register
+from penge.sim.tax_timeline import TaxTimeline, build_tax_timeline
 
 __all__ = [
     "ReadinessFinding",
@@ -48,6 +51,9 @@ class RetirementReadinessReport(pydantic.BaseModel):
     planned_retirement_year: int
     balance_sheet: HouseholdBalanceSheet
     bridge_assessments: tuple[BridgeSafeSpendingResult, ...]
+    tax_timeline: TaxTimeline
+    risk_register: PlanningRiskRegister
+    contribution_strategy: ContributionStrategyExplanation | None = None
     findings: tuple[ReadinessFinding, ...]
     total_liquid_tax_dkk: Decimal
     total_bridge_tax_dkk: Decimal
@@ -56,12 +62,21 @@ class RetirementReadinessReport(pydantic.BaseModel):
 
 def generate_readiness_report(
     result: HouseholdProjectionResult,
+    *,
+    contribution_strategy: ContributionStrategyExplanation | None = None,
 ) -> RetirementReadinessReport:
     """Generate a structured Markdown readiness report from a household projection."""
 
     balance_sheet = project_balance_sheet(result)
     bridge_assessments = _bridge_assessments(result)
-    findings = _findings(result, balance_sheet, bridge_assessments)
+    tax_timeline = build_tax_timeline(result)
+    risk_register = generate_risk_register(
+        result,
+        tax_timeline=tax_timeline,
+        balance_sheet=balance_sheet,
+        contribution_strategy=contribution_strategy,
+    )
+    findings = _findings(risk_register)
     conclusion: Literal["ready", "watch", "not_ready"] = "ready"
     if any(finding.severity == "critical" for finding in findings):
         conclusion = "not_ready"
@@ -81,6 +96,9 @@ def generate_readiness_report(
         planned_retirement_year=max(member.retirement_year for member in result.plan.members),
         balance_sheet=balance_sheet,
         bridge_assessments=bridge_assessments,
+        tax_timeline=tax_timeline,
+        risk_register=risk_register,
+        contribution_strategy=contribution_strategy,
         findings=findings,
         total_liquid_tax_dkk=total_liquid_tax,
         total_bridge_tax_dkk=total_bridge_tax,
@@ -108,67 +126,17 @@ def _bridge_assessments(
     return tuple(assessments)
 
 
-def _findings(
-    result: HouseholdProjectionResult,
-    balance_sheet: HouseholdBalanceSheet,
-    bridge_assessments: tuple[BridgeSafeSpendingResult, ...],
-) -> tuple[ReadinessFinding, ...]:
-    findings: list[ReadinessFinding] = []
-    depletion = balance_sheet.first_liquidity_depletion()
-    if depletion is not None:
-        findings.append(
-            ReadinessFinding(
-                code="liquidity_depleted",
-                severity="critical",
-                year=depletion.year,
-                message=(
-                    "Spendable liquidity is depleted while planned spending remains positive."
-                ),
-                next_action="Lower bridge spending, retire later, or increase liquid capital.",
-            )
+def _findings(risk_register: PlanningRiskRegister) -> tuple[ReadinessFinding, ...]:
+    return tuple(
+        ReadinessFinding(
+            code=finding.code,
+            severity=finding.severity,
+            message=finding.message,
+            year=finding.affected_year,
+            next_action=finding.next_action,
         )
-    for warning in result.warnings:
-        findings.append(
-            ReadinessFinding(
-                code=warning.code,
-                severity="warning",
-                message=warning.message,
-                next_action="Inspect the projection warning and fix the underlying input.",
-            )
-        )
-    for assessment in bridge_assessments:
-        if assessment.final_balance_dkk < Decimal("-1"):
-            findings.append(
-                ReadinessFinding(
-                    code="bridge_depletes_early",
-                    severity="critical",
-                    year=assessment.depletion_year,
-                    message="Bridge depot depletes before the requested pension horizon.",
-                    next_action="Reduce bridge spending or increase starting bridge capital.",
-                )
-            )
-    for fp_result in result.folkepension_results:
-        if fp_result.result.modregning_dkk > Decimal("0"):
-            findings.append(
-                ReadinessFinding(
-                    code="folkepension_reduced",
-                    severity="warning",
-                    message=(
-                        f"{fp_result.entity} Folkepension pension supplement is reduced by "
-                        f"{_fmt(fp_result.result.modregning_dkk, 'DKK/month')}."
-                    ),
-                    next_action="Review private pension payout level and means-test assumptions.",
-                )
-            )
-    if not findings:
-        findings.append(
-            ReadinessFinding(
-                code="no_material_findings",
-                severity="info",
-                message="No material readiness warnings were detected in this projection.",
-            )
-        )
-    return tuple(findings)
+        for finding in risk_register.findings
+    )
 
 
 def _render_markdown(
@@ -246,6 +214,26 @@ def _render_markdown(
             "",
             f"- **Liquid depot tax:** {_fmt(report.total_liquid_tax_dkk, 'DKK')}",
             f"- **Bridge tax:** {_fmt(report.total_bridge_tax_dkk, 'DKK')}",
+            f"- **Total timeline tax drag:** "
+            f"{_fmt(report.tax_timeline.totals.total_tax_drag_dkk, 'DKK')}",
+            f"- **Folkepension reduction:** "
+            f"{_fmt(report.tax_timeline.totals.folkepension_modregning_dkk, 'DKK')}",
+            "",
+            "| Year | ASK tax | Frie midler tax | Topskat | Folkepension reduction | Total |",
+            "| ---: | ---: | ---: | ---: | ---: | ---: |",
+        ]
+    )
+    for tax_row in report.tax_timeline.rows[:5]:
+        lines.append(
+            f"| {tax_row.year} | {_fmt(tax_row.ask_tax_dkk, 'DKK')} | "
+            f"{_fmt(tax_row.frie_midler_aktieindkomst_tax_dkk, 'DKK')} | "
+            f"{_fmt(tax_row.estimated_topskat_dkk, 'DKK')} | "
+            f"{_fmt(tax_row.folkepension_modregning_dkk, 'DKK')} | "
+            f"{_fmt(tax_row.total_tax_drag_dkk, 'DKK')} |"
+        )
+
+    lines.extend(
+        [
             "",
             "## Pension payout and Folkepension",
             "",
@@ -265,6 +253,31 @@ def _render_markdown(
             f"{_fmt(fp_result.result.total_monthly_dkk, 'DKK/month')} Folkepension."
         )
 
+    if report.contribution_strategy is not None:
+        strategy = report.contribution_strategy
+        exhaustion = (
+            "not in horizon"
+            if strategy.ask_cap_exhaustion_month is None
+            else f"month {strategy.ask_cap_exhaustion_month} ({strategy.ask_cap_exhaustion_year})"
+        )
+        lines.extend(
+            [
+                "",
+                "## Contribution strategy",
+                "",
+                strategy.summary,
+                "",
+                "| Total to ASK | Total to frie midler | "
+                "ASK cap exhaustion | Onward monthly split |",
+                "| ---: | ---: | --- | --- |",
+                f"| {_fmt(strategy.total_to_ask_dkk, 'DKK')} | "
+                f"{_fmt(strategy.total_to_frie_midler_dkk, 'DKK')} | "
+                f"{exhaustion} | "
+                f"{_fmt(strategy.onward_monthly_ask_dkk, 'DKK')} ASK / "
+                f"{_fmt(strategy.onward_monthly_frie_midler_dkk, 'DKK')} frie |",
+            ]
+        )
+
     lines.extend(
         [
             "",
@@ -276,7 +289,6 @@ def _render_markdown(
     )
     for assumption in result.audit_record.assumptions[:10]:
         lines.append(
-            f"| `{assumption.name}` | {assumption.value} {assumption.unit} | "
-            f"{assumption.source} |"
+            f"| `{assumption.name}` | {assumption.value} {assumption.unit} | {assumption.source} |"
         )
     return "\n".join(lines) + "\n"

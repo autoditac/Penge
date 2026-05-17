@@ -1417,6 +1417,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#answer_planning_question" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        answer_planning_question
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="answer_planning_question">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3749,6 +3788,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#answer_planning_question" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        answer_planning_question
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="answer_planning_question">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -4401,6 +4479,95 @@ confidence (which is not persisted in the index today).</p>
 <p>Every call is recorded by the MCP audit logger
 (<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
 status, and duration.</p>
+<h2 id="answer_planning_question"><code>answer_planning_question</code><a class="headerlink" href="#answer_planning_question" title="Permanent link">&para;</a></h2>
+<p>Explanation-first household planning surface for common FIRE-planning questions.
+The tool delegates to <code>penge.sim.planning_surface_cli</code>, which runs a local
+<code>HouseholdPlan</code>, readiness report, risk register, and stress-test pack before
+returning direct answers linked to evidence, assumptions, risks, limitations, and
+documentation.</p>
+<p>The current plan id is <code>synthetic_household</code>.
+It is a fully synthetic DK/DE demo household used for tests and MCP golden evals;
+it is not a personal plan and contains no real financial data.</p>
+<h3 id="input_5">Input<a class="headerlink" href="#input_5" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>plan_id</code></td>
+<td><code>"synthetic_household"</code></td>
+<td>Optional; defaults to the synthetic household.</td>
+</tr>
+<tr>
+<td><code>questions</code></td>
+<td><code>QuestionId[]</code></td>
+<td>Optional; defaults to the three core questions below. Unique, max 5.</td>
+</tr>
+</tbody>
+</table>
+<p>Supported <code>QuestionId</code> values:</p>
+<table>
+<thead>
+<tr>
+<th>Question id</th>
+<th>Question</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>can_we_retire</code></td>
+<td>Can this household retire on the planned timeline?</td>
+</tr>
+<tr>
+<td><code>what_breaks_first</code></td>
+<td>What breaks first if the plan fails?</td>
+</tr>
+<tr>
+<td><code>how_do_taxes_affect_plan</code></td>
+<td>How do taxes affect this plan?</td>
+</tr>
+<tr>
+<td><code>which_assumptions_matter</code></td>
+<td>Which assumptions should be reviewed before deciding?</td>
+</tr>
+<tr>
+<td><code>which_scenarios_should_we_test</code></td>
+<td>Which scenarios should we test before deciding?</td>
+</tr>
+</tbody>
+</table>
+<h3 id="output_5">Output<a class="headerlink" href="#output_5" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>{
+  &quot;plan_id&quot;: &quot;synthetic_household&quot;,
+  &quot;surface&quot;: &quot;household_planning_questions&quot;,
+  &quot;overall_status&quot;: &quot;watch&quot;,
+  &quot;questions&quot;: [
+    {
+      &quot;question_id&quot;: &quot;can_we_retire&quot;,
+      &quot;status&quot;: &quot;watch&quot;,
+      &quot;answer&quot;: &quot;The plan is watch for retirement in 2029...&quot;,
+      &quot;evidence&quot;: [{ &quot;label&quot;: &quot;planned_retirement_year&quot;, &quot;value&quot;: &quot;2029&quot;, &quot;source&quot;: &quot;RetirementReadinessReport&quot; }],
+      &quot;risk_codes&quot;: [&quot;de_vorabpauschale_not_in_household_plan&quot;],
+      &quot;assumption_keys&quot;: [&quot;planned_retirement_year&quot;, &quot;annual_spending_plan&quot;],
+      &quot;limitation_codes&quot;: [&quot;planning_grade_not_filing_advice&quot;],
+      &quot;docs&quot;: [&quot;docs/sim/planning-outputs.md&quot;]
+    }
+  ],
+  &quot;risks&quot;: [{ &quot;code&quot;: &quot;de_vorabpauschale_not_in_household_plan&quot;, &quot;severity&quot;: &quot;warning&quot; }],
+  &quot;assumptions&quot;: [{ &quot;key&quot;: &quot;planned_retirement_year&quot;, &quot;value&quot;: &quot;2029&quot;, &quot;source&quot;: &quot;HouseholdPlan.members&quot; }],
+  &quot;limitations&quot;: [{ &quot;code&quot;: &quot;planning_grade_not_filing_advice&quot;, &quot;docs&quot;: [&quot;docs/sim/planning-outputs.md&quot;] }],
+  &quot;docs&quot;: [&quot;docs/sim/planning-outputs.md&quot;, &quot;docs/tax/dk.md&quot;, &quot;docs/tax/de.md&quot;]
+}
+</code></pre></div>
+<p>The <code>risk_codes</code>, <code>assumption_keys</code>, and <code>limitation_codes</code> fields are deliberate:
+LLM hosts should cite them rather than turning the answer into unsupported prose.
+The tool returns summaries and references only, not raw documents or raw
+transaction/account rows.</p>
 
 
 

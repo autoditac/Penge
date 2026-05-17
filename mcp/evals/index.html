@@ -2701,10 +2701,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#coverage-20-goldens" class="md-nav__link">
+  <a href="#coverage-23-goldens" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Coverage (20 goldens)
+        Coverage (23 goldens)
       
     </span>
   </a>
@@ -2789,7 +2789,7 @@
 <h1 id="mcp-golden-question-evals">MCP golden-question evals<a class="headerlink" href="#mcp-golden-question-evals" title="Permanent link">&para;</a></h1>
 <p>The MCP server is the only sanctioned LLM data path in Penge. Every
 new release of the tool layer is gated by a deterministic eval suite:
-twenty fixture-backed "golden questions" that exercise the real tool
+twenty-three fixture-backed "golden questions" that exercise the real tool
 handlers and assert structural and numeric invariants.</p>
 <p>The suite is <strong>not</strong> an LLM-in-the-loop test. It runs entirely in
 TypeScript with pre-seeded fixtures so it is fast (sub-second locally)
@@ -2815,13 +2815,14 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 ├── fixtures/
 │   ├── cashflowRows.ts     # synthetic mart_cashflow_daily rows
 │   ├── netWorthRows.ts     # synthetic mart_net_worth_daily rows
+│   ├── planningPayloads.ts # canned answer_planning_question payload
 │   ├── scenarioPayloads.ts # canned run_scenario payloads
 │   ├── taxPayloads.ts      # canned compute_tax_year payloads
 │   └── vaultDocs.ts        # synthetic vault layout + helpers
-├── goldens.ts              # the 20 golden questions
+├── goldens.ts              # the 23 golden questions
 └── runner.ts               # vitest harness (one it() per golden)
 </code></pre></div>
-<h2 id="coverage-20-goldens">Coverage (20 goldens)<a class="headerlink" href="#coverage-20-goldens" title="Permanent link">&para;</a></h2>
+<h2 id="coverage-23-goldens">Coverage (23 goldens)<a class="headerlink" href="#coverage-23-goldens" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -2845,6 +2846,11 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <td>FIRE / sim</td>
 <td>4</td>
 <td>p10 ≤ p50 ≤ p90 ordering; work-reduction shifts FIRE later; house-purchase keeps FIRE no earlier; fixed-seed determinism</td>
+</tr>
+<tr>
+<td>Planning surface</td>
+<td>3</td>
+<td>direct retirement answer linked to risks; DK/DE tax answer docs + risk links; answer assumption keys resolve to returned assumptions</td>
 </tr>
 <tr>
 <td>Cashflow</td>
@@ -2896,7 +2902,7 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <li>
 <p>Update the count in the dataset-shape check at the top of
    <code>runner.ts</code> if the new golden changes the total count (the runner
-   asserts <code>GOLDENS.length === 20</code>).</p>
+   asserts <code>GOLDENS.length === 23</code>).</p>
 </li>
 <li>
 <p>Run the suite locally:</p>

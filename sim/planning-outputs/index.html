@@ -1342,6 +1342,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#explanation-first-planning-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explanation-first planning surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#finding-semantics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3007,6 +3018,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#explanation-first-planning-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Explanation-first planning surface
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#finding-semantics" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3402,6 +3424,64 @@ They start as <code>suggested</code> and must be accepted before a caller copies
 into <code>HouseholdPlan</code>.
 Supported assumption kinds currently include pension balance, annuity factor,
 cost basis, ÅOP, dividend yield, property value, and mortgage balance.</p>
+<h2 id="explanation-first-planning-surface">Explanation-first planning surface<a class="headerlink" href="#explanation-first-planning-surface" title="Permanent link">&para;</a></h2>
+<p><code>generate_planning_surface()</code> packages the household planner into direct answers
+for dashboard and MCP consumers.
+It runs one <code>HouseholdPlan</code>, generates the readiness report and stress-test pack,
+and returns answers linked to evidence, assumption keys, risk codes, limitations,
+and documentation.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.planning_surface</span><span class="w"> </span><span class="kn">import</span> <span class="n">PlanningSurfaceRequest</span><span class="p">,</span> <span class="n">generate_planning_surface</span>
+
+<span class="n">surface</span> <span class="o">=</span> <span class="n">generate_planning_surface</span><span class="p">(</span>
+    <span class="n">PlanningSurfaceRequest</span><span class="p">(</span>
+        <span class="n">questions</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;can_we_retire&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;what_breaks_first&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;how_do_taxes_affect_plan&quot;</span><span class="p">,</span>
+        <span class="p">)</span>
+    <span class="p">)</span>
+<span class="p">)</span>
+<span class="k">for</span> <span class="n">answer</span> <span class="ow">in</span> <span class="n">surface</span><span class="o">.</span><span class="n">questions</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">answer</span><span class="o">.</span><span class="n">question</span><span class="p">,</span> <span class="n">answer</span><span class="o">.</span><span class="n">answer</span><span class="p">)</span>
+</code></pre></div>
+<p>The built-in <code>synthetic_household</code> plan is synthetic and exists for tests, demos,
+and the MCP golden-question suite.
+It is not a personal household plan.
+The surface currently answers:</p>
+<table>
+<thead>
+<tr>
+<th>Question id</th>
+<th>Direct household question</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>can_we_retire</code></td>
+<td>Can this household retire on the planned timeline?</td>
+</tr>
+<tr>
+<td><code>what_breaks_first</code></td>
+<td>What breaks first if the plan fails?</td>
+</tr>
+<tr>
+<td><code>how_do_taxes_affect_plan</code></td>
+<td>How do taxes affect this plan?</td>
+</tr>
+<tr>
+<td><code>which_assumptions_matter</code></td>
+<td>Which assumptions should be reviewed before deciding?</td>
+</tr>
+<tr>
+<td><code>which_scenarios_should_we_test</code></td>
+<td>Which stress scenarios should be tested first?</td>
+</tr>
+</tbody>
+</table>
+<p>The MCP tool <code>answer_planning_question</code> exposes the same surface without sending a
+raw plan or raw document text over the wire.
+Returned answers include <code>assumption_keys</code>, <code>risk_codes</code>, and <code>limitation_codes</code>
+so a UI or LLM host can show the explanation and the audit trail together.</p>
 <h2 id="finding-semantics">Finding semantics<a class="headerlink" href="#finding-semantics" title="Permanent link">&para;</a></h2>
 <p>Readiness findings use stable <code>code</code> values and one of three severities:</p>
 <table>

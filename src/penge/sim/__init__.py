@@ -24,7 +24,13 @@ Subpackages:
 - :mod:`penge.sim.spending` — household spending and target-expense model
   (issue #174).
 - :mod:`penge.sim.plan` — household plan orchestrator: end-to-end projection
-  runner (issue #167, ADR-0031).
+   runner (issue #167, ADR-0031).
+- :mod:`penge.sim.household_scenarios` — labelled household scenario presets
+  for scenario comparison outputs (issue #170).
+- :mod:`penge.sim.stress` — sensitivity and stress-test pack for household plans
+  (issue #180).
+- :mod:`penge.sim.drawdown` — planning-only tax-aware drawdown-order comparison
+  (issue #178).
 """
 
 from penge.sim.assumptions import (
@@ -65,10 +71,37 @@ from penge.sim.contribution_strategy import (
     ContributionStrategyWarning,
     explain_contribution_strategy,
 )
+from penge.sim.drawdown import (
+    DrawdownAccountKind,
+    DrawdownAccountState,
+    DrawdownResult,
+    DrawdownStrategyDefinition,
+    DrawdownYear,
+    build_drawdown_accounts,
+    compare_drawdown_strategies,
+    default_drawdown_strategies,
+    evaluate_drawdown_strategy,
+)
 from penge.sim.goal import (
     GoalConfig,
     GoalResult,
     evaluate,
+)
+from penge.sim.household_scenarios import (
+    DelayedPensionStartPreset,
+    HigherInflationPreset,
+    HigherSpendingPreset,
+    HouseholdScenario,
+    HouseholdScenarioPreset,
+    HouseholdScenarioPresetName,
+    IncreasedSavingsPreset,
+    LowerReturnsPreset,
+    LowerSavingsPreset,
+    OneOffExpensePreset,
+    RetireInYearPreset,
+    WorkReductionPreset,
+    apply_scenario_preset,
+    compose_scenario_presets,
 )
 from penge.sim.montecarlo import (
     MonteCarloConfig,
@@ -145,6 +178,13 @@ from penge.sim.spending import (
     SpendingRule,
     compute_spending,
 )
+from penge.sim.stress import (
+    HouseholdStressResult,
+    HouseholdStressTestPack,
+    StressTestSpec,
+    default_stress_tests,
+    run_stress_tests,
+)
 from penge.sim.tax import (
     DE_DEFAULT,
     DK_DEFAULT,
@@ -183,12 +223,20 @@ __all__ = [
     "ContributionRule",
     "ContributionStrategyExplanation",
     "ContributionStrategyWarning",
+    "DelayedPensionStartPreset",
+    "DrawdownAccountKind",
+    "DrawdownAccountState",
+    "DrawdownResult",
+    "DrawdownStrategyDefinition",
+    "DrawdownYear",
     "EntityBridgeResult",
     "EntityFolkepensionResult",
     "EntityTaxRegime",
     "FolkepensionTemplate",
     "GoalConfig",
     "GoalResult",
+    "HigherInflationPreset",
+    "HigherSpendingPreset",
     "HoldingSnapshot",
     "HousePurchaseScenario",
     "HouseholdBalanceSheet",
@@ -196,13 +244,22 @@ __all__ = [
     "HouseholdMember",
     "HouseholdPlan",
     "HouseholdProjectionResult",
+    "HouseholdScenario",
+    "HouseholdScenarioPreset",
+    "HouseholdScenarioPresetName",
     "HouseholdSnapshot",
     "HouseholdSpendingPlan",
+    "HouseholdStressResult",
+    "HouseholdStressTestPack",
+    "IncreasedSavingsPreset",
     "InstrumentAssumptions",
+    "LowerReturnsPreset",
+    "LowerSavingsPreset",
     "MonteCarloConfig",
     "MonteCarloResult",
     "MonthlyContributionSplit",
     "OneOffExpense",
+    "OneOffExpensePreset",
     "PayoutConfig",
     "PayoutError",
     "PayoutProjection",
@@ -213,6 +270,7 @@ __all__ = [
     "ProjectionAuditRecord",
     "ProjectionWarning",
     "ReadinessFinding",
+    "RetireInYearPreset",
     "RetirementReadinessReport",
     "ReturnModelError",
     "SalaryRule",
@@ -224,6 +282,7 @@ __all__ = [
     "SpendingPhase",
     "SpendingRule",
     "SpendingYear",
+    "StressTestSpec",
     "TaxAttribution",
     "TaxConfig",
     "TaxRegime",
@@ -231,18 +290,26 @@ __all__ = [
     "TaxTimelineRow",
     "TaxTimelineTotals",
     "TaxTimelineWarning",
+    "WorkReductionPreset",
     "WorkReductionScenario",
     "YearlyContributionSplit",
     "YearlyFlow",
+    "apply_scenario_preset",
     "apply_tax",
     "assess_bridge_spending",
+    "build_drawdown_accounts",
     "build_standard_audit_record",
     "build_tax_timeline",
     "compare",
     "compare_configs",
+    "compare_drawdown_strategies",
+    "compose_scenario_presets",
     "compute_payout",
     "compute_spending",
+    "default_drawdown_strategies",
+    "default_stress_tests",
     "evaluate",
+    "evaluate_drawdown_strategy",
     "explain_contribution_strategy",
     "first_liquidity_depletion",
     "generate_readiness_report",
@@ -254,6 +321,7 @@ __all__ = [
     "required_starting_capital_for_bridge_spending",
     "route_contributions",
     "run",
+    "run_stress_tests",
     "simulate_routing",
     "simulate_routing_monthly",
     "summarize_bridge_result",

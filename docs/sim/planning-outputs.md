@@ -176,6 +176,109 @@ Use this output beside the tax timeline and risk register when explaining why
 new savings should move from ASK to frie midler after the ASK lifetime deposit
 cap is exhausted.
 
+## Scenario presets and cookbook
+
+`penge.sim.household_scenarios` provides typed presets that derive labelled
+`HouseholdScenario` objects from a baseline `HouseholdPlan`.
+The presets are deterministic transformations, not ad-hoc mutation of low-level
+model fields.
+
+Built-in presets cover common household questions:
+
+| Preset | Use case |
+| --- | --- |
+| `RetireInYearPreset` | Move retirement, bridge, and payout start years together. |
+| `WorkReductionPreset` | Model one member reducing salary and salary-linked pension accrual. |
+| `IncreasedSavingsPreset` / `LowerSavingsPreset` | Change liquid savings budgets. |
+| `LowerReturnsPreset` | Reduce pension, liquid, and bridge return assumptions. |
+| `HigherInflationPreset` | Raise plan and spending inflation assumptions. |
+| `HigherSpendingPreset` | Scale household spending needs. |
+| `OneOffExpensePreset` | Add a one-off large expense. |
+| `DelayedPensionStartPreset` | Delay public pension access assumptions. |
+
+```python
+from decimal import Decimal
+
+from penge.sim.household_scenarios import (
+    HigherSpendingPreset,
+    RetireInYearPreset,
+    compose_scenario_presets,
+)
+
+scenario = compose_scenario_presets(
+    plan,
+    (
+        RetireInYearPreset(year=2032),
+        HigherSpendingPreset(factor=Decimal("1.10")),
+    ),
+    name="retire-2032-higher-spend",
+    label="Retire in 2032 with 10% higher spending",
+)
+```
+
+Presets are composable where they keep the resulting `HouseholdPlan` valid.
+The output carries a label and changed-assumptions list so reports, stress packs,
+or dashboards can explain what changed.
+
+## Sensitivity and stress-test pack
+
+`run_stress_tests()` runs built-in or caller-provided stress scenarios from a
+`HouseholdPlan`.
+It ranks results by a deterministic impact score based on terminal net-worth
+delta, terminal spendable-liquidity delta, and new critical risk findings.
+
+```python
+from penge.sim.stress import run_stress_tests
+
+pack = run_stress_tests(plan)
+for result in pack.results:
+    print(result.rank, result.label, result.impact_score_dkk)
+```
+
+The default pack includes lower returns, higher inflation, higher spending,
+lower savings, delayed pension start, and a one-off expense.
+Stress ranking is a prioritization aid: it highlights which assumptions deserve
+attention first, but it does not assign probabilities to the stressed outcomes.
+
+## Tax-aware drawdown-order planner
+
+`penge.sim.drawdown` compares planning-only drawdown orders across cash, ASK,
+frie midler, and pension buckets.
+It can build starting buckets from a `HouseholdProjectionResult`, or callers can
+provide explicit `DrawdownAccountState` values.
+
+```python
+from decimal import Decimal
+
+from penge.sim.drawdown import build_drawdown_accounts, compare_drawdown_strategies
+from penge.sim.plan import project_household
+
+projection = project_household(plan)
+accounts = build_drawdown_accounts(
+    projection,
+    start_year=2030,
+    cash_balance_dkk=Decimal("100000"),
+)
+results = compare_drawdown_strategies(
+    accounts,
+    start_year=2030,
+    annual_spending_dkk=Decimal("300000"),
+    horizon_years=8,
+)
+```
+
+Outputs include yearly gross withdrawals, net spending funded, estimated tax,
+depletion timing, and remaining balances by bucket.
+The planner respects configured pension accessibility years, estimates
+realisationsbeskatning tax for frie midler withdrawals from the current gain
+fraction, estimates ASK tax on latent gains with the account `tax_rate`
+(`ASK_RATE` for accounts built from projections), and applies a flat pension
+drawdown `tax_rate` after accessibility checks.
+It does not model exact personal-income tax brackets, loss carry-forwards, future
+portfolio growth during the drawdown horizon, or filing-grade pension tax.
+It is planning support only, not automated trading, rebalancing, or tax-filing
+advice.
+
 ## Finding semantics
 
 Readiness findings use stable `code` values and one of three severities:

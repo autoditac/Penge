@@ -65,7 +65,9 @@ uses the accumulation account through the bridge start year and then replaces it
 with the bridge drawdown balance in later years.
 Home equity is included in total net worth but excluded from spendable liquidity.
 If a property sale is explicitly modelled, released net sale proceeds are added
-to spendable liquidity from the sale year onward.
+to the real-estate cash adjustment.
+Purchase costs, mortgage interest, and recurring housing costs reduce that same
+cash adjustment so liquidity runway does not treat unpaid housing costs as free.
 
 ## Real-estate and mortgage scenarios
 
@@ -110,6 +112,8 @@ projection = project_household(plan)
 The model is planning-grade and deterministic.
 It does not model refinancing, variable-rate reset schedules, tax deductibility,
 or rental-income taxation.
+Direct `PropertyAssetConfig.purchase_cost_dkk` values affect balance-sheet
+liquidity even when the property was not created through `HomePurchasePreset`.
 Use `HomePurchasePreset` for a future purchase scenario and
 `HigherMortgageRatePreset` for interest-rate sensitivity in the stress pack.
 

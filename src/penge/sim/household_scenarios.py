@@ -7,6 +7,7 @@ from typing import Literal
 
 import pydantic
 
+from penge.sim._decimal_utils import to_decimal as _to_decimal
 from penge.sim.cashflow import ContributionRule, PensionAccrualRule, SalaryRule
 from penge.sim.liquid import LiquidDepotConfig
 from penge.sim.plan import (
@@ -455,7 +456,7 @@ class HomePurchasePreset(_PresetBase):
     )
     @classmethod
     def _coerce_decimal(cls, value: object) -> Decimal:
-        return Decimal(str(value))
+        return _to_decimal(value)
 
     def apply(self, plan: HouseholdPlan) -> HouseholdScenario:
         property_config = PropertyAssetConfig(

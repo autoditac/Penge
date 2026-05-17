@@ -35,7 +35,10 @@ class HouseholdBalanceSheetRow(pydantic.BaseModel):
         real_estate_property_value_dkk: End-of-year property value.
         mortgage_debt_dkk: End-of-year mortgage debt.
         home_equity_dkk: Property value less mortgage debt.
-        real_estate_sale_proceeds_dkk: Cumulative liquidity released by modelled sales.
+        real_estate_sale_proceeds_dkk: Gross sale proceeds released in this year.
+        real_estate_purchase_cost_dkk: Property purchase costs paid in this year.
+        real_estate_net_liquidity_dkk: Cumulative real-estate cash adjustment
+            from explicit sales less purchase costs and housing costs.
         housing_costs_dkk: Recurring housing costs plus mortgage interest.
         spendable_liquidity_dkk: ASK + frie midler + active bridge balances.
         locked_pension_dkk: Pension balance not available for bridge spending.
@@ -57,6 +60,8 @@ class HouseholdBalanceSheetRow(pydantic.BaseModel):
     mortgage_debt_dkk: Decimal = Decimal("0")
     home_equity_dkk: Decimal = Decimal("0")
     real_estate_sale_proceeds_dkk: Decimal = Decimal("0")
+    real_estate_purchase_cost_dkk: Decimal = Decimal("0")
+    real_estate_net_liquidity_dkk: Decimal = Decimal("0")
     housing_costs_dkk: Decimal = Decimal("0")
     spendable_liquidity_dkk: Decimal
     locked_pension_dkk: Decimal
@@ -91,7 +96,7 @@ def project_balance_sheet(result: HouseholdProjectionResult) -> HouseholdBalance
     }
     bridge_balance_by_year = _bridge_balances_by_year(result, bridge_account_by_entity)
     spending_by_year = {spending.year: spending for spending in result.spending_by_year}
-    released_real_estate_liquidity = Decimal("0")
+    real_estate_net_liquidity = Decimal("0")
 
     rows: list[HouseholdBalanceSheetRow] = []
     for year in range(plan.base_year + 1, plan.base_year + plan.horizon_years + 1):
@@ -110,8 +115,11 @@ def project_balance_sheet(result: HouseholdProjectionResult) -> HouseholdBalance
 
         bridge_balance = bridge_balance_by_year.get(year, Decimal("0"))
         real_estate = _real_estate_totals_for_year(result, year)
-        released_real_estate_liquidity = _q(
-            released_real_estate_liquidity + real_estate.sale_proceeds_dkk
+        real_estate_net_liquidity = _q(
+            real_estate_net_liquidity
+            + real_estate.sale_proceeds_dkk
+            - real_estate.purchase_cost_dkk
+            - real_estate.housing_costs_dkk
         )
         pension_balance_eur = sum(
             (
@@ -123,7 +131,7 @@ def project_balance_sheet(result: HouseholdProjectionResult) -> HouseholdBalance
         )
         pension_balance_dkk = _eur_to_dkk(pension_balance_eur, plan.eur_per_dkk)
         spendable_liquidity = _q(
-            ask_balance + frie_midler_balance + bridge_balance + released_real_estate_liquidity
+            ask_balance + frie_midler_balance + bridge_balance + real_estate_net_liquidity
         )
         annual_spending = Decimal("0")
         if year in spending_by_year:
@@ -132,6 +140,7 @@ def project_balance_sheet(result: HouseholdProjectionResult) -> HouseholdBalance
                 spending.total_dkk
                 + _eur_to_dkk(spending.total_eur, plan.eur_per_dkk)
                 + real_estate.housing_costs_dkk
+                + real_estate.purchase_cost_dkk
             )
         runway = _runway_months(spendable_liquidity, annual_spending)
         rows.append(
@@ -145,7 +154,9 @@ def project_balance_sheet(result: HouseholdProjectionResult) -> HouseholdBalance
                 real_estate_property_value_dkk=real_estate.property_value_dkk,
                 mortgage_debt_dkk=real_estate.mortgage_debt_dkk,
                 home_equity_dkk=real_estate.home_equity_dkk,
-                real_estate_sale_proceeds_dkk=released_real_estate_liquidity,
+                real_estate_sale_proceeds_dkk=real_estate.sale_proceeds_dkk,
+                real_estate_purchase_cost_dkk=real_estate.purchase_cost_dkk,
+                real_estate_net_liquidity_dkk=real_estate_net_liquidity,
                 housing_costs_dkk=real_estate.housing_costs_dkk,
                 spendable_liquidity_dkk=spendable_liquidity,
                 locked_pension_dkk=pension_balance_dkk,
@@ -197,6 +208,7 @@ class _RealEstateTotals(pydantic.BaseModel):
     mortgage_debt_dkk: Decimal
     home_equity_dkk: Decimal
     sale_proceeds_dkk: Decimal
+    purchase_cost_dkk: Decimal
     housing_costs_dkk: Decimal
 
 
@@ -208,6 +220,7 @@ def _real_estate_totals_for_year(
     mortgage_debt = Decimal("0")
     home_equity = Decimal("0")
     sale_proceeds = Decimal("0")
+    purchase_cost = Decimal("0")
     housing_costs = Decimal("0")
     for projection in result.real_estate_projections:
         row = next((item for item in projection.rows if item.year == year), None)
@@ -217,12 +230,14 @@ def _real_estate_totals_for_year(
         mortgage_debt += row.mortgage_balance_dkk
         home_equity += row.home_equity_dkk
         sale_proceeds += row.sale_proceeds_dkk
+        purchase_cost += row.purchase_cost_dkk
         housing_costs += row.recurring_costs_dkk + row.interest_paid_dkk
     return _RealEstateTotals(
         property_value_dkk=_q(property_value),
         mortgage_debt_dkk=_q(mortgage_debt),
         home_equity_dkk=_q(home_equity),
         sale_proceeds_dkk=_q(sale_proceeds),
+        purchase_cost_dkk=_q(purchase_cost),
         housing_costs_dkk=_q(housing_costs),
     )
 

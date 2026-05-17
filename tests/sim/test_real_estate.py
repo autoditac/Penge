@@ -59,6 +59,7 @@ def test_household_balance_sheet_includes_home_equity_but_excludes_it_from_liqui
                     start_year=2025,
                     value_dkk=Decimal("3000000"),
                     annual_recurring_cost_dkk=Decimal("24000"),
+                    purchase_cost_dkk=Decimal("100000"),
                 ),
             ),
             "mortgages": (
@@ -80,6 +81,9 @@ def test_household_balance_sheet_includes_home_equity_but_excludes_it_from_liqui
     assert row.home_equity_dkk == Decimal("1050000.00")
     assert row.mortgage_debt_dkk == Decimal("1950000.00")
     assert row.housing_costs_dkk == Decimal("104000.00")
+    assert row.real_estate_purchase_cost_dkk == Decimal("100000.00")
+    assert row.real_estate_net_liquidity_dkk == Decimal("-204000.00")
+    assert row.annual_spending_dkk == Decimal("504000.00")
     assert row.total_net_worth_dkk > row.spendable_liquidity_dkk + row.locked_pension_dkk
 
 

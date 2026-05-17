@@ -2,286 +2,286 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://autoditac.github.io/Penge/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/dbt/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/privacy/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/terms/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/architecture/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/abis/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/ecb_fx/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/evangelische-bank/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/gls/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/growney/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/lunar/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/manual/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/nordnet/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/connectors/pfa/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0001-self-hosted-postgres-duckdb-stack/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0002-custom-monorepo-over-off-the-shelf-pfm/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0004-eur-and-dkk-shown-in-parallel/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0005-llm-access-via-mcp-only/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0006-trunk-based-conventional-commits-adrs/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0007-initial-relational-data-model/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0008-nordnet-account-modelling/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0009-abis-list-and-instrument-tax-treatment/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0010-sim-return-model/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0011-sim-cashflow-engine/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0012-sim-goal-model/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0013-sim-tax-overlay/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0014-sim-montecarlo-runner/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0015-sim-scenario-engine/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0016-tax-lot-tracker/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0017-lagerbeskatning-calculator/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0018-aktiesparekonto-handling/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0019-pal-skat-tracking/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0020-skat-report-generator/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0021-de-vorabpauschale/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0022-web-projection-dashboard/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0023-mcp-server-architecture/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0024-vault-layout/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0025-encrypted-backups/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0026-retire-gocardless-for-enable-banking/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0027-liquid-depot-simulation-model/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0027-self-hosted-actions-runner/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0028-sim-payout-model/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0029-dk-topskat-folkepension/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0030-sim-contribution-routing/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0031-sim-household-plan/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/adr-template/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/mcp/evals/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/mcp/tools/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/abis-yearly-refresh/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/backup-restore/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/branch-protection/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/healthchecks/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/monthly-report/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/monthly-ritual/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/restore-log/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/vault-watcher/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/web/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/assumptions/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/personas/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/planning-outputs/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/registry/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/return-model/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/snapshot/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/spending/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/sim/user-stories/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/tax/de/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/tax/dk-refresh-checklist/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/tax/dk/</loc>
-         <lastmod>2026-05-16</lastmod>
+         <lastmod>2026-05-17</lastmod>
     </url>
 </urlset>

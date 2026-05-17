@@ -66,6 +66,8 @@ nav:
       - "Manual entries": connectors/manual.md
   - Analytics:
       - "dbt": dbt.md
+  - Web:
+      - "Modern WebUI": web/modern-webui.md
   - MCP:
       - "Tool reference": mcp/tools.md
   - Simulation:
@@ -121,6 +123,7 @@ nav:
       - "ADR-0026 Retire GoCardless; standardize on Enable Banking": decisions/0026-retire-gocardless-for-enable-banking.md
       - "ADR-0027 Liquid depot simulation model (ASK + frie midler)": decisions/0027-liquid-depot-simulation-model.md
       - "ADR-0032 Household real-estate, tax context, and source-backed assumptions": decisions/0032-household-real-estate-tax-context-source-assumptions.md
+      - "ADR-0033 Reporting-first React WebUI": decisions/0033-reporting-first-react-webui.md
       - "ADR template": decisions/adr-template.md
   - Privacy: privacy.md
   - Terms: terms.md

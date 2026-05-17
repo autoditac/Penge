@@ -5,6 +5,12 @@ renders the marts produced by dbt — net worth over time, today's
 KPIs, allocation pies, and per-account drill-down. It is the v1 surface
 described in [issue #25](https://github.com/autoditac/Penge/issues/25).
 
+The modern WebUI direction is documented in
+[Modern WebUI](../web/modern-webui.md) and
+[ADR-0033](../decisions/0033-reporting-first-react-webui.md).
+That React shell starts with synthetic reporting data and is intended to absorb
+the richer cockpit, planning-lab, and AI-assistant surfaces over time.
+
 ## Threat model
 
 Treat the dashboard as **read-only and personally identifying**: it
@@ -98,3 +104,11 @@ via `streamlit.testing.v1.AppTest` against synthetic data. It runs in
 CI as part of the `pytest` job. A Playwright/screenshot regression is a
 follow-up — the smoke test is enough to catch import errors and
 basic render breakage in the four views.
+
+The React WebUI has its own pnpm quality gates:
+
+```bash
+just web-ui-build
+just web-ui-test
+just web-ui-lint
+```

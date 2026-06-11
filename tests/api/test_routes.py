@@ -124,6 +124,11 @@ class TestAccounts:
         cash = next(entry for entry in body if entry["account_id"] == "a2")
         assert cash["iban_masked"] == ""
 
+    def test_missing_name_serialises_as_empty_string(self, client: TestClient) -> None:
+        body = client.get("/accounts").json()
+        manual = next(entry for entry in body if entry["account_id"] == "a3")
+        assert manual["name"] == ""
+
     def test_raw_iban_never_in_payload(self, client: TestClient) -> None:
         assert "DK5000400440116243" not in client.get("/accounts").text
 

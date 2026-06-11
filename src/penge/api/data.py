@@ -38,7 +38,14 @@ def get_engine() -> Engine:
     # (mirrors penge.web.data.get_engine).
     from sqlalchemy import create_engine
 
-    return create_engine(database_url(), pool_pre_ping=True)
+    return create_engine(
+        database_url(),
+        pool_pre_ping=True,
+        # Read-only by design (ADR-0035): the psycopg dialect opens every
+        # transaction READ ONLY, so accidental DML here fails loudly even
+        # when the credentials would permit writes.
+        execution_options={"postgresql_readonly": True},
+    )
 
 
 def _rows(sql: str, params: Mapping[str, object]) -> list[dict[str, object]]:

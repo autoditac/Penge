@@ -232,6 +232,7 @@ web-ui-build:
 # Build the WebUI container image locally.
 web-ui-image:
     docker build -f apps/web/Containerfile -t penge/web:dev .
+
 # --- Read API (FastAPI) -------------------------------------------------------
 #
 # Typed read-only HTTP API over the analytics marts (src/penge/api).

@@ -188,7 +188,7 @@ def accounts() -> list[AccountSummary]:
             entity_id=str(row["entity_id"]),
             entity_name=str(row["entity_name"]),
             provider=str(row["provider"]),
-            name=mask_account_name(str(row["name"])),
+            name=mask_account_name(row["name"] if isinstance(row["name"], str) else None),
             kind=str(row["kind"]),
             currency=str(row["currency"]),
             iban_masked=mask_iban(row["iban"] if isinstance(row["iban"], str) else None),

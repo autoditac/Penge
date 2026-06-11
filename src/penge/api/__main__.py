@@ -8,7 +8,6 @@ container image, where it must bind 0.0.0.0).
 from __future__ import annotations
 
 import argparse
-import logging
 import os
 
 import uvicorn
@@ -40,14 +39,16 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
-
     uvicorn.run(
         "penge.api.app:create_app",
         factory=True,
         host=args.host,
         port=args.port,
         reload=args.reload,
+        # Passed straight to uvicorn so --verbose deterministically switches
+        # its loggers to DEBUG (uvicorn configures logging itself; a
+        # logging.basicConfig call here would not reliably apply).
+        log_level="debug" if args.verbose else "info",
     )
 
 

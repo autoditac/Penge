@@ -107,6 +107,16 @@ def synthetic_account_rows() -> list[dict[str, object]]:
             "currency": "DKK",
             "iban": None,
         },
+        {
+            "account_id": "a3",
+            "entity_id": "e1",
+            "entity_name": "Synthetic A",
+            "provider": "manual",
+            "name": None,
+            "kind": "real_estate",
+            "currency": "DKK",
+            "iban": None,
+        },
     ]
 
 

@@ -1,11 +1,13 @@
-# WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types
+# 0036 — WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types
 
-- Status: proposed
-- Date: 2026-05-18
-- Issue: [#203](https://github.com/autoditac/Penge/issues/203)
+- **Status:** Proposed
+- **Date:** 2026-05-18
+- **Deciders:** @autoditac
+- **Tags:** web
 
 Technical Story: Upgrade the `apps/web` shell (ADR-0033) from a static synthetic
 page into a real application on top of the FastAPI read API (ADR-0035).
+Issue: [#203](https://github.com/autoditac/Penge/issues/203)
 
 ## Context and Problem Statement
 

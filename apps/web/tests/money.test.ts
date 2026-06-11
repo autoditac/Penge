@@ -68,4 +68,12 @@ describe("iso dates", () => {
     const today = new Date(Date.UTC(2026, 0, 31));
     expect(isoDaysAgo(30, today)).toBe("2026-01-01");
   });
+
+  it("anchors on the UTC calendar day near local midnight", () => {
+    // 00:30 on 1 March in UTC+1 is still 28 February in UTC; the window
+    // boundary must not shift with the runner's local timezone.
+    const today = new Date("2026-03-01T00:30:00+01:00");
+    expect(isoDaysAgo(0, today)).toBe("2026-02-28");
+    expect(isoDaysAgo(1, today)).toBe("2026-02-27");
+  });
 });

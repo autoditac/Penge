@@ -141,6 +141,7 @@ function AllocationSection(): React.JSX.Element {
               key={key}
               type="button"
               className={key === dimension ? "segmentActive" : undefined}
+              aria-pressed={key === dimension}
               onClick={() => {
                 setDimension(key);
               }}

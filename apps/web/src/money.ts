@@ -61,8 +61,12 @@ export function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
 
-/** ISO date `days` ago, relative to `today` (defaults to now). */
+/** ISO date `days` ago, relative to `today` (defaults to now).
+ *
+ * Normalised to the UTC calendar day with UTC arithmetic so the result never
+ * shifts by one day around local midnight in non-UTC timezones.
+ */
 export function isoDaysAgo(days: number, today: Date = new Date()): string {
-  const past = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
-  return isoDate(past);
+  const utcMidnight = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+  return isoDate(new Date(utcMidnight - days * 24 * 60 * 60 * 1000));
 }

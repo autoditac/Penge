@@ -64,7 +64,16 @@ async function getJson<T>(
     );
   }
 
-  const payload: unknown = await response.json();
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch (cause) {
+    throw new PengeApiError(
+      "api_invalid_json",
+      `Penge API response for ${path} is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`,
+      response.status,
+    );
+  }
   const parsed = schema.safeParse(payload);
   if (!parsed.success) {
     throw new PengeApiError(

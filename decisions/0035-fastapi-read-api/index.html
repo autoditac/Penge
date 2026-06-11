@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/connectors/abis/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0035-fastapi-read-api/">
       
       
-        <link rel="prev" href="../nordnet/">
+        <link rel="prev" href="../0034-application-container-images/">
       
       
-        <link rel="next" href="../manual/">
+        <link rel="next" href="../adr-template/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>Skat ABIS list - Penge</title>
+        <title>ADR-0035 FastAPI read API - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#skat-abis-list-aktiebaserede-investeringsselskaber" class="md-skip">
+        <a href="#0035-fastapi-read-api-as-the-webui-data-layer" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Skat ABIS list
+              ADR-0035 FastAPI read API
             
           </span>
         </div>
@@ -353,8 +353,6 @@
       
   
   
-    
-  
   
   
     
@@ -391,15 +389,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../connectors/" class="md-nav__link ">
               
   
   
@@ -423,7 +421,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -443,7 +441,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ecb_fx/" class="md-nav__link">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
         
   
   
@@ -471,7 +469,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gls/" class="md-nav__link">
+      <a href="../../connectors/gls/" class="md-nav__link">
         
   
   
@@ -499,7 +497,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../evangelische-bank/" class="md-nav__link">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
         
   
   
@@ -527,7 +525,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../lunar/" class="md-nav__link">
+      <a href="../../connectors/lunar/" class="md-nav__link">
         
   
   
@@ -555,7 +553,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../growney/" class="md-nav__link">
+      <a href="../../connectors/growney/" class="md-nav__link">
         
   
   
@@ -583,7 +581,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pfa/" class="md-nav__link">
+      <a href="../../connectors/pfa/" class="md-nav__link">
         
   
   
@@ -611,7 +609,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../nordnet/" class="md-nav__link">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
         
   
   
@@ -636,37 +634,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Skat ABIS list
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../connectors/abis/" class="md-nav__link">
         
   
   
@@ -682,81 +653,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#what-it-writes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What it writes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#csv-shape" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CSV shape
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#classification-rule" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Classification rule
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CLI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#yearly-refresh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Yearly refresh
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -769,7 +665,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../manual/" class="md-nav__link">
+      <a href="../../connectors/manual/" class="md-nav__link">
         
   
   
@@ -1900,6 +1796,8 @@
       
   
   
+    
+  
   
   
     
@@ -1982,15 +1880,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../decisions/" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -2014,7 +1912,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2034,7 +1932,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -2062,7 +1960,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -2090,7 +1988,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -2118,7 +2016,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -2146,7 +2044,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2174,7 +2072,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2202,7 +2100,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2230,7 +2128,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2258,7 +2156,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2286,7 +2184,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
+      <a href="../0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2314,7 +2212,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2342,7 +2240,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2370,7 +2268,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2398,7 +2296,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2426,7 +2324,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2454,7 +2352,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2482,7 +2380,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2510,7 +2408,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2538,7 +2436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2566,7 +2464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
+      <a href="../0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2594,7 +2492,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2622,7 +2520,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2650,7 +2548,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2678,7 +2576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
+      <a href="../0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2706,7 +2604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
+      <a href="../0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2734,7 +2632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2762,7 +2660,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2790,7 +2688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -2818,7 +2716,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -2846,7 +2744,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0034-application-container-images/" class="md-nav__link">
+      <a href="../0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -2871,10 +2769,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../decisions/0035-fastapi-read-api/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0035 FastAPI read API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2890,6 +2815,92 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2902,7 +2913,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/adr-template/" class="md-nav__link">
+      <a href="../adr-template/" class="md-nav__link">
         
   
   
@@ -3011,10 +3022,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#what-it-writes" class="md-nav__link">
+  <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What it writes
+        Context and Problem Statement
       
     </span>
   </a>
@@ -3022,10 +3033,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#csv-shape" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CSV shape
+        Decision Drivers
       
     </span>
   </a>
@@ -3033,10 +3044,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#classification-rule" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Classification rule
+        Considered Options
       
     </span>
   </a>
@@ -3044,10 +3055,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cli" class="md-nav__link">
+  <a href="#decision" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CLI
+        Decision
       
     </span>
   </a>
@@ -3055,10 +3066,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#yearly-refresh" class="md-nav__link">
+  <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Yearly refresh
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
       
     </span>
   </a>
@@ -3082,7 +3104,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/connectors/abis.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0035-fastapi-read-api.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3090,95 +3112,88 @@
   
 
 
-<h1 id="skat-abis-list-aktiebaserede-investeringsselskaber">Skat ABIS list (Aktiebaserede Investeringsselskaber)<a class="headerlink" href="#skat-abis-list-aktiebaserede-investeringsselskaber" title="Permanent link">&para;</a></h1>
-<p>The ABIS list is published by Skat (Danish tax authority) and
-enumerates the ISINs whose distributions and gains fall under
-<strong>lagerbeskatning</strong> (mark-to-market taxation, § 19 LL). Every
-December Skat issues an updated CSV covering the rolling
-6-year window. Penge keeps a local copy of the list and uses it
-to classify each matching instrument as <code>lagerbeskatning</code> (when
-on the list) or to leave <code>dk_tax_treatment = NULL</code> (when off the
-list) so the user is forced to review the case manually. The
-<code>realisation</code> value is only ever written via the manual-override
-CLI; the loader never sets it on its own.</p>
-<p>This connector is the <strong>only</strong> sanctioned write path for the
-<code>instrument.dk_tax_treatment</code> column. See ADR-0009 for the
-design rationale and ADR-0008 for the account-level treatment
-column.</p>
-<h2 id="what-it-writes">What it writes<a class="headerlink" href="#what-it-writes" title="Permanent link">&para;</a></h2>
-<p>Two operational columns on <code>instrument</code>:</p>
+<h1 id="0035-fastapi-read-api-as-the-webui-data-layer">0035 — FastAPI read API as the WebUI data layer<a class="headerlink" href="#0035-fastapi-read-api-as-the-webui-data-layer" title="Permanent link">&para;</a></h1>
 <ul>
-<li><code>dk_tax_treatment</code> — <code>lagerbeskatning</code> | <code>realisation</code> | <code>NULL</code>.</li>
-<li><code>dk_tax_treatment_source</code> — <code>abis</code> | <code>manual</code> | <code>NULL</code>.</li>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-06-11</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> web, api, security, data</li>
 </ul>
-<p>The pair is constrained: both NULL or both NOT NULL.</p>
-<p>One audit table:</p>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>The React WebUI (<a href="../0033-reporting-first-react-webui/">ADR-0033</a>) currently
+renders synthetic fixture data only.
+The deterministic numbers it must show live in the dbt marts
+(<code>analytics_marts.mart_net_worth_daily</code>, <code>mart_cashflow_daily</code>) and are read
+today by two consumers: the Streamlit dashboard (direct SQL via SQLAlchemy)
+and the MCP server (AI-facing tools, ADR-0005).
+The browser cannot and should not open SQL connections, so the WebUI needs a
+typed HTTP layer over the marts before any real-data dashboard work
+(issues #203, #204) can start.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
-<li><code>instrument_dk_abis_listing(instrument_id, tax_year, listed,
-  source_file, imported_at)</code> — one row per observed
-  <code>(instrument, year)</code> pair.</li>
+<li>The parsers, marts, masking helpers, and simulation engine are all Python;
+  the API should reuse them, not re-implement them.</li>
+<li>The TypeScript client must be generated from a reviewable contract so the
+  UI and API cannot drift silently.</li>
+<li>Server-side masking: raw IBANs and account-number suffixes must never reach
+  the browser (same rule the Streamlit layer applies at render time).</li>
+<li>EUR and DKK stay first-class in every response; no silent base currency.</li>
+<li>Money precision: amounts are <code>numeric(20, 4)</code> in Postgres and must not pass
+  through binary floats on the way to the UI.</li>
 </ul>
-<h2 id="csv-shape">CSV shape<a class="headerlink" href="#csv-shape" title="Permanent link">&para;</a></h2>
-<p>The file Skat ships has these quirks. The parser handles all of
-them:</p>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>FastAPI app in <code>src/penge/api</code></strong> — Python, direct reuse of
+   <code>penge.web.mask</code> / mart SQL, OpenAPI schema for client generation.</li>
+<li><strong>Node/Express API in <code>apps/</code></strong> — TypeScript end-to-end, but every parser
+   and mart access would shell out to Python or duplicate logic.</li>
+<li><strong>Extend the MCP server with REST endpoints</strong> — one process fewer, but it
+   would mix the AI-facing tool boundary (ADR-0005) with general data access
+   and couple the UI to the MCP runtime.</li>
+</ol>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Option 1: a <strong>FastAPI application in <code>src/penge/api</code></strong>, served by uvicorn via
+the <code>penge-api</code> entry point.</p>
 <ul>
-<li>UTF-8 with BOM, bilingual headers (Danish / English).</li>
-<li>ISIN column may carry trailing whitespace.</li>
-<li>Empty cells are written as <code>[tom]</code> (Danish for "empty").</li>
-<li>Year-list columns are usually <code>,</code>-separated and quoted, but
-  occasionally <code>.</code>-separated (without quotes).</li>
-<li>An ISIN may appear in two rows (one per share-class). The
-  loader merges them by ISIN and unions the year sets — being
-  on the list via <em>any</em> share-class is enough.</li>
+<li><strong>Read-only by design.</strong> v1 ships <code>GET /net-worth/daily</code>,
+  <code>GET /cashflow/daily</code>, <code>GET /allocation/current</code>, <code>GET /accounts</code>,
+  <code>GET /meta/freshness</code>. No DML; write paths (staged imports, issue #207)
+  require their own ADR.</li>
+<li><strong>Typed contract.</strong> Pydantic response models generate the OpenAPI schema,
+  which is committed at <code>docs/api/openapi.json</code>; a test fails CI when the
+  artifact drifts. The WebUI generates its TS client from that file
+  (issue #203).</li>
+<li><strong>Decimal on the wire.</strong> Amounts serialise as JSON strings
+  (<code>"1000.0000"</code>), never floats; the client converts explicitly at the edge.</li>
+<li><strong>Masking server-side.</strong> <code>/accounts</code> applies <code>mask_iban</code> /
+  <code>mask_account_name</code> before serialising; raw identifiers never leave the
+  process.</li>
+<li><strong>Pagination everywhere.</strong> Series endpoints take <code>limit</code>/<code>offset</code> with a
+  hard cap, and default to a one-year window.</li>
+<li><strong>Local-only binding.</strong> Defaults to <code>127.0.0.1:8000</code>; CORS allows the Vite
+  dev origin only (overridable via <code>PENGE_API_CORS_ORIGINS</code>). Authentication
+  is intentionally out of scope while the platform is single-household and
+  LAN-bound — revisit before any remote exposure.</li>
 </ul>
-<h2 id="classification-rule">Classification rule<a class="headerlink" href="#classification-rule" title="Permanent link">&para;</a></h2>
-<p>For each ISIN matched against the local <code>instrument</code> table, the
-loader inspects the most recent <code>tax_year</code> it observed in the
-CSV:</p>
-<table>
-<thead>
-<tr>
-<th>Latest observation</th>
-<th>Resulting <code>dk_tax_treatment</code></th>
-<th><code>dk_tax_treatment_source</code></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>listed = true</code></td>
-<td><code>lagerbeskatning</code></td>
-<td><code>abis</code></td>
-</tr>
-<tr>
-<td><code>listed = false</code></td>
-<td><code>NULL</code> (forces user review)</td>
-<td><code>NULL</code></td>
-</tr>
-</tbody>
-</table>
-<p>Rows with <code>dk_tax_treatment_source = 'manual'</code> are <strong>never</strong>
-overwritten; manual decisions are sticky across re-imports.</p>
-<p>ISINs in the CSV that are not in the local <code>instrument</code> table are
-counted as "unmatched" in the <code>LoadResult</code> summary; no row is
-inserted on their behalf.</p>
-<h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>just<span class="w"> </span>ingest-abis<span class="w"> </span>ingest<span class="w"> </span>data/abis-listen-2020-2025.csv
-
-<span class="c1"># Stick a manual decision (loader will not overwrite this).</span>
-just<span class="w"> </span>ingest-abis<span class="w"> </span>override<span class="w"> </span>--isin<span class="w"> </span>DE0002635281<span class="w"> </span>--treatment<span class="w"> </span>lagerbeskatning
-
-<span class="c1"># Drop the manual decision; next ingest will re-derive.</span>
-just<span class="w"> </span>ingest-abis<span class="w"> </span>override<span class="w"> </span>--isin<span class="w"> </span>DE0002635281<span class="w"> </span>--clear
-</code></pre></div>
-<p>The CLI prints a one-line summary per invocation, e.g.</p>
-<div class="highlight"><pre><span></span><code>abis: rows=4774 matched=27 unmatched=4747 obs=162 classified=22 cleared=5
-</code></pre></div>
-<p><code>unmatched</code> is expected to dominate — the ABIS list covers the
-universe of Danish-recognised aktiebaserede selskaber, of which
-your portfolio holds a small subset.</p>
-<h2 id="yearly-refresh">Yearly refresh<a class="headerlink" href="#yearly-refresh" title="Permanent link">&para;</a></h2>
-<p>See <a href="../../runbook/abis-yearly-refresh/">docs/runbook/abis-yearly-refresh.md</a>
-for the runbook.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Good: one Python codebase owns SQL, masking, and money handling; the UI
+  consumes a generated client and cannot invent queries.</li>
+<li>Good: the committed OpenAPI artifact makes API changes reviewable in PRs.</li>
+<li>Bad: a third read path next to Streamlit and MCP — mitigated by keeping all
+  three on the same marts and the same masking helpers.</li>
+<li>Bad: <code>fastapi</code> + <code>uvicorn</code> join the dependency tree (recorded in the <code>api</code>
+  dependency group; rationale: no existing dependency provides an HTTP
+  server with OpenAPI generation).</li>
+</ul>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../0005-llm-access-via-mcp-only/">ADR-0005</a> — LLM access via MCP only</li>
+<li><a href="../0004-eur-and-dkk-shown-in-parallel/">ADR-0004</a> — EUR/DKK dual-currency rule</li>
+<li><a href="../0033-reporting-first-react-webui/">ADR-0033</a> — Reporting-first React WebUI</li>
+<li>Issue <a href="https://github.com/autoditac/Penge/issues/202">#202</a>, epic
+  <a href="https://github.com/autoditac/Penge/issues/201">#201</a></li>
+</ul>
 
 
 

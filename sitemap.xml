@@ -17,6 +17,10 @@
          <lastmod>2026-06-11</lastmod>
     </url>
     <url>
+         <loc>https://autoditac.github.io/Penge/api/</loc>
+         <lastmod>2026-06-11</lastmod>
+    </url>
+    <url>
          <loc>https://autoditac.github.io/Penge/architecture/</loc>
          <lastmod>2026-06-11</lastmod>
     </url>
@@ -202,6 +206,10 @@
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/decisions/0034-application-container-images/</loc>
+         <lastmod>2026-06-11</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/decisions/0035-fastapi-read-api/</loc>
          <lastmod>2026-06-11</lastmod>
     </url>
     <url>

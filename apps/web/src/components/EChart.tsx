@@ -8,6 +8,7 @@ import { useEffect, useRef } from "react";
 import * as echarts from "echarts/core";
 import { BarChart, LineChart, PieChart } from "echarts/charts";
 import {
+  AxisPointerComponent,
   DataZoomComponent,
   GridComponent,
   LegendComponent,
@@ -17,6 +18,7 @@ import { SVGRenderer } from "echarts/renderers";
 import type { ComposeOption } from "echarts/core";
 import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from "echarts/charts";
 import type {
+  AxisPointerComponentOption,
   DataZoomComponentOption,
   GridComponentOption,
   LegendComponentOption,
@@ -27,6 +29,7 @@ echarts.use([
   BarChart,
   LineChart,
   PieChart,
+  AxisPointerComponent,
   DataZoomComponent,
   GridComponent,
   LegendComponent,
@@ -38,6 +41,7 @@ export type EChartOption = ComposeOption<
   | BarSeriesOption
   | LineSeriesOption
   | PieSeriesOption
+  | AxisPointerComponentOption
   | DataZoomComponentOption
   | GridComponentOption
   | LegendComponentOption

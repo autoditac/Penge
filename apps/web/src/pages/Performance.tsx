@@ -193,6 +193,7 @@ function TrendSection({
   const eurSeries = netWorthSeries(netWorth.data.points, "EUR");
   const drawdown = drawdownSeries(dkkSeries);
   const deepest = maxDrawdown(dkkSeries);
+  const truncated = netWorth.data.total > netWorth.data.points.length;
   const textColor = chartTextColor();
 
   const option: EChartOption = {
@@ -259,6 +260,7 @@ function TrendSection({
         color: "#e5484d",
         data: drawdown.map((point) => [...point]),
         areaStyle: { opacity: 0.25 },
+        tooltip: { valueFormatter: (value) => formatShare(Number(value)) },
       },
     ],
   };
@@ -271,6 +273,7 @@ function TrendSection({
           <h2>Net-worth development</h2>
         </div>
         <div className="kpiRow">
+          {truncated ? <span className="pill">window truncated — narrow the range</span> : null}
           <KpiCard
             label="Max drawdown"
             tone={deepest !== null && deepest < -0.1 ? "watch" : "info"}
@@ -359,6 +362,7 @@ function SavingsRateSection(): React.JSX.Element {
         showSymbol: false,
         connectNulls: false,
         data: rates.map((entry) => entry.rate),
+        tooltip: { valueFormatter: (value) => formatShare(value === null ? null : Number(value)) },
       },
     ],
   };

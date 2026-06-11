@@ -691,6 +691,11 @@ button {
     border-color: color-mix(in srgb, var(--critical) 45%, transparent);
 }
 
+.badge.tone-info {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
 .rowExcluded td {
     opacity: 0.45;
 }

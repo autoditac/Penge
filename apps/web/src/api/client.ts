@@ -199,8 +199,31 @@ export function fetchImportSessions(): Promise<ImportSessionList> {
   return getJson("/imports", {}, importSessionListSchema);
 }
 
-export function fetchImportSession(sessionId: string): Promise<ImportSessionWithRows> {
-  return getJson(`/imports/${sessionId}`, {}, importSessionWithRowsSchema);
+/** Matches the API's DEFAULT_ROW_LIMIT; MAX_ROW_LIMIT is 10_000. */
+const importRowPageSize = 1_000;
+
+/** Fetch a staged session with ALL rows, following `limit`/`offset` pagination
+ * until `rows.length === total_rows` so review and commit gating never operate
+ * on a partial first page. */
+export async function fetchImportSession(sessionId: string): Promise<ImportSessionWithRows> {
+  const first = await getJson(
+    `/imports/${sessionId}`,
+    { limit: importRowPageSize, offset: 0 },
+    importSessionWithRowsSchema,
+  );
+  const rows = [...first.rows];
+  while (rows.length < first.total_rows) {
+    const page = await getJson(
+      `/imports/${sessionId}`,
+      { limit: importRowPageSize, offset: rows.length },
+      importSessionWithRowsSchema,
+    );
+    if (page.rows.length === 0) {
+      break; // defensive: total_rows shrank mid-pagination (concurrent edit)
+    }
+    rows.push(...page.rows);
+  }
+  return { ...first, rows };
 }
 
 export type RowPatch = {

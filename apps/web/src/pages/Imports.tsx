@@ -241,7 +241,9 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
   }
 
   const session = sessionQuery.data;
-  const busy = state.step === "review" && state.busy;
+  const committing = state.step === "review" && state.busy;
+  const discarding = discard.isPending;
+  const busy = committing || discarding;
   const needsEntityName =
     (session.source === "growney" || session.source === "pfa") &&
     typeof session.params["entity_name"] !== "string";
@@ -313,12 +315,12 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
           onClick={onCommit}
           disabled={busy || !committable}
         >
-          {busy
+          {committing
             ? "Committing…"
             : `Commit ${String(session.row_counts.total - session.row_counts.excluded)} rows`}
         </button>
         <button type="button" className="buttonGhost" onClick={onDiscard} disabled={busy}>
-          Discard session
+          {discarding ? "Discarding…" : "Discard session"}
         </button>
         <button
           type="button"

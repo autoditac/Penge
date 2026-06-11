@@ -128,6 +128,7 @@ nav:
       - "ADR-0033 Reporting-first React WebUI": decisions/0033-reporting-first-react-webui.md
       - "ADR-0034 Application container images": decisions/0034-application-container-images.md
       - "ADR-0035 FastAPI read API": decisions/0035-fastapi-read-api.md
+      - "ADR-0036 WebUI frontend stack": decisions/0036-webui-frontend-stack.md
       - "ADR template": decisions/adr-template.md
   - Privacy: privacy.md
   - Terms: terms.md

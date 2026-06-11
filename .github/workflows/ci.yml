@@ -121,6 +121,11 @@ jobs:
           pnpm --version
       - name: Install workspace deps
         run: pnpm install --frozen-lockfile
+      - name: Check generated API client is current
+        run: |
+          set -euo pipefail
+          pnpm --filter @penge/web generate:api
+          git diff --exit-code apps/web/src/api/schema.d.ts
       - name: Build WebUI
         run: pnpm --filter @penge/web build
       - name: Test WebUI

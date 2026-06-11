@@ -1,11 +1,13 @@
 # Modern WebUI
 
-The modern WebUI is a reporting-first React shell in `apps/web`.
-It is the target cockpit for deterministic household reporting, planning
-workflows, and explanation-first AI surfaces.
+The modern WebUI is a reporting-first React application in `apps/web`.
+It is the cockpit for deterministic household reporting, planning workflows,
+and explanation-first AI surfaces.
 
-The current slice uses synthetic data only.
-It exists to establish the product shape before real report APIs are connected.
+Since the app-shell upgrade (issue #203) it is a real application: routed
+surfaces, live data from the FastAPI read API (ADR-0035), ECharts
+visualisations, and a dark/light design system. The frontend stack choices
+are recorded in ADR-0036.
 
 ## Product principles
 
@@ -22,18 +24,37 @@ It exists to establish the product shape before real report APIs are connected.
    Never copy real balances, counterparties, statements, or salaries into
    frontend fixtures.
 
-## First cockpit
+## Surfaces
 
-The first WebUI screen is intentionally small:
+- **Overview** — net-worth trend (365 days, EUR + DKK), current allocation by
+  kind/currency/entity with donut + table, masked account dimension.
+- **Performance** — zoomable multi-year net-worth trend and monthly cashflow
+  bars. TWR/MWR returns land with the returns engine (#205, #206).
+- **Imports** — documents today's CLI flow; the guided wizard arrives with
+  the import-sessions API (#207) and wizard UI (#208).
+- **Planning** — labelled synthetic preview of the MCP
+  `answer_planning_question` surface until live wiring lands (#210).
 
-- KPI cards for net worth, liquidity runway, FIRE readiness, and median FI year.
-- A classical reporting panel for net worth and spendable liquidity.
-- A risk register panel for review items.
-- An AI assistant boundary panel mirroring the MCP
-  `answer_planning_question` tool.
+## Architecture
 
-This gives future work a concrete layout while keeping the first PR safe and
-auditable.
+- **Routing**: React Router v7 (library mode); all surfaces share the
+  `AppShell` layout (sidebar navigation, theme toggle, freshness banner).
+- **Data layer**: TanStack Query v5 hooks in `src/api/queries.ts` over a
+  typed fetch client (`src/api/client.ts`).
+- **Contract**: `pnpm --filter @penge/web generate:api` regenerates
+  `src/api/schema.d.ts` from the committed `docs/api/openapi.json`
+  (`just web-ui-openapi-client`). zod schemas in `src/api/schemas.ts`
+  validate every response at runtime and are type-checked against the
+  generated types; CI fails when the generated client drifts.
+- **Money**: Decimal values arrive as JSON strings (ADR-0035) and are
+  converted to floats only at the display/chart edge (`src/money.ts`).
+- **Charts**: tree-shaken Apache ECharts core behind the in-repo `<EChart>`
+  wrapper with the SVG renderer.
+- **States**: uniform loading, error (with retry and `just api-dev` hint),
+  and empty states for every data panel.
+- **Demo mode**: `VITE_PENGE_DEMO=true` serves deterministic synthetic
+  fixtures (`src/demo/fixtures.ts`) through dynamic import; the production
+  path always reads the API. A "Demo data" badge marks the mode.
 
 ## AI integration direction
 
@@ -58,9 +79,17 @@ Out of scope for the first WebUI:
 
 ## Local development
 
+End-to-end with live mart data (requires the warehouse from `compose.yaml`):
+
 ```bash
-just web-ui-install
-just web-ui-dev
+just api-dev       # FastAPI read API on 127.0.0.1:8000
+just web-ui-dev    # Vite dev server on 127.0.0.1:5173
+```
+
+Without a database:
+
+```bash
+VITE_PENGE_DEMO=true just web-ui-dev
 ```
 
 For quality gates:
@@ -69,4 +98,5 @@ For quality gates:
 just web-ui-build
 just web-ui-test
 just web-ui-lint
+just web-ui-openapi-client   # regenerate the typed API client
 ```

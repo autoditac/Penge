@@ -206,8 +206,8 @@ mcp-evals:
 
 # --- Modern WebUI (TypeScript) -----------------------------------------------
 #
-# React/Vite reporting-first cockpit (apps/web). The current slice uses
-# synthetic data only; see docs/web/modern-webui.md and ADR-0033.
+# React/Vite reporting-first cockpit (apps/web) served by the read API
+# (just api-dev); see docs/web/modern-webui.md, ADR-0033, and ADR-0036.
 
 # Install WebUI workspace dependencies (idempotent).
 web-ui-install:
@@ -232,6 +232,10 @@ web-ui-build:
 # Build the WebUI container image locally.
 web-ui-image:
     docker build -f apps/web/Containerfile -t penge/web:dev .
+
+# Regenerate the typed API client from the committed OpenAPI schema.
+web-ui-openapi-client:
+    pnpm --filter @penge/web generate:api
 
 # --- Read API (FastAPI) -------------------------------------------------------
 #

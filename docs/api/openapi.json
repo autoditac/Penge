@@ -1,0 +1,970 @@
+{
+  "components": {
+    "schemas": {
+      "AccountSummary": {
+        "additionalProperties": false,
+        "description": "Account dimension row with identifiers masked server-side.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_name": {
+            "title": "Entity Name",
+            "type": "string"
+          },
+          "iban_masked": {
+            "title": "Iban Masked",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "entity_id",
+          "entity_name",
+          "provider",
+          "name",
+          "kind",
+          "currency",
+          "iban_masked"
+        ],
+        "title": "AccountSummary",
+        "type": "object"
+      },
+      "AllocationDimension": {
+        "description": "Grouping dimension for the current-allocation endpoint.",
+        "enum": [
+          "entity",
+          "currency",
+          "kind"
+        ],
+        "title": "AllocationDimension",
+        "type": "string"
+      },
+      "AllocationResponse": {
+        "additionalProperties": false,
+        "description": "Current allocation snapshot grouped by one dimension.",
+        "properties": {
+          "as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "As Of"
+          },
+          "by": {
+            "$ref": "#/components/schemas/AllocationDimension"
+          },
+          "slices": {
+            "items": {
+              "$ref": "#/components/schemas/AllocationSlice"
+            },
+            "title": "Slices",
+            "type": "array"
+          }
+        },
+        "required": [
+          "as_of",
+          "by",
+          "slices"
+        ],
+        "title": "AllocationResponse",
+        "type": "object"
+      },
+      "AllocationSlice": {
+        "additionalProperties": false,
+        "description": "One slice of the latest-day allocation, grouped by a dimension.\n\n``weight_eur`` is this slice's share of the EUR total (0..1);\n``None`` when the EUR total is zero or missing.",
+        "properties": {
+          "balance_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Dkk"
+          },
+          "balance_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Eur"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "weight_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Weight Eur"
+          }
+        },
+        "required": [
+          "label",
+          "balance_eur",
+          "balance_dkk",
+          "weight_eur"
+        ],
+        "title": "AllocationSlice",
+        "type": "object"
+      },
+      "CashflowPoint": {
+        "additionalProperties": false,
+        "description": "One account-day row of ``mart_cashflow_daily``.\n\nDays without transactions produce no row; consumers treat absent\ndays as zero (same contract as the MCP ``query_cashflow`` tool).",
+        "properties": {
+          "account_currency": {
+            "title": "Account Currency",
+            "type": "string"
+          },
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "inflow_acct_ccy": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Inflow Acct Ccy",
+            "type": "string"
+          },
+          "inflow_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inflow Dkk"
+          },
+          "inflow_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Inflow Eur"
+          },
+          "net_acct_ccy": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Net Acct Ccy",
+            "type": "string"
+          },
+          "net_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Dkk"
+          },
+          "net_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Eur"
+          },
+          "outflow_acct_ccy": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Outflow Acct Ccy",
+            "type": "string"
+          },
+          "outflow_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outflow Dkk"
+          },
+          "outflow_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outflow Eur"
+          }
+        },
+        "required": [
+          "as_of",
+          "entity_id",
+          "account_id",
+          "account_currency",
+          "inflow_acct_ccy",
+          "outflow_acct_ccy",
+          "net_acct_ccy",
+          "inflow_eur",
+          "outflow_eur",
+          "net_eur",
+          "inflow_dkk",
+          "outflow_dkk",
+          "net_dkk"
+        ],
+        "title": "CashflowPoint",
+        "type": "object"
+      },
+      "CashflowSeriesResponse": {
+        "additionalProperties": false,
+        "description": "Paginated cashflow series at account granularity.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/CashflowPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "points",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "title": "CashflowSeriesResponse",
+        "type": "object"
+      },
+      "FreshnessResponse": {
+        "additionalProperties": false,
+        "description": "Freshness metadata for every mart the API serves.",
+        "properties": {
+          "marts": {
+            "items": {
+              "$ref": "#/components/schemas/MartFreshness"
+            },
+            "title": "Marts",
+            "type": "array"
+          }
+        },
+        "required": [
+          "marts"
+        ],
+        "title": "FreshnessResponse",
+        "type": "object"
+      },
+      "GroupBy": {
+        "description": "Aggregation level for the net-worth series.",
+        "enum": [
+          "account",
+          "total"
+        ],
+        "title": "GroupBy",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "MartFreshness": {
+        "additionalProperties": false,
+        "description": "Latest data date and row count for one mart.",
+        "properties": {
+          "latest_as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest As Of"
+          },
+          "mart": {
+            "title": "Mart",
+            "type": "string"
+          },
+          "row_count": {
+            "title": "Row Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "mart",
+          "latest_as_of",
+          "row_count"
+        ],
+        "title": "MartFreshness",
+        "type": "object"
+      },
+      "NetWorthPoint": {
+        "additionalProperties": false,
+        "description": "One account-day row of ``mart_net_worth_daily``.",
+        "properties": {
+          "account_currency": {
+            "title": "Account Currency",
+            "type": "string"
+          },
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "balance_acct_ccy": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Balance Acct Ccy",
+            "type": "string"
+          },
+          "balance_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Dkk"
+          },
+          "balance_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Eur"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "entity_id",
+          "account_id",
+          "account_currency",
+          "balance_acct_ccy",
+          "balance_eur",
+          "balance_dkk"
+        ],
+        "title": "NetWorthPoint",
+        "type": "object"
+      },
+      "NetWorthSeriesResponse": {
+        "additionalProperties": false,
+        "description": "Paginated net-worth series at account granularity.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/NetWorthPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "points",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "title": "NetWorthSeriesResponse",
+        "type": "object"
+      },
+      "NetWorthTotalPoint": {
+        "additionalProperties": false,
+        "description": "One day of the net-worth series summed across all accounts.",
+        "properties": {
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "balance_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Dkk"
+          },
+          "balance_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Eur"
+          }
+        },
+        "required": [
+          "as_of",
+          "balance_eur",
+          "balance_dkk"
+        ],
+        "title": "NetWorthTotalPoint",
+        "type": "object"
+      },
+      "NetWorthTotalSeriesResponse": {
+        "additionalProperties": false,
+        "description": "Net-worth series aggregated to one row per day.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/NetWorthTotalPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "points",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "title": "NetWorthTotalSeriesResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side.",
+    "title": "Penge read API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/accounts": {
+      "get": {
+        "description": "Account dimension with IBAN and name suffix masked server-side.",
+        "operationId": "accounts_accounts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AccountSummary"
+                  },
+                  "title": "Response Accounts Accounts Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Accounts"
+      }
+    },
+    "/allocation/current": {
+      "get": {
+        "description": "Latest-day allocation grouped by entity, currency, or account kind.",
+        "operationId": "allocation_current_allocation_current_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "by",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/AllocationDimension",
+              "default": "kind"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AllocationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Allocation Current"
+      }
+    },
+    "/cashflow/daily": {
+      "get": {
+        "description": "Daily cashflow series per account (absent days mean zero).",
+        "operationId": "cashflow_daily_cashflow_daily_get",
+        "parameters": [
+          {
+            "description": "First day of the window (inclusive). Default: one year ago.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of the window (inclusive). Default: one year ago.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Last day of the window (inclusive). Default: today.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of the window (inclusive). Default: today.",
+              "title": "Until"
+            }
+          },
+          {
+            "description": "Filter to one account id.",
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one account id.",
+              "title": "Account Id"
+            }
+          },
+          {
+            "description": "Filter to one entity id.",
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one entity id.",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "description": "Page size.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "Page size.",
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page start offset.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Page start offset.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CashflowSeriesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cashflow Daily"
+      }
+    },
+    "/meta/freshness": {
+      "get": {
+        "description": "Latest data date and row count per mart, for staleness banners.",
+        "operationId": "meta_freshness_meta_freshness_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FreshnessResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Meta Freshness"
+      }
+    },
+    "/net-worth/daily": {
+      "get": {
+        "description": "Daily net-worth series, per account or summed per day.",
+        "operationId": "net_worth_daily_net_worth_daily_get",
+        "parameters": [
+          {
+            "description": "First day of the window (inclusive). Default: one year ago.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of the window (inclusive). Default: one year ago.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Last day of the window (inclusive). Default: today.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of the window (inclusive). Default: today.",
+              "title": "Until"
+            }
+          },
+          {
+            "description": "Filter to one account id.",
+            "in": "query",
+            "name": "account_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one account id.",
+              "title": "Account Id"
+            }
+          },
+          {
+            "description": "Filter to one entity id.",
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one entity id.",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "group",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/GroupBy",
+              "default": "account"
+            }
+          },
+          {
+            "description": "Page size.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "Page size.",
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page start offset.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Page start offset.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/NetWorthSeriesResponse"
+                    },
+                    {
+                      "$ref": "#/components/schemas/NetWorthTotalSeriesResponse"
+                    }
+                  ],
+                  "title": "Response Net Worth Daily Net Worth Daily Get"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Net Worth Daily"
+      }
+    }
+  }
+}

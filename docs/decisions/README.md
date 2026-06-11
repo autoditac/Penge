@@ -29,3 +29,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0028](0028-sim-payout-model.md) | Decumulation payout model: annuity factor + PMT | Proposed |
 | [0033](0033-reporting-first-react-webui.md) | Reporting-first React WebUI | Proposed |
 | [0034](0034-application-container-images.md) | Application container images in CI and releases | Proposed |
+| [0035](0035-fastapi-read-api.md) | FastAPI read API as the WebUI data layer | Proposed |

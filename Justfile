@@ -232,6 +232,27 @@ web-ui-build:
 # Build the WebUI container image locally.
 web-ui-image:
     docker build -f apps/web/Containerfile -t penge/web:dev .
+# --- Read API (FastAPI) -------------------------------------------------------
+#
+# Typed read-only HTTP API over the analytics marts (src/penge/api).
+# The WebUI's data backend; see docs/api/index.md and ADR-0035.
+
+# Run the read API locally with auto-reload.
+api-dev:
+    uv run --group api --group db --group http penge-api --reload --verbose
+
+# Run the read-API test suite.
+api-test:
+    uv run --group dev --group api --group db --group http pytest tests/api
+
+# Lint + type-check the read API package.
+api-lint:
+    uv run --group dev ruff check src/penge/api tests/api
+    uv run --group dev --group api --group db --group http mypy src/penge/api tests/api
+
+# Regenerate the committed OpenAPI schema (docs/api/openapi.json).
+api-openapi:
+    uv run --group api --group db --group http python -m penge.api.openapi
 
 # --- Encrypted backups (see ADR-0025) ----------------------------------------
 #

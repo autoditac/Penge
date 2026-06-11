@@ -244,16 +244,16 @@ web-ui-openapi-client:
 
 # Run the read API locally with auto-reload.
 api-dev:
-    uv run --group api --group db --group http penge-api --reload --verbose
+    uv run --group api --group db --group http --group parsers --group manual penge-api --reload --verbose
 
 # Run the read-API test suite.
 api-test:
-    uv run --group dev --group api --group db --group http pytest tests/api
+    uv run --group dev --group api --group db --group http --group parsers --group manual pytest tests/api
 
 # Lint + type-check the read API package.
 api-lint:
     uv run --group dev ruff check src/penge/api tests/api
-    uv run --group dev --group api --group db --group http mypy src/penge/api tests/api
+    uv run --group dev --group api --group db --group http --group parsers --group manual mypy src/penge/api tests/api
 
 # Regenerate the committed OpenAPI schema (docs/api/openapi.json).
 api-openapi:

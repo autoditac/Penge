@@ -7,6 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from penge.api.imports.routes import router as imports_router
 from penge.api.routes import router
 
 # Vite's dev server origins; override for other setups via
@@ -29,14 +30,19 @@ def create_app() -> FastAPI:
         description=(
             "Read-only JSON API over the Penge analytics marts. "
             "All amounts are reported in EUR and DKK in parallel; "
-            "account identifiers are masked server-side."
+            "account identifiers are masked server-side. "
+            "The /imports endpoints are the one write surface: staged "
+            "import sessions per ADR-0037."
         ),
     )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins(),
-        allow_methods=["GET"],
+        # GET for the read surface; POST/PATCH/DELETE only exist under
+        # /imports (staged import sessions, ADR-0037).
+        allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["*"],
     )
     app.include_router(router)
+    app.include_router(imports_router)
     return app

@@ -135,6 +135,11 @@ api = [
   # the DB driver come from the `http` / `db` groups at runtime.
   "fastapi>=0.115",
   "uvicorn>=0.32",
+  # Multipart parsing for the staged-import upload endpoint (issue
+  # #207, ADR-0037). FastAPI has no built-in multipart parser and no
+  # existing dependency provides one; this is the library FastAPI
+  # itself requires for UploadFile/Form support.
+  "python-multipart>=0.0.18",
 ]
 
 [tool.ruff]

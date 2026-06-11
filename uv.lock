@@ -1842,6 +1842,7 @@ source = { editable = "." }
 [package.dev-dependencies]
 api = [
     { name = "fastapi" },
+    { name = "python-multipart" },
     { name = "uvicorn" },
 ]
 db = [
@@ -1922,6 +1923,7 @@ web = [
 [package.metadata.requires-dev]
 api = [
     { name = "fastapi", specifier = ">=0.115" },
+    { name = "python-multipart", specifier = ">=0.0.18" },
     { name = "uvicorn", specifier = ">=0.32" },
 ]
 db = [

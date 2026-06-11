@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/runbook/container-images/">
       
       
-        <link rel="prev" href="../0002-custom-monorepo-over-off-the-shelf-pfm/">
+        <link rel="prev" href="../web/">
       
       
-        <link rel="next" href="../0004-eur-and-dkk-shown-in-parallel/">
+        <link rel="next" href="../abis-yearly-refresh/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF) - Penge</title>
+        <title>Container images - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0003-hybrid-ingestion-psd2-gocardless-csvpdf-parsers" class="md-skip">
+        <a href="#container-images" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)
+              Container images
             
           </span>
         </div>
@@ -1422,419 +1422,12 @@
       
   
   
-  
-  
-    
-    
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
-        
-          
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Runbook
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Runbook
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/monthly-ritual/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Monthly ritual (1-hour close)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/monthly-report/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Monthly automated report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/web/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Web dashboard
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/container-images/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Container images
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/abis-yearly-refresh/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ABIS yearly refresh
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/branch-protection/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Branch protection
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/vault-watcher/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Vault watcher
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/healthchecks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Healthchecks (Uptime Kuma + Sentry)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/backup-restore/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Encrypted backups
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/restore-log/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Restore drill log
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
   
     
     
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
       
         
       
@@ -1869,18 +1462,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
     
   
-    Decisions
+    Runbook
   
 
     
@@ -1888,27 +1480,19 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Decisions
+    Runbook
   
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
-            
-              
             
               
                 
@@ -1917,14 +1501,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../monthly-ritual/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ADR-0001 Self-hosted Postgres + DuckDB stack
+    Monthly ritual (1-hour close)
   
 
     
@@ -1945,14 +1529,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../monthly-report/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ADR-0002 Custom monorepo over off-the-shelf PFM
+    Monthly automated report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../web/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web dashboard
   
 
     
@@ -1989,7 +1601,7 @@
   <span class="md-ellipsis">
     
   
-    ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)
+    Container images
   
 
     
@@ -2007,7 +1619,7 @@
   <span class="md-ellipsis">
     
   
-    ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)
+    Container images
   
 
     
@@ -2033,10 +1645,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#image-names" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context and Problem Statement
+        Image names
       
     </span>
   </a>
@@ -2044,10 +1656,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
+  <a href="#local-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision Drivers
+        Local build
       
     </span>
   </a>
@@ -2055,10 +1667,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
+  <a href="#build-context-safety" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Considered Options
+        Build-context safety
       
     </span>
   </a>
@@ -2066,121 +1678,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#release-publishing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#psd2-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PSD2-only
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#plaid-saltedge" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plaid / SaltEdge
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#csv-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CSV-only
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
+        Release publishing
       
     </span>
   </a>
@@ -2203,7 +1704,395 @@
   
   
     <li class="md-nav__item">
-      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../abis-yearly-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIS yearly refresh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branch-protection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branch protection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vault-watcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault watcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../healthchecks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Healthchecks (Uptime Kuma + Sentry)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backup-restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Encrypted backups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../restore-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Restore drill log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../decisions/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0001 Self-hosted Postgres + DuckDB stack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0002 Custom monorepo over off-the-shelf PFM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -2231,7 +2120,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2259,7 +2148,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2287,7 +2176,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2315,7 +2204,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2343,7 +2232,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2371,7 +2260,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0010-sim-return-model/" class="md-nav__link">
+      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2399,7 +2288,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2427,7 +2316,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0012-sim-goal-model/" class="md-nav__link">
+      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2455,7 +2344,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2483,7 +2372,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2511,7 +2400,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2539,7 +2428,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2567,7 +2456,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2595,7 +2484,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2623,7 +2512,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2651,7 +2540,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0020-skat-report-generator/" class="md-nav__link">
+      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2679,7 +2568,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2707,7 +2596,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2735,7 +2624,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2763,7 +2652,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0024-vault-layout/" class="md-nav__link">
+      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2791,7 +2680,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0025-encrypted-backups/" class="md-nav__link">
+      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2819,7 +2708,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2847,7 +2736,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2875,7 +2764,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -2903,7 +2792,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -2931,7 +2820,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0034-application-container-images/" class="md-nav__link">
+      <a href="../../decisions/0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -2959,7 +2848,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr-template/" class="md-nav__link">
+      <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
   
@@ -3068,10 +2957,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#image-names" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context and Problem Statement
+        Image names
       
     </span>
   </a>
@@ -3079,10 +2968,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
+  <a href="#local-build" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision Drivers
+        Local build
       
     </span>
   </a>
@@ -3090,10 +2979,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
+  <a href="#build-context-safety" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Considered Options
+        Build-context safety
       
     </span>
   </a>
@@ -3101,121 +2990,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#release-publishing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#psd2-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        PSD2-only
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#plaid-saltedge" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Plaid / SaltEdge
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#csv-only" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CSV-only
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
+        Release publishing
       
     </span>
   </a>
@@ -3239,7 +3017,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0003-hybrid-ingestion-psd2-and-csv-pdf.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/runbook/container-images.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3247,79 +3025,61 @@
   
 
 
-<h1 id="0003-hybrid-ingestion-psd2-gocardless-csvpdf-parsers">0003 — Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers<a class="headerlink" href="#0003-hybrid-ingestion-psd2-gocardless-csvpdf-parsers" title="Permanent link">&para;</a></h1>
+<h1 id="container-images">Container images<a class="headerlink" href="#container-images" title="Permanent link">&para;</a></h1>
+<p>Application images are built from <code>apps/&lt;name&gt;/Containerfile</code>.
+The first image is the modern WebUI:</p>
+<div class="highlight"><pre><span></span><code>apps/web/Containerfile
+</code></pre></div>
+<p>CI builds application images on pull requests without pushing them.
+Published releases push images to GHCR and attach supply-chain metadata.</p>
+<h2 id="image-names">Image names<a class="headerlink" href="#image-names" title="Permanent link">&para;</a></h2>
+<p>Release images use this naming convention:</p>
+<div class="highlight"><pre><span></span><code>ghcr.io/autoditac/penge/&lt;app&gt;
+</code></pre></div>
+<p>For the WebUI:</p>
+<div class="highlight"><pre><span></span><code>ghcr.io/autoditac/penge/web
+</code></pre></div>
+<p>Release builds tag each image with the release tag and commit SHA.
+Manual release workflow dispatches use a <code>manual-&lt;run-number&gt;</code> tag plus the
+commit SHA.</p>
+<h2 id="local-build">Local build<a class="headerlink" href="#local-build" title="Permanent link">&para;</a></h2>
+<p>Build the WebUI image locally:</p>
+<div class="highlight"><pre><span></span><code>just<span class="w"> </span>web-ui-image
+</code></pre></div>
+<p>Run it locally:</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-p<span class="w"> </span><span class="m">127</span>.0.0.1:8080:8080<span class="w"> </span>penge/web:dev
+</code></pre></div>
+<p>Then open <a href="http://127.0.0.1:8080">http://127.0.0.1:8080</a>.</p>
+<h2 id="build-context-safety">Build-context safety<a class="headerlink" href="#build-context-safety" title="Permanent link">&para;</a></h2>
+<p>The root <code>.dockerignore</code> excludes local finance data and build artefacts,
+including:</p>
 <ul>
-<li><strong>Status:</strong> Superseded by <a href="../0026-retire-gocardless-for-enable-banking/">ADR-0026</a></li>
-<li><strong>Date:</strong> 2026-05-06</li>
-<li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> ingest, security</li>
+<li><code>data/</code></li>
+<li><code>reports/</code></li>
+<li><code>backups/</code></li>
+<li><code>secrets/</code></li>
+<li><code>.env*</code></li>
+<li><code>*.csv</code>, <code>*.pdf</code>, <code>*.parquet</code>, and DuckDB files</li>
+<li><code>node_modules/</code>, <code>dist/</code>, caches, and coverage output</li>
 </ul>
-<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>Penge must continuously ingest data from accounts in two jurisdictions:
-DK retail banks (e.g. Lunar), DE retail banks (e.g. GLS Bank, Evangelische
-Bank), Nordnet (DK + SE brokerage), pension providers, and various
-document-only sources (annual statements, K-form variants, payslips).
-No single API or aggregator covers all of these.</p>
-<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<p>Do not pass ad-hoc alternate build contexts that bypass this file.
+Never copy real statements, reports, backups, or local databases into image
+fixtures.</p>
+<h2 id="release-publishing">Release publishing<a class="headerlink" href="#release-publishing" title="Permanent link">&para;</a></h2>
+<p>The release workflow pushes application images on:</p>
 <ul>
-<li>Coverage: must handle PSD2 banks <strong>and</strong> brokerages / pension providers
-  that have no PSD2 endpoint.</li>
-<li>Sovereignty: avoid sharing credentials with US-based aggregators when
-  possible; prefer EU-regulated providers.</li>
-<li>Determinism: parsers must be testable against fixture files, with stable
-  output schemas.</li>
-<li>Resilience: an outage at one provider must not block the others.</li>
+<li><code>release: published</code></li>
+<li><code>workflow_dispatch</code></li>
 </ul>
-<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong>Hybrid: GoCardless Bank Account Data (PSD2) + custom CSV/PDF parsers</strong> — PSD2 where supported, file-based ingestion otherwise.</li>
-<li><strong>PSD2-only via GoCardless</strong> — accept that brokerage and pension data must be entered manually.</li>
-<li><strong>Plaid / SaltEdge</strong> — single aggregator covering more institutions.</li>
-<li><strong>CSV-only</strong> — no PSD2; manual export from every institution.</li>
-</ol>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We chose <strong>Option 1: hybrid ingestion</strong>.</p>
+<p>Each pushed image gets:</p>
 <ul>
-<li><strong>PSD2</strong> via GoCardless Bank Account Data (formerly Nordigen) for retail
-  banks in DK + DE.</li>
-<li><strong>CSV/PDF parsers</strong> for Nordnet, pension providers, and any institution
-  GoCardless does not cover. Parsers live under <code>connectors/&lt;provider&gt;/</code>
-  with golden-file tests.</li>
-<li>All ingestion writes through a common normalization layer into Postgres
-  and emits a Parquet snapshot (see ADR-0001).</li>
+<li>an image tag;</li>
+<li>a commit-SHA tag;</li>
+<li>a Buildx SBOM request;</li>
+<li>a GitHub build-provenance attestation for the pushed digest.</li>
 </ul>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Broad coverage without proprietary aggregator fees.</li>
-<li>File-based connectors are deterministic and auditable.</li>
-<li>A failure in one connector is isolated.</li>
-</ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
-<ul>
-<li>More code to maintain (one parser per non-PSD2 provider).</li>
-<li>PDF parsers are brittle when banks change layouts.</li>
-</ul>
-<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
-<ul>
-<li>GoCardless requires periodic SCA re-authentication (≈ every 90–180 days).</li>
-<li>We must own consent expiry monitoring.</li>
-</ul>
-<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="psd2-only">PSD2-only<a class="headerlink" href="#psd2-only" title="Permanent link">&para;</a></h3>
-<p>Rejected: leaves brokerage (Nordnet) and pension data outside the system,
-which defeats net-worth and FIRE goals.</p>
-<h3 id="plaid-saltedge">Plaid / SaltEdge<a class="headerlink" href="#plaid-saltedge" title="Permanent link">&para;</a></h3>
-<p>Rejected: weaker EU/Nordic coverage for our specific banks, higher cost,
-and a US-anchored data path that conflicts with the sovereignty driver
-(see ADR-0001).</p>
-<h3 id="csv-only">CSV-only<a class="headerlink" href="#csv-only" title="Permanent link">&para;</a></h3>
-<p>Rejected: too much manual work to be sustained for a decade.</p>
-<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
-<ul>
-<li>ADR-0001 (stack)</li>
-<li><code>connectors/</code></li>
-</ul>
+<p>After a release, copy the immutable image digest into the deployment compose
+file before updating the home server.</p>
 
 
 

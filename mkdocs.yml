@@ -87,6 +87,7 @@ nav:
       - "Monthly ritual (1-hour close)": runbook/monthly-ritual.md
       - "Monthly automated report": runbook/monthly-report.md
       - "Web dashboard": runbook/web.md
+      - "Container images": runbook/container-images.md
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
       - "Branch protection": runbook/branch-protection.md
       - "Vault watcher": runbook/vault-watcher.md
@@ -124,6 +125,7 @@ nav:
       - "ADR-0027 Liquid depot simulation model (ASK + frie midler)": decisions/0027-liquid-depot-simulation-model.md
       - "ADR-0032 Household real-estate, tax context, and source-backed assumptions": decisions/0032-household-real-estate-tax-context-source-assumptions.md
       - "ADR-0033 Reporting-first React WebUI": decisions/0033-reporting-first-react-webui.md
+      - "ADR-0034 Application container images": decisions/0034-application-container-images.md
       - "ADR template": decisions/adr-template.md
   - Privacy: privacy.md
   - Terms: terms.md

@@ -1,0 +1,43 @@
+# Never send local/private data into image build contexts.
+data/
+reports/
+backups/
+secrets/
+.env
+.env.*
+*.csv
+*.xlsx
+*.ods
+*.pdf
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+# Build/cache artefacts.
+node_modules/
+apps/*/node_modules/
+apps/*/dist/
+.pnpm-store/
+.next/
+.turbo/
+site/
+dist/
+build/
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+__pycache__/
+*.py[cod]
+*.tsbuildinfo
+
+# VCS/editor noise.
+.git/
+.idea/
+.vscode/
+*.log
+.cache/
+.direnv/

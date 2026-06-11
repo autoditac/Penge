@@ -15,13 +15,11 @@
 #   actions/attest-build-provenance (uses the OIDC token that GitHub
 #   issues to the workflow).
 #
-# What it will do once apps exist:
+# Application images:
 #
-# - The `images` job below is currently a stub with an empty matrix. When
-#   the first app ships (with a Containerfile), add it to the matrix:
-#       app: [ingest, api, ...]
-#   and the job will build, scan, push to ghcr.io/<owner>/<repo>/<app>,
-#   attach an image SBOM, and emit per-image build provenance.
+# - The `images` job builds each app with a Containerfile, pushes to
+#   ghcr.io/<owner>/penge/<app>, emits an image SBOM, and records build
+#   provenance for the pushed digest.
 #
 # Permissions rationale:
 #
@@ -83,11 +81,6 @@ jobs:
 
   images:
     name: Image build + SBOM + provenance
-    # Disabled today. Re-enable by replacing the placeholder matrix entry
-    # with real app names once Containerfiles land. Each entry must have a
-    # matching `apps/<name>/Containerfile` (or equivalent path the build step
-    # uses).
-    if: ${{ false }}
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 30
     permissions:
@@ -98,7 +91,33 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [placeholder]
+        app: [web]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      # Real steps land with the first app; tracked in the issue thread.
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Login to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Containerfile
+          push: true
+          sbom: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.event.release.tag_name || format('manual-{0}', github.run_number) }}
+            ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.sha }}
+
+      - name: Attest image provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true

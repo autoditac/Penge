@@ -112,3 +112,7 @@ just web-ui-build
 just web-ui-test
 just web-ui-lint
 ```
+
+The WebUI also has a container image.
+See [Container images](container-images.md) for local builds and release image
+publishing.

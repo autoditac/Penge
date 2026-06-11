@@ -229,6 +229,10 @@ web-ui-lint:
 web-ui-build:
     pnpm --filter @penge/web build
 
+# Build the WebUI container image locally.
+web-ui-image:
+    docker build -f apps/web/Containerfile -t penge/web:dev .
+
 # --- Encrypted backups (see ADR-0025) ----------------------------------------
 #
 # All four recipes are thin wrappers around the shell scripts under

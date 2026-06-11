@@ -1,0 +1,35 @@
+# WebUI image.
+#
+# Base image digests resolved with:
+#   skopeo inspect docker://node:22-bookworm-slim
+#   skopeo inspect docker://nginxinc/nginx-unprivileged:1.29-alpine-slim
+
+FROM docker.io/library/node:22-bookworm-slim@sha256:7af03b14a13c8cdd38e45058fd957bf00a72bbe17feac43b1c15a689c029c732 AS build
+
+WORKDIR /workspace
+
+ENV PNPM_HOME=/pnpm
+ENV PATH="${PNPM_HOME}:${PATH}"
+
+RUN corepack enable && corepack prepare pnpm@11.0.9 --activate
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/mcp/package.json apps/mcp/package.json
+COPY apps/web/package.json apps/web/package.json
+
+RUN pnpm install --frozen-lockfile
+
+COPY apps/web apps/web
+
+RUN pnpm --filter @penge/web build
+
+FROM docker.io/nginxinc/nginx-unprivileged:1.29-alpine-slim@sha256:59678856b05324b7f6371f26eb1520be7fcd8bdc8ab380fc4913db8503e5a842
+
+LABEL org.opencontainers.image.title="Penge WebUI"
+LABEL org.opencontainers.image.description="Reporting-first household finance cockpit."
+LABEL org.opencontainers.image.source="https://github.com/autoditac/Penge"
+
+COPY apps/web/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /workspace/apps/web/dist/ /usr/share/nginx/html/
+
+EXPOSE 8080

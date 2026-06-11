@@ -125,6 +125,83 @@ export const freshnessResponseSchema = z.object({
 });
 export type FreshnessResponse = z.infer<typeof freshnessResponseSchema>;
 
+/* ---- import sessions (#207/#208) ---- */
+
+const isoTimestampString = z.string();
+
+export const rowIssueSchema = z.object({
+  code: z.string(),
+  detail: z.string(),
+});
+export type RowIssue = z.infer<typeof rowIssueSchema>;
+
+export const rowCountsSchema = z.object({
+  error: z.number().int(),
+  excluded: z.number().int(),
+  ok: z.number().int(),
+  total: z.number().int(),
+  warning: z.number().int(),
+});
+export type RowCounts = z.infer<typeof rowCountsSchema>;
+
+export const importRowSchema = z.object({
+  edited: z.boolean(),
+  excluded: z.boolean(),
+  id: z.string(),
+  issues: z.array(rowIssueSchema),
+  kind: z.string(),
+  payload: z.record(z.string(), z.unknown()),
+  row_index: z.number().int(),
+  status: z.string(),
+});
+export type ImportRow = z.infer<typeof importRowSchema>;
+
+const importSessionShape = {
+  committed_at: isoTimestampString.nullable(),
+  content_sha256: z.string(),
+  created_at: isoTimestampString,
+  error: z.string().nullable(),
+  expires_at: isoTimestampString,
+  id: z.string(),
+  original_filename: z.string(),
+  params: z.record(z.string(), z.unknown()),
+  row_counts: rowCountsSchema,
+  source: z.string(),
+  status: z.string(),
+  updated_at: isoTimestampString,
+} as const;
+
+export const importSessionSchema = z.object(importSessionShape);
+export type ImportSession = z.infer<typeof importSessionSchema>;
+
+export const importSessionWithRowsSchema = z.object({
+  ...importSessionShape,
+  rows: z.array(importRowSchema),
+  total_rows: z.number().int(),
+});
+export type ImportSessionWithRows = z.infer<typeof importSessionWithRowsSchema>;
+
+export const importSessionListSchema = z.object({
+  sessions: z.array(importSessionSchema),
+  total: z.number().int(),
+});
+export type ImportSessionList = z.infer<typeof importSessionListSchema>;
+
+export const commitCountsSchema = z.object({
+  accounts: z.number().int(),
+  entities: z.number().int(),
+  holding_snapshots: z.number().int(),
+  instruments: z.number().int(),
+  transactions: z.number().int(),
+});
+export type CommitCounts = z.infer<typeof commitCountsSchema>;
+
+export const commitResponseSchema = z.object({
+  counts: commitCountsSchema,
+  session: importSessionSchema,
+});
+export type CommitResponse = z.infer<typeof commitResponseSchema>;
+
 /* Compile-time contract checks: each zod-inferred type must stay mutually
  * assignable with the openapi-typescript generated type. A drifted schema
  * makes one of these aliases fail to type-check. */
@@ -159,3 +236,15 @@ type _CheckMartFreshness = Assert<MutuallyAssignable<MartFreshness, Generated["M
 type _CheckFreshnessResponse = Assert<
   MutuallyAssignable<FreshnessResponse, Generated["FreshnessResponse"]>
 >;
+type _CheckRowIssue = Assert<MutuallyAssignable<RowIssue, Generated["RowIssue"]>>;
+type _CheckRowCounts = Assert<MutuallyAssignable<RowCounts, Generated["RowCounts"]>>;
+type _CheckImportRow = Assert<MutuallyAssignable<ImportRow, Generated["ImportRowOut"]>>;
+type _CheckImportSession = Assert<MutuallyAssignable<ImportSession, Generated["ImportSessionOut"]>>;
+type _CheckImportSessionWithRows = Assert<
+  MutuallyAssignable<ImportSessionWithRows, Generated["ImportSessionWithRows"]>
+>;
+type _CheckImportSessionList = Assert<
+  MutuallyAssignable<ImportSessionList, Generated["ImportSessionListResponse"]>
+>;
+type _CheckCommitCounts = Assert<MutuallyAssignable<CommitCounts, Generated["CommitCountsOut"]>>;
+type _CheckCommitResponse = Assert<MutuallyAssignable<CommitResponse, Generated["CommitResponse"]>>;

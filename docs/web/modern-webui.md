@@ -38,8 +38,17 @@ are recorded in ADR-0036.
 
   ![Performance dashboard v1 rendering synthetic demo data](img/performance-dashboard-v1.png)
 
-- **Imports** — documents today's CLI flow; the guided wizard arrives with
-  the import-sessions API (#207) and wizard UI (#208).
+- **Imports** — guided import wizard (#208) over the staged import-sessions
+  API (#207). Three keyboard-accessible steps: upload (drop zone or file
+  picker, source auto-detection with manual override, optional entity name),
+  review (per-row validation badges for ok/duplicate/error, inline field
+  editing with server-side revalidation, exclude/include toggles, commit
+  gate while error rows remain), and a commit summary with loader counts.
+  A history panel lists past sessions with status and lets staged sessions
+  be resumed or discarded. Nothing is written to the warehouse before the
+  confirm step; commits reuse the existing connector loaders and are
+  idempotent (ADR-0037). In demo mode the whole flow runs against the
+  deterministic in-memory store (`src/demo/importsStore.ts`).
 - **Planning** — labelled synthetic preview of the MCP
   `answer_planning_question` surface until live wiring lands (#210).
 

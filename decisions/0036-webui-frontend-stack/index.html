@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0019-pal-skat-tracking/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0036-webui-frontend-stack/">
       
       
-        <link rel="prev" href="../0018-aktiesparekonto-handling/">
+        <link rel="prev" href="../0035-fastapi-read-api/">
       
       
-        <link rel="next" href="../0020-skat-report-generator/">
+        <link rel="next" href="../adr-template/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0019 PAL-skat tracking - Penge</title>
+        <title>ADR-0036 WebUI frontend stack - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0019-pal-skat-tracking-on-danish-pension-accounts" class="md-skip">
+        <a href="#0036-webui-frontend-stack-react-router-tanstack-query-echarts-zod-openapi-types" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0019 PAL-skat tracking
+              ADR-0036 WebUI frontend stack
             
           </span>
         </div>
@@ -2435,37 +2435,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0019 PAL-skat tracking
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2481,109 +2454,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context and Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rejected-alternatives" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rejected Alternatives
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2929,10 +2799,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../0036-webui-frontend-stack/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0036 WebUI frontend stack
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2948,6 +2845,120 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Outcome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rationale-per-choice" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rationale per choice
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#positive-consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive Consequences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative-consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative Consequences
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3080,10 +3091,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
+        Decision Drivers
       
     </span>
   </a>
@@ -3091,22 +3102,33 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consequences
+        Considered Options
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Consequences">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Outcome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
+  <a href="#rationale-per-choice" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Positive
+        Rationale per choice
       
     </span>
   </a>
@@ -3114,10 +3136,21 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
+  <a href="#positive-consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Negative
+        Positive Consequences
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative-consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative Consequences
       
     </span>
   </a>
@@ -3130,21 +3163,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#rejected-alternatives" class="md-nav__link">
+  <a href="#links" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Rejected Alternatives
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
+        Links
       
     </span>
   </a>
@@ -3168,7 +3190,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0019-pal-skat-tracking.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0036-webui-frontend-stack.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3176,103 +3198,91 @@
   
 
 
-<h1 id="0019-pal-skat-tracking-on-danish-pension-accounts">0019 — PAL-skat tracking on Danish pension accounts<a class="headerlink" href="#0019-pal-skat-tracking-on-danish-pension-accounts" title="Permanent link">&para;</a></h1>
+<h1 id="0036-webui-frontend-stack-react-router-tanstack-query-echarts-zod-openapi-types">0036 — WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types<a class="headerlink" href="#0036-webui-frontend-stack-react-router-tanstack-query-echarts-zod-openapi-types" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-10</li>
+<li><strong>Date:</strong> 2026-05-18</li>
 <li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> tax, dk, pension</li>
+<li><strong>Tags:</strong> web</li>
 </ul>
+<p>Technical Story: Upgrade the <code>apps/web</code> shell (ADR-0033) from a static synthetic
+page into a real application on top of the FastAPI read API (ADR-0035).
+Issue: <a href="https://github.com/autoditac/Penge/issues/203">#203</a></p>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>Danish pension providers (PFA, Velliv, AP Pension, ...) pay an annual
-<em>pensionsafkastskat</em> (PAL-skat) of <strong>15.3 %</strong> on the return generated
-by pension assets. The provider withholds and remits the tax
-automatically, so the saver only ever sees the net-of-tax balance.</p>
-<p>For Phase-3 simulations and tax projections, Penge needs a deterministic
-shadow calculation so that:</p>
+<p>The WebUI needs routing, a server-state data layer, real charts, and a typed
+contract with the read API. Each is a long-lived dependency choice in the first
+user-facing TypeScript app of the repo, so the selections and their rationale
+must be recorded (repo rule: no dependency without a reason an existing one
+cannot be used).</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Repo rule: validate all runtime inputs with <code>zod</code>; never trust <code>JSON.parse</code>.</li>
+<li>Boring, dominant, well-typed libraries over clever or niche ones.</li>
+<li>The committed OpenAPI schema (<code>docs/api/openapi.json</code>) is the single contract
+  artifact; the UI must fail loudly when it drifts.</li>
+<li>Daily-granularity finance time series (years of points) need zoom/brush
+  interactions that survive thousands of points.</li>
+<li>EUR and DKK stay first-class side by side (ADR-0004).</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Net-of-tax pension trajectories agree with what PFA actually credits
-   to the account.</li>
-<li>The SKAT report generator (#39) can record PAL-skat for completeness
-   even though it is not "owed" by the saver.</li>
-<li>The Phase-2 simulation overlay continues to use the same 15.3 %
-   constant via a single source of truth (<code>PAL_RATE</code>).</li>
+<li>Routing: <strong>React Router v7</strong> vs TanStack Router.</li>
+<li>Server state: <strong>TanStack Query v5</strong> vs hand-rolled fetch + context.</li>
+<li>Charts: <strong>Apache ECharts (tree-shaken core)</strong> vs Recharts vs visx.</li>
+<li>API contract: <strong>openapi-typescript generated types + handwritten zod
+   schemas with mutual-assignability checks</strong> vs openapi-fetch vs zod-only.</li>
 </ol>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Item</th>
-<th>Choice</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Module</strong></td>
-<td><code>penge.tax.pal</code></td>
-</tr>
-<tr>
-<td><strong>Formula</strong></td>
-<td><code>return = end_mv − start_mv − Σ contributions + Σ withdrawals</code> then <code>tax = max(return, 0) × 0.153</code></td>
-</tr>
-<tr>
-<td><strong>Currency</strong></td>
-<td>DKK only on every input/output; non-DKK raises <code>PalError</code></td>
-</tr>
-<tr>
-<td><strong>Scope</strong></td>
-<td>One calculator call ↔ one <code>(account_id, tax_year)</code> pair</td>
-</tr>
-<tr>
-<td><strong>Loss handling</strong></td>
-<td>Negative return → <code>tax_due = 0</code>, magnitude returned as <code>loss_carry_forward</code>. Cross-year roll-forward bookkeeping is the SKAT report generator's (#39) job</td>
-</tr>
-<tr>
-<td><strong>State</strong></td>
-<td>None — the calculator is a pure function</td>
-</tr>
-<tr>
-<td><strong>Precision</strong></td>
-<td>All outputs quantized to 0.01 DKK using ROUND_HALF_EVEN</td>
-</tr>
-</tbody>
-</table>
-<p>The 15.3 % rate is exposed as the constant <code>PAL_RATE</code> so that the
-Phase-2 simulation overlay (<code>penge.sim.tax</code>) can import it instead of
-duplicating the literal.</p>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
+<p>Chosen: React Router v7 (library mode), TanStack Query v5, Apache ECharts via
+a thin in-repo <code>&lt;EChart&gt;</code> wrapper with the SVG renderer, and a dual contract —
+<code>openapi-typescript</code> generates compile-time types from the committed schema
+while <code>zod</code> schemas validate every response at runtime. Type-level
+<code>MutuallyAssignable</code> assertions tie the two together, and CI regenerates the
+client and fails on diff.</p>
+<p>Demo mode (<code>VITE_PENGE_DEMO=true</code>) serves deterministic synthetic fixtures via
+dynamic import; the production path always reads the API.</p>
+<h3 id="rationale-per-choice">Rationale per choice<a class="headerlink" href="#rationale-per-choice" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Mirrors the lager / ASK calculator structure (ADR-0017 / ADR-0018):
-  same input shape, same output shape, same loss-carry-forward
-  protocol. The SKAT report generator can treat PAL the same way it
-  treats ASK.</li>
-<li>Single source of truth for the 15.3 % rate via <code>PAL_RATE</code>.</li>
-<li>No FX risk: PFA reports in DKK so the calculator is DKK-only.</li>
+<li><strong>React Router v7</strong>: the dominant, stable router; file-size and API surface
+  are small in library mode. TanStack Router's type-safe params are appealing
+  but its ecosystem is younger and the app has four static routes.</li>
+<li><strong>TanStack Query v5</strong>: caching, retries, stale-time, and loading/error state
+  machines that a hand-rolled layer would re-implement worse. Already the de
+  facto standard pairing with React.</li>
+<li><strong>ECharts</strong>: handles multi-year daily series with <code>dataZoom</code> brushing out of
+  the box, renders donut/bar/line from one option grammar, and needs no
+  React-specific bridge package (our wrapper is ~80 lines). Recharts degrades
+  on large series and lacks built-in brushing; visx is a low-level toolkit
+  that would mean building chart UX from scratch. The tree-shaken core with
+  the SVG renderer keeps only used modules in a separate cacheable chunk.</li>
+<li><strong>openapi-typescript + zod</strong>: zod alone cannot catch contract drift at
+  compile time; generated types alone validate nothing at runtime. Generated
+  <code>schema.d.ts</code> is committed and CI-checked (<code>pnpm generate:api</code> must produce
+  no diff), and the zod schemas must stay mutually assignable with the
+  generated types or the build fails. <code>openapi-fetch</code> was rejected because it
+  would not remove the zod layer the repo mandates anyway.</li>
 </ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<h3 id="positive-consequences">Positive Consequences<a class="headerlink" href="#positive-consequences" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Caller must keep <code>PAL_RATE</code> in sync with statutory changes. We
-  accept this — PAL-skat changes infrequently, and an ADR amendment
-  is the right way to record any change.</li>
+<li>Schema drift between API and UI fails CI twice (type-check + drift step).</li>
+<li>Malformed API payloads surface as typed <code>PengeApiError</code>s, not NaN charts.</li>
+<li>Loading/error/empty states are uniform across pages.</li>
+<li>Fixtures are out of the production path but still exercised by tests.</li>
 </ul>
-<h2 id="rejected-alternatives">Rejected Alternatives<a class="headerlink" href="#rejected-alternatives" title="Permanent link">&para;</a></h2>
+<h3 id="negative-consequences">Negative Consequences<a class="headerlink" href="#negative-consequences" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Bake PAL into <code>penge.tax.lager</code></strong> with a special "pension" account
-  type. Rejected: lager applies to taxable funds (capital income),
-  PAL applies to pension assets (separate tax base). Mixing them
-  would obscure both.</li>
-<li><strong>Deduct PAL inline from observed gross pension returns</strong> in the
-  ingestion pipeline. Rejected: PFA already withholds; the value we
-  observe in PFA exports is <em>already net</em>. The PAL calculator is for
-  projection / shadow computation only.</li>
+<li>ECharts is a heavy dependency (~330 kB gzipped chunk) even tree-shaken;
+  accepted for a local-first dashboard.</li>
+<li>zod schemas duplicate model shape (mitigated by the assignability checks).</li>
+<li>React Router v7 in library mode forgoes its framework-mode data APIs;
+  TanStack Query owns data fetching instead, which is the intended split.</li>
 </ul>
-<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
 <ul>
-<li>ADR-0017 — Lagerbeskatning calculator</li>
-<li>ADR-0018 — Aktiesparekonto handling</li>
-<li><code>docs/tax/dk.md</code> — PAL-skat section</li>
-<li>SKAT — <em>Pensionsafkastskat</em></li>
+<li>Builds on <a href="../0033-reporting-first-react-webui/">ADR-0033</a> (reporting-first WebUI)
+  and <a href="../0035-fastapi-read-api/">ADR-0035</a> (read API + Decimal-string wire contract).</li>
+<li>Respects <a href="../0004-eur-and-dkk-shown-in-parallel/">ADR-0004</a> (EUR/DKK parallel display).</li>
+<li><a href="../../web/modern-webui/">docs/web/modern-webui.md</a> — architecture overview.</li>
 </ul>
 
 

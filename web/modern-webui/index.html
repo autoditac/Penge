@@ -931,10 +931,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#first-cockpit" class="md-nav__link">
+  <a href="#surfaces" class="md-nav__link">
     <span class="md-ellipsis">
       
-        First cockpit
+        Surfaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
       
     </span>
   </a>
@@ -1962,6 +1973,8 @@
       
         
       
+        
+      
     
     
     
@@ -2891,6 +2904,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../decisions/0036-webui-frontend-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0036 WebUI frontend stack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
@@ -3011,10 +3052,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#first-cockpit" class="md-nav__link">
+  <a href="#surfaces" class="md-nav__link">
     <span class="md-ellipsis">
       
-        First cockpit
+        Surfaces
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
       
     </span>
   </a>
@@ -3069,11 +3121,13 @@
 
 
 <h1 id="modern-webui">Modern WebUI<a class="headerlink" href="#modern-webui" title="Permanent link">&para;</a></h1>
-<p>The modern WebUI is a reporting-first React shell in <code>apps/web</code>.
-It is the target cockpit for deterministic household reporting, planning
-workflows, and explanation-first AI surfaces.</p>
-<p>The current slice uses synthetic data only.
-It exists to establish the product shape before real report APIs are connected.</p>
+<p>The modern WebUI is a reporting-first React application in <code>apps/web</code>.
+It is the cockpit for deterministic household reporting, planning workflows,
+and explanation-first AI surfaces.</p>
+<p>Since the app-shell upgrade (issue #203) it is a real application: routed
+surfaces, live data from the FastAPI read API (ADR-0035), ECharts
+visualisations, and a dark/light design system. The frontend stack choices
+are recorded in ADR-0036.</p>
 <h2 id="product-principles">Product principles<a class="headerlink" href="#product-principles" title="Permanent link">&para;</a></h2>
 <ol>
 <li>Classical reports are primary.
@@ -3089,17 +3143,38 @@ It exists to establish the product shape before real report APIs are connected.<
    Never copy real balances, counterparties, statements, or salaries into
    frontend fixtures.</li>
 </ol>
-<h2 id="first-cockpit">First cockpit<a class="headerlink" href="#first-cockpit" title="Permanent link">&para;</a></h2>
-<p>The first WebUI screen is intentionally small:</p>
+<h2 id="surfaces">Surfaces<a class="headerlink" href="#surfaces" title="Permanent link">&para;</a></h2>
 <ul>
-<li>KPI cards for net worth, liquidity runway, FIRE readiness, and median FI year.</li>
-<li>A classical reporting panel for net worth and spendable liquidity.</li>
-<li>A risk register panel for review items.</li>
-<li>An AI assistant boundary panel mirroring the MCP
-  <code>answer_planning_question</code> tool.</li>
+<li><strong>Overview</strong> — net-worth trend (365 days, EUR + DKK), current allocation by
+  kind/currency/entity with donut + table, masked account dimension.</li>
+<li><strong>Performance</strong> — zoomable multi-year net-worth trend and monthly cashflow
+  bars. TWR/MWR returns land with the returns engine (#205, #206).</li>
+<li><strong>Imports</strong> — documents today's CLI flow; the guided wizard arrives with
+  the import-sessions API (#207) and wizard UI (#208).</li>
+<li><strong>Planning</strong> — labelled synthetic preview of the MCP
+  <code>answer_planning_question</code> surface until live wiring lands (#210).</li>
 </ul>
-<p>This gives future work a concrete layout while keeping the first PR safe and
-auditable.</p>
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>Routing</strong>: React Router v7 (library mode); all surfaces share the
+  <code>AppShell</code> layout (sidebar navigation, theme toggle, freshness banner).</li>
+<li><strong>Data layer</strong>: TanStack Query v5 hooks in <code>src/api/queries.ts</code> over a
+  typed fetch client (<code>src/api/client.ts</code>).</li>
+<li><strong>Contract</strong>: <code>pnpm --filter @penge/web generate:api</code> regenerates
+  <code>src/api/schema.d.ts</code> from the committed <code>docs/api/openapi.json</code>
+  (<code>just web-ui-openapi-client</code>). zod schemas in <code>src/api/schemas.ts</code>
+  validate every response at runtime and are type-checked against the
+  generated types; CI fails when the generated client drifts.</li>
+<li><strong>Money</strong>: Decimal values arrive as JSON strings (ADR-0035) and are
+  converted to floats only at the display/chart edge (<code>src/money.ts</code>).</li>
+<li><strong>Charts</strong>: tree-shaken Apache ECharts core behind the in-repo <code>&lt;EChart&gt;</code>
+  wrapper with the SVG renderer.</li>
+<li><strong>States</strong>: uniform loading, error (with retry and <code>just api-dev</code> hint),
+  and empty states for every data panel.</li>
+<li><strong>Demo mode</strong>: <code>VITE_PENGE_DEMO=true</code> serves deterministic synthetic
+  fixtures (<code>src/demo/fixtures.ts</code>) through dynamic import; the production
+  path always reads the API. A "Demo data" badge marks the mode.</li>
+</ul>
 <h2 id="ai-integration-direction">AI integration direction<a class="headerlink" href="#ai-integration-direction" title="Permanent link">&para;</a></h2>
 <p>The stable boundary is MCP.
 The WebUI can call MCP tools through a backend wrapper, and a future GitHub
@@ -3120,13 +3195,18 @@ Copilot SDK agent can use those same typed tools for multi-step workflows.</p>
 <li>hidden calculations that are not reproduced by deterministic code.</li>
 </ul>
 <h2 id="local-development">Local development<a class="headerlink" href="#local-development" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>just<span class="w"> </span>web-ui-install
-just<span class="w"> </span>web-ui-dev
+<p>End-to-end with live mart data (requires the warehouse from <code>compose.yaml</code>):</p>
+<div class="highlight"><pre><span></span><code>just<span class="w"> </span>api-dev<span class="w">       </span><span class="c1"># FastAPI read API on 127.0.0.1:8000</span>
+just<span class="w"> </span>web-ui-dev<span class="w">    </span><span class="c1"># Vite dev server on 127.0.0.1:5173</span>
+</code></pre></div>
+<p>Without a database:</p>
+<div class="highlight"><pre><span></span><code><span class="nv">VITE_PENGE_DEMO</span><span class="o">=</span><span class="nb">true</span><span class="w"> </span>just<span class="w"> </span>web-ui-dev
 </code></pre></div>
 <p>For quality gates:</p>
 <div class="highlight"><pre><span></span><code>just<span class="w"> </span>web-ui-build
 just<span class="w"> </span>web-ui-test
 just<span class="w"> </span>web-ui-lint
+just<span class="w"> </span>web-ui-openapi-client<span class="w">   </span><span class="c1"># regenerate the typed API client</span>
 </code></pre></div>
 
 

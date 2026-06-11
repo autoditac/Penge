@@ -2,8 +2,11 @@
 
 The read API is a small FastAPI application that exposes the analytics marts
 to the [modern WebUI](../web/modern-webui.md) as typed JSON.
-It is strictly read-only and local-only; see
+The reporting endpoints are strictly read-only and local-only; see
 [ADR-0035](../decisions/0035-fastapi-read-api.md) for the decision record.
+The one sanctioned write surface is the staged import workflow under
+`/imports` (see [ADR-0037](../decisions/0037-staged-import-sessions.md)),
+which reuses the existing connector parsers and loaders.
 
 ## Running it
 
@@ -32,6 +35,31 @@ Database resolution follows the same rules as every other component:
 
 All series endpoints accept `since`, `until`, `account_id`, `entity_id`,
 `limit`, and `offset`; the default window is one year.
+
+## Import sessions
+
+The `/imports` endpoints stage file uploads for review before anything is
+written to the warehouse (upload → preview → fix/exclude rows → commit):
+
+| Endpoint                                  | Action                                                        |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| `POST /imports`                           | Upload a file (multipart); detects the source, stages rows   |
+| `GET /imports`                            | List sessions with row counts                                 |
+| `GET /imports/{id}`                       | Session detail with paginated staged rows                     |
+| `PATCH /imports/{id}/rows/{row_id}`       | Edit a row payload (revalidated) or toggle exclusion          |
+| `POST /imports/{id}/commit`               | Write staged rows through the existing connector loaders      |
+| `DELETE /imports/{id}`                    | Discard the session and delete the stored upload              |
+
+Supported sources: `nordnet_transactions` (CSV), `growney` (Depotauszug PDF),
+`pfa` (Pensionsoversigt PDF), and `manual_balances` (JSON). Nordnet holdings
+CSVs are rejected — holdings-only loads silently skip instruments without
+transaction history, so they stay on the CLI path for now.
+
+Environment knobs: `PENGE_IMPORT_DIR` (upload storage, default
+`data/imports`), `PENGE_IMPORT_MAX_BYTES` (default 25 MiB),
+`PENGE_IMPORT_SESSION_TTL_DAYS` (default 7; stale staged sessions expire
+lazily), and `PENGE_NORDNET_ACCOUNTS_CONFIG` (accounts YAML required to
+commit Nordnet sessions).
 
 ## Contract
 

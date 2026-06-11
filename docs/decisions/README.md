@@ -31,3 +31,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0034](0034-application-container-images.md) | Application container images in CI and releases | Proposed |
 | [0035](0035-fastapi-read-api.md) | FastAPI read API as the WebUI data layer | Proposed |
 | [0036](0036-webui-frontend-stack.md) | WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types | Proposed |
+| [0037](0037-staged-import-sessions.md) | Staged import sessions for file-based connectors | Proposed |

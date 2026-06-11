@@ -64,6 +64,94 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/imports": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Imports
+     * @description List import sessions, newest first.
+     */
+    get: operations["list_imports_imports_get"];
+    put?: never;
+    /**
+     * Create Import
+     * @description Upload one statement, parse it, and stage its rows for review.
+     */
+    post: operations["create_import_imports_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/imports/{session_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get Import
+     * @description Return one session with one page of its staged rows.
+     */
+    get: operations["get_import_imports__session_id__get"];
+    put?: never;
+    post?: never;
+    /**
+     * Discard Import
+     * @description Discard a staged (or expired) session and delete its stored file.
+     */
+    delete: operations["discard_import_imports__session_id__delete"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/imports/{session_id}/commit": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Commit Import
+     * @description Write all included rows to the raw tables via the loaders.
+     */
+    post: operations["commit_import_imports__session_id__commit_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/imports/{session_id}/rows/{row_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Patch Import Row
+     * @description Correct or exclude one staged row before commit.
+     */
+    patch: operations["patch_import_row_imports__session_id__rows__row_id__patch"];
+    trace?: never;
+  };
   "/meta/freshness": {
     parameters: {
       query?: never;
@@ -167,6 +255,17 @@ export interface components {
       /** Weight Eur */
       weight_eur: string | null;
     };
+    /** Body_create_import_imports_post */
+    Body_create_import_imports_post: {
+      /** Account Name */
+      account_name?: string | null;
+      /** Entity Name */
+      entity_name?: string | null;
+      /** File */
+      file: string;
+      /** Source */
+      source?: string | null;
+    };
     /**
      * CashflowPoint
      * @description One account-day row of ``mart_cashflow_daily``.
@@ -220,6 +319,40 @@ export interface components {
       total: number;
     };
     /**
+     * CommitCountsOut
+     * @description Rows written by a commit, in loader vocabulary.
+     */
+    CommitCountsOut: {
+      /** Accounts */
+      accounts: number;
+      /** Entities */
+      entities: number;
+      /** Holding Snapshots */
+      holding_snapshots: number;
+      /** Instruments */
+      instruments: number;
+      /** Transactions */
+      transactions: number;
+    };
+    /**
+     * CommitRequest
+     * @description Optional commit-time parameters (override upload-time values).
+     */
+    CommitRequest: {
+      /** Account Name */
+      account_name?: string | null;
+      /** Entity Name */
+      entity_name?: string | null;
+    };
+    /**
+     * CommitResponse
+     * @description Result of committing a session.
+     */
+    CommitResponse: {
+      counts: components["schemas"]["CommitCountsOut"];
+      session: components["schemas"]["ImportSessionOut"];
+    };
+    /**
      * FreshnessResponse
      * @description Freshness metadata for every mart the API serves.
      */
@@ -237,6 +370,133 @@ export interface components {
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /**
+     * ImportRowOut
+     * @description One staged row of an import session.
+     */
+    ImportRowOut: {
+      /** Edited */
+      edited: boolean;
+      /** Excluded */
+      excluded: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Issues */
+      issues: components["schemas"]["RowIssue"][];
+      /** Kind */
+      kind: string;
+      /** Payload */
+      payload: {
+        [key: string]: unknown;
+      };
+      /** Row Index */
+      row_index: number;
+      /** Status */
+      status: string;
+    };
+    /**
+     * ImportSessionListResponse
+     * @description One page of import sessions, newest first.
+     */
+    ImportSessionListResponse: {
+      /** Sessions */
+      sessions: components["schemas"]["ImportSessionOut"][];
+      /** Total */
+      total: number;
+    };
+    /**
+     * ImportSessionOut
+     * @description One import session without its rows.
+     */
+    ImportSessionOut: {
+      /** Committed At */
+      committed_at: string | null;
+      /** Content Sha256 */
+      content_sha256: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Error */
+      error: string | null;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Original Filename */
+      original_filename: string;
+      /** Params */
+      params: {
+        [key: string]: unknown;
+      };
+      row_counts: components["schemas"]["RowCounts"];
+      /** Source */
+      source: string;
+      /** Status */
+      status: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+    };
+    /**
+     * ImportSessionWithRows
+     * @description One import session plus one page of its rows.
+     */
+    ImportSessionWithRows: {
+      /** Committed At */
+      committed_at: string | null;
+      /** Content Sha256 */
+      content_sha256: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Error */
+      error: string | null;
+      /**
+       * Expires At
+       * Format: date-time
+       */
+      expires_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Original Filename */
+      original_filename: string;
+      /** Params */
+      params: {
+        [key: string]: unknown;
+      };
+      row_counts: components["schemas"]["RowCounts"];
+      /** Rows */
+      rows: components["schemas"]["ImportRowOut"][];
+      /** Source */
+      source: string;
+      /** Status */
+      status: string;
+      /** Total Rows */
+      total_rows: number;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
     };
     /**
      * MartFreshness
@@ -315,6 +575,44 @@ export interface components {
       points: components["schemas"]["NetWorthTotalPoint"][];
       /** Total */
       total: number;
+    };
+    /**
+     * RowCounts
+     * @description Aggregated review state of a session's rows.
+     */
+    RowCounts: {
+      /** Error */
+      error: number;
+      /** Excluded */
+      excluded: number;
+      /** Ok */
+      ok: number;
+      /** Total */
+      total: number;
+      /** Warning */
+      warning: number;
+    };
+    /**
+     * RowIssue
+     * @description One validation or duplicate finding on a staged row.
+     */
+    RowIssue: {
+      /** Code */
+      code: string;
+      /** Detail */
+      detail: string;
+    };
+    /**
+     * RowPatchRequest
+     * @description Corrections to one staged row before commit.
+     */
+    RowPatchRequest: {
+      /** Excluded */
+      excluded?: boolean | null;
+      /** Payload */
+      payload?: {
+        [key: string]: unknown;
+      } | null;
     };
     /** ValidationError */
     ValidationError: {
@@ -418,6 +716,211 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["CashflowSeriesResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_imports_imports_get: {
+    parameters: {
+      query?: {
+        /** @description Page size. */
+        limit?: number;
+        /** @description Page start offset. */
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportSessionListResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_import_imports_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "multipart/form-data": components["schemas"]["Body_create_import_imports_post"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportSessionWithRows"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_import_imports__session_id__get: {
+    parameters: {
+      query?: {
+        /** @description Page size. */
+        limit?: number;
+        /** @description Page start offset. */
+        offset?: number;
+      };
+      header?: never;
+      path: {
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportSessionWithRows"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  discard_import_imports__session_id__delete: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportSessionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  commit_import_imports__session_id__commit_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "application/json": components["schemas"]["CommitRequest"] | null;
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CommitResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  patch_import_row_imports__session_id__rows__row_id__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        session_id: string;
+        row_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RowPatchRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ImportRowOut"];
         };
       };
       /** @description Validation Error */

@@ -17,6 +17,10 @@ class TestOpenApiSchema:
             "/allocation/current",
             "/accounts",
             "/meta/freshness",
+            "/imports",
+            "/imports/{session_id}",
+            "/imports/{session_id}/rows/{row_id}",
+            "/imports/{session_id}/commit",
         }
 
     def test_render_is_deterministic(self) -> None:

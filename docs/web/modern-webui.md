@@ -28,8 +28,16 @@ are recorded in ADR-0036.
 
 - **Overview** — net-worth trend (365 days, EUR + DKK), current allocation by
   kind/currency/entity with donut + table, masked account dimension.
-- **Performance** — zoomable multi-year net-worth trend and monthly cashflow
-  bars. TWR/MWR returns land with the returns engine (#205, #206).
+- **Performance** — dashboard v1 (#204): KPI header (net worth,
+  month-over-month delta, liquid share), range-selectable net-worth trend
+  (1M/3M/1Y/5Y/all) with drawdown shading and max-drawdown KPI, monthly
+  cashflow with rolling 3-month savings rate, asset-class weights over time
+  with drift vs documented target weights (`src/config/targets.ts`), and
+  per-account / per-asset-class drill-down. TWR/MWR returns land with the
+  returns engine (#205, #206).
+
+  ![Performance dashboard v1 rendering synthetic demo data](img/performance-dashboard-v1.png)
+
 - **Imports** — documents today's CLI flow; the guided wizard arrives with
   the import-sessions API (#207) and wizard UI (#208).
 - **Planning** — labelled synthetic preview of the MCP

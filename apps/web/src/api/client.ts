@@ -12,6 +12,7 @@ import {
   allocationResponseSchema,
   cashflowSeriesResponseSchema,
   freshnessResponseSchema,
+  netWorthSeriesResponseSchema,
   netWorthTotalSeriesResponseSchema,
 } from "./schemas";
 import type {
@@ -20,6 +21,7 @@ import type {
   AllocationResponse,
   CashflowSeriesResponse,
   FreshnessResponse,
+  NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
 } from "./schemas";
 
@@ -99,6 +101,10 @@ export function fetchNetWorthTotal(params: SeriesParams): Promise<NetWorthTotalS
     { group: "total", ...params },
     netWorthTotalSeriesResponseSchema,
   );
+}
+
+export function fetchNetWorthByAccount(params: SeriesParams): Promise<NetWorthSeriesResponse> {
+  return getJson("/net-worth/daily", { group: "account", ...params }, netWorthSeriesResponseSchema);
 }
 
 export function fetchCashflowDaily(params: SeriesParams): Promise<CashflowSeriesResponse> {

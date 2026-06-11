@@ -69,6 +69,25 @@ export const netWorthTotalSeriesResponseSchema = z.object({
 });
 export type NetWorthTotalSeriesResponse = z.infer<typeof netWorthTotalSeriesResponseSchema>;
 
+export const netWorthPointSchema = z.object({
+  account_currency: z.string(),
+  account_id: z.string(),
+  as_of: isoDateString,
+  balance_acct_ccy: decimalString,
+  balance_dkk: decimalString.nullable(),
+  balance_eur: decimalString.nullable(),
+  entity_id: z.string(),
+});
+export type NetWorthPoint = z.infer<typeof netWorthPointSchema>;
+
+export const netWorthSeriesResponseSchema = z.object({
+  limit: z.number().int(),
+  offset: z.number().int(),
+  points: z.array(netWorthPointSchema),
+  total: z.number().int(),
+});
+export type NetWorthSeriesResponse = z.infer<typeof netWorthSeriesResponseSchema>;
+
 export const cashflowPointSchema = z.object({
   account_currency: z.string(),
   account_id: z.string(),
@@ -127,6 +146,10 @@ type _CheckNetWorthTotalPoint = Assert<
 >;
 type _CheckNetWorthTotalSeries = Assert<
   MutuallyAssignable<NetWorthTotalSeriesResponse, Generated["NetWorthTotalSeriesResponse"]>
+>;
+type _CheckNetWorthPoint = Assert<MutuallyAssignable<NetWorthPoint, Generated["NetWorthPoint"]>>;
+type _CheckNetWorthSeries = Assert<
+  MutuallyAssignable<NetWorthSeriesResponse, Generated["NetWorthSeriesResponse"]>
 >;
 type _CheckCashflowPoint = Assert<MutuallyAssignable<CashflowPoint, Generated["CashflowPoint"]>>;
 type _CheckCashflowSeries = Assert<

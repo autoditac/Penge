@@ -11,6 +11,7 @@ import type {
   AllocationResponse,
   CashflowSeriesResponse,
   FreshnessResponse,
+  NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
 } from "../api/schemas";
 
@@ -82,6 +83,47 @@ export const demoNetWorthTotal: NetWorthTotalSeriesResponse = {
   total: 180,
 };
 
+const accountBaseEur: Readonly<Record<string, number>> = {
+  "acct-gls-giro": 18_000,
+  "acct-lunar-daily": 9_500,
+  "acct-nordnet-ask": 310_000,
+  "acct-growney-depot": 240_000,
+};
+
+function netWorthByAccountPoints(): NetWorthSeriesResponse["points"] {
+  const points: NetWorthSeriesResponse["points"][number][] = [];
+  const start = Date.UTC(2025, 10, 1);
+  for (let day = 0; day < 180; day += 1) {
+    const date = new Date(start + day * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    for (const account of demoAccounts) {
+      const base = accountBaseEur[account.account_id] ?? 10_000;
+      const growth = account.kind === "investment" ? day * 90 : day * 4;
+      const wobble =
+        account.kind === "investment" ? Math.round(Math.sin(day / 7) * 4_500) : (day % 11) * 30;
+      const eur = base + growth + wobble;
+      const dkk = Math.round(eur * 7.46);
+      const acctCcy = account.currency === "DKK" ? dkk : eur;
+      points.push({
+        account_currency: account.currency,
+        account_id: account.account_id,
+        as_of: date,
+        balance_acct_ccy: `${acctCcy}.0000`,
+        balance_dkk: `${dkk}.0000`,
+        balance_eur: `${eur}.0000`,
+        entity_id: account.entity_id,
+      });
+    }
+  }
+  return points;
+}
+
+export const demoNetWorthByAccount: NetWorthSeriesResponse = {
+  limit: 10000,
+  offset: 0,
+  points: netWorthByAccountPoints(),
+  total: 720,
+};
+
 export const demoAllocationByKind: AllocationResponse = {
   as_of: "2026-04-29",
   by: "kind",
@@ -115,8 +157,8 @@ export const demoAllocationByKind: AllocationResponse = {
 
 function cashflowPoints(): CashflowSeriesResponse["points"] {
   const points: CashflowSeriesResponse["points"][number][] = [];
-  const start = Date.UTC(2026, 3, 1);
-  for (let day = 0; day < 30; day += 3) {
+  const start = Date.UTC(2025, 2, 1);
+  for (let day = 0; day < 425; day += 3) {
     const date = new Date(start + day * 24 * 60 * 60 * 1000);
     const inflow = day % 9 === 0 ? 52_000 : 1_200;
     const outflow = 9_400 + (day % 5) * 850;
@@ -143,7 +185,7 @@ export const demoCashflowDaily: CashflowSeriesResponse = {
   limit: 1000,
   offset: 0,
   points: cashflowPoints(),
-  total: 10,
+  total: 142,
 };
 
 export const demoFreshness: FreshnessResponse = {

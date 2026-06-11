@@ -14,6 +14,7 @@ import {
   fetchAllocation,
   fetchCashflowDaily,
   fetchFreshness,
+  fetchNetWorthByAccount,
   fetchNetWorthTotal,
 } from "./client";
 import type { SeriesParams } from "./client";
@@ -23,6 +24,7 @@ import type {
   AllocationResponse,
   CashflowSeriesResponse,
   FreshnessResponse,
+  NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
 } from "./schemas";
 
@@ -68,6 +70,27 @@ export function useNetWorthTotal(
         return fixtures.demoNetWorthTotal;
       }
       return fetchNetWorthTotal(params);
+    },
+  });
+}
+
+export function useNetWorthByAccount(
+  params: SeriesParams,
+): UseQueryResult<NetWorthSeriesResponse, Error> {
+  return useQuery({
+    queryKey: [
+      "net-worth-by-account",
+      params.since ?? null,
+      params.until ?? null,
+      params.limit ?? null,
+    ],
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (demoMode) {
+        const fixtures = await import("../demo/fixtures");
+        return fixtures.demoNetWorthByAccount;
+      }
+      return fetchNetWorthByAccount(params);
     },
   });
 }

@@ -68,6 +68,7 @@ nav:
       - "dbt": dbt.md
   - Web:
       - "Modern WebUI": web/modern-webui.md
+      - "Read API": api/index.md
   - MCP:
       - "Tool reference": mcp/tools.md
   - Simulation:
@@ -126,6 +127,7 @@ nav:
       - "ADR-0032 Household real-estate, tax context, and source-backed assumptions": decisions/0032-household-real-estate-tax-context-source-assumptions.md
       - "ADR-0033 Reporting-first React WebUI": decisions/0033-reporting-first-react-webui.md
       - "ADR-0034 Application container images": decisions/0034-application-container-images.md
+      - "ADR-0035 FastAPI read API": decisions/0035-fastapi-read-api.md
       - "ADR template": decisions/adr-template.md
   - Privacy: privacy.md
   - Terms: terms.md

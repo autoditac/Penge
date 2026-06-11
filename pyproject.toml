@@ -129,6 +129,13 @@ report = [
   "reportlab>=4.2",
   "pandas>=2.2",
 ]
+api = [
+  # FastAPI read API for the WebUI (issue #202, ADR-0035). FastAPI is
+  # the HTTP layer over the dbt marts; uvicorn serves it. Pydantic and
+  # the DB driver come from the `http` / `db` groups at runtime.
+  "fastapi>=0.115",
+  "uvicorn>=0.32",
+]
 
 [tool.ruff]
 line-length = 100
@@ -162,6 +169,12 @@ ignore = ["PLR0913"]
 # chart layout. The DB query layer (penge.web.data) is still linted
 # normally and uses parameterised SQLAlchemy `text()`.
 "src/penge/web/**" = ["PLR2004"]
+# The API's SQL constants are assembled from module-level fragments via
+# f-strings (shared filter clause, closed mart-name tuple). All values
+# are bound parameters via SQLAlchemy text(); no request input is ever
+# interpolated, so S608's string-construction heuristic is a false
+# positive here.
+"src/penge/api/data.py" = ["S608"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -256,3 +269,4 @@ penge-pfa = "penge.ingest.pfa.__main__:main"
 penge-abis = "penge.tax.abis.__main__:main"
 penge-tax-year = "penge.tax.cli:main"
 penge-vault = "penge.vault.__main__:main"
+penge-api = "penge.api.__main__:main"

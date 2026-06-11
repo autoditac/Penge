@@ -32,3 +32,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0035](0035-fastapi-read-api.md) | FastAPI read API as the WebUI data layer | Proposed |
 | [0036](0036-webui-frontend-stack.md) | WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types | Proposed |
 | [0037](0037-staged-import-sessions.md) | Staged import sessions for file-based connectors | Proposed |
+| [0038](0038-import-mapping-suggestions-via-mcp.md) | Import mapping suggestions via the MCP server | Proposed |

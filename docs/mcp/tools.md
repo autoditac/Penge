@@ -561,3 +561,84 @@ The `risk_codes`, `assumption_keys`, and `limitation_codes` fields are deliberat
 LLM hosts should cite them rather than turning the answer into unsupported prose.
 The tool returns summaries and references only, not raw documents or raw
 transaction/account rows.
+
+## `suggest_import_mapping`
+
+Deterministic, rule-based mapping suggestions for the rows of one
+**staged** import session (ADR-0038). This is the sanctioned data path
+for AI-assisted categorization in the import wizard: the LLM host calls
+this tool instead of ever seeing raw uploads, and the tool itself
+contains no LLM — identical inputs always produce identical output.
+
+Suggestions are **pure suggestions**. The tool reads through the same
+read-only Postgres pool as every other tool and never writes; accepting
+or rejecting a suggestion happens in the import wizard via
+`PATCH /imports/{session_id}/rows/{row_id}` (see
+[the import sessions API](../api/index.md)).
+
+### Input
+
+| Field               | Type     | Notes                                              |
+| ------------------- | -------- | -------------------------------------------------- |
+| `import_session_id` | `string` | UUID of a **staged** import session.               |
+| `limit`             | `number` | Optional, 1–10000 (default 1000). Max rows read.   |
+
+Sessions that are `committed`, `discarded`, or `expired` are rejected
+with an error — suggestions only make sense while a session is still
+reviewable. Excluded rows are skipped.
+
+### Output
+
+```jsonc
+{
+  "session": {
+    "id": "0b6c1a52-…",
+    "source": "nordnet_transactions",
+    "status": "staged",
+    "rows_considered": 3
+  },
+  "suggestions": [
+    {
+      "row_id": "11111111-…",
+      "row_index": 0,
+      "kind": "transaction",
+      "field": "category", // "category" | "counterparty" | "asset_class"
+      "value": "investment.trade.buy",
+      "confidence": 0.9, // 0..1, rule strength
+      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category"
+    }
+  ]
+}
+```
+
+### Rules and confidence tiers
+
+| Field          | Rule                                                                                                   | Confidence |
+| -------------- | ------------------------------------------------------------------------------------------------------ | ---------- |
+| `category`     | Canonical transaction kind (`buy`, `dividend`, `internal_transfer`, …) mapped to a fixed category list | 0.9        |
+| `category`     | DA/DE/EN keyword match on the row's free text (gebyr/Gebühr, udbytte/Dividende, rente/Zins, …)         | 0.55–0.6   |
+| `counterparty` | Instrument name normalized (whitespace collapsed, digits redacted)                                     | 0.7        |
+| `counterparty` | Free text normalized the same way                                                                      | 0.5        |
+| `asset_class`  | `balance` rows → `cash`; `scheme` rows → `pension`                                                     | 0.95       |
+| `asset_class`  | Instrument-name keywords (bond/Anleihe/obligation, ETF/UCITS/MSCI, Geldmarkt, gold/Rohstoff)           | 0.65–0.7   |
+
+Rows where no rule fires produce no suggestion — the tool never emits a
+low-confidence guess just to fill space.
+
+### Masking
+
+Every suggested `value` and `reason` passes through the same value-
+pattern redaction as vault excerpts (`redact.ts`): IBANs, DK CPR
+numbers, and long digit runs become `[REDACTED]`. Nordnet free text
+like `Internal from 60109543` therefore yields
+`Internal from [REDACTED]` as a counterparty suggestion, and values
+that are only redaction markers are dropped entirely.
+
+### Example call
+
+```json
+{
+  "name": "suggest_import_mapping",
+  "arguments": { "import_session_id": "0b6c1a52-9d9e-4f7d-8a8e-2f5c6d7e8f90" }
+}
+```

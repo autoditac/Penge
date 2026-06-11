@@ -130,6 +130,7 @@ nav:
       - "ADR-0035 FastAPI read API": decisions/0035-fastapi-read-api.md
       - "ADR-0036 WebUI frontend stack": decisions/0036-webui-frontend-stack.md
       - "ADR-0037 Staged import sessions": decisions/0037-staged-import-sessions.md
+      - "ADR-0038 Import mapping suggestions": decisions/0038-import-mapping-suggestions-via-mcp.md
       - "ADR template": decisions/adr-template.md
   - Privacy: privacy.md
   - Terms: terms.md

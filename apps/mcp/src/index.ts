@@ -16,6 +16,7 @@ import { queryCashflowTool } from "./tools/queryCashflow.js";
 import { queryNetWorthTool } from "./tools/queryNetWorth.js";
 import { runScenarioTool } from "./tools/runScenario.js";
 import { searchDocumentsTool } from "./tools/searchDocuments.js";
+import { suggestImportMappingTool } from "./tools/suggestImportMapping.js";
 
 const SERVER_NAME = "penge-mcp";
 const SERVER_VERSION = "0.0.0";
@@ -61,6 +62,18 @@ async function main(): Promise<void> {
       runScenarioTool(),
       answerPlanningQuestionTool(),
       searchDocumentsTool({ vaultRoot: config.vaultRoot }),
+      suggestImportMappingTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
     ],
   });
 

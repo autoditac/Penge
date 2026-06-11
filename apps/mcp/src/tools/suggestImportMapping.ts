@@ -9,7 +9,8 @@
  *   - `category`     — canonical spending/investment category derived
  *                      from the row's transaction kind or free text.
  *   - `counterparty` — normalized counterparty / instrument label
- *                      (whitespace collapsed, digits redacted).
+ *                      (whitespace collapsed, account-number patterns
+ *                      redacted).
  *   - `asset_class`  — coarse asset class keyword-matched from the
  *                      instrument or fund name.
  *
@@ -182,7 +183,7 @@ const ASSET_CLASS_KEYWORDS: ReadonlyArray<{
   },
 ];
 
-/** Collapse whitespace and redact digit runs; "" when nothing survives. */
+/** Collapse whitespace and redact IBAN/CPR/long-digit-run patterns; "" when nothing survives. */
 export function normalizeCounterparty(raw: string): string {
   const collapsed = redactText(raw).replace(/\s+/g, " ").trim();
   // A value that is only redaction markers and separators is useless.
@@ -258,8 +259,8 @@ function pushCounterparty(out: MappingSuggestion[], row: RowShape): void {
     confidence: instrument !== null ? 0.7 : 0.5,
     reason:
       instrument !== null
-        ? "normalized from the row's instrument name (whitespace collapsed, digits redacted)"
-        : "normalized from the row's free text (whitespace collapsed, digits redacted)",
+        ? "normalized from the row's instrument name (whitespace collapsed, account-number patterns redacted)"
+        : "normalized from the row's free text (whitespace collapsed, account-number patterns redacted)",
   });
 }
 
@@ -353,7 +354,8 @@ export function suggestImportMappingTool(
       "Deterministic, rule-based mapping suggestions for the rows of one " +
       "staged import session: category (from canonical transaction kinds " +
       "and DA/DE/EN keywords), counterparty normalization (whitespace " +
-      "collapsed, digits redacted), and coarse asset-class mapping (from " +
+      "collapsed, IBAN/CPR/long-digit-run patterns redacted), and coarse " +
+      "asset-class mapping (from " +
       "instrument-name keywords). Read-only: suggestions are applied or " +
       "rejected exclusively through the import wizard's PATCH endpoint. " +
       "Excluded rows are skipped. Never returns raw account numbers.",

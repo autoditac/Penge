@@ -38,7 +38,8 @@ database.
 1. **A deterministic, rule-based MCP tool `suggest_import_mapping`** —
    reads staged rows over the read-only pool, maps canonical transaction
    kinds and DA/DE/EN keywords to a fixed category list, normalizes
-   counterparty strings (whitespace collapsed, digits redacted), and
+   counterparty strings (whitespace collapsed, IBAN/CPR/long-digit-run
+   patterns redacted), and
    keyword-matches asset classes. The LLM host reasons *on top of* this
    structured output.
 2. **An LLM call inside the FastAPI app** ("just ask the model per row") —

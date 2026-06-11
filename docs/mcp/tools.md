@@ -617,7 +617,7 @@ reviewable. Excluded rows are skipped.
 | -------------- | ------------------------------------------------------------------------------------------------------ | ---------- |
 | `category`     | Canonical transaction kind (`buy`, `dividend`, `internal_transfer`, …) mapped to a fixed category list | 0.9        |
 | `category`     | DA/DE/EN keyword match on the row's free text (gebyr/Gebühr, udbytte/Dividende, rente/Zins, …)         | 0.55–0.6   |
-| `counterparty` | Instrument name normalized (whitespace collapsed, digits redacted)                                     | 0.7        |
+| `counterparty` | Instrument name normalized (whitespace collapsed, IBAN/CPR/long-digit-run patterns redacted)          | 0.7        |
 | `counterparty` | Free text normalized the same way                                                                      | 0.5        |
 | `asset_class`  | `balance` rows → `cash`; `scheme` rows → `pension`                                                     | 0.95       |
 | `asset_class`  | Instrument-name keywords (bond/Anleihe/obligation, ETF/UCITS/MSCI, Geldmarkt, gold/Rohstoff)           | 0.65–0.7   |

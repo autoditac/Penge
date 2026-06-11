@@ -103,6 +103,20 @@ class RowRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class RowCountSummary:
+    """Per-status row counts for one session, aggregated in SQL."""
+
+    total: int
+    ok: int
+    warning: int
+    error: int
+    excluded: int
+
+
+EMPTY_ROW_COUNTS = RowCountSummary(total=0, ok=0, warning=0, error=0, excluded=0)
+
+
+@dataclass(frozen=True, slots=True)
 class SessionRecord:
     """One import session as stored."""
 
@@ -283,6 +297,41 @@ def get_rows(
         rows = conn.execute(stmt).all()
         total = conn.execute(count_stmt).scalar_one()
     return [_row_from_row(r) for r in rows], int(total)
+
+
+def count_rows(
+    engine: Engine,
+    session_ids: Sequence[uuid.UUID],
+) -> dict[uuid.UUID, RowCountSummary]:
+    """Aggregate per-status row counts for many sessions in one query."""
+    if not session_ids:
+        return {}
+    t = import_row_table
+    stmt = (
+        sa.select(
+            t.c.session_id,
+            sa.func.count().label("total"),
+            sa.func.count().filter(t.c.status == ROW_STATUS_OK).label("ok"),
+            sa.func.count().filter(t.c.status == ROW_STATUS_WARNING).label("warning"),
+            sa.func.count().filter(t.c.status == ROW_STATUS_ERROR).label("error"),
+            sa.func.count().filter(t.c.excluded).label("excluded"),
+        )
+        .where(t.c.session_id.in_(list(session_ids)))
+        .group_by(t.c.session_id)
+    )
+    with engine.connect() as conn:
+        result = conn.execute(stmt).all()
+    counts = {
+        row.session_id: RowCountSummary(
+            total=int(row.total),
+            ok=int(row.ok),
+            warning=int(row.warning),
+            error=int(row.error),
+            excluded=int(row.excluded),
+        )
+        for row in result
+    }
+    return {sid: counts.get(sid, EMPTY_ROW_COUNTS) for sid in session_ids}
 
 
 def get_row(engine: Engine, session_id: uuid.UUID, row_id: uuid.UUID) -> RowRecord | None:

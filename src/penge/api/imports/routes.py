@@ -38,6 +38,8 @@ from penge.api.imports.models import (
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
+    from sqlalchemy.engine import Engine
+
 log = logging.getLogger("penge.api.imports")
 
 router = APIRouter(prefix="/imports", tags=["imports"])
@@ -85,7 +87,21 @@ def _row_counts(rows: Sequence[store.RowRecord]) -> RowCounts:
     )
 
 
-def _session_out(session: store.SessionRecord, rows: Sequence[store.RowRecord]) -> ImportSessionOut:
+def _counts_out(summary: store.RowCountSummary) -> RowCounts:
+    return RowCounts(
+        total=summary.total,
+        ok=summary.ok,
+        warning=summary.warning,
+        error=summary.error,
+        excluded=summary.excluded,
+    )
+
+
+def _session_counts(engine: Engine, session_id: uuid.UUID) -> RowCounts:
+    return _counts_out(store.count_rows(engine, [session_id])[session_id])
+
+
+def _session_out(session: store.SessionRecord, row_counts: RowCounts) -> ImportSessionOut:
     return ImportSessionOut(
         id=session.id,
         source=session.source,
@@ -98,7 +114,7 @@ def _session_out(session: store.SessionRecord, rows: Sequence[store.RowRecord]) 
         updated_at=session.updated_at,
         expires_at=session.expires_at,
         committed_at=session.committed_at,
-        row_counts=_row_counts(rows),
+        row_counts=row_counts,
     )
 
 
@@ -214,7 +230,7 @@ def create_import(
         total,
         size,
     )
-    base = _session_out(session, rows)
+    base = _session_out(session, _session_counts(engine, session.id))
     return ImportSessionWithRows(
         **base.model_dump(),
         rows=[_row_out(r) for r in rows],
@@ -230,11 +246,9 @@ def list_imports(
     """List import sessions, newest first."""
     engine = get_import_engine()
     sessions, total = store.list_sessions(engine, limit=limit, offset=offset)
-    out: list[ImportSessionOut] = []
-    for session in sessions:
-        refreshed = store.expire_if_stale(engine, session)
-        rows, _ = store.get_rows(engine, refreshed.id)
-        out.append(_session_out(refreshed, rows))
+    refreshed_sessions = [store.expire_if_stale(engine, session) for session in sessions]
+    counts = store.count_rows(engine, [session.id for session in refreshed_sessions])
+    out = [_session_out(session, _counts_out(counts[session.id])) for session in refreshed_sessions]
     return ImportSessionListResponse(sessions=out, total=total)
 
 
@@ -247,9 +261,8 @@ def get_import(
     """Return one session with one page of its staged rows."""
     session = _load_session(session_id)
     engine = get_import_engine()
-    all_rows, _ = store.get_rows(engine, session.id)
     page, total = store.get_rows(engine, session.id, limit=limit, offset=offset)
-    base = _session_out(session, all_rows)
+    base = _session_out(session, _session_counts(engine, session.id))
     return ImportSessionWithRows(
         **base.model_dump(),
         rows=[_row_out(r) for r in page],
@@ -341,7 +354,7 @@ def commit_import(
         counts.holding_snapshots,
     )
     return CommitResponse(
-        session=_session_out(committed, rows),
+        session=_session_out(committed, _row_counts(rows)),
         counts=CommitCountsOut(
             entities=counts.entities,
             accounts=counts.accounts,
@@ -368,5 +381,4 @@ def discard_import(session_id: uuid.UUID) -> ImportSessionOut:
         if stored.parent.is_dir():
             shutil.rmtree(stored.parent, ignore_errors=True)
         log.info("import session discarded: id=%s", session.id)
-    rows, _ = store.get_rows(engine, session.id)
-    return _session_out(session, rows)
+    return _session_out(session, _session_counts(engine, session.id))

@@ -1873,6 +1873,8 @@
       
         
       
+        
+      
     
     
     
@@ -2830,6 +2832,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../decisions/0037-staged-import-sessions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0037 Staged import sessions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../decisions/adr-template/" class="md-nav__link">
         
   
@@ -2961,6 +2991,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#import-sessions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import sessions
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#contract" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2999,8 +3040,11 @@
 <h1 id="read-api">Read API<a class="headerlink" href="#read-api" title="Permanent link">&para;</a></h1>
 <p>The read API is a small FastAPI application that exposes the analytics marts
 to the <a href="../web/modern-webui/">modern WebUI</a> as typed JSON.
-It is strictly read-only and local-only; see
-<a href="../decisions/0035-fastapi-read-api/">ADR-0035</a> for the decision record.</p>
+The reporting endpoints are strictly read-only and local-only; see
+<a href="../decisions/0035-fastapi-read-api/">ADR-0035</a> for the decision record.
+The one sanctioned write surface is the staged import workflow under
+<code>/imports</code> (see <a href="../decisions/0037-staged-import-sessions/">ADR-0037</a>),
+which reuses the existing connector parsers and loaders.</p>
 <h2 id="running-it">Running it<a class="headerlink" href="#running-it" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>just<span class="w"> </span>api-dev<span class="w">        </span><span class="c1"># uvicorn on 127.0.0.1:8000 with auto-reload</span>
 just<span class="w"> </span>api-test<span class="w">       </span><span class="c1"># pytest tests/api</span>
@@ -3045,6 +3089,52 @@ Database resolution follows the same rules as every other component:
 </table>
 <p>All series endpoints accept <code>since</code>, <code>until</code>, <code>account_id</code>, <code>entity_id</code>,
 <code>limit</code>, and <code>offset</code>; the default window is one year.</p>
+<h2 id="import-sessions">Import sessions<a class="headerlink" href="#import-sessions" title="Permanent link">&para;</a></h2>
+<p>The <code>/imports</code> endpoints stage file uploads for review before anything is
+written to the warehouse (upload → preview → fix/exclude rows → commit):</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /imports</code></td>
+<td>Upload a file (multipart); detects the source, stages rows</td>
+</tr>
+<tr>
+<td><code>GET /imports</code></td>
+<td>List sessions with row counts</td>
+</tr>
+<tr>
+<td><code>GET /imports/{id}</code></td>
+<td>Session detail with paginated staged rows</td>
+</tr>
+<tr>
+<td><code>PATCH /imports/{id}/rows/{row_id}</code></td>
+<td>Edit a row payload (revalidated) or toggle exclusion</td>
+</tr>
+<tr>
+<td><code>POST /imports/{id}/commit</code></td>
+<td>Write staged rows through the existing connector loaders</td>
+</tr>
+<tr>
+<td><code>DELETE /imports/{id}</code></td>
+<td>Discard the session and delete the stored upload</td>
+</tr>
+</tbody>
+</table>
+<p>Supported sources: <code>nordnet_transactions</code> (CSV), <code>growney</code> (Depotauszug PDF),
+<code>pfa</code> (Pensionsoversigt PDF), and <code>manual_balances</code> (JSON). Nordnet holdings
+CSVs are rejected — holdings-only loads silently skip instruments without
+transaction history, so they stay on the CLI path for now.</p>
+<p>Environment knobs: <code>PENGE_IMPORT_DIR</code> (upload storage, default
+<code>data/imports</code>), <code>PENGE_IMPORT_MAX_BYTES</code> (default 25 MiB),
+<code>PENGE_IMPORT_SESSION_TTL_DAYS</code> (default 7; stale staged sessions expire
+lazily), and <code>PENGE_NORDNET_ACCOUNTS_CONFIG</code> (accounts YAML required to
+commit Nordnet sessions).</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Amounts are JSON <strong>strings</strong> (<code>"1000.0000"</code>), never floats — they are

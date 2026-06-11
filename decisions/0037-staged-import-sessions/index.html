@@ -10,9 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0027-self-hosted-actions-runner/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0037-staged-import-sessions/">
       
       
+        <link rel="prev" href="../0036-webui-frontend-stack/">
+      
+      
+        <link rel="next" href="../adr-template/">
       
       
         
@@ -23,7 +27,7 @@
     
     
       
-        <title>0027 — Self-hosted GitHub Actions runner on Ubuntu KVM VM - Penge</title>
+        <title>ADR-0037 Staged import sessions - Penge</title>
       
     
     
@@ -74,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0027-self-hosted-github-actions-runner-on-ubuntu-kvm-vm" class="md-skip">
+        <a href="#0037-staged-import-sessions-behind-the-fastapi-app" class="md-skip">
           Skip to content
         </a>
       
@@ -110,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              0027 — Self-hosted GitHub Actions runner on Ubuntu KVM VM
+              ADR-0037 Staged import sessions
             
           </span>
         </div>
@@ -1792,6 +1796,8 @@
       
   
   
+    
+  
   
   
     
@@ -1878,11 +1884,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
         
           
           <div class="md-nav__link md-nav__container">
@@ -1910,7 +1916,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2823,10 +2829,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../0037-staged-import-sessions/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0037 Staged import sessions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -2842,6 +2875,120 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Outcome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#upload-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Upload handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -2996,105 +3143,44 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#decision-outcome" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
+        Decision Outcome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
       
     </span>
   </a>
   
 </li>
+        
+          <li class="md-nav__item">
+  <a href="#upload-handling" class="md-nav__link">
+    <span class="md-ellipsis">
       
-        <li class="md-nav__item">
+        Upload handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
         Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#security-tradeoffs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Security tradeoffs
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-1-github-hosted-runners" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 1 — GitHub-hosted runners
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-2-native-runner-on-centos-host" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — Native runner on CentOS host
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-containerized-runner-rootless-podman" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — Containerized runner (rootless podman)
       
     </span>
   </a>
@@ -3134,7 +3220,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0027-self-hosted-actions-runner.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0037-staged-import-sessions.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3142,101 +3228,122 @@
   
 
 
-<h1 id="0027-self-hosted-github-actions-runner-on-ubuntu-kvm-vm">0027 — Self-hosted GitHub Actions runner on Ubuntu KVM VM<a class="headerlink" href="#0027-self-hosted-github-actions-runner-on-ubuntu-kvm-vm" title="Permanent link">&para;</a></h1>
+<h1 id="0037-staged-import-sessions-behind-the-fastapi-app">0037 — Staged import sessions behind the FastAPI app<a class="headerlink" href="#0037-staged-import-sessions-behind-the-fastapi-app" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-14</li>
+<li><strong>Date:</strong> 2026-06-13</li>
 <li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> infra, ci</li>
+<li><strong>Tags:</strong> api, ingest, web, security, data</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>All GitHub Actions CI jobs were failing immediately with the error:</p>
-<blockquote>
-<p>"The job was not started because recent account payments have failed or your spending limit needs to be increased."</p>
-</blockquote>
-<p>The repository is private and hosted under a personal GitHub account. Actions minutes on private repositories consume the free-tier quota; once exhausted or when billing fails, all jobs are blocked. The team cannot merge PRs or validate changes without working CI.</p>
+<p>Every statement import today is a CLI run (<code>penge-nordnet</code>, <code>penge-growney</code>,
+<code>penge-pfa</code>, <code>penge-manual</code>) that parses a file and writes straight into the
+raw tables. There is no way to <em>see</em> what a file contains before it lands in
+Postgres, no way to fix a single bad row without editing the source file, and
+no surface the upcoming import wizard UI (issue #208) can talk to.</p>
+<p>Issue #207 asks for staged import sessions: upload a file, review parsed rows
+with validation and duplicate flags, correct individual rows, and only then
+commit — writing the raw tables exactly as the CLI ingest would.</p>
 <h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>CI must be available without depending on GitHub-hosted minutes billing.</li>
-<li>Workflows use <code>services: postgres</code>, <code>sudo apt-get</code>, PGDG apt repos, and <code>tesseract-ocr</code> — all Ubuntu-specific tooling.</li>
-<li>The runner host (<code>192.168.2.238</code>, CentOS Stream 8) cannot run the workflows natively due to OS mismatch.</li>
-<li>A containerized runner (Docker-in-Docker) cannot cleanly handle <code>services:</code> blocks that inject sidecar containers.</li>
-<li>An Ubuntu 24.04 KVM VM on the existing host provides native apt, Docker CE, and full service container support.</li>
+<li><strong>Nothing touches the raw tables until commit.</strong> Review must be safe.</li>
+<li><strong>Commit must reuse the existing loaders</strong> (<code>load_records</code>), not duplicate
+  upsert logic; CLI and API imports must produce identical rows.</li>
+<li><strong>ADR-0035 made the read API read-only by design</strong> (<code>postgresql_readonly</code>
+  on every connection). That posture must survive this change.</li>
+<li>Uploaded statements are sensitive: they must stay under the gitignored
+  <code>data/</code> tree, be size-capped, and never appear in logs.</li>
+<li>The session/row state must be durable and auditable (a database, not
+  process memory), and migrations must stay reversible.</li>
 </ul>
 <h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>GitHub-hosted runners (ubuntu-latest)</strong> — current/default</li>
-<li><strong>Native runner on CentOS host</strong> — runner binary on <code>192.168.2.238</code> directly</li>
-<li><strong>Containerized runner (rootless podman)</strong> — <code>myoung34/github-runner</code> image</li>
-<li><strong>Ubuntu 24.04 KVM VM on CentOS host</strong> — runner binary inside Ubuntu guest</li>
+<li><strong>Staging tables (<code>import_session</code> / <code>import_row</code>) + a scoped write
+   engine inside the existing FastAPI app</strong> — parsed rows persisted as
+   JSONB, commit re-validates through the parser models and calls the
+   loaders' <code>load_records</code>.</li>
+<li><strong>In-memory sessions in the API process</strong> — no migration, but state dies
+   on restart, cannot be audited, and breaks with more than one worker.</li>
+<li><strong>A separate "import service" process</strong> — clean write/read split at the
+   process level, but a second deployment unit, second CORS surface, and
+   second auth story for a single-household tool.</li>
+<li><strong>Commit by shelling out to the CLI entrypoints</strong> — maximum reuse on
+   paper, but loses typed row corrections (the CLI only accepts files) and
+   makes error mapping to HTTP responses brittle.</li>
 </ol>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We chose <strong>Option 4</strong> (Ubuntu 24.04 KVM VM), because:</p>
+<h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
+<p>Chosen option: <strong>(1) staging tables + a scoped write engine</strong>.</p>
+<h3 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h3>
 <ul>
-<li>All existing workflow steps work unchanged (apt, PGDG, tesseract, Docker CE).</li>
-<li><code>services:</code> blocks work natively with Docker CE installed inside the VM.</li>
-<li>No billing dependency on GitHub-hosted minutes.</li>
-<li>The CentOS host has KVM support, 14 GB RAM, and a 200 GB LVM volume — sufficient for a small runner VM.</li>
-<li>The Ubuntu base cloud image provides a reproducible, well-understood environment.</li>
+<li>New subpackage <code>penge.api.imports</code> containing everything write-related;
+  the existing route/data modules stay read-only.</li>
+<li><code>get_import_engine()</code> is a second, lazily created engine <strong>without</strong>
+  <code>postgresql_readonly</code>. Only the imports router uses it. The read-only
+  default from ADR-0035 stays the rule; this module is the documented,
+  reviewable exception.</li>
+<li>Two new tables (Alembic migration <code>0004</code>, reversible):</li>
+<li><code>import_session</code> — id, source, original filename, SHA-256, stored path,
+    status (<code>staged | committed | discarded | expired</code>), commit parameters
+    (JSONB), error text, created/updated/expires/committed timestamps.</li>
+<li><code>import_row</code> — id, session FK (cascade delete), row index, row kind,
+    payload (JSONB dump of the parsed Pydantic record), status
+    (<code>ok | warning | error</code>), issues (JSONB list), <code>edited</code>, <code>excluded</code>.</li>
+<li>Sources v1 (one uploaded file per session):
+  <code>nordnet_transactions</code>, <code>growney</code>, <code>pfa</code>, and <code>manual_balances</code> (a small
+  JSON list of balance entries so manual numbers get the same
+  review-then-commit path; committed via
+  <code>penge.manual.service.record_cash_balance</code>).
+  Nordnet <em>holdings</em> CSVs are explicitly out: the loader resolves
+  instruments through the transaction history, so a holdings-only load
+  silently skips unmapped positions. Holdings stay on the CLI path (both
+  files in one run) until sessions support multi-file uploads (#208).</li>
+<li>Source auto-detection sniffs filename + content (UTF-16 Nordnet headers,
+  PDF magic + provider keywords, JSON shape); an explicit <code>source</code> form
+  field always wins. Undetectable files are rejected with 422.</li>
+<li>Duplicate detection happens at staging time: for transaction rows the
+  staged external id is checked against <code>transaction</code> /
+  <code>ux_transaction__account_id_external_id</code> (the same key the loaders' ON
+  CONFLICT upserts use). Duplicates become <code>warning</code> rows, never blockers —
+  committing them is an idempotent upsert by construction.</li>
+<li><code>PATCH …/rows/{id}</code> re-validates the corrected payload through the same
+  parser model and recomputes flags; rows can also be excluded from commit.</li>
+<li><code>POST …/commit</code> re-validates every included row, calls the loader's
+  <code>load_records</code> (one transaction; failure rolls back and the session stays
+  staged), then marks the session committed. Committed/discarded sessions
+  keep their rows for audit.</li>
+<li>Sessions expire (default 7 days, <code>PENGE_IMPORT_SESSION_TTL_DAYS</code>).
+  Expiry is enforced lazily on access; a Just recipe documents cleanup.</li>
 </ul>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<h3 id="upload-handling">Upload handling<a class="headerlink" href="#upload-handling" title="Permanent link">&para;</a></h3>
 <ul>
-<li>CI is no longer gated by GitHub Actions billing.</li>
-<li>All existing workflow files need only a one-line <code>runs-on:</code> change.</li>
-<li>Runner is persistent (systemd service inside VM, survives reboots).</li>
-<li>Ubuntu VM is familiar; adding new apt dependencies in workflows is straightforward.</li>
+<li>Multipart parsing needs <code>python-multipart</code>; FastAPI has no built-in
+  multipart parser and no existing dependency provides one, so it is added
+  to the <code>api</code> group (pinned like the rest).</li>
+<li>Files stream to <code>PENGE_IMPORT_DIR</code> (default <code>data/imports/&lt;session-id&gt;/</code>)
+  in chunks with a hard size cap (<code>PENGE_IMPORT_MAX_BYTES</code>, default 25 MiB
+  → 413). The original filename is preserved (sanitised) because the
+  Nordnet holdings parser derives account number and as-of date from it.</li>
+<li>Logs carry session ids, sizes, and row counts — never file contents.</li>
 </ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Runner availability depends on home-lab uptime (<code>192.168.2.238</code>).</li>
-<li>No auto-scaling: if multiple jobs queue simultaneously they execute serially.</li>
-<li>VM consumes ~2 GB RAM and ~5 GB disk permanently on the host.</li>
-<li>Re-registration requires a new registration token (short-lived); a PAT with <code>repo</code> scope or fine-grained "Administration: Write" can automate this via <code>config.sh --pat</code>.</li>
+<li>Good: review-before-write imports; one shared write path with the CLI;
+  the wizard UI (#208) gets a complete REST surface.</li>
+<li>Good: the read-only invariant stays machine-enforced everywhere except
+  one explicitly scoped module.</li>
+<li>Bad: the API container now needs write credentials when imports are
+  enabled; mitigated by keeping the API local-only (127.0.0.1 binding,
+  ADR-0035) and by the single scoped engine.</li>
+<li>Bad: staged payloads duplicate file content into Postgres as JSONB;
+  acceptable for statement-sized files (size cap) and required for row
+  corrections and audit.</li>
 </ul>
-<h3 id="security-tradeoffs">Security tradeoffs<a class="headerlink" href="#security-tradeoffs" title="Permanent link">&para;</a></h3>
-<p>Using one persistent runner for both <code>pull_request</code> and trusted (<code>push</code>/<code>release</code>) workflows creates
-a shared-state risk: malicious or compromised PR code could alter the runner environment (installed
-binaries, cached credentials, environment files) and then affect later trusted jobs that run on the
-same label with elevated permissions (<code>contents: write</code>, <code>id-token: write</code>, secrets).</p>
-<p><strong>Mitigations accepted for this private, single-owner repository:</strong></p>
-<ul>
-<li>The GitHub repository is <strong>private</strong> with no external contributors. All PRs originate from the
-  same owner account; there is no untrusted-contributor threat model.</li>
-<li>The runner service runs as a dedicated unprivileged system account (<code>ghrunner</code>, uid 999); it has
-  no access to host secrets outside the runner work directory.</li>
-<li>GitHub Actions sandboxes each job in a fresh work directory and clears the <code>GITHUB_TOKEN</code>
-  between runs.</li>
-</ul>
-<p><strong>If the repository ever goes public or admits external contributors</strong>, this decision must be
-revisited. Recommended mitigations at that point:</p>
-<ol>
-<li><strong>Ephemeral runners</strong>: terminate and re-provision the runner VM after each job (e.g., via
-   <code>--once</code> flag + a systemd <code>Restart=always</code> policy or an autoscaling solution such as
-   <code>actions-runner-controller</code>).</li>
-<li>
-<p><strong>Separate labels</strong>: use a <code>penge-trusted</code> label for release/deploy/ingest jobs and a
-   <code>penge-pr</code> label for PR jobs, running on isolated infrastructure.</p>
-</li>
-<li>
-<p>Runner version must be manually updated (or a cron job added) when new versions of <code>actions/runner</code> are released.</p>
-</li>
-<li>The runner is registered with labels <code>self-hosted, linux, x64, penge, ubuntu-vm</code> — all workflow files use the <code>penge</code> label as the selector.</li>
-</ol>
-<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="option-1-github-hosted-runners">Option 1 — GitHub-hosted runners<a class="headerlink" href="#option-1-github-hosted-runners" title="Permanent link">&para;</a></h3>
-<p>Simplest default. Blocked by billing failure on private repos. Acceptable for public repos or with a paid plan, but not reliable for this setup.</p>
-<h3 id="option-2-native-runner-on-centos-host">Option 2 — Native runner on CentOS host<a class="headerlink" href="#option-2-native-runner-on-centos-host" title="Permanent link">&para;</a></h3>
-<p>Tried and abandoned. The CentOS 8 system lacks <code>tesseract-ocr</code>, uses <code>dnf</code> not <code>apt</code>, and PGDG apt repo steps cannot run. Adapting all workflows to be OS-agnostic would require substantial ongoing maintenance.</p>
-<h3 id="option-3-containerized-runner-rootless-podman">Option 3 — Containerized runner (rootless podman)<a class="headerlink" href="#option-3-containerized-runner-rootless-podman" title="Permanent link">&para;</a></h3>
-<p>Runner <code>myoung34/github-runner</code> works well for simple jobs but cannot run <code>services:</code> blocks that require Docker daemon to start sidecar containers. The <code>ci.yml</code> pytest and alembic-roundtrip jobs both need a Postgres service container.</p>
 <h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="https://github.com/actions/runner/releases/tag/v2.334.0">actions/runner v2.334.0</a></li>
-<li><a href="https://github.com/myoung34/docker-github-actions-runner">myoung34/github-runner</a> — Option 3, not chosen</li>
-<li><a href="https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners">GitHub docs: self-hosted runners</a></li>
-<li>Runner host: <code>192.168.2.238</code> (<code>nederby.eigmueller.de</code>), VM: <code>192.168.122.50</code></li>
-<li>VM disk: <code>/data/vms/gh-runner-ubuntu.qcow2</code> (overlay on Ubuntu 24.04 cloud image)</li>
+<li>Issue #207 — staged import sessions</li>
+<li><a href="../0035-fastapi-read-api/">ADR-0035</a> — read-only API posture</li>
+<li><a href="../0005-llm-access-via-mcp-only/">ADR-0005</a> — MCP-only LLM data path</li>
+<li>Follow-ups: #208 (import wizard UI), #209/#210 (AI mapping suggestions)</li>
 </ul>
 
 

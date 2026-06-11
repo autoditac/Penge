@@ -111,6 +111,10 @@ jobs:
           file: apps/${{ matrix.app }}/Containerfile
           push: true
           sbom: true
+          # Provenance is recorded once, via the explicit
+          # actions/attest-build-provenance step below; BuildKit's
+          # built-in attestation would be a second, divergent record.
+          provenance: false
           tags: |
             ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.event.release.tag_name || format('manual-{0}', github.run_number) }}
             ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.sha }}

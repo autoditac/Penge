@@ -1,0 +1,62 @@
+version: 2
+
+models:
+  - name: mart_position_value_daily
+    description: >
+      Daily forward-filled position values per (account, instrument), in
+      account currency, EUR, and DKK. Owns the valuation panel and the
+      ECB FX bridge shared by `mart_net_worth_daily` (account sums) and
+      `mart_returns_daily` (return scopes). Days before a position's
+      first holding_snapshot carry zero. See ADR-0039.
+    columns:
+      - name: entity_id
+        description: Owning entity, copied from `raw.account.entity_id`.
+        data_tests:
+          - not_null
+          - relationships:
+              to: source('raw', 'entity')
+              field: id
+      - name: account_id
+        description: Account holding the position.
+        data_tests:
+          - not_null
+          - relationships:
+              to: source('raw', 'account')
+              field: id
+      - name: instrument_id
+        description: >
+          Instrument of the position. Cash is a synthetic instrument
+          with `kind = 'cash'` per ADR-0008.
+        data_tests:
+          - not_null
+          - relationships:
+              to: source('raw', 'instrument')
+              field: id
+      - name: instrument_kind
+        description: >
+          `raw.instrument.kind` of the position (`cash`, `fund`, ...);
+          the asset-class dimension used by `mart_returns_daily`.
+        data_tests:
+          - not_null
+      - name: account_currency
+        description: ISO 4217 currency of the underlying account.
+        data_tests:
+          - not_null
+      - name: as_of
+        description: Calendar date of the daily valuation.
+        data_tests:
+          - not_null
+      - name: mv_acct_ccy
+        description: >
+          Forward-filled market value on `as_of` in `account_currency`;
+          0 before the position's first snapshot.
+        data_tests:
+          - not_null
+      - name: mv_eur
+        description: >
+          Market value converted to EUR via the spine-date ECB rate
+          (weekend/holiday forward-fill); NULL when no rate is known
+          at-or-before `as_of`.
+      - name: mv_dkk
+        description: >
+          Market value converted to DKK via EUR as the bridge currency.

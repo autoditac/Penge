@@ -66,6 +66,7 @@ nav:
       - "Manual entries": connectors/manual.md
   - Analytics:
       - "dbt": dbt.md
+      - "Returns engine (TWR/MWR)": analytics/returns.md
   - Web:
       - "Modern WebUI": web/modern-webui.md
       - "Read API": api/index.md

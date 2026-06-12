@@ -1,0 +1,57 @@
+version: 2
+
+models:
+  - name: mart_returns_daily
+    description: >
+      Daily time-weighted return factors per scope (`account`,
+      `asset_class`, `household`), measured independently in EUR and
+      DKK. Start-of-day external-flow convention:
+      `factor = end_mv / (begin_mv + net_flow)`, NULL when no capital
+      was at risk. Account/household flows are deposits, withdrawals,
+      and (account only) internal transfers, so those returns are net
+      of fees and taxes as recorded; asset-class flows move value
+      between instrument classes and the account's attribution class.
+      Chain-linking and MWR/XIRR live in `penge.analytics.returns`.
+      See ADR-0039.
+    columns:
+      - name: scope
+        description: Aggregation level of the row.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ['account', 'asset_class', 'household']
+      - name: scope_key
+        description: >
+          Account id for `account`, `instrument.kind` for
+          `asset_class`, the literal `household` otherwise.
+        data_tests:
+          - not_null
+      - name: as_of
+        description: Calendar date of the daily sub-period (its end).
+        data_tests:
+          - not_null
+      - name: begin_mv_eur
+        description: >
+          Previous day's end-of-day value in EUR; 0 on the first spine
+          day.
+      - name: end_mv_eur
+        description: End-of-day value in EUR.
+      - name: net_flow_eur
+        description: >
+          Net external flow dated `as_of`, converted at the flow-date
+          ECB rate, in EUR. 0 when no flow.
+      - name: return_factor_eur
+        description: >
+          Daily growth factor measured in EUR
+          (`end / (begin + flow)`); NULL when the denominator is not
+          positive. A factor of 1.01 is a +1% day.
+      - name: begin_mv_dkk
+        description: Previous day's end-of-day value in DKK.
+      - name: end_mv_dkk
+        description: End-of-day value in DKK.
+      - name: net_flow_dkk
+        description: Net external flow dated `as_of` in DKK.
+      - name: return_factor_dkk
+        description: >
+          Daily growth factor measured in DKK; NULL when the
+          denominator is not positive.

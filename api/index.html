@@ -3051,6 +3051,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#returns-and-benchmarks-206" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Returns and benchmarks (#206)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#import-sessions" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3166,6 +3177,45 @@ Database resolution follows the same rules as every other component:
 </table>
 <p>All series endpoints accept <code>since</code>, <code>until</code>, <code>account_id</code>, <code>entity_id</code>,
 <code>limit</code>, and <code>offset</code>; the default window is one year.</p>
+<h2 id="returns-and-benchmarks-206">Returns and benchmarks (#206)<a class="headerlink" href="#returns-and-benchmarks-206" title="Permanent link">&para;</a></h2>
+<p>The returns endpoints expose the TWR/MWR engine (ADR-0039) for the
+performance dashboard:</p>
+<table>
+<thead>
+<tr>
+<th>Endpoint</th>
+<th>Returns</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>/returns/daily</code></td>
+<td>Daily TWR factors and market values per scope (<code>account</code>, <code>asset_class</code>, <code>household</code>)</td>
+</tr>
+<tr>
+<td><code>/returns/summary</code></td>
+<td>Cumulative + annualized TWR and annualized MWR (XIRR) per scope key, computed server-side via <code>penge.analytics</code></td>
+</tr>
+<tr>
+<td><code>/returns/fees</code></td>
+<td>Recorded fees per account and year (explicit fee bookings plus trade fee columns), EUR/DKK</td>
+</tr>
+<tr>
+<td><code>/benchmarks</code></td>
+<td>Instruments with price history usable as benchmark series</td>
+</tr>
+<tr>
+<td><code>/benchmarks/daily</code></td>
+<td>Daily closes for one instrument (<code>instrument_id</code> required), native currency</td>
+</tr>
+</tbody>
+</table>
+<p><code>/returns/daily</code> and <code>/returns/summary</code> take <code>scope</code> (default <code>household</code>)
+plus the usual window parameters. Summary entries degrade per scope key: when
+a window has no data or a currency leg lacks FX coverage, the entry carries
+an <code>error</code> note instead of numbers, and <code>annualized_return</code> is <code>null</code> for
+windows shorter than 30 days. Benchmark closes are <strong>not</strong> FX-adjusted — the
+dashboard overlays them as normalized indexes to compare growth shape only.</p>
 <h2 id="import-sessions">Import sessions<a class="headerlink" href="#import-sessions" title="Permanent link">&para;</a></h2>
 <p>The <code>/imports</code> endpoints stage file uploads for review before anything is
 written to the warehouse (upload → preview → fix/exclude rows → commit):</p>

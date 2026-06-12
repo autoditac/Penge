@@ -3189,9 +3189,9 @@
 
 
 <h1 id="container-images">Container images<a class="headerlink" href="#container-images" title="Permanent link">&para;</a></h1>
-<p>Application images are built from <code>apps/&lt;name&gt;/Containerfile</code>.
-The first image is the modern WebUI:</p>
-<div class="highlight"><pre><span></span><code>apps/web/Containerfile
+<p>Application images are built from <code>apps/&lt;name&gt;/Containerfile</code>:</p>
+<div class="highlight"><pre><span></span><code>apps/web/Containerfile   # WebUI (nginx serving the Vite build)
+apps/api/Containerfile   # FastAPI read API (uv-built virtualenv)
 </code></pre></div>
 <p>CI builds application images on pull requests without pushing them.
 Published releases push images to GHCR and attach supply-chain metadata.</p>
@@ -3199,8 +3199,9 @@ Published releases push images to GHCR and attach supply-chain metadata.</p>
 <p>Release images use this naming convention:</p>
 <div class="highlight"><pre><span></span><code>ghcr.io/autoditac/penge/&lt;app&gt;
 </code></pre></div>
-<p>For the WebUI:</p>
+<p>For the WebUI and the read API:</p>
 <div class="highlight"><pre><span></span><code>ghcr.io/autoditac/penge/web
+ghcr.io/autoditac/penge/api
 </code></pre></div>
 <p>Release builds tag each image with the release tag and commit SHA.
 Manual release workflow dispatches use a <code>manual-&lt;run-number&gt;</code> tag plus the
@@ -3213,6 +3214,23 @@ commit SHA.</p>
 <div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-p<span class="w"> </span><span class="m">127</span>.0.0.1:8080:8080<span class="w"> </span>penge/web:dev
 </code></pre></div>
 <p>Then open <a href="http://127.0.0.1:8080">http://127.0.0.1:8080</a>.</p>
+<p>Build the read-API image locally:</p>
+<div class="highlight"><pre><span></span><code>just<span class="w"> </span>api-image
+</code></pre></div>
+<p>Run it locally (the container binds <code>0.0.0.0:8000</code> internally; publish it
+on loopback only). On Linux, <code>host.docker.internal</code> needs the explicit
+<code>--add-host</code> mapping shown below (Docker Desktop provides it by default):</p>
+<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>-p<span class="w"> </span><span class="m">127</span>.0.0.1:8000:8000<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--add-host<span class="o">=</span>host.docker.internal:host-gateway<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-e<span class="w"> </span><span class="nv">DATABASE_URL</span><span class="o">=</span>postgresql+psycopg://penge:penge@host.docker.internal:5432/penge<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>penge/api:dev
+</code></pre></div>
+<p>Then check <a href="http://127.0.0.1:8000/meta/freshness">http://127.0.0.1:8000/meta/freshness</a>.</p>
+<p>The image runs as a non-root user. Staged import uploads live under
+<code>PENGE_IMPORT_DIR=/data/imports</code>; mount a volume at <code>/data</code> to keep staged
+sessions across container restarts. All other knobs (<code>PENGE_API_CORS_ORIGINS</code>,
+<code>PENGE_MCP_SUGGEST_COMMAND</code>, ...) are plain environment variables, see
+<a href="../../api/">the API docs</a>.</p>
 <h2 id="build-context-safety">Build-context safety<a class="headerlink" href="#build-context-safety" title="Permanent link">&para;</a></h2>
 <p>The root <code>.dockerignore</code> excludes local finance data and build artefacts,
 including:</p>

@@ -700,6 +700,49 @@ button {
     opacity: 0.45;
 }
 
+.rowMappings {
+    color: var(--accent);
+}
+
+.suggestionControls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+    margin: 0.75rem 0;
+}
+
+.suggestionControls .fieldLabel {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.suggestionRow td {
+    padding-top: 0;
+}
+
+.suggestionChips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.suggestionChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.15rem 0.5rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    border-radius: 999px;
+    font-size: 0.85rem;
+}
+
+.suggestionChip .buttonGhost {
+    padding: 0.05rem 0.45rem;
+    font-size: 0.8rem;
+}
+
 .rowSummary {
     max-width: 28rem;
     overflow: hidden;

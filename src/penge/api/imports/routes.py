@@ -17,12 +17,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, BinaryIO
 
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile
+from pydantic import ValidationError
 
 from penge.api.imports import commit as commit_mod
-from penge.api.imports import config, staging, store
+from penge.api.imports import config, mcp_bridge, staging, store
 from penge.api.imports.detect import KNOWN_SOURCES, UnsupportedSourceError, detect_source
 from penge.api.imports.engine import get_import_engine
 from penge.api.imports.models import (
+    MAPPING_FIELDS,
+    MAX_MAPPING_VALUE_LENGTH,
     CommitCountsOut,
     CommitRequest,
     CommitResponse,
@@ -33,6 +36,7 @@ from penge.api.imports.models import (
     RowCounts,
     RowIssue,
     RowPatchRequest,
+    SuggestionsResponse,
 )
 
 if TYPE_CHECKING:
@@ -74,6 +78,9 @@ def _row_out(row: store.RowRecord) -> ImportRowOut:
         issues=[RowIssue(code=i.get("code", ""), detail=i.get("detail", "")) for i in row.issues],
         edited=row.edited,
         excluded=row.excluded,
+        mappings=row.mappings,
+        suggested_by=row.suggested_by,
+        accepted_at=row.accepted_at,
     )
 
 
@@ -270,13 +277,46 @@ def get_import(
     )
 
 
+def _validate_mappings(request: RowPatchRequest) -> None:
+    """Reject malformed mapping updates before anything is written."""
+    if request.mappings is None:
+        if request.suggested_by is not None:
+            raise HTTPException(
+                status_code=422,
+                detail="suggested_by is only valid together with mappings",
+            )
+        return
+    unknown = sorted(set(request.mappings) - set(MAPPING_FIELDS))
+    if unknown:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"unknown mapping fields: {', '.join(unknown)}; "
+                f"expected one of {', '.join(MAPPING_FIELDS)}"
+            ),
+        )
+    for field, value in request.mappings.items():
+        if not value.strip():
+            raise HTTPException(
+                status_code=422,
+                detail=f"mapping value for {field!r} must be a non-empty string",
+            )
+        if len(value) > MAX_MAPPING_VALUE_LENGTH:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"mapping value for {field!r} exceeds {MAX_MAPPING_VALUE_LENGTH} characters"
+                ),
+            )
+
+
 @router.patch("/{session_id}/rows/{row_id}", response_model=ImportRowOut)
 def patch_import_row(
     session_id: uuid.UUID,
     row_id: uuid.UUID,
     request: RowPatchRequest,
 ) -> ImportRowOut:
-    """Correct or exclude one staged row before commit."""
+    """Correct, exclude, or re-map one staged row before commit."""
     session = _load_session(session_id)
     _require_staged(session)
     engine = get_import_engine()
@@ -284,10 +324,11 @@ def patch_import_row(
     if row is None:
         raise HTTPException(status_code=404, detail="import row not found")
 
-    if request.payload is None and request.excluded is None:
+    _validate_mappings(request)
+    if request.payload is None and request.excluded is None and request.mappings is None:
         raise HTTPException(
             status_code=422,
-            detail="nothing to update; supply payload and/or excluded",
+            detail="nothing to update; supply payload, excluded, and/or mappings",
         )
 
     if request.payload is not None:
@@ -306,9 +347,19 @@ def patch_import_row(
             issues=issues,
             edited=True,
             excluded=request.excluded,
+            mappings=request.mappings,
+            suggested_by=request.suggested_by,
+            set_acceptance=request.mappings is not None,
         )
     else:
-        row = store.update_row(engine, row.id, excluded=request.excluded)
+        row = store.update_row(
+            engine,
+            row.id,
+            excluded=request.excluded,
+            mappings=request.mappings,
+            suggested_by=request.suggested_by,
+            set_acceptance=request.mappings is not None,
+        )
 
     log.info(
         "import row updated: session=%s row=%s status=%s excluded=%s",
@@ -363,6 +414,68 @@ def commit_import(
             holding_snapshots=counts.holding_snapshots,
         ),
     )
+
+
+SUGGESTION_TOOL = "suggest_import_mapping"
+
+
+@router.post("/{session_id}/suggestions", response_model=SuggestionsResponse)
+def suggest_import_mappings(session_id: uuid.UUID) -> SuggestionsResponse:
+    """Ask the MCP suggestion tool for mapping proposals (ADR-0038).
+
+    The API only proxies: the deterministic rules live in the MCP
+    server, which is the sole sanctioned LLM/AI data path. Returns 503
+    when no MCP command is configured or the server is unreachable,
+    502 when the tool itself rejects the call.
+    """
+    session = _load_session(session_id)
+    _require_staged(session)
+
+    command = config.mcp_suggest_command()
+    if command is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "mapping suggestions are unavailable: PENGE_MCP_SUGGEST_COMMAND is not configured"
+            ),
+        )
+
+    try:
+        structured = mcp_bridge.call_tool(
+            command,
+            tool=SUGGESTION_TOOL,
+            arguments={"import_session_id": str(session.id)},
+            timeout_seconds=config.mcp_suggest_timeout_seconds(),
+        )
+    except mcp_bridge.McpToolError as exc:
+        raise HTTPException(status_code=502, detail=f"suggestion tool failed: {exc}") from exc
+    except mcp_bridge.McpBridgeError as exc:
+        log.warning("MCP suggestion bridge unavailable: session=%s error=%s", session.id, exc)
+        raise HTTPException(
+            status_code=503, detail="mapping suggestions are unavailable: MCP server unreachable"
+        ) from exc
+
+    try:
+        response = SuggestionsResponse.model_validate(
+            {"suggested_by": SUGGESTION_TOOL, **structured}
+        )
+    except ValidationError as exc:
+        log.warning(
+            "MCP suggestion tool returned an unexpected shape: session=%s error=%s",
+            session.id,
+            exc,
+        )
+        raise HTTPException(
+            status_code=502, detail="suggestion tool returned an unexpected response shape"
+        ) from exc
+
+    log.info(
+        "import mapping suggestions served: session=%s suggestions=%d rows_considered=%d",
+        session.id,
+        len(response.suggestions),
+        response.session.rows_considered,
+    )
+    return response
 
 
 @router.delete("/{session_id}", response_model=ImportSessionOut)

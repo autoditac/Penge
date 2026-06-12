@@ -145,14 +145,17 @@ export const rowCountsSchema = z.object({
 export type RowCounts = z.infer<typeof rowCountsSchema>;
 
 export const importRowSchema = z.object({
+  accepted_at: isoTimestampString.nullable(),
   edited: z.boolean(),
   excluded: z.boolean(),
   id: z.string(),
   issues: z.array(rowIssueSchema),
   kind: z.string(),
+  mappings: z.record(z.string(), z.string()),
   payload: z.record(z.string(), z.unknown()),
   row_index: z.number().int(),
   status: z.string(),
+  suggested_by: z.string().nullable(),
 });
 export type ImportRow = z.infer<typeof importRowSchema>;
 
@@ -202,6 +205,32 @@ export const commitResponseSchema = z.object({
 });
 export type CommitResponse = z.infer<typeof commitResponseSchema>;
 
+export const mappingSuggestionSchema = z.object({
+  confidence: z.number(),
+  field: z.string(),
+  kind: z.string(),
+  reason: z.string(),
+  row_id: z.string(),
+  row_index: z.number().int(),
+  value: z.string(),
+});
+export type MappingSuggestion = z.infer<typeof mappingSuggestionSchema>;
+
+export const suggestionSessionSchema = z.object({
+  id: z.string(),
+  rows_considered: z.number().int(),
+  source: z.string(),
+  status: z.string(),
+});
+export type SuggestionSession = z.infer<typeof suggestionSessionSchema>;
+
+export const suggestionsResponseSchema = z.object({
+  session: suggestionSessionSchema,
+  suggested_by: z.string(),
+  suggestions: z.array(mappingSuggestionSchema),
+});
+export type SuggestionsResponse = z.infer<typeof suggestionsResponseSchema>;
+
 /* Compile-time contract checks: each zod-inferred type must stay mutually
  * assignable with the openapi-typescript generated type. A drifted schema
  * makes one of these aliases fail to type-check. */
@@ -248,3 +277,12 @@ type _CheckImportSessionList = Assert<
 >;
 type _CheckCommitCounts = Assert<MutuallyAssignable<CommitCounts, Generated["CommitCountsOut"]>>;
 type _CheckCommitResponse = Assert<MutuallyAssignable<CommitResponse, Generated["CommitResponse"]>>;
+type _CheckMappingSuggestion = Assert<
+  MutuallyAssignable<MappingSuggestion, Generated["MappingSuggestionOut"]>
+>;
+type _CheckSuggestionSession = Assert<
+  MutuallyAssignable<SuggestionSession, Generated["SuggestionSessionOut"]>
+>;
+type _CheckSuggestionsResponse = Assert<
+  MutuallyAssignable<SuggestionsResponse, Generated["SuggestionsResponse"]>
+>;

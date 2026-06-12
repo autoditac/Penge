@@ -12,6 +12,8 @@ import type {
   ImportSession,
   ImportSessionList,
   ImportSessionWithRows,
+  MappingSuggestion,
+  SuggestionsResponse,
 } from "../api/schemas";
 
 type StoredSession = {
@@ -57,6 +59,9 @@ function demoRows(sessionId: string, source: string): ImportRow[] {
         issues: [],
         edited: false,
         excluded: false,
+        mappings: {},
+        suggested_by: null,
+        accepted_at: null,
       },
       {
         id: `${sessionId}-row-1`,
@@ -73,6 +78,9 @@ function demoRows(sessionId: string, source: string): ImportRow[] {
         issues: [{ code: "invalid", detail: "currency: must be a 3-letter ISO code" }],
         edited: false,
         excluded: false,
+        mappings: {},
+        suggested_by: null,
+        accepted_at: null,
       },
     ];
   }
@@ -93,6 +101,9 @@ function demoRows(sessionId: string, source: string): ImportRow[] {
       issues: [],
       edited: false,
       excluded: false,
+      mappings: {},
+      suggested_by: null,
+      accepted_at: null,
     },
     {
       id: `${sessionId}-row-1`,
@@ -110,6 +121,9 @@ function demoRows(sessionId: string, source: string): ImportRow[] {
       issues: [{ code: "duplicate", detail: "transaction T1000 already exists for this account" }],
       edited: false,
       excluded: false,
+      mappings: {},
+      suggested_by: null,
+      accepted_at: null,
     },
   ];
 }
@@ -168,6 +182,8 @@ export function demoPatchImportRow(
   patch: {
     payload?: Record<string, unknown> | undefined;
     excluded?: boolean | undefined;
+    mappings?: Record<string, string> | undefined;
+    suggestedBy?: string | undefined;
   },
 ): ImportRow {
   const stored = requireSession(sessionId);
@@ -194,9 +210,80 @@ export function demoPatchImportRow(
   if (patch.excluded !== undefined) {
     next = { ...next, excluded: patch.excluded };
   }
+  if (patch.mappings !== undefined) {
+    next = {
+      ...next,
+      mappings: patch.mappings,
+      suggested_by: patch.suggestedBy ?? null,
+      accepted_at: patch.suggestedBy !== undefined ? DEMO_TIMESTAMP : null,
+    };
+  }
   stored.rows[index] = next;
   recountRows(stored);
   return next;
+}
+
+const DEMO_SUGGESTION_TOOL = "suggest_import_mapping";
+
+function demoSuggestionForRow(row: ImportRow): MappingSuggestion[] {
+  if (row.excluded) {
+    return [];
+  }
+  const txnType = row.payload["transaction_type"];
+  if (row.kind === "transaction" && typeof txnType === "string") {
+    const byType: Record<string, string> = {
+      INDBETALING: "deposit",
+      KØBT: "buy",
+      SOLGT: "sell",
+      HÆVNING: "withdrawal",
+    };
+    const category = byType[txnType];
+    if (category !== undefined) {
+      return [
+        {
+          row_id: row.id,
+          row_index: row.row_index,
+          kind: row.kind,
+          field: "category",
+          value: category,
+          confidence: 0.9,
+          reason: `canonical transaction kind for ${txnType}`,
+        },
+      ];
+    }
+  }
+  if (row.kind === "balance") {
+    return [
+      {
+        row_id: row.id,
+        row_index: row.row_index,
+        kind: row.kind,
+        field: "asset_class",
+        value: "cash",
+        confidence: 0.95,
+        reason: "balance rows are cash positions",
+      },
+    ];
+  }
+  return [];
+}
+
+export function demoSuggestImports(sessionId: string): SuggestionsResponse {
+  const stored = requireSession(sessionId);
+  if (stored.session.status !== "staged") {
+    throw new Error(`only staged sessions can get suggestions (status: ${stored.session.status})`);
+  }
+  const considered = stored.rows.filter((row) => !row.excluded);
+  return {
+    suggested_by: DEMO_SUGGESTION_TOOL,
+    session: {
+      id: stored.session.id,
+      source: stored.session.source,
+      status: stored.session.status,
+      rows_considered: considered.length,
+    },
+    suggestions: stored.rows.flatMap(demoSuggestionForRow),
+  };
 }
 
 export function demoCommitImport(sessionId: string): CommitResponse {

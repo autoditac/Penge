@@ -35,6 +35,9 @@ class ImportRowOut(_Frozen):
     issues: list[RowIssue]
     edited: bool
     excluded: bool
+    mappings: dict[str, str]
+    suggested_by: str | None
+    accepted_at: datetime | None
 
 
 class RowCounts(_Frozen):
@@ -83,6 +86,41 @@ class RowPatchRequest(BaseModel):
 
     payload: dict[str, object] | None = None
     excluded: bool | None = None
+    mappings: dict[str, str] | None = None
+    suggested_by: str | None = None
+
+
+MAPPING_FIELDS = ("category", "counterparty", "asset_class")
+MAX_MAPPING_VALUE_LENGTH = 500
+
+
+class MappingSuggestionOut(_Frozen):
+    """One AI mapping suggestion for one staged row (ADR-0038)."""
+
+    row_id: uuid.UUID
+    row_index: int
+    kind: str
+    field: str
+    value: str
+    confidence: float
+    reason: str
+
+
+class SuggestionSessionOut(_Frozen):
+    """Session echo returned by the MCP suggestion tool."""
+
+    id: uuid.UUID
+    source: str
+    status: str
+    rows_considered: int
+
+
+class SuggestionsResponse(_Frozen):
+    """Mapping suggestions for one staged session, as returned by MCP."""
+
+    suggested_by: str
+    session: SuggestionSessionOut
+    suggestions: list[MappingSuggestionOut]
 
 
 class CommitRequest(BaseModel):

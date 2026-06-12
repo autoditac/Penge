@@ -14,13 +14,22 @@ import {
   useDiscardImport,
   useImportSession,
   useImportSessions,
+  useImportSuggestions,
   usePatchImportRow,
   useUploadImport,
 } from "../api/queries";
-import type { ImportRow, ImportSessionWithRows } from "../api/schemas";
+import type { ImportRow, ImportSessionWithRows, MappingSuggestion } from "../api/schemas";
 import { ErrorState, LoadingState } from "../components/primitives";
+import { PengeApiError } from "../errors";
 import { initialWizardState, wizardReducer } from "../imports/machine";
 import type { WizardEvent, WizardState } from "../imports/machine";
+import {
+  confidenceLabel,
+  filterAtOrAboveConfidence,
+  groupSuggestionsByRow,
+  mergeMappings,
+  pendingSuggestions,
+} from "../imports/suggestions";
 import {
   applyEdits,
   canCommit,
@@ -223,7 +232,11 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
   const sessionQuery = useImportSession(sessionId);
   const commit = useCommitImport();
   const discard = useDiscardImport();
+  const suggest = useImportSuggestions();
+  const bulkPatch = usePatchImportRow();
   const [entityName, setEntityName] = useState("");
+  const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
+  const [threshold, setThreshold] = useState(0.8);
 
   if (sessionQuery.isPending) {
     return (
@@ -248,6 +261,42 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
     (session.source === "growney" || session.source === "pfa") &&
     typeof session.params["entity_name"] !== "string";
   const committable = canCommit(session.rows) && !(needsEntityName && entityName === "");
+
+  const suggestionKey = (s: MappingSuggestion): string => `${s.row_id}:${s.field}`;
+  const rowsById = new Map(session.rows.map((row) => [row.id, row]));
+  const visibleSuggestions = (suggest.data?.suggestions ?? []).filter((s) => {
+    if (dismissed.has(suggestionKey(s))) {
+      return false;
+    }
+    const row = rowsById.get(s.row_id);
+    return row !== undefined && pendingSuggestions(row, [s]).length > 0;
+  });
+  const suggestionsByRow = groupSuggestionsByRow(visibleSuggestions);
+  const suggestedBy = suggest.data?.suggested_by ?? "suggest_import_mapping";
+  const suggestionsUnavailable =
+    suggest.isError && suggest.error instanceof PengeApiError && suggest.error.status === 503;
+
+  const acceptSuggestions = (row: ImportRow, accepted: readonly MappingSuggestion[]): void => {
+    bulkPatch.mutate({
+      sessionId,
+      rowId: row.id,
+      patch: { mappings: mergeMappings(row.mappings, accepted), suggestedBy },
+    });
+  };
+
+  const rejectSuggestion = (s: MappingSuggestion): void => {
+    setDismissed((prev) => new Set([...prev, suggestionKey(s)]));
+  };
+
+  const bulkAccept = (): void => {
+    const confident = filterAtOrAboveConfidence(visibleSuggestions, threshold);
+    for (const [rowId, group] of groupSuggestionsByRow(confident)) {
+      const row = rowsById.get(rowId);
+      if (row !== undefined) {
+        acceptSuggestions(row, group);
+      }
+    }
+  };
 
   const onCommit = (): void => {
     dispatch({ type: "COMMIT_STARTED" });
@@ -287,7 +336,68 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
         </span>
       </div>
       <RowCountsBar session={session} />
-      <RowsTable session={session} />
+      {session.status === "staged" && (
+        <div className="suggestionControls">
+          <button
+            type="button"
+            className="buttonGhost"
+            onClick={() => {
+              suggest.mutate(sessionId);
+            }}
+            disabled={busy || suggest.isPending}
+          >
+            {suggest.isPending ? "Asking MCP…" : "Suggest mappings (AI)"}
+          </button>
+          {suggest.isSuccess && visibleSuggestions.length > 0 && (
+            <>
+              <label className="fieldLabel" htmlFor="suggestion-threshold">
+                Accept at ≥ {confidenceLabel(threshold)}
+                <input
+                  id="suggestion-threshold"
+                  type="range"
+                  min="0.5"
+                  max="1"
+                  step="0.05"
+                  value={threshold}
+                  onChange={(event) => {
+                    setThreshold(Number(event.target.value));
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="buttonGhost"
+                onClick={bulkAccept}
+                disabled={
+                  bulkPatch.isPending ||
+                  filterAtOrAboveConfidence(visibleSuggestions, threshold).length === 0
+                }
+              >
+                Accept {filterAtOrAboveConfidence(visibleSuggestions, threshold).length} confident
+              </button>
+            </>
+          )}
+          {suggest.isSuccess && visibleSuggestions.length === 0 && (
+            <span className="supporting">No open suggestions — all reviewed or applied.</span>
+          )}
+          {suggestionsUnavailable && (
+            <span className="supporting">
+              AI suggestions are not configured on this server — review rows manually.
+            </span>
+          )}
+          {suggest.isError && !suggestionsUnavailable && (
+            <span className="supporting" role="alert">
+              Suggestion call failed: {suggest.error.message}
+            </span>
+          )}
+        </div>
+      )}
+      <RowsTable
+        session={session}
+        suggestionsByRow={suggestionsByRow}
+        onAcceptSuggestions={acceptSuggestions}
+        onRejectSuggestion={rejectSuggestion}
+      />
       {state.step === "review" && state.error !== null && (
         <div className="stateBox stateError" role="alert">
           <strong>Action failed</strong>
@@ -352,7 +462,19 @@ function RowCountsBar({ session }: { readonly session: ImportSessionWithRows }):
   );
 }
 
-function RowsTable({ session }: { readonly session: ImportSessionWithRows }): React.JSX.Element {
+type RowsTableProps = {
+  readonly session: ImportSessionWithRows;
+  readonly suggestionsByRow: ReadonlyMap<string, readonly MappingSuggestion[]>;
+  readonly onAcceptSuggestions: (row: ImportRow, accepted: readonly MappingSuggestion[]) => void;
+  readonly onRejectSuggestion: (suggestion: MappingSuggestion) => void;
+};
+
+function RowsTable({
+  session,
+  suggestionsByRow,
+  onAcceptSuggestions,
+  onRejectSuggestion,
+}: RowsTableProps): React.JSX.Element {
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   return (
@@ -377,6 +499,9 @@ function RowsTable({ session }: { readonly session: ImportSessionWithRows }): Re
             onEditToggle={(open) => {
               setEditingRowId(open ? row.id : null);
             }}
+            suggestions={suggestionsByRow.get(row.id) ?? []}
+            onAcceptSuggestions={onAcceptSuggestions}
+            onRejectSuggestion={onRejectSuggestion}
           />
         ))}
       </tbody>
@@ -401,6 +526,9 @@ type RowEntryProps = {
   readonly sessionStaged: boolean;
   readonly editing: boolean;
   readonly onEditToggle: (open: boolean) => void;
+  readonly suggestions: readonly MappingSuggestion[];
+  readonly onAcceptSuggestions: (row: ImportRow, accepted: readonly MappingSuggestion[]) => void;
+  readonly onRejectSuggestion: (suggestion: MappingSuggestion) => void;
 };
 
 function RowEntry({
@@ -409,9 +537,13 @@ function RowEntry({
   sessionStaged,
   editing,
   onEditToggle,
+  suggestions,
+  onAcceptSuggestions,
+  onRejectSuggestion,
 }: RowEntryProps): React.JSX.Element {
   const patch = usePatchImportRow();
   const badge = rowBadge(row);
+  const mappingEntries = Object.entries(row.mappings);
 
   const toggleExcluded = (): void => {
     patch.mutate({ sessionId, rowId: row.id, patch: { excluded: !row.excluded } });
@@ -425,8 +557,21 @@ function RowEntry({
         <td>
           <span className={`badge tone-${badge.tone}`}>{badge.label}</span>
           {row.edited && <span className="badge tone-info">edited</span>}
+          {row.suggested_by !== null && (
+            <span className="badge tone-info" title={`mapped via ${row.suggested_by}`}>
+              AI mapped
+            </span>
+          )}
         </td>
-        <td className="rowSummary">{rowSummary(row)}</td>
+        <td className="rowSummary">
+          {rowSummary(row)}
+          {mappingEntries.length > 0 && (
+            <span className="rowMappings">
+              {" "}
+              → {mappingEntries.map(([field, value]) => `${field}: ${value}`).join(" · ")}
+            </span>
+          )}
+        </td>
         <td className="rowActions">
           {sessionStaged && (
             <>
@@ -452,6 +597,40 @@ function RowEntry({
           )}
         </td>
       </tr>
+      {sessionStaged && suggestions.length > 0 && (
+        <tr className="suggestionRow">
+          <td colSpan={5}>
+            <div className="suggestionChips" aria-label={`Suggestions for row ${row.row_index}`}>
+              {suggestions.map((suggestion) => (
+                <span key={`${suggestion.row_id}:${suggestion.field}`} className="suggestionChip">
+                  <span className="suggestionChipLabel" title={suggestion.reason}>
+                    {suggestion.field}: {suggestion.value} ·{" "}
+                    {confidenceLabel(suggestion.confidence)}
+                  </span>
+                  <button
+                    type="button"
+                    className="buttonGhost"
+                    onClick={() => {
+                      onAcceptSuggestions(row, [suggestion]);
+                    }}
+                  >
+                    Accept
+                  </button>
+                  <button
+                    type="button"
+                    className="buttonGhost"
+                    onClick={() => {
+                      onRejectSuggestion(suggestion);
+                    }}
+                  >
+                    Reject
+                  </button>
+                </span>
+              ))}
+            </div>
+          </td>
+        </tr>
+      )}
       {editing && sessionStaged && (
         <tr>
           <td colSpan={5}>

@@ -71,6 +71,14 @@ import_row_table = sa.Table(
     sa.Column("issues", postgresql.JSONB, nullable=False),
     sa.Column("edited", sa.Boolean, nullable=False),
     sa.Column("excluded", sa.Boolean, nullable=False),
+    sa.Column(
+        "mappings",
+        postgresql.JSONB,
+        nullable=False,
+        server_default=sa.text("'{}'::jsonb"),
+    ),
+    sa.Column("suggested_by", sa.Text, nullable=True),
+    sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=True),
     sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
 )
@@ -100,6 +108,9 @@ class RowRecord:
     issues: list[dict[str, str]]
     edited: bool
     excluded: bool
+    mappings: dict[str, str]
+    suggested_by: str | None
+    accepted_at: datetime | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +175,9 @@ def _row_from_row(row: Row[tuple[object, ...]]) -> RowRecord:
         issues=m["issues"],
         edited=m["edited"],
         excluded=m["excluded"],
+        mappings=m["mappings"],
+        suggested_by=m["suggested_by"],
+        accepted_at=m["accepted_at"],
     )
 
 
@@ -354,8 +368,16 @@ def update_row(
     issues: list[dict[str, str]] | None = None,
     excluded: bool | None = None,
     edited: bool | None = None,
+    mappings: dict[str, str] | None = None,
+    suggested_by: str | None = None,
+    set_acceptance: bool = False,
 ) -> RowRecord:
-    """Persist a row correction and return the new record."""
+    """Persist a row correction and return the new record.
+
+    ``set_acceptance=True`` writes ``suggested_by`` (may be ``None``
+    for manual mappings) and stamps/clears ``accepted_at``
+    accordingly; without it the provenance columns stay untouched.
+    """
     values: dict[str, object] = {"updated_at": sa.func.now()}
     if payload is not None:
         values["payload"] = payload
@@ -367,6 +389,11 @@ def update_row(
         values["excluded"] = excluded
     if edited is not None:
         values["edited"] = edited
+    if mappings is not None:
+        values["mappings"] = mappings
+    if set_acceptance:
+        values["suggested_by"] = suggested_by
+        values["accepted_at"] = sa.func.now() if suggested_by is not None else None
     stmt = (
         sa.update(import_row_table)
         .where(import_row_table.c.id == row_id)

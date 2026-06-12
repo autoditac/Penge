@@ -11,14 +11,17 @@ import type { ImportRow, ImportSessionWithRows } from "../src/api/schemas";
 
 function makeRow(index: number): ImportRow {
   return {
+    accepted_at: null,
     edited: false,
     excluded: false,
     id: `row-${String(index)}`,
     issues: [],
     kind: "transaction",
+    mappings: {},
     payload: { amount: "1.00" },
     row_index: index,
     status: "ok",
+    suggested_by: null,
   };
 }
 

@@ -1,42 +1,33 @@
 """End-to-end import-session tests against a real Postgres.
 
-Same harness as the loader tests: requires ``PENGE_TEST_DATABASE_URL``
-(or ``DATABASE_URL``); the module is skipped otherwise. CI provides a
-disposable Postgres service. All fixture data is synthetic.
+Harness fixtures (``engine``, ``client``) come from ``conftest.py``;
+the module is skipped without a test database. All fixture data is
+synthetic.
 """
 
 from __future__ import annotations
 
 import json
-import os
-import subprocess
 import textwrap
 import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, text
+from sqlalchemy import text
 
-from penge.api.app import create_app
-from penge.api.imports.engine import get_import_engine
+from tests.api.imports.conftest import DB_URL, REPO_ROOT, manual_json, upload
 from tests.ingest.nordnet._fixture_builders import TXN_HEADER, txn_row, write_nordnet_csv
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-    from httpx import Response
+    from fastapi.testclient import TestClient
     from sqlalchemy.engine import Engine
 
-_DB_URL = os.environ.get("PENGE_TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
-
 pytestmark = pytest.mark.skipif(
-    _DB_URL is None,
+    DB_URL is None,
     reason="set PENGE_TEST_DATABASE_URL or DATABASE_URL to run import-session tests",
 )
 
-REPO_ROOT = Path(__file__).resolve().parents[3]
 GROWNEY_PDF = REPO_ROOT / "tests" / "ingest" / "growney" / "fixtures" / "sample_depotauszug.pdf"
 PFA_PDF = REPO_ROOT / "tests" / "ingest" / "pfa" / "fixtures" / "sample_pensionsoversigt.pdf"
 
@@ -46,50 +37,6 @@ DEPOT = "99999990"
 # --------------------------------------------------------------------------- #
 # Fixtures
 # --------------------------------------------------------------------------- #
-
-
-@pytest.fixture(scope="session")
-def engine() -> Iterator[Engine]:
-    """Engine pointed at the test DB; runs ``alembic upgrade head`` once."""
-    assert _DB_URL is not None
-    eng = create_engine(_DB_URL)
-    env = {**os.environ, "DATABASE_URL": _DB_URL}
-    subprocess.run(  # noqa: S603
-        ["alembic", "upgrade", "head"],  # noqa: S607
-        cwd=REPO_ROOT,
-        env=env,
-        check=True,
-    )
-    try:
-        yield eng
-    finally:
-        eng.dispose()
-
-
-@pytest.fixture(autouse=True)
-def _truncate(engine: Engine) -> Iterator[None]:
-    """Wipe staging and raw tables before each test."""
-    with engine.begin() as conn:
-        conn.execute(
-            text(
-                "TRUNCATE TABLE import_row, import_session, holding_snapshot, "
-                '"transaction", instrument, account, entity RESTART IDENTITY CASCADE'
-            )
-        )
-    yield
-
-
-@pytest.fixture
-def client(engine: Engine, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
-    """TestClient with the import dir under tmp_path and a fresh engine."""
-    _ = engine  # schema must exist before the app serves requests
-    assert _DB_URL is not None
-    monkeypatch.setenv("DATABASE_URL", _DB_URL)
-    monkeypatch.setenv("PENGE_IMPORT_DIR", str(tmp_path / "imports"))
-    get_import_engine.cache_clear()
-    with TestClient(create_app()) as test_client:
-        yield test_client
-    get_import_engine.cache_clear()
 
 
 @pytest.fixture
@@ -141,32 +88,6 @@ def nordnet_accounts_yaml(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pa
     return path
 
 
-def _upload(
-    client: TestClient,
-    path: Path,
-    *,
-    source: str | None = None,
-    entity_name: str | None = None,
-) -> Response:
-    data: dict[str, str] = {}
-    if source is not None:
-        data["source"] = source
-    if entity_name is not None:
-        data["entity_name"] = entity_name
-    with path.open("rb") as fh:
-        return client.post(
-            "/imports",
-            files={"file": (path.name, fh, "application/octet-stream")},
-            data=data,
-        )
-
-
-def _manual_json(tmp_path: Path, balances: list[dict[str, object]]) -> Path:
-    path = tmp_path / "balances.json"
-    path.write_text(json.dumps({"balances": balances}), encoding="utf-8")
-    return path
-
-
 # --------------------------------------------------------------------------- #
 # Nordnet round-trip
 # --------------------------------------------------------------------------- #
@@ -179,7 +100,7 @@ def test_nordnet_upload_commit_roundtrip(
     nordnet_accounts_yaml: Path,
 ) -> None:
     _ = nordnet_accounts_yaml
-    created = _upload(client, nordnet_csv)
+    created = upload(client, nordnet_csv)
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["source"] == "nordnet_transactions"
@@ -207,11 +128,11 @@ def test_nordnet_reupload_flags_duplicates(
     nordnet_accounts_yaml: Path,
 ) -> None:
     _ = nordnet_accounts_yaml
-    first = _upload(client, nordnet_csv)
+    first = upload(client, nordnet_csv)
     assert first.status_code == 201
     assert client.post(f"/imports/{first.json()['id']}/commit").status_code == 200
 
-    second = _upload(client, nordnet_csv)
+    second = upload(client, nordnet_csv)
     assert second.status_code == 201
     body = second.json()
     assert body["row_counts"]["warning"] == 2
@@ -229,7 +150,7 @@ def test_nordnet_commit_without_accounts_config_conflicts(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("PENGE_NORDNET_ACCOUNTS_CONFIG", raising=False)
-    created = _upload(client, nordnet_csv)
+    created = upload(client, nordnet_csv)
     assert created.status_code == 201
     response = client.post(f"/imports/{created.json()['id']}/commit")
     assert response.status_code == 409
@@ -242,7 +163,7 @@ def test_nordnet_commit_without_accounts_config_conflicts(
 
 
 def test_growney_upload_commit_roundtrip(client: TestClient, engine: Engine) -> None:
-    created = _upload(client, GROWNEY_PDF, entity_name="Owner G")
+    created = upload(client, GROWNEY_PDF, entity_name="Owner G")
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["source"] == "growney"
@@ -265,7 +186,7 @@ def test_growney_upload_commit_roundtrip(client: TestClient, engine: Engine) -> 
 
 
 def test_pfa_upload_commit_roundtrip(client: TestClient, engine: Engine) -> None:
-    created = _upload(client, PFA_PDF, entity_name="Owner P")
+    created = upload(client, PFA_PDF, entity_name="Owner P")
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["source"] == "pfa"
@@ -284,7 +205,7 @@ def test_pfa_upload_commit_roundtrip(client: TestClient, engine: Engine) -> None
 
 
 def test_growney_commit_requires_entity_name(client: TestClient) -> None:
-    created = _upload(client, GROWNEY_PDF)
+    created = upload(client, GROWNEY_PDF)
     assert created.status_code == 201
     response = client.post(f"/imports/{created.json()['id']}/commit")
     assert response.status_code == 409
@@ -308,7 +229,7 @@ def test_manual_balances_error_row_patch_and_commit(
     engine: Engine,
     tmp_path: Path,
 ) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -327,7 +248,7 @@ def test_manual_balances_error_row_patch_and_commit(
             },
         ],
     )
-    created = _upload(client, path)
+    created = upload(client, path)
     assert created.status_code == 201, created.text
     body = created.json()
     assert body["source"] == "manual_balances"
@@ -363,7 +284,7 @@ def test_manual_balances_excluded_row_is_skipped(
     engine: Engine,
     tmp_path: Path,
 ) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -382,7 +303,7 @@ def test_manual_balances_excluded_row_is_skipped(
             },
         ],
     )
-    created = _upload(client, path)
+    created = upload(client, path)
     body = created.json()
     second = body["rows"][1]
     patched = client.patch(
@@ -402,7 +323,7 @@ def test_manual_balances_excluded_row_is_skipped(
 
 
 def test_patch_with_invalid_payload_marks_row_error(client: TestClient, tmp_path: Path) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -414,7 +335,7 @@ def test_patch_with_invalid_payload_marks_row_error(client: TestClient, tmp_path
             }
         ],
     )
-    body = _upload(client, path).json()
+    body = upload(client, path).json()
     row = body["rows"][0]
     response = client.patch(
         f"/imports/{body['id']}/rows/{row['id']}",
@@ -426,7 +347,7 @@ def test_patch_with_invalid_payload_marks_row_error(client: TestClient, tmp_path
 
 
 def test_patch_without_fields_is_rejected(client: TestClient, tmp_path: Path) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -438,7 +359,7 @@ def test_patch_without_fields_is_rejected(client: TestClient, tmp_path: Path) ->
             }
         ],
     )
-    body = _upload(client, path).json()
+    body = upload(client, path).json()
     row = body["rows"][0]
     response = client.patch(f"/imports/{body['id']}/rows/{row['id']}", json={})
     assert response.status_code == 422
@@ -450,7 +371,7 @@ def test_patch_without_fields_is_rejected(client: TestClient, tmp_path: Path) ->
 
 
 def test_list_sessions(client: TestClient, tmp_path: Path) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -462,7 +383,7 @@ def test_list_sessions(client: TestClient, tmp_path: Path) -> None:
             }
         ],
     )
-    assert _upload(client, path).status_code == 201
+    assert upload(client, path).status_code == 201
     listed = client.get("/imports")
     assert listed.status_code == 200
     assert listed.json()["total"] == 1
@@ -470,7 +391,7 @@ def test_list_sessions(client: TestClient, tmp_path: Path) -> None:
 
 
 def test_discard_deletes_stored_file(client: TestClient, tmp_path: Path) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -482,7 +403,7 @@ def test_discard_deletes_stored_file(client: TestClient, tmp_path: Path) -> None
             }
         ],
     )
-    body = _upload(client, path).json()
+    body = upload(client, path).json()
     import_dir = tmp_path / "imports"
     assert any(import_dir.iterdir())
 
@@ -500,7 +421,7 @@ def test_committed_sessions_cannot_be_discarded_or_patched(
     client: TestClient,
     tmp_path: Path,
 ) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -512,7 +433,7 @@ def test_committed_sessions_cannot_be_discarded_or_patched(
             }
         ],
     )
-    body = _upload(client, path).json()
+    body = upload(client, path).json()
     assert client.post(f"/imports/{body['id']}/commit").status_code == 200
 
     assert client.delete(f"/imports/{body['id']}").status_code == 409
@@ -529,7 +450,7 @@ def test_expired_session_rejects_commit(
     engine: Engine,
     tmp_path: Path,
 ) -> None:
-    path = _manual_json(
+    path = manual_json(
         tmp_path,
         [
             {
@@ -541,12 +462,10 @@ def test_expired_session_rejects_commit(
             }
         ],
     )
-    body = _upload(client, path).json()
+    body = upload(client, path).json()
     with engine.begin() as conn:
         conn.execute(
-            text(
-                "update import_session " "set expires_at = now() - interval '1 day' where id = :id"
-            ),
+            text("update import_session set expires_at = now() - interval '1 day' where id = :id"),
             {"id": body["id"]},
         )
 
@@ -569,14 +488,14 @@ def test_unknown_session_is_404(client: TestClient) -> None:
 def test_unknown_source_is_rejected(client: TestClient, tmp_path: Path) -> None:
     path = tmp_path / "statement.csv"
     path.write_text("a,b,c", encoding="utf-8")
-    response = _upload(client, path, source="not_a_source")
+    response = upload(client, path, source="not_a_source")
     assert response.status_code == 422
 
 
 def test_undetectable_file_is_rejected(client: TestClient, tmp_path: Path) -> None:
     path = tmp_path / "notes.txt"
     path.write_text("plain text, no statement", encoding="utf-8")
-    response = _upload(client, path)
+    response = upload(client, path)
     assert response.status_code == 422
     assert "could not detect" in response.json()["detail"]
 
@@ -589,8 +508,134 @@ def test_oversize_upload_is_rejected(
     monkeypatch.setenv("PENGE_IMPORT_MAX_BYTES", "64")
     path = tmp_path / "big.json"
     path.write_text(json.dumps({"balances": [{"entity": "x" * 200}]}), encoding="utf-8")
-    response = _upload(client, path, source="manual_balances")
+    response = upload(client, path, source="manual_balances")
     assert response.status_code == 413
     # The partial upload is cleaned up.
     import_dir = tmp_path / "imports"
     assert not any(import_dir.iterdir())
+
+
+# --------------------------------------------------------------------------- #
+# Mapping patches (AI review layer, issue #210)
+# --------------------------------------------------------------------------- #
+
+_BALANCE: dict[str, object] = {
+    "entity": "Owner A",
+    "account_name": "Cash DKK",
+    "currency": "DKK",
+    "as_of": "2026-06-01",
+    "balance": "100.00",
+}
+
+
+def test_patch_mappings_manual_sets_no_provenance(client: TestClient, tmp_path: Path) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    assert row["mappings"] == {}
+    assert row["suggested_by"] is None
+    assert row["accepted_at"] is None
+
+    patched = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"mappings": {"category": "cash buffer"}},
+    )
+    assert patched.status_code == 200, patched.text
+    out = patched.json()
+    assert out["mappings"] == {"category": "cash buffer"}
+    assert out["suggested_by"] is None
+    assert out["accepted_at"] is None
+    # Mappings live next to the payload, never inside it.
+    assert "category" not in out["payload"]
+    assert out["edited"] is False
+
+
+def test_patch_mappings_with_suggested_by_stamps_acceptance(
+    client: TestClient, tmp_path: Path
+) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    patched = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={
+            "mappings": {"category": "cash buffer", "asset_class": "cash"},
+            "suggested_by": "suggest_import_mapping",
+        },
+    )
+    assert patched.status_code == 200, patched.text
+    out = patched.json()
+    assert out["mappings"] == {"category": "cash buffer", "asset_class": "cash"}
+    assert out["suggested_by"] == "suggest_import_mapping"
+    assert out["accepted_at"] is not None
+
+    # Re-mapping manually afterwards clears the AI provenance.
+    repatched = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"mappings": {"category": "household"}},
+    )
+    assert repatched.status_code == 200
+    out = repatched.json()
+    assert out["mappings"] == {"category": "household"}
+    assert out["suggested_by"] is None
+    assert out["accepted_at"] is None
+
+
+def test_patch_mappings_persist_across_get(client: TestClient, tmp_path: Path) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={
+            "mappings": {"counterparty": "Employer A/S"},
+            "suggested_by": "suggest_import_mapping",
+        },
+    )
+    fetched = client.get(f"/imports/{body['id']}").json()
+    out = fetched["rows"][0]
+    assert out["mappings"] == {"counterparty": "Employer A/S"}
+    assert out["suggested_by"] == "suggest_import_mapping"
+
+
+def test_patch_mappings_unknown_field_is_rejected(client: TestClient, tmp_path: Path) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    response = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"mappings": {"colour": "blue"}},
+    )
+    assert response.status_code == 422
+    assert "unknown mapping fields: colour" in response.json()["detail"]
+
+
+def test_patch_mappings_empty_value_is_rejected(client: TestClient, tmp_path: Path) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    response = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"mappings": {"category": "   "}},
+    )
+    assert response.status_code == 422
+    assert "non-empty" in response.json()["detail"]
+
+
+def test_patch_mappings_oversize_value_is_rejected(client: TestClient, tmp_path: Path) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    response = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"mappings": {"category": "x" * 501}},
+    )
+    assert response.status_code == 422
+    assert "exceeds 500" in response.json()["detail"]
+
+
+def test_patch_suggested_by_without_mappings_is_rejected(
+    client: TestClient, tmp_path: Path
+) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    response = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"suggested_by": "suggest_import_mapping"},
+    )
+    assert response.status_code == 422
+    assert "only valid together with mappings" in response.json()["detail"]

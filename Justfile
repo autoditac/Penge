@@ -259,6 +259,10 @@ api-lint:
 api-openapi:
     uv run --group api --group db --group http python -m penge.api.openapi
 
+# Build the read-API container image locally.
+api-image:
+    docker build -f apps/api/Containerfile -t penge/api:dev .
+
 # --- Encrypted backups (see ADR-0025) ----------------------------------------
 #
 # All four recipes are thin wrappers around the shell scripts under

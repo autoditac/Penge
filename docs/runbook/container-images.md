@@ -1,10 +1,10 @@
 # Container images
 
-Application images are built from `apps/<name>/Containerfile`.
-The first image is the modern WebUI:
+Application images are built from `apps/<name>/Containerfile`:
 
 ```text
-apps/web/Containerfile
+apps/web/Containerfile   # WebUI (nginx serving the Vite build)
+apps/api/Containerfile   # FastAPI read API (uv-built virtualenv)
 ```
 
 CI builds application images on pull requests without pushing them.
@@ -18,10 +18,11 @@ Release images use this naming convention:
 ghcr.io/autoditac/penge/<app>
 ```
 
-For the WebUI:
+For the WebUI and the read API:
 
 ```text
 ghcr.io/autoditac/penge/web
+ghcr.io/autoditac/penge/api
 ```
 
 Release builds tag each image with the release tag and commit SHA.
@@ -43,6 +44,31 @@ docker run --rm -p 127.0.0.1:8080:8080 penge/web:dev
 ```
 
 Then open <http://127.0.0.1:8080>.
+
+Build the read-API image locally:
+
+```bash
+just api-image
+```
+
+Run it locally (the container binds `0.0.0.0:8000` internally; publish it
+on loopback only). On Linux, `host.docker.internal` needs the explicit
+`--add-host` mapping shown below (Docker Desktop provides it by default):
+
+```bash
+docker run --rm -p 127.0.0.1:8000:8000 \
+  --add-host=host.docker.internal:host-gateway \
+  -e DATABASE_URL=postgresql+psycopg://penge:penge@host.docker.internal:5432/penge \
+  penge/api:dev
+```
+
+Then check <http://127.0.0.1:8000/meta/freshness>.
+
+The image runs as a non-root user. Staged import uploads live under
+`PENGE_IMPORT_DIR=/data/imports`; mount a volume at `/data` to keep staged
+sessions across container restarts. All other knobs (`PENGE_API_CORS_ORIGINS`,
+`PENGE_MCP_SUGGEST_COMMAND`, ...) are plain environment variables, see
+[the API docs](../api/index.md).
 
 ## Build-context safety
 

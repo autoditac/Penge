@@ -1,0 +1,60 @@
+# FastAPI read-API image (issue #211, ADR-0035).
+#
+# Multi-stage: dependencies and the project are installed with uv into a
+# self-contained virtualenv, then copied onto a plain Python base so the
+# runtime image carries neither uv nor build tooling.
+#
+# Base image digests resolved with:
+#   skopeo inspect docker://ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+#   skopeo inspect docker://python:3.12-slim-bookworm
+
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58 AS build
+
+WORKDIR /app
+
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV UV_PYTHON_DOWNLOADS=never
+
+# Dependency layer: only the lockfile inputs, so code edits do not bust
+# the dependency cache. Runtime groups mirror `just api-dev`: the API
+# itself plus the DB driver, HTTP models, and the connector loaders the
+# staged-import commit path imports (parsers, manual).
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-install-project --no-default-groups \
+      --group api --group db --group http --group parsers --group manual
+
+# Project layer: install penge itself (hatchling needs the README).
+# --no-editable: the venv is copied to a runtime stage without /app/src,
+# so the project must be installed into site-packages, not path-linked.
+COPY README.md ./
+COPY src/ src/
+RUN uv sync --frozen --no-editable --no-default-groups \
+      --group api --group db --group http --group parsers --group manual
+
+FROM docker.io/library/python:3.12-slim-bookworm@sha256:76d4b7b6305788c6b4c6a19d6a22a3921bf802e9af4d5e1e5bd771208dba74bf
+
+LABEL org.opencontainers.image.title="Penge read API"
+LABEL org.opencontainers.image.description="Typed read-only FastAPI over the analytics marts."
+LABEL org.opencontainers.image.source="https://github.com/autoditac/Penge"
+
+# Non-root runtime user; /data backs PENGE_IMPORT_DIR (mount a volume to
+# keep staged uploads across restarts).
+RUN groupadd --gid 1000 penge \
+  && useradd --uid 1000 --gid penge --create-home penge \
+  && mkdir -p /data/imports \
+  && chown -R penge:penge /data
+
+COPY --from=build --chown=penge:penge /app/.venv /app/.venv
+
+ENV PATH="/app/.venv/bin:${PATH}"
+ENV PENGE_API_HOST=0.0.0.0
+ENV PENGE_API_PORT=8000
+ENV PENGE_IMPORT_DIR=/data/imports
+
+USER penge
+WORKDIR /app
+
+EXPOSE 8000
+
+CMD ["penge-api"]

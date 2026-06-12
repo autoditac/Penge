@@ -150,6 +150,139 @@
         "title": "AllocationSlice",
         "type": "object"
       },
+      "BenchmarkInfo": {
+        "additionalProperties": false,
+        "description": "One instrument with ingested price history, usable as benchmark.",
+        "properties": {
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          },
+          "first_as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "First As Of"
+          },
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "last_as_of": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last As Of"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "points": {
+            "title": "Points",
+            "type": "integer"
+          },
+          "ticker": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ticker"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "name",
+          "ticker",
+          "currency",
+          "first_as_of",
+          "last_as_of",
+          "points"
+        ],
+        "title": "BenchmarkInfo",
+        "type": "object"
+      },
+      "BenchmarkPoint": {
+        "additionalProperties": false,
+        "description": "One daily close of a benchmark instrument (native currency).",
+        "properties": {
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "close": {
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Close",
+            "type": "string"
+          },
+          "currency": {
+            "title": "Currency",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "close",
+          "currency"
+        ],
+        "title": "BenchmarkPoint",
+        "type": "object"
+      },
+      "BenchmarkSeriesResponse": {
+        "additionalProperties": false,
+        "description": "Paginated daily close series for one benchmark instrument.",
+        "properties": {
+          "instrument_id": {
+            "title": "Instrument Id",
+            "type": "string"
+          },
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/BenchmarkPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "instrument_id",
+          "points",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "title": "BenchmarkSeriesResponse",
+        "type": "object"
+      },
       "Body_create_import_imports_post": {
         "properties": {
           "account_name": {
@@ -435,6 +568,141 @@
           "counts"
         ],
         "title": "CommitResponse",
+        "type": "object"
+      },
+      "CurrencyReturnSummary": {
+        "additionalProperties": false,
+        "description": "TWR/MWR figures for one measurement currency.\n\n``error`` carries a data-quality note when the series could not be\nchain-linked faithfully; all figures are then ``None`` rather than\na fabricated number.",
+        "properties": {
+          "annualized_return": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annualized Return"
+          },
+          "cumulative_return": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cumulative Return"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "mwr_annualized": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mwr Annualized"
+          }
+        },
+        "required": [
+          "cumulative_return",
+          "annualized_return",
+          "mwr_annualized",
+          "error"
+        ],
+        "title": "CurrencyReturnSummary",
+        "type": "object"
+      },
+      "FeeYearRow": {
+        "additionalProperties": false,
+        "description": "Fees recorded for one account in one calendar year.\n\nSums explicit ``fee``-kind transactions plus the ``fee`` column on\ntrades, converted at the forward-filled ECB rate of the fee date.",
+        "properties": {
+          "account_id": {
+            "title": "Account Id",
+            "type": "string"
+          },
+          "fees_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fees Dkk"
+          },
+          "fees_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fees Eur"
+          },
+          "year": {
+            "title": "Year",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "year",
+          "account_id",
+          "fees_eur",
+          "fees_dkk"
+        ],
+        "title": "FeeYearRow",
+        "type": "object"
+      },
+      "FeesResponse": {
+        "additionalProperties": false,
+        "description": "Yearly fee totals per account over one request window.",
+        "properties": {
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/FeeYearRow"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "since": {
+            "format": "date",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "format": "date",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "since",
+          "until",
+          "rows"
+        ],
+        "title": "FeesResponse",
         "type": "object"
       },
       "FreshnessResponse": {
@@ -1024,6 +1292,270 @@
         "title": "NetWorthTotalSeriesResponse",
         "type": "object"
       },
+      "ReturnsPoint": {
+        "additionalProperties": false,
+        "description": "One scope-day row of ``mart_returns_daily``.\n\nThe return factor follows the start-of-day flow convention\n``end_mv / (begin_mv + net_flow)`` and is ``None`` on days without\ncapital at risk (ADR-0039).",
+        "properties": {
+          "as_of": {
+            "format": "date",
+            "title": "As Of",
+            "type": "string"
+          },
+          "begin_mv_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Begin Mv Dkk"
+          },
+          "begin_mv_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Begin Mv Eur"
+          },
+          "end_mv_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Mv Dkk"
+          },
+          "end_mv_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Mv Eur"
+          },
+          "net_flow_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Flow Dkk"
+          },
+          "net_flow_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Flow Eur"
+          },
+          "return_factor_dkk": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Factor Dkk"
+          },
+          "return_factor_eur": {
+            "anyOf": [
+              {
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Return Factor Eur"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReturnsScope"
+          },
+          "scope_key": {
+            "title": "Scope Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "as_of",
+          "scope",
+          "scope_key",
+          "begin_mv_eur",
+          "end_mv_eur",
+          "net_flow_eur",
+          "return_factor_eur",
+          "begin_mv_dkk",
+          "end_mv_dkk",
+          "net_flow_dkk",
+          "return_factor_dkk"
+        ],
+        "title": "ReturnsPoint",
+        "type": "object"
+      },
+      "ReturnsScope": {
+        "description": "Scope dimension of ``mart_returns_daily`` (ADR-0039).",
+        "enum": [
+          "account",
+          "asset_class",
+          "household"
+        ],
+        "title": "ReturnsScope",
+        "type": "string"
+      },
+      "ReturnsSeriesResponse": {
+        "additionalProperties": false,
+        "description": "Paginated daily return-factor series for one scope.",
+        "properties": {
+          "limit": {
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "title": "Offset",
+            "type": "integer"
+          },
+          "points": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnsPoint"
+            },
+            "title": "Points",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "points",
+          "limit",
+          "offset",
+          "total"
+        ],
+        "title": "ReturnsSeriesResponse",
+        "type": "object"
+      },
+      "ReturnsSummaryEntry": {
+        "additionalProperties": false,
+        "description": "Chain-linked TWR and MWR for one scope key over the window.",
+        "properties": {
+          "days": {
+            "title": "Days",
+            "type": "integer"
+          },
+          "dkk": {
+            "$ref": "#/components/schemas/CurrencyReturnSummary"
+          },
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "End Date"
+          },
+          "eur": {
+            "$ref": "#/components/schemas/CurrencyReturnSummary"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReturnsScope"
+          },
+          "scope_key": {
+            "title": "Scope Key",
+            "type": "string"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Date"
+          }
+        },
+        "required": [
+          "scope",
+          "scope_key",
+          "start_date",
+          "end_date",
+          "days",
+          "eur",
+          "dkk"
+        ],
+        "title": "ReturnsSummaryEntry",
+        "type": "object"
+      },
+      "ReturnsSummaryResponse": {
+        "additionalProperties": false,
+        "description": "Per-scope-key return summaries over one request window.",
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/ReturnsSummaryEntry"
+            },
+            "title": "Entries",
+            "type": "array"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/ReturnsScope"
+          },
+          "since": {
+            "format": "date",
+            "title": "Since",
+            "type": "string"
+          },
+          "until": {
+            "format": "date",
+            "title": "Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "since",
+          "until",
+          "scope",
+          "entries"
+        ],
+        "title": "ReturnsSummaryResponse",
+        "type": "object"
+      },
       "RowCounts": {
         "description": "Aggregated review state of a session's rows.",
         "properties": {
@@ -1298,6 +1830,136 @@
           }
         },
         "summary": "Allocation Current"
+      }
+    },
+    "/benchmarks": {
+      "get": {
+        "description": "Instruments with ingested price history, usable as benchmarks.",
+        "operationId": "benchmarks_benchmarks_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BenchmarkInfo"
+                  },
+                  "title": "Response Benchmarks Benchmarks Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Benchmarks"
+      }
+    },
+    "/benchmarks/daily": {
+      "get": {
+        "description": "Daily close series of one benchmark, in its native currency.\n\nAn unknown instrument id yields an empty series, not an error \u2014\nthe UI treats it the same as \"no prices in window\".",
+        "operationId": "benchmarks_daily_benchmarks_daily_get",
+        "parameters": [
+          {
+            "description": "Instrument id from /benchmarks.",
+            "in": "query",
+            "name": "instrument_id",
+            "required": true,
+            "schema": {
+              "description": "Instrument id from /benchmarks.",
+              "title": "Instrument Id",
+              "type": "string"
+            }
+          },
+          {
+            "description": "First day of the window (inclusive). Default: one year ago.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of the window (inclusive). Default: one year ago.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Last day of the window (inclusive). Default: today.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of the window (inclusive). Default: today.",
+              "title": "Until"
+            }
+          },
+          {
+            "description": "Page size.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "Page size.",
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page start offset.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Page start offset.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BenchmarkSeriesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Benchmarks Daily"
       }
     },
     "/cashflow/daily": {
@@ -1981,6 +2643,276 @@
           }
         },
         "summary": "Net Worth Daily"
+      }
+    },
+    "/returns/daily": {
+      "get": {
+        "description": "Daily return factors per scope from ``mart_returns_daily``.",
+        "operationId": "returns_daily_returns_daily_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReturnsScope",
+              "default": "household"
+            }
+          },
+          {
+            "description": "Filter to one scope key (account id, instrument kind, or 'household').",
+            "in": "query",
+            "name": "scope_key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filter to one scope key (account id, instrument kind, or 'household').",
+              "title": "Scope Key"
+            }
+          },
+          {
+            "description": "First day of the window (inclusive). Default: one year ago.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of the window (inclusive). Default: one year ago.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Last day of the window (inclusive). Default: today.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of the window (inclusive). Default: today.",
+              "title": "Until"
+            }
+          },
+          {
+            "description": "Page size.",
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 1000,
+              "description": "Page size.",
+              "maximum": 10000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Page start offset.",
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "description": "Page start offset.",
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnsSeriesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Returns Daily"
+      }
+    },
+    "/returns/fees": {
+      "get": {
+        "description": "Yearly fee totals per account, for the fee-drag view.",
+        "operationId": "returns_fees_returns_fees_get",
+        "parameters": [
+          {
+            "description": "First day of the window (inclusive). Default: one year ago.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of the window (inclusive). Default: one year ago.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Last day of the window (inclusive). Default: today.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of the window (inclusive). Default: today.",
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeesResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Returns Fees"
+      }
+    },
+    "/returns/summary": {
+      "get": {
+        "description": "Chain-linked TWR and MWR per scope key over the window.\n\nComputation runs server-side through ``penge.analytics.returns``\nso the UI and any other client see identical figures. A scope key\nwhose series cannot be chain-linked faithfully reports an ``error``\nnote instead of a number.",
+        "operationId": "returns_summary_returns_summary_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "scope",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/ReturnsScope",
+              "default": "account"
+            }
+          },
+          {
+            "description": "First day of the window (inclusive). Default: one year ago.",
+            "in": "query",
+            "name": "since",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "First day of the window (inclusive). Default: one year ago.",
+              "title": "Since"
+            }
+          },
+          {
+            "description": "Last day of the window (inclusive). Default: today.",
+            "in": "query",
+            "name": "until",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "date",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Last day of the window (inclusive). Default: today.",
+              "title": "Until"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReturnsSummaryResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Returns Summary"
       }
     }
   }

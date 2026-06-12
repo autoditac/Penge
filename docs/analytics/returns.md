@@ -109,3 +109,12 @@ mwr = mwr_from_series(series)  # XIRR, or None if unsolvable
   into the household factor.
 - XIRR outside the bisection bracket (total loss, more than tenfold gain)
   returns `None` by design.
+
+## Where it surfaces
+
+The read API serves the marts at `/returns/daily`, `/returns/summary`,
+`/returns/fees`, `/benchmarks`, and `/benchmarks/daily` (see the
+[API docs](../api/index.md)); the WebUI
+[performance dashboard](../web/modern-webui.md) renders TWR index lines,
+MWR/TWR summary cards, benchmark overlays, contribution-vs-growth, and fee
+drag on top of them.

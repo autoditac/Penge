@@ -33,6 +33,14 @@ class AllocationDimension(StrEnum):
     KIND = "kind"
 
 
+class ReturnsScope(StrEnum):
+    """Scope dimension of ``mart_returns_daily`` (ADR-0039)."""
+
+    ACCOUNT = "account"
+    ASSET_CLASS = "asset_class"
+    HOUSEHOLD = "household"
+
+
 class _FrozenModel(BaseModel):
     """Base for all response models: immutable, no unknown fields."""
 
@@ -158,3 +166,119 @@ class FreshnessResponse(_FrozenModel):
     """Freshness metadata for every mart the API serves."""
 
     marts: list[MartFreshness]
+
+
+class ReturnsPoint(_FrozenModel):
+    """One scope-day row of ``mart_returns_daily``.
+
+    The return factor follows the start-of-day flow convention
+    ``end_mv / (begin_mv + net_flow)`` and is ``None`` on days without
+    capital at risk (ADR-0039).
+    """
+
+    as_of: date
+    scope: ReturnsScope
+    scope_key: str
+    begin_mv_eur: Decimal | None
+    end_mv_eur: Decimal | None
+    net_flow_eur: Decimal | None
+    return_factor_eur: Decimal | None
+    begin_mv_dkk: Decimal | None
+    end_mv_dkk: Decimal | None
+    net_flow_dkk: Decimal | None
+    return_factor_dkk: Decimal | None
+
+
+class ReturnsSeriesResponse(_FrozenModel):
+    """Paginated daily return-factor series for one scope."""
+
+    points: list[ReturnsPoint]
+    limit: int
+    offset: int
+    total: int
+
+
+class CurrencyReturnSummary(_FrozenModel):
+    """TWR/MWR figures for one measurement currency.
+
+    ``error`` carries a data-quality note when the series could not be
+    chain-linked faithfully; all figures are then ``None`` rather than
+    a fabricated number.
+    """
+
+    cumulative_return: Decimal | None
+    annualized_return: float | None
+    mwr_annualized: float | None
+    error: str | None
+
+
+class ReturnsSummaryEntry(_FrozenModel):
+    """Chain-linked TWR and MWR for one scope key over the window."""
+
+    scope: ReturnsScope
+    scope_key: str
+    start_date: date | None
+    end_date: date | None
+    days: int
+    eur: CurrencyReturnSummary
+    dkk: CurrencyReturnSummary
+
+
+class ReturnsSummaryResponse(_FrozenModel):
+    """Per-scope-key return summaries over one request window."""
+
+    since: date
+    until: date
+    scope: ReturnsScope
+    entries: list[ReturnsSummaryEntry]
+
+
+class BenchmarkInfo(_FrozenModel):
+    """One instrument with ingested price history, usable as benchmark."""
+
+    instrument_id: str
+    name: str
+    ticker: str | None
+    currency: str
+    first_as_of: date | None
+    last_as_of: date | None
+    points: int
+
+
+class BenchmarkPoint(_FrozenModel):
+    """One daily close of a benchmark instrument (native currency)."""
+
+    as_of: date
+    close: Decimal
+    currency: str
+
+
+class BenchmarkSeriesResponse(_FrozenModel):
+    """Paginated daily close series for one benchmark instrument."""
+
+    instrument_id: str
+    points: list[BenchmarkPoint]
+    limit: int
+    offset: int
+    total: int
+
+
+class FeeYearRow(_FrozenModel):
+    """Fees recorded for one account in one calendar year.
+
+    Sums explicit ``fee``-kind transactions plus the ``fee`` column on
+    trades, converted at the forward-filled ECB rate of the fee date.
+    """
+
+    year: int
+    account_id: str
+    fees_eur: Decimal | None
+    fees_dkk: Decimal | None
+
+
+class FeesResponse(_FrozenModel):
+    """Yearly fee totals per account over one request window."""
+
+    since: date
+    until: date
+    rows: list[FeeYearRow]

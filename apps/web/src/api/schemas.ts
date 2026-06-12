@@ -125,6 +125,105 @@ export const freshnessResponseSchema = z.object({
 });
 export type FreshnessResponse = z.infer<typeof freshnessResponseSchema>;
 
+/* ---- returns, benchmarks, fees (#206) ---- */
+
+export const returnsScopeSchema = z.enum(["account", "asset_class", "household"]);
+export type ReturnsScope = z.infer<typeof returnsScopeSchema>;
+
+export const returnsPointSchema = z.object({
+  as_of: isoDateString,
+  begin_mv_dkk: decimalString.nullable(),
+  begin_mv_eur: decimalString.nullable(),
+  end_mv_dkk: decimalString.nullable(),
+  end_mv_eur: decimalString.nullable(),
+  net_flow_dkk: decimalString.nullable(),
+  net_flow_eur: decimalString.nullable(),
+  return_factor_dkk: decimalString.nullable(),
+  return_factor_eur: decimalString.nullable(),
+  scope: returnsScopeSchema,
+  scope_key: z.string(),
+});
+export type ReturnsPoint = z.infer<typeof returnsPointSchema>;
+
+export const returnsSeriesResponseSchema = z.object({
+  limit: z.number().int(),
+  offset: z.number().int(),
+  points: z.array(returnsPointSchema),
+  total: z.number().int(),
+});
+export type ReturnsSeriesResponse = z.infer<typeof returnsSeriesResponseSchema>;
+
+export const currencyReturnSummarySchema = z.object({
+  annualized_return: z.number().nullable(),
+  cumulative_return: decimalString.nullable(),
+  error: z.string().nullable(),
+  mwr_annualized: z.number().nullable(),
+});
+export type CurrencyReturnSummary = z.infer<typeof currencyReturnSummarySchema>;
+
+export const returnsSummaryEntrySchema = z.object({
+  days: z.number().int(),
+  dkk: currencyReturnSummarySchema,
+  end_date: isoDateString.nullable(),
+  eur: currencyReturnSummarySchema,
+  scope: returnsScopeSchema,
+  scope_key: z.string(),
+  start_date: isoDateString.nullable(),
+});
+export type ReturnsSummaryEntry = z.infer<typeof returnsSummaryEntrySchema>;
+
+export const returnsSummaryResponseSchema = z.object({
+  entries: z.array(returnsSummaryEntrySchema),
+  scope: returnsScopeSchema,
+  since: isoDateString,
+  until: isoDateString,
+});
+export type ReturnsSummaryResponse = z.infer<typeof returnsSummaryResponseSchema>;
+
+export const benchmarkInfoSchema = z.object({
+  currency: z.string(),
+  first_as_of: isoDateString.nullable(),
+  instrument_id: z.string(),
+  last_as_of: isoDateString.nullable(),
+  name: z.string(),
+  points: z.number().int(),
+  ticker: z.string().nullable(),
+});
+export type BenchmarkInfo = z.infer<typeof benchmarkInfoSchema>;
+
+export const benchmarksResponseSchema = z.array(benchmarkInfoSchema);
+
+export const benchmarkPointSchema = z.object({
+  as_of: isoDateString,
+  close: decimalString,
+  currency: z.string(),
+});
+export type BenchmarkPoint = z.infer<typeof benchmarkPointSchema>;
+
+export const benchmarkSeriesResponseSchema = z.object({
+  instrument_id: z.string(),
+  limit: z.number().int(),
+  offset: z.number().int(),
+  points: z.array(benchmarkPointSchema),
+  total: z.number().int(),
+});
+export type BenchmarkSeriesResponse = z.infer<typeof benchmarkSeriesResponseSchema>;
+
+export const feeYearRowSchema = z.object({
+  account_id: z.string(),
+  fees_dkk: decimalString.nullable(),
+  fees_eur: decimalString.nullable(),
+  year: z.number().int(),
+});
+export type FeeYearRow = z.infer<typeof feeYearRowSchema>;
+
+export const feesResponseSchema = z.object({
+  rows: z.array(feeYearRowSchema),
+  since: isoDateString,
+  until: isoDateString,
+});
+export type FeesResponse = z.infer<typeof feesResponseSchema>;
+
 /* ---- import sessions (#207/#208) ---- */
 
 const isoTimestampString = z.string();
@@ -286,3 +385,24 @@ type _CheckSuggestionSession = Assert<
 type _CheckSuggestionsResponse = Assert<
   MutuallyAssignable<SuggestionsResponse, Generated["SuggestionsResponse"]>
 >;
+type _CheckReturnsScope = Assert<MutuallyAssignable<ReturnsScope, Generated["ReturnsScope"]>>;
+type _CheckReturnsPoint = Assert<MutuallyAssignable<ReturnsPoint, Generated["ReturnsPoint"]>>;
+type _CheckReturnsSeries = Assert<
+  MutuallyAssignable<ReturnsSeriesResponse, Generated["ReturnsSeriesResponse"]>
+>;
+type _CheckCurrencyReturnSummary = Assert<
+  MutuallyAssignable<CurrencyReturnSummary, Generated["CurrencyReturnSummary"]>
+>;
+type _CheckReturnsSummaryEntry = Assert<
+  MutuallyAssignable<ReturnsSummaryEntry, Generated["ReturnsSummaryEntry"]>
+>;
+type _CheckReturnsSummaryResponse = Assert<
+  MutuallyAssignable<ReturnsSummaryResponse, Generated["ReturnsSummaryResponse"]>
+>;
+type _CheckBenchmarkInfo = Assert<MutuallyAssignable<BenchmarkInfo, Generated["BenchmarkInfo"]>>;
+type _CheckBenchmarkPoint = Assert<MutuallyAssignable<BenchmarkPoint, Generated["BenchmarkPoint"]>>;
+type _CheckBenchmarkSeries = Assert<
+  MutuallyAssignable<BenchmarkSeriesResponse, Generated["BenchmarkSeriesResponse"]>
+>;
+type _CheckFeeYearRow = Assert<MutuallyAssignable<FeeYearRow, Generated["FeeYearRow"]>>;
+type _CheckFeesResponse = Assert<MutuallyAssignable<FeesResponse, Generated["FeesResponse"]>>;

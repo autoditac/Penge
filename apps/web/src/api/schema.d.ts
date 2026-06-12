@@ -44,6 +44,49 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/benchmarks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Benchmarks
+     * @description Instruments with ingested price history, usable as benchmarks.
+     */
+    get: operations["benchmarks_benchmarks_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/benchmarks/daily": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Benchmarks Daily
+     * @description Daily close series of one benchmark, in its native currency.
+     *
+     *     An unknown instrument id yields an empty series, not an error —
+     *     the UI treats it the same as "no prices in window".
+     */
+    get: operations["benchmarks_daily_benchmarks_daily_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/cashflow/daily": {
     parameters: {
       query?: never;
@@ -217,6 +260,71 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/returns/daily": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Returns Daily
+     * @description Daily return factors per scope from ``mart_returns_daily``.
+     */
+    get: operations["returns_daily_returns_daily_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/returns/fees": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Returns Fees
+     * @description Yearly fee totals per account, for the fee-drag view.
+     */
+    get: operations["returns_fees_returns_fees_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/returns/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Returns Summary
+     * @description Chain-linked TWR and MWR per scope key over the window.
+     *
+     *     Computation runs server-side through ``penge.analytics.returns``
+     *     so the UI and any other client see identical figures. A scope key
+     *     whose series cannot be chain-linked faithfully reports an ``error``
+     *     note instead of a number.
+     */
+    get: operations["returns_summary_returns_summary_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -279,6 +387,57 @@ export interface components {
       label: string;
       /** Weight Eur */
       weight_eur: string | null;
+    };
+    /**
+     * BenchmarkInfo
+     * @description One instrument with ingested price history, usable as benchmark.
+     */
+    BenchmarkInfo: {
+      /** Currency */
+      currency: string;
+      /** First As Of */
+      first_as_of: string | null;
+      /** Instrument Id */
+      instrument_id: string;
+      /** Last As Of */
+      last_as_of: string | null;
+      /** Name */
+      name: string;
+      /** Points */
+      points: number;
+      /** Ticker */
+      ticker: string | null;
+    };
+    /**
+     * BenchmarkPoint
+     * @description One daily close of a benchmark instrument (native currency).
+     */
+    BenchmarkPoint: {
+      /**
+       * As Of
+       * Format: date
+       */
+      as_of: string;
+      /** Close */
+      close: string;
+      /** Currency */
+      currency: string;
+    };
+    /**
+     * BenchmarkSeriesResponse
+     * @description Paginated daily close series for one benchmark instrument.
+     */
+    BenchmarkSeriesResponse: {
+      /** Instrument Id */
+      instrument_id: string;
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Points */
+      points: components["schemas"]["BenchmarkPoint"][];
+      /** Total */
+      total: number;
     };
     /** Body_create_import_imports_post */
     Body_create_import_imports_post: {
@@ -376,6 +535,59 @@ export interface components {
     CommitResponse: {
       counts: components["schemas"]["CommitCountsOut"];
       session: components["schemas"]["ImportSessionOut"];
+    };
+    /**
+     * CurrencyReturnSummary
+     * @description TWR/MWR figures for one measurement currency.
+     *
+     *     ``error`` carries a data-quality note when the series could not be
+     *     chain-linked faithfully; all figures are then ``None`` rather than
+     *     a fabricated number.
+     */
+    CurrencyReturnSummary: {
+      /** Annualized Return */
+      annualized_return: number | null;
+      /** Cumulative Return */
+      cumulative_return: string | null;
+      /** Error */
+      error: string | null;
+      /** Mwr Annualized */
+      mwr_annualized: number | null;
+    };
+    /**
+     * FeeYearRow
+     * @description Fees recorded for one account in one calendar year.
+     *
+     *     Sums explicit ``fee``-kind transactions plus the ``fee`` column on
+     *     trades, converted at the forward-filled ECB rate of the fee date.
+     */
+    FeeYearRow: {
+      /** Account Id */
+      account_id: string;
+      /** Fees Dkk */
+      fees_dkk: string | null;
+      /** Fees Eur */
+      fees_eur: string | null;
+      /** Year */
+      year: number;
+    };
+    /**
+     * FeesResponse
+     * @description Yearly fee totals per account over one request window.
+     */
+    FeesResponse: {
+      /** Rows */
+      rows: components["schemas"]["FeeYearRow"][];
+      /**
+       * Since
+       * Format: date
+       */
+      since: string;
+      /**
+       * Until
+       * Format: date
+       */
+      until: string;
     };
     /**
      * FreshnessResponse
@@ -633,6 +845,96 @@ export interface components {
       total: number;
     };
     /**
+     * ReturnsPoint
+     * @description One scope-day row of ``mart_returns_daily``.
+     *
+     *     The return factor follows the start-of-day flow convention
+     *     ``end_mv / (begin_mv + net_flow)`` and is ``None`` on days without
+     *     capital at risk (ADR-0039).
+     */
+    ReturnsPoint: {
+      /**
+       * As Of
+       * Format: date
+       */
+      as_of: string;
+      /** Begin Mv Dkk */
+      begin_mv_dkk: string | null;
+      /** Begin Mv Eur */
+      begin_mv_eur: string | null;
+      /** End Mv Dkk */
+      end_mv_dkk: string | null;
+      /** End Mv Eur */
+      end_mv_eur: string | null;
+      /** Net Flow Dkk */
+      net_flow_dkk: string | null;
+      /** Net Flow Eur */
+      net_flow_eur: string | null;
+      /** Return Factor Dkk */
+      return_factor_dkk: string | null;
+      /** Return Factor Eur */
+      return_factor_eur: string | null;
+      scope: components["schemas"]["ReturnsScope"];
+      /** Scope Key */
+      scope_key: string;
+    };
+    /**
+     * ReturnsScope
+     * @description Scope dimension of ``mart_returns_daily`` (ADR-0039).
+     * @enum {string}
+     */
+    ReturnsScope: "account" | "asset_class" | "household";
+    /**
+     * ReturnsSeriesResponse
+     * @description Paginated daily return-factor series for one scope.
+     */
+    ReturnsSeriesResponse: {
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Points */
+      points: components["schemas"]["ReturnsPoint"][];
+      /** Total */
+      total: number;
+    };
+    /**
+     * ReturnsSummaryEntry
+     * @description Chain-linked TWR and MWR for one scope key over the window.
+     */
+    ReturnsSummaryEntry: {
+      /** Days */
+      days: number;
+      dkk: components["schemas"]["CurrencyReturnSummary"];
+      /** End Date */
+      end_date: string | null;
+      eur: components["schemas"]["CurrencyReturnSummary"];
+      scope: components["schemas"]["ReturnsScope"];
+      /** Scope Key */
+      scope_key: string;
+      /** Start Date */
+      start_date: string | null;
+    };
+    /**
+     * ReturnsSummaryResponse
+     * @description Per-scope-key return summaries over one request window.
+     */
+    ReturnsSummaryResponse: {
+      /** Entries */
+      entries: components["schemas"]["ReturnsSummaryEntry"][];
+      scope: components["schemas"]["ReturnsScope"];
+      /**
+       * Since
+       * Format: date
+       */
+      since: string;
+      /**
+       * Until
+       * Format: date
+       */
+      until: string;
+    };
+    /**
      * RowCounts
      * @description Aggregated review state of a session's rows.
      */
@@ -764,6 +1066,66 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AllocationResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  benchmarks_benchmarks_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BenchmarkInfo"][];
+        };
+      };
+    };
+  };
+  benchmarks_daily_benchmarks_daily_get: {
+    parameters: {
+      query: {
+        /** @description Instrument id from /benchmarks. */
+        instrument_id: string;
+        /** @description First day of the window (inclusive). Default: one year ago. */
+        since?: string | null;
+        /** @description Last day of the window (inclusive). Default: today. */
+        until?: string | null;
+        /** @description Page size. */
+        limit?: number;
+        /** @description Page start offset. */
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["BenchmarkSeriesResponse"];
         };
       };
       /** @description Validation Error */
@@ -1107,6 +1469,116 @@ export interface operations {
           "application/json":
             | components["schemas"]["NetWorthSeriesResponse"]
             | components["schemas"]["NetWorthTotalSeriesResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  returns_daily_returns_daily_get: {
+    parameters: {
+      query?: {
+        scope?: components["schemas"]["ReturnsScope"];
+        /** @description Filter to one scope key (account id, instrument kind, or 'household'). */
+        scope_key?: string | null;
+        /** @description First day of the window (inclusive). Default: one year ago. */
+        since?: string | null;
+        /** @description Last day of the window (inclusive). Default: today. */
+        until?: string | null;
+        /** @description Page size. */
+        limit?: number;
+        /** @description Page start offset. */
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReturnsSeriesResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  returns_fees_returns_fees_get: {
+    parameters: {
+      query?: {
+        /** @description First day of the window (inclusive). Default: one year ago. */
+        since?: string | null;
+        /** @description Last day of the window (inclusive). Default: today. */
+        until?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FeesResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  returns_summary_returns_summary_get: {
+    parameters: {
+      query?: {
+        scope?: components["schemas"]["ReturnsScope"];
+        /** @description First day of the window (inclusive). Default: one year ago. */
+        since?: string | null;
+        /** @description Last day of the window (inclusive). Default: today. */
+        until?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReturnsSummaryResponse"];
         };
       };
       /** @description Validation Error */

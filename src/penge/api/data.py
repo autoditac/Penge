@@ -272,6 +272,229 @@ def fetch_accounts() -> list[dict[str, object]]:
 
 
 # ---------------------------------------------------------------------------
+# Returns (mart_returns_daily, ADR-0039)
+# ---------------------------------------------------------------------------
+
+_RETURNS_FILTER = """
+    where as_of >= :since
+      and as_of <= :until
+      and scope = :scope
+      and (cast(:scope_key as text) is null or scope_key = :scope_key)
+"""
+
+_RETURNS_SQL = f"""
+    select
+        as_of,
+        scope,
+        scope_key,
+        begin_mv_eur,
+        end_mv_eur,
+        net_flow_eur,
+        return_factor_eur,
+        begin_mv_dkk,
+        end_mv_dkk,
+        net_flow_dkk,
+        return_factor_dkk
+    from analytics_marts.mart_returns_daily
+    {_RETURNS_FILTER}
+    order by scope_key, as_of
+    limit :limit offset :offset
+"""
+
+_RETURNS_COUNT_SQL = f"""
+    select count(*)
+    from analytics_marts.mart_returns_daily
+    {_RETURNS_FILTER}
+"""
+
+
+def fetch_returns(
+    *,
+    since: date,
+    until: date,
+    scope: str,
+    scope_key: str | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[dict[str, object]], int]:
+    """Return one page of scope-day return rows plus the total count."""
+    params: dict[str, object] = {
+        "since": since,
+        "until": until,
+        "scope": scope,
+        "scope_key": scope_key,
+        "limit": limit,
+        "offset": offset,
+    }
+    rows = _rows(_RETURNS_SQL, params)
+    return rows, _count(_RETURNS_COUNT_SQL, params)
+
+
+def fetch_returns_window(
+    *,
+    since: date,
+    until: date,
+    scope: str,
+) -> list[dict[str, object]]:
+    """Return ALL rows of one scope in the window, for summary math.
+
+    Unpaginated by design: the summary endpoint must chain-link every
+    day of the window. Row counts are bounded by days x scope keys.
+    """
+    params: dict[str, object] = {
+        "since": since,
+        "until": until,
+        "scope": scope,
+        "scope_key": None,
+        "limit": 1_000_000,
+        "offset": 0,
+    }
+    return _rows(_RETURNS_SQL, params)
+
+
+# ---------------------------------------------------------------------------
+# Benchmarks (raw price_history + instrument dimension)
+# ---------------------------------------------------------------------------
+
+_BENCHMARKS_SQL = """
+    select
+        i.id::text as instrument_id,
+        i.name,
+        i.ticker,
+        max(p.currency) as currency,
+        min(p.as_of) as first_as_of,
+        max(p.as_of) as last_as_of,
+        count(*) as points
+    from price_history as p
+    inner join instrument as i on i.id = p.instrument_id
+    group by i.id, i.name, i.ticker
+    order by i.name
+"""
+
+
+def fetch_benchmarks() -> list[dict[str, object]]:
+    """Return every instrument that has ingested price history."""
+    return _rows(_BENCHMARKS_SQL, {})
+
+
+_BENCHMARK_SERIES_FILTER = """
+    where p.instrument_id::text = :instrument_id
+      and p.as_of >= :since
+      and p.as_of <= :until
+"""
+
+_BENCHMARK_SERIES_SQL = f"""
+    select
+        p.as_of,
+        p.close,
+        p.currency
+    from price_history as p
+    {_BENCHMARK_SERIES_FILTER}
+    order by p.as_of
+    limit :limit offset :offset
+"""
+
+_BENCHMARK_SERIES_COUNT_SQL = f"""
+    select count(*)
+    from price_history as p
+    {_BENCHMARK_SERIES_FILTER}
+"""
+
+
+def fetch_benchmark_series(
+    *,
+    instrument_id: str,
+    since: date,
+    until: date,
+    limit: int,
+    offset: int,
+) -> tuple[list[dict[str, object]], int]:
+    """Return one page of daily closes for one instrument."""
+    params: dict[str, object] = {
+        "instrument_id": instrument_id,
+        "since": since,
+        "until": until,
+        "limit": limit,
+        "offset": offset,
+    }
+    rows = _rows(_BENCHMARK_SERIES_SQL, params)
+    return rows, _count(_BENCHMARK_SERIES_COUNT_SQL, params)
+
+
+# ---------------------------------------------------------------------------
+# Fees (canonical transaction table, forward-filled ECB FX)
+# ---------------------------------------------------------------------------
+
+# Explicit fee transactions count by their amount; trade rows count by
+# their `fee` column. abs() because cost legs are recorded negative.
+# FX mirrors the marts: EUR via the forward-filled ECB rate of the fee
+# date, DKK via the EUR bridge.
+_FEES_SQL = """
+    with fee_rows as (
+        select
+            t.account_id,
+            coalesce(t.value_date, (t.ts at time zone 'UTC')::date) as as_of,
+            case
+                when t.kind = 'fee' then abs(t.amount)
+                else abs(coalesce(t.fee, 0))
+            end as fee_acct_ccy
+        from "transaction" as t
+        where t.kind = 'fee' or coalesce(t.fee, 0) <> 0
+    ),
+
+    converted as (
+        select
+            f.account_id,
+            f.as_of,
+            (
+                f.fee_acct_ccy / nullif(
+                    case
+                        when a.currency = 'EUR' then 1::numeric(20, 8)
+                        else (
+                            select fx.rate
+                            from fx_rate as fx
+                            where fx.base_ccy = 'EUR'
+                              and fx.quote_ccy = a.currency
+                              and fx.as_of <= f.as_of
+                            order by fx.as_of desc
+                            limit 1
+                        )
+                    end, 0
+                )
+            ) as fee_eur
+        from fee_rows as f
+        inner join account as a on a.id = f.account_id
+        where f.as_of >= :since
+          and f.as_of <= :until
+    )
+
+    select
+        extract(year from c.as_of)::int as year,
+        c.account_id::text as account_id,
+        sum(c.fee_eur)::numeric(20, 4) as fees_eur,
+        sum(
+            c.fee_eur * (
+                select fx.rate
+                from fx_rate as fx
+                where fx.base_ccy = 'EUR'
+                  and fx.quote_ccy = 'DKK'
+                  and fx.as_of <= c.as_of
+                order by fx.as_of desc
+                limit 1
+            )
+        )::numeric(20, 4) as fees_dkk
+    from converted as c
+    group by year, c.account_id
+    order by year, c.account_id
+"""
+
+
+def fetch_fees(*, since: date, until: date) -> list[dict[str, object]]:
+    """Return yearly fee totals per account in EUR and DKK."""
+    return _rows(_FEES_SQL, {"since": since, "until": until})
+
+
+# ---------------------------------------------------------------------------
 # Freshness metadata
 # ---------------------------------------------------------------------------
 
@@ -280,7 +503,7 @@ _FRESHNESS_SQL_TEMPLATE = """
     from analytics_marts.{mart}
 """
 
-_MARTS = ("mart_net_worth_daily", "mart_cashflow_daily")
+_MARTS = ("mart_net_worth_daily", "mart_cashflow_daily", "mart_returns_daily")
 
 
 def fetch_freshness() -> list[dict[str, object]]:

@@ -140,3 +140,105 @@ class TestFreshness:
         assert marts["mart_net_worth_daily"]["latest_as_of"] == "2026-06-02"
         assert marts["mart_cashflow_daily"]["latest_as_of"] is None
         assert marts["mart_cashflow_daily"]["row_count"] == 0
+
+
+class TestReturnsDaily:
+    def test_household_factors_in_both_currencies(self, client: TestClient) -> None:
+        body = client.get(
+            "/returns/daily", params={"since": "2026-06-01", "until": "2026-06-03"}
+        ).json()
+        assert body["total"] == 3
+        first = body["points"][0]
+        assert first["scope"] == "household"
+        assert first["return_factor_eur"] == "1.0100000000"
+        assert first["return_factor_dkk"] == "1.0100000000"
+        assert first["begin_mv_eur"] == "1000.0000"
+        assert first["begin_mv_dkk"] == "7460.0000"
+
+    def test_pagination(self, client: TestClient) -> None:
+        body = client.get(
+            "/returns/daily",
+            params={"since": "2026-06-01", "until": "2026-06-03", "limit": 1, "offset": 2},
+        ).json()
+        assert body["total"] == 3
+        assert len(body["points"]) == 1
+        assert body["points"][0]["as_of"] == "2026-06-03"
+
+    def test_scope_key_filter(self, client: TestClient) -> None:
+        body = client.get(
+            "/returns/daily",
+            params={"since": "2026-06-01", "until": "2026-06-03", "scope_key": "nope"},
+        ).json()
+        assert body["total"] == 0
+
+    def test_invalid_scope_rejected(self, client: TestClient) -> None:
+        response = client.get("/returns/daily", params={"scope": "portfolio"})
+        assert response.status_code == 422
+
+
+class TestReturnsSummary:
+    def test_chain_links_household_window(self, client: TestClient) -> None:
+        body = client.get(
+            "/returns/summary",
+            params={"scope": "household", "since": "2026-06-01", "until": "2026-06-03"},
+        ).json()
+        assert body["scope"] == "household"
+        (entry,) = body["entries"]
+        assert entry["scope_key"] == "household"
+        assert entry["days"] == 3
+        assert entry["start_date"] == "2026-06-01"
+        assert entry["end_date"] == "2026-06-03"
+        # 1.01 * 1.00 * 1.02 = 1.0302 in both currency legs.
+        assert entry["eur"]["cumulative_return"] == "0.0302"
+        assert entry["dkk"]["cumulative_return"] == "0.0302"
+        assert entry["eur"]["error"] is None
+        # 3-day window: below the 30-day annualization threshold.
+        assert entry["eur"]["annualized_return"] is None
+
+    def test_empty_window_returns_no_entries(self, client: TestClient) -> None:
+        body = client.get(
+            "/returns/summary",
+            params={"scope": "household", "since": "2030-01-01", "until": "2030-01-31"},
+        ).json()
+        assert body["entries"] == []
+
+
+class TestBenchmarks:
+    def test_lists_instruments_with_price_history(self, client: TestClient) -> None:
+        body = client.get("/benchmarks").json()
+        (info,) = body
+        assert info["instrument_id"] == "i1"
+        assert info["ticker"] == "SYNW"
+        assert info["points"] == 3
+
+    def test_daily_series(self, client: TestClient) -> None:
+        body = client.get(
+            "/benchmarks/daily",
+            params={"instrument_id": "i1", "since": "2026-06-01", "until": "2026-06-03"},
+        ).json()
+        assert body["total"] == 3
+        assert body["points"][0]["close"] == "100.0000"
+        assert body["points"][0]["currency"] == "EUR"
+
+    def test_unknown_instrument_yields_empty_series(self, client: TestClient) -> None:
+        body = client.get(
+            "/benchmarks/daily",
+            params={"instrument_id": "missing", "since": "2026-06-01", "until": "2026-06-03"},
+        ).json()
+        assert body["points"] == []
+        assert body["total"] == 0
+
+    def test_instrument_id_required(self, client: TestClient) -> None:
+        assert client.get("/benchmarks/daily").status_code == 422
+
+
+class TestFees:
+    def test_yearly_totals_in_both_currencies(self, client: TestClient) -> None:
+        body = client.get(
+            "/returns/fees", params={"since": "2026-01-01", "until": "2026-12-31"}
+        ).json()
+        (row,) = body["rows"]
+        assert row["year"] == 2026
+        assert row["account_id"] == "a1"
+        assert row["fees_eur"] == "24.0000"
+        assert row["fees_dkk"] == "179.0400"

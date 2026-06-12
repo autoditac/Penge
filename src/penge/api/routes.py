@@ -15,14 +15,21 @@ from typing import Annotated
 
 from fastapi import APIRouter, Query
 
+from penge.analytics import ReturnPoint, ReturnsError, mwr_from_series, twr_summary
 from penge.api import data
 from penge.api.models import (
     AccountSummary,
     AllocationDimension,
     AllocationResponse,
     AllocationSlice,
+    BenchmarkInfo,
+    BenchmarkPoint,
+    BenchmarkSeriesResponse,
     CashflowPoint,
     CashflowSeriesResponse,
+    CurrencyReturnSummary,
+    FeesResponse,
+    FeeYearRow,
     FreshnessResponse,
     GroupBy,
     MartFreshness,
@@ -30,6 +37,11 @@ from penge.api.models import (
     NetWorthSeriesResponse,
     NetWorthTotalPoint,
     NetWorthTotalSeriesResponse,
+    ReturnsPoint,
+    ReturnsScope,
+    ReturnsSeriesResponse,
+    ReturnsSummaryEntry,
+    ReturnsSummaryResponse,
 )
 from penge.web.mask import mask_account_name, mask_iban
 
@@ -202,4 +214,179 @@ def meta_freshness() -> FreshnessResponse:
     """Latest data date and row count per mart, for staleness banners."""
     return FreshnessResponse(
         marts=[MartFreshness.model_validate(row) for row in data.fetch_freshness()]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Returns, benchmarks, and fees (dashboard v2, issue #206)
+# ---------------------------------------------------------------------------
+
+_ScopeKeyParam = Annotated[
+    str | None,
+    Query(description="Filter to one scope key (account id, instrument kind, or 'household')."),
+]
+
+
+@router.get("/returns/daily", response_model=ReturnsSeriesResponse)
+def returns_daily(
+    scope: ReturnsScope = ReturnsScope.HOUSEHOLD,
+    scope_key: _ScopeKeyParam = None,
+    since: _SinceParam = None,
+    until: _UntilParam = None,
+    limit: _LimitParam = DEFAULT_LIMIT,
+    offset: _OffsetParam = 0,
+) -> ReturnsSeriesResponse:
+    """Daily return factors per scope from ``mart_returns_daily``."""
+    resolved_since, resolved_until = _window(since, until)
+    rows, count = data.fetch_returns(
+        since=resolved_since,
+        until=resolved_until,
+        scope=scope.value,
+        scope_key=scope_key,
+        limit=limit,
+        offset=offset,
+    )
+    return ReturnsSeriesResponse(
+        points=[ReturnsPoint.model_validate(row) for row in rows],
+        limit=limit,
+        offset=offset,
+        total=count,
+    )
+
+
+def _summary_error(message: str) -> CurrencyReturnSummary:
+    """A summary leg that explains itself instead of carrying numbers."""
+    return CurrencyReturnSummary(
+        cumulative_return=None, annualized_return=None, mwr_annualized=None, error=message
+    )
+
+
+def _currency_summary(rows: list[dict[str, object]], suffix: str) -> CurrencyReturnSummary:
+    """Chain-link one currency leg of one scope key's window rows."""
+    points: list[ReturnPoint] = []
+    missing = 0
+    for row in rows:
+        begin = row[f"begin_mv_{suffix}"]
+        end = row[f"end_mv_{suffix}"]
+        flow = row[f"net_flow_{suffix}"]
+        as_of = row["as_of"]
+        if not isinstance(begin, Decimal) or not isinstance(end, Decimal):
+            missing += 1
+            continue
+        if not isinstance(as_of, date):  # pragma: no cover - driver always returns date
+            missing += 1
+            continue
+        points.append(
+            ReturnPoint(
+                as_of=as_of,
+                begin_value=begin,
+                end_value=end,
+                net_flow=flow if isinstance(flow, Decimal) else Decimal(0),
+            )
+        )
+    if missing:
+        return _summary_error(f"{missing} day(s) lack {suffix.upper()} conversion")
+    if not points:
+        return _summary_error("no data in window")
+    try:
+        summary = twr_summary(points)
+    except ReturnsError as exc:
+        return _summary_error(str(exc))
+    return CurrencyReturnSummary(
+        cumulative_return=summary.cumulative_return,
+        annualized_return=summary.annualized_return,
+        mwr_annualized=mwr_from_series(points),
+        error=None,
+    )
+
+
+@router.get("/returns/summary", response_model=ReturnsSummaryResponse)
+def returns_summary(
+    scope: ReturnsScope = ReturnsScope.ACCOUNT,
+    since: _SinceParam = None,
+    until: _UntilParam = None,
+) -> ReturnsSummaryResponse:
+    """Chain-linked TWR and MWR per scope key over the window.
+
+    Computation runs server-side through ``penge.analytics.returns``
+    so the UI and any other client see identical figures. A scope key
+    whose series cannot be chain-linked faithfully reports an ``error``
+    note instead of a number.
+    """
+    resolved_since, resolved_until = _window(since, until)
+    rows = data.fetch_returns_window(since=resolved_since, until=resolved_until, scope=scope.value)
+    by_key: dict[str, list[dict[str, object]]] = {}
+    for row in rows:
+        by_key.setdefault(str(row["scope_key"]), []).append(row)
+
+    entries: list[ReturnsSummaryEntry] = []
+    for key, key_rows in sorted(by_key.items()):
+        dates = [row["as_of"] for row in key_rows if isinstance(row["as_of"], date)]
+        entries.append(
+            ReturnsSummaryEntry(
+                scope=scope,
+                scope_key=key,
+                start_date=min(dates) if dates else None,
+                end_date=max(dates) if dates else None,
+                days=len(key_rows),
+                eur=_currency_summary(key_rows, "eur"),
+                dkk=_currency_summary(key_rows, "dkk"),
+            )
+        )
+    return ReturnsSummaryResponse(
+        since=resolved_since, until=resolved_until, scope=scope, entries=entries
+    )
+
+
+@router.get("/benchmarks", response_model=list[BenchmarkInfo])
+def benchmarks() -> list[BenchmarkInfo]:
+    """Instruments with ingested price history, usable as benchmarks."""
+    return [BenchmarkInfo.model_validate(row) for row in data.fetch_benchmarks()]
+
+
+_InstrumentParam = Annotated[str, Query(description="Instrument id from /benchmarks.")]
+
+
+@router.get("/benchmarks/daily", response_model=BenchmarkSeriesResponse)
+def benchmarks_daily(
+    instrument_id: _InstrumentParam,
+    since: _SinceParam = None,
+    until: _UntilParam = None,
+    limit: _LimitParam = DEFAULT_LIMIT,
+    offset: _OffsetParam = 0,
+) -> BenchmarkSeriesResponse:
+    """Daily close series of one benchmark, in its native currency.
+
+    An unknown instrument id yields an empty series, not an error —
+    the UI treats it the same as "no prices in window".
+    """
+    resolved_since, resolved_until = _window(since, until)
+    rows, count = data.fetch_benchmark_series(
+        instrument_id=instrument_id,
+        since=resolved_since,
+        until=resolved_until,
+        limit=limit,
+        offset=offset,
+    )
+    return BenchmarkSeriesResponse(
+        instrument_id=instrument_id,
+        points=[BenchmarkPoint.model_validate(row) for row in rows],
+        limit=limit,
+        offset=offset,
+        total=count,
+    )
+
+
+@router.get("/returns/fees", response_model=FeesResponse)
+def returns_fees(
+    since: _SinceParam = None,
+    until: _UntilParam = None,
+) -> FeesResponse:
+    """Yearly fee totals per account, for the fee-drag view."""
+    resolved_since, resolved_until = _window(since, until)
+    rows = data.fetch_fees(since=resolved_since, until=resolved_until)
+    return FeesResponse(
+        since=resolved_since,
+        until=resolved_until,
+        rows=[FeeYearRow.model_validate(row) for row in rows],
     )

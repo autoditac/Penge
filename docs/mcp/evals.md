@@ -2,7 +2,7 @@
 
 The MCP server is the only sanctioned LLM data path in Penge. Every
 new release of the tool layer is gated by a deterministic eval suite:
-twenty-three fixture-backed "golden questions" that exercise the real tool
+twenty-six fixture-backed "golden questions" that exercise the real tool
 handlers and assert structural and numeric invariants.
 
 The suite is **not** an LLM-in-the-loop test. It runs entirely in
@@ -36,16 +36,17 @@ apps/mcp/evals/
 ├── assertions.ts           # tolerance/ordering/leak helpers
 ├── fixtures/
 │   ├── cashflowRows.ts     # synthetic mart_cashflow_daily rows
+│   ├── importRows.ts       # synthetic staged import-session rows
 │   ├── netWorthRows.ts     # synthetic mart_net_worth_daily rows
 │   ├── planningPayloads.ts # canned answer_planning_question payload
 │   ├── scenarioPayloads.ts # canned run_scenario payloads
 │   ├── taxPayloads.ts      # canned compute_tax_year payloads
 │   └── vaultDocs.ts        # synthetic vault layout + helpers
-├── goldens.ts              # the 23 golden questions
+├── goldens.ts              # the 26 golden questions
 └── runner.ts               # vitest harness (one it() per golden)
 ```
 
-## Coverage (23 goldens)
+## Coverage (26 goldens)
 
 | Area              | Count | Topics                                                                                                                                                |
 | ----------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -56,6 +57,7 @@ apps/mcp/evals/
 | Cashflow          | 3     | monthly ≡ Σ daily; year ↔ month rollup invariant; net sign preserved across EUR ↔ DKK                                                                 |
 | Net worth         | 3     | Σ per-account = total; asset_class rollup = total; cross-currency parity within 0.5 % under fixed FX                                                  |
 | Vault search      | 2     | classifier-typed lookup never leaks across types; excerpts never carry raw IBAN / CPR / long digit runs                                               |
+| Import mapping    | 3     | canonical kinds map to documented categories at 0.9; suggestion values/reasons never leak account numbers; identical runs are byte-identical          |
 
 ## Adding a new golden
 
@@ -89,7 +91,7 @@ apps/mcp/evals/
 
 3. Update the count in the dataset-shape check at the top of
    `runner.ts` if the new golden changes the total count (the runner
-   asserts `GOLDENS.length === 23`).
+   asserts `GOLDENS.length === 26`).
 
 4. Run the suite locally:
 

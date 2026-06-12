@@ -1,7 +1,7 @@
 /**
  * Golden questions for the MCP eval harness.
  *
- * Twenty deterministic, fixture-backed checks of the MCP tool layer.
+ * Twenty-six deterministic, fixture-backed checks of the MCP tool layer.
  * Each golden wires synthetic data into the actual tool handler and
  * asserts an invariant or exact numeric expectation. None of the
  * goldens go through an LLM — the host pipeline is exercised end-to-
@@ -27,6 +27,10 @@ import {
   type ScenarioSubprocessRunner,
 } from "../src/tools/runScenario.js";
 import { searchDocumentsTool } from "../src/tools/searchDocuments.js";
+import {
+  suggestImportMappingTool,
+  type ImportMappingQueryRunner,
+} from "../src/tools/suggestImportMapping.js";
 
 import {
   approxEqual,
@@ -77,6 +81,12 @@ import {
 } from "./fixtures/scenarioPayloads.js";
 import { PLANNING_SURFACE_PAYLOAD } from "./fixtures/planningPayloads.js";
 import { SYNTHETIC_VAULT_DOCS, buildVault } from "./fixtures/vaultDocs.js";
+import {
+  EXPECTED_CATEGORIES,
+  IMPORT_ROWS,
+  IMPORT_SESSION_ID,
+  IMPORT_SESSION_ROW,
+} from "./fixtures/importRows.js";
 
 const CTX = { serverName: "evals", serverVersion: "0.0.0-evals" };
 
@@ -86,7 +96,8 @@ export type ToolName =
   | "compute_tax_year"
   | "run_scenario"
   | "answer_planning_question"
-  | "search_documents";
+  | "search_documents"
+  | "suggest_import_mapping";
 
 export interface Golden {
   /** Stable, kebab-case id used to refer to the question in CI logs. */
@@ -170,6 +181,20 @@ function fixedPlanningSurfaceRunner(payload: unknown): PlanningSurfaceRunner {
 
 function fakeBaselineLoader(): BaselineLoader {
   return { load: () => structuredClone(FAKE_BASELINE_SPEC) };
+}
+
+/** Runner answering the session lookup first, then the staged-rows query. */
+function importMappingRunner(
+  session: Record<string, unknown>,
+  rows: ReadonlyArray<Record<string, unknown>>,
+): ImportMappingQueryRunner {
+  let call = 0;
+  return {
+    async query() {
+      call += 1;
+      return { rows: (call === 1 ? [session] : [...rows]) as never };
+    },
+  };
 }
 
 // --- Goldens ---------------------------------------------------------
@@ -791,6 +816,83 @@ export const GOLDENS: Golden[] = [
         }
       } finally {
         rmSync(vaultRoot, { recursive: true, force: true });
+      }
+    },
+  },
+
+  // ===== Import mapping suggestions (3) ==============================
+  {
+    id: "import-mapping-canonical-kinds",
+    question:
+      "Do canonical transaction kinds map to the documented categories with kind-level confidence?",
+    rationale:
+      "Categorization must be reproducible: a buy is always investment.trade.buy at 0.9, never a guess that varies between runs.",
+    tool: "suggest_import_mapping",
+    async run() {
+      const tool = suggestImportMappingTool({
+        runner: importMappingRunner(IMPORT_SESSION_ROW, IMPORT_ROWS),
+      });
+      const out = await tool.handler(
+        tool.inputSchema.parse({ import_session_id: IMPORT_SESSION_ID }),
+        CTX,
+      );
+      if (out.session.rows_considered !== IMPORT_ROWS.length) {
+        throw new Error(
+          `expected ${String(IMPORT_ROWS.length)} rows considered, got ${String(out.session.rows_considered)}`,
+        );
+      }
+      for (const [rowId, expected] of Object.entries(EXPECTED_CATEGORIES)) {
+        const got = out.suggestions.find((s) => s.row_id === rowId && s.field === "category");
+        if (got === undefined) {
+          throw new Error(`no category suggestion for row ${rowId}`);
+        }
+        if (got.value !== expected || got.confidence !== 0.9) {
+          throw new Error(
+            `row ${rowId}: expected ${expected}@0.9, got ${got.value}@${String(got.confidence)}`,
+          );
+        }
+      }
+    },
+  },
+  {
+    id: "import-mapping-never-leaks-account-numbers",
+    question:
+      "Do suggestion values and reasons redact account numbers that appear in staged free text?",
+    rationale:
+      "Nordnet free text routinely embeds counter-account numbers; the suggestion path is LLM-facing and must mask them like every other tool.",
+    tool: "suggest_import_mapping",
+    async run() {
+      const tool = suggestImportMappingTool({
+        runner: importMappingRunner(IMPORT_SESSION_ROW, IMPORT_ROWS),
+      });
+      const out = await tool.handler(
+        tool.inputSchema.parse({ import_session_id: IMPORT_SESSION_ID }),
+        CTX,
+      );
+      if (out.suggestions.length === 0) {
+        throw new Error("expected at least one suggestion to check for leaks");
+      }
+      for (const suggestion of out.suggestions) {
+        expectNoRawAccountLeak(suggestion.value, `value row=${suggestion.row_id}`);
+        expectNoRawAccountLeak(suggestion.reason, `reason row=${suggestion.row_id}`);
+      }
+    },
+  },
+  {
+    id: "import-mapping-deterministic",
+    question: "Does the same staged session yield byte-identical suggestions on every run?",
+    rationale:
+      "ADR-0038 sells these as deterministic rule output; any nondeterminism would make accept/reject audit trails meaningless.",
+    tool: "suggest_import_mapping",
+    async run() {
+      const make = (): ReturnType<typeof suggestImportMappingTool> =>
+        suggestImportMappingTool({
+          runner: importMappingRunner(IMPORT_SESSION_ROW, IMPORT_ROWS),
+        });
+      const first = await make().handler({ import_session_id: IMPORT_SESSION_ID }, CTX);
+      const second = await make().handler({ import_session_id: IMPORT_SESSION_ID }, CTX);
+      if (JSON.stringify(first) !== JSON.stringify(second)) {
+        throw new Error("suggestions differ between identical runs");
       }
     },
   },

@@ -4,10 +4,10 @@ models:
   - name: mart_net_worth_daily
     description: >
       Daily net-worth time series per account, in the account currency,
-      EUR, and DKK. Forward-fills the latest known holding_snapshot per
-      (account, instrument) onto a daily date spine and converts using
-      the snapshot-date ECB FX rate (also forward-filled across
-      weekends/holidays).
+      EUR, and DKK. Aggregates `mart_position_value_daily` (which owns
+      the forward-filled valuation panel and the ECB FX bridge) per
+      account, so account balances always equal the sum of the
+      positions. See ADR-0008 and ADR-0039.
     columns:
       - name: entity_id
         description: Owning entity, copied from `raw.account.entity_id`.

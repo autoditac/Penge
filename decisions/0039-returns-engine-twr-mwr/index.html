@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/runbook/healthchecks/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0039-returns-engine-twr-mwr/">
       
       
-        <link rel="prev" href="../vault-watcher/">
-      
-      
-        <link rel="next" href="../backup-restore/">
       
       
         
@@ -27,7 +23,7 @@
     
     
       
-        <title>Healthchecks (Uptime Kuma + Sentry) - Penge</title>
+        <title>0039 — Returns engine: TWR/MWR methodology and hybrid dbt + Python split - Penge</title>
       
     
     
@@ -78,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#healthchecks-uptime-kuma-sentry" class="md-skip">
+        <a href="#0039-returns-engine-twrmwr-methodology-and-hybrid-dbt-python-split" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Healthchecks (Uptime Kuma + Sentry)
+              0039 — Returns engine: TWR/MWR methodology and hybrid dbt + Python split
             
           </span>
         </div>
@@ -1465,10 +1461,8 @@
       
   
   
-    
   
   
-  
     
     
       
@@ -1501,11 +1495,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
@@ -1526,7 +1520,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1544,7 +1538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monthly-ritual/" class="md-nav__link">
+      <a href="../../runbook/monthly-ritual/" class="md-nav__link">
         
   
   
@@ -1572,7 +1566,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../monthly-report/" class="md-nav__link">
+      <a href="../../runbook/monthly-report/" class="md-nav__link">
         
   
   
@@ -1600,7 +1594,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../web/" class="md-nav__link">
+      <a href="../../runbook/web/" class="md-nav__link">
         
   
   
@@ -1628,7 +1622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../container-images/" class="md-nav__link">
+      <a href="../../runbook/container-images/" class="md-nav__link">
         
   
   
@@ -1656,7 +1650,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../abis-yearly-refresh/" class="md-nav__link">
+      <a href="../../runbook/abis-yearly-refresh/" class="md-nav__link">
         
   
   
@@ -1684,7 +1678,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../branch-protection/" class="md-nav__link">
+      <a href="../../runbook/branch-protection/" class="md-nav__link">
         
   
   
@@ -1712,7 +1706,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../vault-watcher/" class="md-nav__link">
+      <a href="../../runbook/vault-watcher/" class="md-nav__link">
         
   
   
@@ -1737,37 +1731,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Healthchecks (Uptime Kuma + Sentry)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../runbook/healthchecks/" class="md-nav__link">
         
   
   
@@ -1783,109 +1750,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#bring-up-uptime-kuma" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Bring up Uptime Kuma
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#monitor-vault-watcher-health" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Monitor: vault watcher /health
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#monitor-ingestion-job-push-pings" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Monitor: ingestion job push pings
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sentry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sentry
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Sentry">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#project-setup-checklist" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Project setup checklist
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#where-to-look-when-something-fires" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Where to look when something fires
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1898,7 +1762,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../backup-restore/" class="md-nav__link">
+      <a href="../../runbook/backup-restore/" class="md-nav__link">
         
   
   
@@ -1926,7 +1790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../restore-log/" class="md-nav__link">
+      <a href="../../runbook/restore-log/" class="md-nav__link">
         
   
   
@@ -2054,7 +1918,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../decisions/" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -2098,7 +1962,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -2126,7 +1990,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -2154,7 +2018,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -2182,7 +2046,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -2210,7 +2074,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2238,7 +2102,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2266,7 +2130,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2294,7 +2158,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2322,7 +2186,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2350,7 +2214,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
+      <a href="../0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2378,7 +2242,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2406,7 +2270,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2434,7 +2298,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2462,7 +2326,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2490,7 +2354,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2518,7 +2382,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2546,7 +2410,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2574,7 +2438,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2602,7 +2466,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2630,7 +2494,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
+      <a href="../0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2658,7 +2522,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2686,7 +2550,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2714,7 +2578,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2742,7 +2606,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
+      <a href="../0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2770,7 +2634,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
+      <a href="../0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2798,7 +2662,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2826,7 +2690,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2854,7 +2718,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -2882,7 +2746,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -2910,7 +2774,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0034-application-container-images/" class="md-nav__link">
+      <a href="../0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -2938,7 +2802,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0035-fastapi-read-api/" class="md-nav__link">
+      <a href="../0035-fastapi-read-api/" class="md-nav__link">
         
   
   
@@ -2966,7 +2830,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0036-webui-frontend-stack/" class="md-nav__link">
+      <a href="../0036-webui-frontend-stack/" class="md-nav__link">
         
   
   
@@ -2994,7 +2858,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0037-staged-import-sessions/" class="md-nav__link">
+      <a href="../0037-staged-import-sessions/" class="md-nav__link">
         
   
   
@@ -3022,7 +2886,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+      <a href="../0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
         
   
   
@@ -3050,7 +2914,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/adr-template/" class="md-nav__link">
+      <a href="../adr-template/" class="md-nav__link">
         
   
   
@@ -3159,10 +3023,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#bring-up-uptime-kuma" class="md-nav__link">
+  <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bring up Uptime Kuma
+        Context and Problem Statement
       
     </span>
   </a>
@@ -3170,10 +3034,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#monitor-vault-watcher-health" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Monitor: vault watcher /health
+        Decision Drivers
       
     </span>
   </a>
@@ -3181,10 +3045,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#monitor-ingestion-job-push-pings" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Monitor: ingestion job push pings
+        Considered Options
       
     </span>
   </a>
@@ -3192,22 +3056,44 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#sentry" class="md-nav__link">
+  <a href="#decision-outcome" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sentry
+        Decision Outcome
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Sentry">
+    <nav class="md-nav" aria-label="Decision Outcome">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#project-setup-checklist" class="md-nav__link">
+  <a href="#mart-layer" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Project setup checklist
+        Mart layer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#methodology-conventions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methodology conventions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#python-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Python layer
       
     </span>
   </a>
@@ -3220,21 +3106,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#where-to-look-when-something-fires" class="md-nav__link">
+  <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Where to look when something fires
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#troubleshooting" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Troubleshooting
+        Consequences
       
     </span>
   </a>
@@ -3258,7 +3133,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/runbook/healthchecks.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0039-returns-engine-twr-mwr.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3266,247 +3141,154 @@
   
 
 
-<h1 id="healthchecks-uptime-kuma-sentry">Healthchecks: Uptime Kuma + Sentry<a class="headerlink" href="#healthchecks-uptime-kuma-sentry" title="Permanent link">&para;</a></h1>
-<p>Penge ships two layers of out-of-process observability:</p>
+<h1 id="0039-returns-engine-twrmwr-methodology-and-hybrid-dbt-python-split">0039 — Returns engine: TWR/MWR methodology and hybrid dbt + Python split<a class="headerlink" href="#0039-returns-engine-twrmwr-methodology-and-hybrid-dbt-python-split" title="Permanent link">&para;</a></h1>
 <ul>
-<li><strong>Uptime Kuma</strong> — local, self-hosted dashboard that polls long-lived
-  HTTP endpoints (the vault watcher's <code>/health</code>) and accepts inbound
-  push pings from cron-style ingestion jobs.</li>
-<li><strong>Sentry</strong> — external error tracker for unhandled exceptions in
-  ingestion entry points. PII scrubbing is applied before any payload
-  leaves the process.</li>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-06-12</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> analytics, dbt, performance, fx</li>
 </ul>
-<p>Both layers are <strong>opt-in via env vars</strong>: with <code>PENGE_UPTIME_KUMA_PUSH_URL</code>
-and <code>SENTRY_DSN</code> unset (the default in <code>.env.example</code>), the helpers
-no-op and ingestion runs unchanged.</p>
-<p>See <a href="https://github.com/autoditac/Penge/issues/52">issue #52</a> for
-context and <a href="../../decisions/0024-vault-layout/">ADR-0024</a> for the
-vault watcher health surface this builds on.</p>
-<h2 id="bring-up-uptime-kuma">Bring up Uptime Kuma<a class="headerlink" href="#bring-up-uptime-kuma" title="Permanent link">&para;</a></h2>
-<p>The Uptime Kuma service is part of the project compose file. Image
-digest is pinned; Dependabot (<code>docker</code> ecosystem) tracks bumps.</p>
-<div class="highlight"><pre><span></span><code>docker<span class="w"> </span>compose<span class="w"> </span>up<span class="w"> </span>-d<span class="w"> </span>uptime-kuma
-</code></pre></div>
-<p>State (monitor configs, heartbeat history, the bcrypt-hashed admin
-password) lives in <code>./data/uptime-kuma</code> (a SQLite DB) — back it up the
-same way as <code>./data/postgres</code>.</p>
-<p>Open <a href="http://127.0.0.1:3001">http://127.0.0.1:3001</a> and complete the first-run wizard:</p>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>Issue #205 asks for a deterministic returns engine on top of the existing
+holdings/price/transaction data: time-weighted return (TWR) per account,
+per asset class, and household-total, plus money-weighted return
+(MWR/XIRR) per account and household. The engine must handle external
+flows, EUR/DKK FX via ECB rates, and fees as recorded.</p>
+<p>Two architectural questions need a recorded answer:</p>
 <ol>
-<li>Pick a username and a <em>strong</em> password (the dashboard exposes
-   monitor URLs and tokens).</li>
-<li>Disable any "send anonymous usage statistics" toggle if shown.</li>
-<li>Under <strong>Settings → Security</strong>, enable 2FA.</li>
+<li>Where does each computation live — dbt (SQL) or Python?</li>
+<li>Which return-methodology conventions apply — sub-period boundaries,
+   flow timing, fee/tax treatment, FX policy, and the XIRR solver?</li>
 </ol>
-<p>The dashboard binds to <code>127.0.0.1</code> only. Expose it through a reverse
-proxy with TLS + basic auth if you want to read it from another device.</p>
-<h2 id="monitor-vault-watcher-health">Monitor: vault watcher <code>/health</code><a class="headerlink" href="#monitor-vault-watcher-health" title="Permanent link">&para;</a></h2>
-<p>The vault watcher (<code>penge-vault watch</code>) exposes a stdlib HTTP server
-on <code>--health-port</code> (default: <code>$PENGE_VAULT_HEALTH_PORT</code>). <code>/health</code>
-returns <code>200 OK</code> with the heartbeat ISO timestamp and <code>503 starting</code>
-before the first beat.</p>
-<p>In Uptime Kuma, <strong>Add New Monitor → HTTP(s) - Keyword</strong>:</p>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Friendly name</td>
-<td><code>vault-watcher</code></td>
-</tr>
-<tr>
-<td>URL</td>
-<td><code>http://&lt;host&gt;:9101/health</code></td>
-</tr>
-<tr>
-<td>Keyword</td>
-<td><code>T</code> (any char from the ISO timestamp)</td>
-</tr>
-<tr>
-<td>Heartbeat interval</td>
-<td><code>60</code> seconds</td>
-</tr>
-<tr>
-<td>Retries</td>
-<td><code>2</code></td>
-</tr>
-<tr>
-<td>Heartbeat retry interval</td>
-<td><code>60</code> seconds</td>
-</tr>
-</tbody>
-</table>
-<p>Notify channel: pick whatever you already use (email/Pushover/ntfy).</p>
-<p>If the watcher pod has no embedded ISO 8601 character to grep for,
-swap to <strong>HTTP(s)</strong> monitor type and rely on the <code>200</code> status alone.</p>
-<h2 id="monitor-ingestion-job-push-pings">Monitor: ingestion job push pings<a class="headerlink" href="#monitor-ingestion-job-push-pings" title="Permanent link">&para;</a></h2>
-<p>Cron-driven ingestion jobs have no long-lived endpoint. They use
-Uptime Kuma's <em>Push</em> monitor type: each successful run hits a unique
-URL, and Uptime Kuma alerts when the heartbeat goes stale.</p>
-<p>In Uptime Kuma, <strong>Add New Monitor → Push</strong>, one per job:</p>
-<table>
-<thead>
-<tr>
-<th>Job (component tag)</th>
-<th>Friendly name</th>
-<th>Heartbeat interval</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>ingest.ecb_fx</code></td>
-<td><code>ingest-ecb-fx</code></td>
-<td><code>90</code> minutes (run daily)</td>
-</tr>
-<tr>
-<td><code>ingest.gls</code></td>
-<td><code>ingest-gls</code></td>
-<td><code>26</code> hours (run daily)</td>
-</tr>
-<tr>
-<td><code>ingest.ebank</code></td>
-<td><code>ingest-evangelische</code></td>
-<td><code>26</code> hours</td>
-</tr>
-<tr>
-<td><code>ingest.lunar</code></td>
-<td><code>ingest-lunar</code></td>
-<td><code>26</code> hours</td>
-</tr>
-<tr>
-<td><code>ingest.nordnet</code></td>
-<td><code>ingest-nordnet</code></td>
-<td>weekly + slack</td>
-</tr>
-<tr>
-<td><code>ingest.growney</code></td>
-<td><code>ingest-growney</code></td>
-<td>monthly + slack</td>
-</tr>
-<tr>
-<td><code>ingest.pfa</code></td>
-<td><code>ingest-pfa</code></td>
-<td>yearly + slack</td>
-</tr>
-<tr>
-<td><code>ingest.prices</code></td>
-<td><code>ingest-prices</code></td>
-<td>daily</td>
-</tr>
-</tbody>
-</table>
-<p>Copy the generated push URL (looks like
-<code>http://127.0.0.1:3001/api/push/&lt;token&gt;?status=up&amp;msg=OK&amp;ping=</code>).</p>
-<p>Set the <strong>prefix</strong> (everything before <code>/&lt;token&gt;</code>) once in your shell
-environment or <code>.env</code>:</p>
-<div class="highlight"><pre><span></span><code><span class="nv">PENGE_UPTIME_KUMA_PUSH_URL</span><span class="o">=</span>http://127.0.0.1:3001/api/push
-</code></pre></div>
-<p>Wire it into the cron wrapper for each job. Example for ECB FX:</p>
-<div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env bash</span>
-<span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
-<span class="nv">SLUG</span><span class="o">=</span><span class="s2">&quot;&lt;token-from-uptime-kuma&gt;&quot;</span>
-<span class="k">if</span><span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>http<span class="w"> </span>penge-ecb-fx<span class="w"> </span>--latest<span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<span class="w">    </span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>ops<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span><span class="s2">&quot;from penge.ops.heartbeat import heartbeat; heartbeat(&#39;</span><span class="nv">$SLUG</span><span class="s2">&#39;, &#39;up&#39;, &#39;ok&#39;)&quot;</span>
-<span class="k">else</span>
-<span class="w">    </span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>ops<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span><span class="s2">&quot;from penge.ops.heartbeat import heartbeat; heartbeat(&#39;</span><span class="nv">$SLUG</span><span class="s2">&#39;, &#39;down&#39;, &#39;failed&#39;)&quot;</span>
-<span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
-<span class="k">fi</span>
-</code></pre></div>
-<p>Or, better, call <code>penge.ops.heartbeat.heartbeat(...)</code> from the same
-Python process the job already runs in, e.g. wrapped around the
-existing <code>main()</code> call site. The helper:</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Reads the prefix from <code>PENGE_UPTIME_KUMA_PUSH_URL</code>.</li>
-<li>No-ops silently when the env var is unset.</li>
-<li>Swallows network errors at WARNING level — Uptime Kuma's stale
-  heartbeat alert is the source of truth, never the heartbeat call
-  itself.</li>
-<li>Uses a 5-second timeout so a hung Uptime Kuma cannot stall ingestion.</li>
+<li><strong>Correct numbers first.</strong> Conventions must be explicit, tested against
+  closed-form cases, and stable across runs (no solver flakiness).</li>
+<li><strong>Reuse the existing valuation pipeline.</strong> <code>mart_net_worth_daily</code>
+  already builds the forward-filled daily valuation panel and the
+  EUR/DKK FX bridge (ADR-0008); the returns engine must not invent a
+  second valuation or FX path.</li>
+<li><strong>dbt-testable marts.</strong> The issue's Definition of Done requires marts
+  validated by <code>dbt test</code>.</li>
+<li><strong>XIRR is iterative.</strong> A root solver cannot be expressed in dbt SQL.</li>
+<li><strong>No new heavy dependency.</strong> Pulling in scipy for one <code>brentq</code> call is
+  not justified; a small, well-tested bisection solver suffices.</li>
+<li><strong>EUR and DKK are both first-class</strong> (repo rule): every return series
+  must exist in both measurement currencies.</li>
 </ul>
-<h2 id="sentry">Sentry<a class="headerlink" href="#sentry" title="Permanent link">&para;</a></h2>
-<p><code>SENTRY_DSN</code> is read by <code>penge.ops.sentry.init_sentry()</code>. All ingestion
-CLI entry points (<code>penge-vault</code>, <code>penge-ecb-fx</code>, <code>penge-gls</code>,
-<code>penge-ebank</code>, <code>penge-lunar</code>, <code>penge-nordnet</code>, <code>penge-growney</code>,
-<code>penge-pfa</code>, <code>penge-prices</code>) call it after <code>logging.basicConfig()</code>.</p>
-<ul>
-<li>When unset: <code>init_sentry()</code> returns <code>False</code> and nothing is sent.</li>
-<li>When set: events are tagged with <code>component=&lt;entry-point&gt;</code> and the
-  resolved environment (<code>SENTRY_ENVIRONMENT</code>, falling back to
-  <code>PENGE_ENV</code>, default <code>dev</code>).</li>
-</ul>
-<blockquote>
-<p><strong>Important:</strong> the <code>sentry-sdk</code> package only ships with the optional
-<code>ops</code> dependency group. Setting <code>SENTRY_DSN</code> is <strong>not</strong> sufficient on
-its own — the runtime must also install the group, e.g.
-<code>uv sync --group ops</code> (or <code>uv run --group ops ...</code>, or include <code>ops</code>
-in your container/cron profile). When the SDK is missing,
-<code>init_sentry()</code> logs <code>sentry init skipped: sentry-sdk not installed</code>
-at WARNING level and returns <code>False</code>.</p>
-</blockquote>
-<p>PII scrubbing happens in a <code>before_send</code> hook that redacts every dict
-value whose key matches <code>account|iban|cpr|tax_id|name|email</code>. The same
-regex is enforced by the MCP audit logger
-(<code>apps/mcp/src/audit.ts</code>). If you change one, change both — code review
-catches the drift.</p>
-<h3 id="project-setup-checklist">Project setup checklist<a class="headerlink" href="#project-setup-checklist" title="Permanent link">&para;</a></h3>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Create a project in Sentry (Python platform).</li>
-<li>Copy the DSN into the home server's <code>.env</code>.</li>
-<li>Set <code>SENTRY_ENVIRONMENT=prod</code> on the server, <code>dev</code> locally.</li>
-<li>Add <code>SENTRY_RELEASE=$(git rev-parse --short HEAD)</code> to the cron
-   wrappers so events are pinned to a commit.</li>
-<li>Verify with a deliberate exception — a one-line script that imports
-   <code>init_sentry</code>, calls it, then <code>raise RuntimeError("sentry smoke test")</code>.
-   The event should land in Sentry within seconds, with the
-   <code>account|iban|...</code> fields redacted in any breadcrumbs.</li>
+<li><strong>Pure dbt</strong> — daily return factors <em>and</em> cumulative TWR in SQL;
+   approximate MWR with Modified Dietz so SQL can do it.</li>
+<li><strong>Pure Python</strong> — read raw tables, build the panel, compute TWR/MWR
+   entirely in Python; no new marts.</li>
+<li><strong>Hybrid (chosen)</strong> — dbt materializes the daily
+   valuation/flow/return-factor panel as marts
+   (<code>mart_position_value_daily</code>, <code>mart_returns_daily</code>); Python
+   (<code>penge.analytics.returns</code>) chain-links factors over arbitrary
+   windows and solves XIRR.</li>
 </ol>
-<h2 id="where-to-look-when-something-fires">Where to look when something fires<a class="headerlink" href="#where-to-look-when-something-fires" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Symptom</th>
-<th>Where to look</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Uptime Kuma "vault-watcher down"</td>
-<td><code>journalctl --user -u penge-vault.service</code> (or wherever the watcher runs); <code>&lt;vault_root&gt;/.health</code> mtime</td>
-</tr>
-<tr>
-<td>Uptime Kuma "ingest-* push stale"</td>
-<td>The cron job's stdout/stderr; <code>tail -f</code> the journal log; check <code>data/postgres</code> for partial state</td>
-</tr>
-<tr>
-<td>Sentry event <code>component=ingest.&lt;x&gt;</code></td>
-<td>The same cron log (full stack trace in Sentry); rerun manually with <code>--verbose</code></td>
-</tr>
-<tr>
-<td>Sentry event <code>component=vault-watcher</code></td>
-<td>The watcher's stderr; <code>/metrics</code> for <code>vault_failures_total</code> jumps</td>
-</tr>
-</tbody>
-</table>
-<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
-<p><strong><code>heartbeat skipped: PENGE_UPTIME_KUMA_PUSH_URL unset</code></strong> (DEBUG log) —
-the env var is not set. Either configure it or accept the no-op.</p>
-<p><strong><code>sentry init skipped: already initialized</code></strong> (DEBUG log) — benign;
-<code>init_sentry()</code> is safe to call multiple times.</p>
-<p><strong><code>sentry init skipped: sentry-sdk not installed</code></strong> (WARNING log) —
-the <code>ops</code> group is not installed. Run <code>uv sync --group ops</code> (or include
-it in your runtime profile).</p>
-<p><strong>Uptime Kuma state is missing after a restart</strong> — Kuma's SQLite
-database lives in the bind mount at <code>./data/uptime-kuma</code>. <code>docker
-compose down</code> (with or without <code>-v</code>) does <strong>not</strong> delete bind-mounted
-host directories — <code>-v</code> only removes Docker-managed named volumes. If
-the data directory is empty, it was wiped manually (e.g. <code>rm -rf
-data/uptime-kuma</code>) or the service was started against a different
-working directory; restore from backup and re-create monitors.</p>
+<h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
+<p>Chosen option: <strong>hybrid</strong>, because option 1 cannot deliver true
+MWR/XIRR (Modified Dietz materially diverges on large mid-period flows)
+and option 2 would duplicate the forward-fill and FX logic that the dbt
+layer already owns and tests.</p>
+<h3 id="mart-layer">Mart layer<a class="headerlink" href="#mart-layer" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong><code>mart_position_value_daily</code></strong> — the forward-filled daily panel at
+  (<code>account_id</code>, <code>instrument_id</code>, <code>as_of</code>) grain, extracted from
+  <code>mart_net_worth_daily</code>'s internal CTE, with the market value in
+  account currency, EUR, and DKK. <code>mart_net_worth_daily</code> becomes a
+  thin aggregation over this mart. Because the position mart rounds
+  per-position values to 4 decimals before the net-worth sum (the old
+  model converted after summing), totals can differ in the 4th decimal
+  in edge cases; this is accepted so that position rows always add up
+  to the account and net-worth totals.</li>
+<li><strong><code>mart_returns_daily</code></strong> — daily return factors at
+  (<code>scope</code>, <code>scope_key</code>, <code>as_of</code>) grain where <code>scope</code> ∈
+  {<code>account</code>, <code>asset_class</code>, <code>household</code>}:</li>
+<li><code>account</code>: <code>scope_key</code> = account id; values from the position mart
+    summed per account.</li>
+<li><code>asset_class</code>: <code>scope_key</code> = <code>instrument.kind</code> (e.g. <code>cash</code>,
+    <code>fund</code>); values summed per kind across accounts.</li>
+<li><code>household</code>: <code>scope_key</code> = <code>'household'</code>; everything summed.</li>
+<li>Columns per measurement currency (EUR and DKK): begin value, end
+    value, net external flow, and the daily return factor.</li>
+</ul>
+<h3 id="methodology-conventions">Methodology conventions<a class="headerlink" href="#methodology-conventions" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Daily chain-linking.</strong> Every calendar day is a TWR sub-period, so
+  the GIPS requirement to break sub-periods on external flows is
+  satisfied by construction.</li>
+<li><strong>Start-of-day flow convention.</strong> The daily factor is
+  <code>f_t = MV_t / (MV_{t-1} + F_t)</code> where <code>F_t</code> is the net external flow
+  dated <code>t</code> (using <code>coalesce(value_date, ts::date)</code>). This stays
+  defined on the very first day of a funded account
+  (<code>MV_0 = F_0 · f_0</code>). Days where <code>MV_{t-1} + F_t &lt;= 0</code> while a flow
+  or value exists yield a NULL factor; the Python layer refuses to
+  chain across NULLs and reports the gap instead of fabricating a
+  number.</li>
+<li><strong>External flows per scope:</strong></li>
+<li><code>account</code> and <code>household</code>: transaction kinds <code>deposit</code>,
+    <code>withdrawal</code>, and (account scope only) <code>internal_transfer</code>, with
+    the signed amount as recorded. At household scope internal
+    transfers net out by construction and are excluded.</li>
+<li><code>asset_class</code>, non-cash classes: <code>buy</code>/<code>sell</code> move value between
+    the cash class and the instrument's class, so the flow into the
+    class is <code>-amount</code> (a buy books a negative cash amount, hence a
+    positive flow into e.g. <code>fund</code>). <code>dividend</code> amounts leave the
+    paying class as cash, so they count as an outflow of that class —
+    this makes the class return a <em>total</em> return (price + payout).</li>
+<li><code>asset_class = cash</code>: every cash-affecting transaction <strong>except</strong>
+    <code>cash_interest</code> is a flow (deposits, withdrawals, transfers, the
+    cash legs of buys/sells/dividends, fees, taxes). Interest is the
+    cash class's return.</li>
+<li><strong>Fees and taxes are not external flows</strong> at account and household
+  scope; they stay inside the return, so those series are
+  <strong>net-of-fees-and-taxes as recorded</strong> — the return the household
+  actually experiences. Asset-class series are gross trading views by
+  construction (fees/taxes hit the cash class as flows); the two scopes
+  deliberately answer different questions and do not compose.</li>
+<li><strong>FX policy.</strong> Identical to <code>mart_net_worth_daily</code> (ADR-0008): ECB
+  EUR-base rates, forward-filled across weekends/holidays; DKK via the
+  EUR bridge. Returns are computed independently in the EUR view and
+  the DKK view; they legitimately differ by the FX movement of the
+  measurement currency. Flows are converted at the flow-date
+  (forward-filled) rate.</li>
+<li><strong>MWR/XIRR.</strong> Python-only, from the same mart series: the start
+  value is a purchase (negative), external flows are investor
+  contributions (negative) / withdrawals (positive), the end value is
+  a liquidation (positive). The solver brackets the root of the NPV
+  function over annualized rates in <code>(-0.999..., +10)</code> and bisects to
+  convergence — deterministic, no Newton divergence, no scipy. If NPV
+  has no sign change in the bracket (e.g. all flows one-signed), the
+  result is <code>None</code> rather than a fabricated rate.</li>
+<li><strong>Annualization</strong> uses actual/365.25 day count and is only reported
+  for windows ≥ 30 days to avoid nonsense extrapolation.</li>
+<li><strong>Out of scope:</strong> tax-adjusted returns (planning-grade gross/net as
+  defined above only), benchmark-relative metrics (issue #206), and
+  intraday effects.</li>
+</ul>
+<h3 id="python-layer">Python layer<a class="headerlink" href="#python-layer" title="Permanent link">&para;</a></h3>
+<p><code>penge.analytics.returns</code> is pure and DB-free (<code>mypy --strict</code>): it
+consumes value/flow series as plain data, exposes <code>chain_linked_twr</code>,
+<code>twr_summary</code>, <code>xirr</code>, and <code>mwr_from_series</code>, and is property-base
+tested (hypothesis) against closed-form cases plus golden fixtures.
+Database access stays in the existing read-API/dbt layers.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Good: one valuation/FX code path; marts stay dbt-testable; XIRR is
+  exact, deterministic, and dependency-free.</li>
+<li>Good: <code>mart_net_worth_daily</code> consumers are unaffected (pure
+  refactor, asserted by its unchanged dbt tests).</li>
+<li>Bad: two marts and a Python module instead of one artifact; the
+  scope-dependent flow definitions must be read before interpreting
+  numbers (documented in <code>docs/analytics/returns.md</code>).</li>
+<li>Bad: forward-filled snapshots mean a same-day deposit only shows in
+  the factor once the matching snapshot lands; stale snapshots
+  temporarily distort daily factors (visible, self-healing, and
+  documented).</li>
+</ul>
 
 
 

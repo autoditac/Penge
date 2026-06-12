@@ -74,7 +74,6 @@ series = [
         begin_value=Decimal("10000"),
         end_value=Decimal("10100"),
         net_flow=Decimal("0"),
-        return_factor=Decimal("1.01"),
     ),
     # ... one point per day from mart_returns_daily ...
 ]
@@ -84,9 +83,12 @@ mwr = mwr_from_series(series)  # XIRR, or None if unsolvable
 ```
 
 - `twr_summary` chain-links daily factors and annualizes via
-  `(1 + r) ** (365.25 / days) - 1` only when the window covers at least one
-  year; shorter windows report the cumulative figure unannualized.
-- Days without a factor (`return_factor=None`) must be dormant
+  `(1 + r) ** (365.25 / days) - 1` only when the window covers at least
+  30 days; shorter windows report the cumulative figure unannualized.
+- Each point's daily factor is the derived property `point.factor`
+  (`end_value / (begin_value + net_flow)`), `None` when no capital was
+  at risk.
+- Days without a factor must be dormant
   (`end_value == begin_value + net_flow` with no return base); anything else
   raises `ReturnsError` instead of silently skipping data.
 - Out-of-order or gap-discontinuous series raise `ReturnsError`.

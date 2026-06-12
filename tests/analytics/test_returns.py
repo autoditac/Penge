@@ -171,7 +171,8 @@ def test_twr_data_gap_raises() -> None:
 
 
 def test_xirr_known_annual_return_golden() -> None:
-    # Invest 1000, receive 1100 exactly 365.25 days later: rate = 10%.
+    # Invest 1000, receive 1100 exactly 365 days later. With the
+    # actual/365.25 convention the rate is (1.1)^(365.25/365) - 1.
     flows = [
         (_D0, Decimal("-1000")),
         (_D0 + timedelta(days=365), Decimal("1100")),

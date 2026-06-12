@@ -633,9 +633,48 @@ def test_patch_suggested_by_without_mappings_is_rejected(
 ) -> None:
     body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
     row = body["rows"][0]
+    for payload in (
+        {"suggested_by": "suggest_import_mapping"},
+        {"mappings": {}, "suggested_by": "suggest_import_mapping"},
+    ):
+        response = client.patch(f"/imports/{body['id']}/rows/{row['id']}", json=payload)
+        assert response.status_code == 422
+        assert "non-empty mappings" in response.json()["detail"]
+
+
+def test_patch_blank_suggested_by_is_rejected(client: TestClient, tmp_path: Path) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
     response = client.patch(
         f"/imports/{body['id']}/rows/{row['id']}",
-        json={"suggested_by": "suggest_import_mapping"},
+        json={"mappings": {"category": "cash buffer"}, "suggested_by": "   "},
     )
     assert response.status_code == 422
-    assert "only valid together with mappings" in response.json()["detail"]
+    assert "non-blank" in response.json()["detail"]
+
+    oversize = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"mappings": {"category": "cash buffer"}, "suggested_by": "x" * 201},
+    )
+    assert oversize.status_code == 422
+    assert "exceeds 200" in oversize.json()["detail"]
+
+
+def test_patch_empty_mappings_clears_mappings_and_provenance(
+    client: TestClient, tmp_path: Path
+) -> None:
+    body = upload(client, manual_json(tmp_path, [_BALANCE])).json()
+    row = body["rows"][0]
+    accepted = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"mappings": {"category": "cash buffer"}, "suggested_by": "suggest_import_mapping"},
+    )
+    assert accepted.status_code == 200
+    assert accepted.json()["accepted_at"] is not None
+
+    cleared = client.patch(f"/imports/{body['id']}/rows/{row['id']}", json={"mappings": {}})
+    assert cleared.status_code == 200
+    out = cleared.json()
+    assert out["mappings"] == {}
+    assert out["suggested_by"] is None
+    assert out["accepted_at"] is None

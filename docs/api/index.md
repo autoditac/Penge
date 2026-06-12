@@ -77,9 +77,10 @@ bounds one call.
 Accepted suggestions are written back through the row PATCH as
 `mappings` (allowed keys `category`, `counterparty`, `asset_class`)
 plus `suggested_by`; the server stamps `accepted_at` when
-`suggested_by` is present and clears both for manual mappings.
-Mappings live next to the payload and never modify it, so commit
-behavior is unchanged.
+`suggested_by` is present and clears both for manual mappings. An
+empty `mappings` object is a manual clear: it removes all mappings and
+any AI provenance. Mappings live next to the payload and never modify
+it, so commit behavior is unchanged.
 
 ## Contract
 

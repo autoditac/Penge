@@ -95,9 +95,11 @@ the boundaries above:
   what the loaders commit.
 - **PATCH carries acceptance.** `PATCH /imports/{id}/rows/{row_id}`
   accepts `mappings` (+ optional `suggested_by`); the server validates
-  field names and value lengths, stamps `accepted_at` when
+  field names and value lengths, requires non-empty mappings and a
+  non-blank tool name for acceptances, stamps `accepted_at` when
   `suggested_by` is present, and clears both when a human re-maps
-  manually. Rejecting a suggestion writes nothing.
+  manually (an empty `mappings` object clears everything). Rejecting a
+  suggestion writes nothing.
 
 ### Consequences
 

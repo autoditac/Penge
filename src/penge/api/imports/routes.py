@@ -277,14 +277,34 @@ def get_import(
     )
 
 
+MAX_SUGGESTED_BY_LENGTH = 200
+
+
 def _validate_mappings(request: RowPatchRequest) -> None:
-    """Reject malformed mapping updates before anything is written."""
-    if request.mappings is None:
-        if request.suggested_by is not None:
+    """Reject malformed mapping updates before anything is written.
+
+    ``suggested_by`` records which tool produced accepted values, so it
+    requires a non-empty ``mappings`` object and a non-blank name. An
+    empty ``mappings`` object is a valid manual update: it clears all
+    mappings (and, with them, any AI provenance).
+    """
+    if request.suggested_by is not None:
+        if not request.mappings:
             raise HTTPException(
                 status_code=422,
-                detail="suggested_by is only valid together with mappings",
+                detail="suggested_by is only valid together with non-empty mappings",
             )
+        if not request.suggested_by.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="suggested_by must be a non-blank tool name",
+            )
+        if len(request.suggested_by) > MAX_SUGGESTED_BY_LENGTH:
+            raise HTTPException(
+                status_code=422,
+                detail=f"suggested_by exceeds {MAX_SUGGESTED_BY_LENGTH} characters",
+            )
+    if request.mappings is None:
         return
     unknown = sorted(set(request.mappings) - set(MAPPING_FIELDS))
     if unknown:

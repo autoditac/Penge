@@ -14,6 +14,7 @@ requests are a manual wizard action, not a hot path.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import subprocess
@@ -39,12 +40,17 @@ class McpToolError(Exception):
 
 
 def _drain_stderr(stream: IO[bytes], sink: list[bytes]) -> None:
-    """Accumulate up to ``_STDERR_CAP_BYTES`` of stderr for diagnostics."""
+    """Accumulate up to ``_STDERR_CAP_BYTES`` of stderr for diagnostics.
+
+    Keeps reading past the cap so the child never blocks on a full
+    stderr pipe; only the appended (possibly truncated) bytes count.
+    """
     captured = 0
     for line in stream:
         if captured < _STDERR_CAP_BYTES:
-            sink.append(line[: _STDERR_CAP_BYTES - captured])
-            captured += len(line)
+            chunk = line[: _STDERR_CAP_BYTES - captured]
+            sink.append(chunk)
+            captured += len(chunk)
 
 
 def _write_message(stdin: IO[bytes], message: dict[str, object]) -> None:
@@ -171,10 +177,14 @@ def call_tool(
         raise
     finally:
         timer.cancel()
-        process.stdin.close()
+        with contextlib.suppress(OSError):  # broken pipe: the server already exited
+            process.stdin.close()
         process.kill()
-        process.wait(timeout=5)
-        if process.returncode not in (0, -9) and stderr_sink:
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:  # pragma: no cover — needs an unkillable child
+            log.warning("MCP server process ignored SIGKILL; abandoning it")
+        if process.returncode not in (None, 0, -9) and stderr_sink:
             log.debug(
                 "MCP server stderr (exit=%s): %s",
                 process.returncode,

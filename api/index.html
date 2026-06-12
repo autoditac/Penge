@@ -3029,6 +3029,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Import sessions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ai-mapping-suggestions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        AI mapping suggestions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -3144,11 +3161,15 @@ written to the warehouse (upload → preview → fix/exclude rows → commit):</
 </tr>
 <tr>
 <td><code>PATCH /imports/{id}/rows/{row_id}</code></td>
-<td>Edit a row payload (revalidated) or toggle exclusion</td>
+<td>Edit a row payload (revalidated), toggle exclusion, or set mappings</td>
 </tr>
 <tr>
 <td><code>POST /imports/{id}/commit</code></td>
 <td>Write staged rows through the existing connector loaders</td>
+</tr>
+<tr>
+<td><code>POST /imports/{id}/suggestions</code></td>
+<td>Proxy the MCP <code>suggest_import_mapping</code> tool (ADR-0038)</td>
 </tr>
 <tr>
 <td><code>DELETE /imports/{id}</code></td>
@@ -3165,6 +3186,23 @@ transaction history, so they stay on the CLI path for now.</p>
 <code>PENGE_IMPORT_SESSION_TTL_DAYS</code> (default 7; stale staged sessions expire
 lazily), and <code>PENGE_NORDNET_ACCOUNTS_CONFIG</code> (accounts YAML required to
 commit Nordnet sessions).</p>
+<h3 id="ai-mapping-suggestions">AI mapping suggestions<a class="headerlink" href="#ai-mapping-suggestions" title="Permanent link">&para;</a></h3>
+<p><code>POST /imports/{id}/suggestions</code> spawns the configured MCP server, calls
+its <code>suggest_import_mapping</code> tool, and returns the structured suggestion
+list unchanged — the API holds no categorization rules of its own
+(ADR-0038, ADR-0005). The endpoint answers <code>503</code> while
+<code>PENGE_MCP_SUGGEST_COMMAND</code> is unset (e.g.
+<code>node apps/mcp/dist/index.js</code>) or the server is unreachable, and <code>502</code>
+when the tool itself rejects the call; the wizard degrades to manual
+review in both cases. <code>PENGE_MCP_SUGGEST_TIMEOUT_SECONDS</code> (default 30)
+bounds one call.</p>
+<p>Accepted suggestions are written back through the row PATCH as
+<code>mappings</code> (allowed keys <code>category</code>, <code>counterparty</code>, <code>asset_class</code>)
+plus <code>suggested_by</code>; the server stamps <code>accepted_at</code> when
+<code>suggested_by</code> is present and clears both for manual mappings. An
+empty <code>mappings</code> object is a manual clear: it removes all mappings and
+any AI provenance. Mappings live next to the payload and never modify
+it, so commit behavior is unchanged.</p>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Amounts are JSON <strong>strings</strong> (<code>"1000.0000"</code>), never floats — they are

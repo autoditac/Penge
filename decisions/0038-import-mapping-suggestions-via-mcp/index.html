@@ -2967,6 +2967,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#wizard-integration-issue-210" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wizard integration (issue #210)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3163,6 +3174,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#wizard-integration-issue-210" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wizard integration (issue #210)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3283,6 +3305,34 @@ survives).</p>
   import API PATCH endpoint (#210), which re-validates through the parser
   models.</li>
 </ul>
+<h3 id="wizard-integration-issue-210">Wizard integration (issue #210)<a class="headerlink" href="#wizard-integration-issue-210" title="Permanent link">&para;</a></h3>
+<p>The review layer wires the tool into the import wizard without weakening
+the boundaries above:</p>
+<ul>
+<li><strong>Bridge, not embedding.</strong> The FastAPI app gains
+  <code>POST /imports/{id}/suggestions</code>, a thin proxy that spawns the MCP
+  server command from <code>PENGE_MCP_SUGGEST_COMMAND</code> (timeout
+  <code>PENGE_MCP_SUGGEST_TIMEOUT_SECONDS</code>, default 30 s), speaks
+  newline-delimited JSON-RPC over stdio (<code>initialize</code> →
+  <code>notifications/initialized</code> → <code>tools/call</code>), and returns the tool's
+  structured output unchanged. No categorization rules exist in the API;
+  unset command or unreachable server → <code>503</code> and the wizard reverts to
+  manual review, tool-level failure → <code>502</code>.</li>
+<li><strong>Audit columns instead of payload edits.</strong> <code>import_row</code> gains
+  <code>mappings</code> (JSONB, accepted values keyed by <code>category</code> /
+  <code>counterparty</code> / <code>asset_class</code>), <code>suggested_by</code> (tool name, <code>NULL</code> for
+  manual mappings), and <code>accepted_at</code> (acceptance timestamp). Mappings
+  are deliberately stored <strong>next to</strong> the payload: parser models drop or
+  reject unknown payload keys, and a categorization must never change
+  what the loaders commit.</li>
+<li><strong>PATCH carries acceptance.</strong> <code>PATCH /imports/{id}/rows/{row_id}</code>
+  accepts <code>mappings</code> (+ optional <code>suggested_by</code>); the server validates
+  field names and value lengths, requires non-empty mappings and a
+  non-blank tool name for acceptances, stamps <code>accepted_at</code> when
+  <code>suggested_by</code> is present, and clears both when a human re-maps
+  manually (an empty <code>mappings</code> object clears everything). Rejecting a
+  suggestion writes nothing.</li>
+</ul>
 <h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Good: the eval harness gains three golden questions (canonical-kind
@@ -3304,7 +3354,8 @@ survives).</p>
   and <a href="../0035-fastapi-read-api/">ADR-0035</a> (read-only API posture).</li>
 <li>Tool reference: <a href="../../mcp/tools/">docs/mcp/tools.md</a>;
   eval coverage: <a href="../../mcp/evals/">docs/mcp/evals.md</a>.</li>
-<li>Issue #209; consumed by the wizard AI review layer in issue #210.</li>
+<li>Issue #209 (tool); issue #210 (wizard AI review layer, suggestions
+  bridge, and audit columns).</li>
 </ul>
 
 

@@ -18,6 +18,7 @@ import {
   fetchFreshness,
   fetchImportSession,
   fetchImportSessions,
+  fetchImportSuggestions,
   fetchNetWorthByAccount,
   fetchNetWorthTotal,
   patchImportRow,
@@ -37,6 +38,7 @@ import type {
   ImportSessionWithRows,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
+  SuggestionsResponse,
 } from "./schemas";
 
 const staleTimeMs = 60_000;
@@ -225,6 +227,22 @@ type CommitVariables = {
   readonly sessionId: string;
   readonly options: CommitOptions;
 };
+
+/** POST /imports/{id}/suggestions as a mutation: suggestions are an explicit
+ * user action, not background data, and the call spawns an MCP subprocess
+ * server-side. A 503 means the AI layer is unconfigured — the wizard
+ * degrades to manual review. */
+export function useImportSuggestions(): UseMutationResult<SuggestionsResponse, Error, string> {
+  return useMutation({
+    mutationFn: async (sessionId: string) => {
+      if (demoMode) {
+        const store = await import("../demo/importsStore");
+        return store.demoSuggestImports(sessionId);
+      }
+      return fetchImportSuggestions(sessionId);
+    },
+  });
+}
 
 export function useCommitImport(): UseMutationResult<CommitResponse, Error, CommitVariables> {
   const queryClient = useQueryClient();

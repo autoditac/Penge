@@ -7,6 +7,7 @@ effects and tests can monkeypatch the environment per case.
 from __future__ import annotations
 
 import os
+import shlex
 from pathlib import Path
 
 #: Hard cap for one uploaded statement. Real exports are well under
@@ -58,3 +59,32 @@ def nordnet_accounts_config_path() -> Path | None:
     """
     raw = os.environ.get("PENGE_NORDNET_ACCOUNTS_CONFIG")
     return Path(raw) if raw else None
+
+
+def mcp_suggest_command() -> list[str] | None:
+    """Command line that launches the MCP server for mapping suggestions.
+
+    Unset (or blank) means the AI review layer is disabled and the
+    suggestions endpoint answers 503. Typical value:
+    ``node apps/mcp/dist/index.js``.
+    """
+    raw = os.environ.get("PENGE_MCP_SUGGEST_COMMAND")
+    if raw is None or not raw.strip():
+        return None
+    return shlex.split(raw)
+
+
+#: Suggestion calls spawn a fresh MCP server process; 30 s covers
+#: Node start-up plus the read-only queries with margin.
+DEFAULT_MCP_SUGGEST_TIMEOUT_SECONDS = 30.0
+
+
+def mcp_suggest_timeout_seconds() -> float:
+    """Wall-clock budget for one MCP suggestion call."""
+    raw = os.environ.get("PENGE_MCP_SUGGEST_TIMEOUT_SECONDS")
+    if raw is None:
+        return DEFAULT_MCP_SUGGEST_TIMEOUT_SECONDS
+    value = float(raw)
+    if value <= 0:
+        raise ValueError(f"PENGE_MCP_SUGGEST_TIMEOUT_SECONDS must be positive, got {value}")
+    return value

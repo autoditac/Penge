@@ -72,6 +72,35 @@ Key properties:
   import API PATCH endpoint (#210), which re-validates through the parser
   models.
 
+### Wizard integration (issue #210)
+
+The review layer wires the tool into the import wizard without weakening
+the boundaries above:
+
+- **Bridge, not embedding.** The FastAPI app gains
+  `POST /imports/{id}/suggestions`, a thin proxy that spawns the MCP
+  server command from `PENGE_MCP_SUGGEST_COMMAND` (timeout
+  `PENGE_MCP_SUGGEST_TIMEOUT_SECONDS`, default 30 s), speaks
+  newline-delimited JSON-RPC over stdio (`initialize` →
+  `notifications/initialized` → `tools/call`), and returns the tool's
+  structured output unchanged. No categorization rules exist in the API;
+  unset command or unreachable server → `503` and the wizard reverts to
+  manual review, tool-level failure → `502`.
+- **Audit columns instead of payload edits.** `import_row` gains
+  `mappings` (JSONB, accepted values keyed by `category` /
+  `counterparty` / `asset_class`), `suggested_by` (tool name, `NULL` for
+  manual mappings), and `accepted_at` (acceptance timestamp). Mappings
+  are deliberately stored **next to** the payload: parser models drop or
+  reject unknown payload keys, and a categorization must never change
+  what the loaders commit.
+- **PATCH carries acceptance.** `PATCH /imports/{id}/rows/{row_id}`
+  accepts `mappings` (+ optional `suggested_by`); the server validates
+  field names and value lengths, requires non-empty mappings and a
+  non-blank tool name for acceptances, stamps `accepted_at` when
+  `suggested_by` is present, and clears both when a human re-maps
+  manually (an empty `mappings` object clears everything). Rejecting a
+  suggestion writes nothing.
+
 ### Consequences
 
 - Good: the eval harness gains three golden questions (canonical-kind
@@ -93,4 +122,5 @@ Key properties:
   and [ADR-0035](0035-fastapi-read-api.md) (read-only API posture).
 - Tool reference: [docs/mcp/tools.md](../mcp/tools.md);
   eval coverage: [docs/mcp/evals.md](../mcp/evals.md).
-- Issue #209; consumed by the wizard AI review layer in issue #210.
+- Issue #209 (tool); issue #210 (wizard AI review layer, suggestions
+  bridge, and audit columns).

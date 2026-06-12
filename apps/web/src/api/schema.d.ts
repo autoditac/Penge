@@ -147,9 +147,34 @@ export interface paths {
     head?: never;
     /**
      * Patch Import Row
-     * @description Correct or exclude one staged row before commit.
+     * @description Correct, exclude, or re-map one staged row before commit.
      */
     patch: operations["patch_import_row_imports__session_id__rows__row_id__patch"];
+    trace?: never;
+  };
+  "/imports/{session_id}/suggestions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Suggest Import Mappings
+     * @description Ask the MCP suggestion tool for mapping proposals (ADR-0038).
+     *
+     *     The API only proxies: the deterministic rules live in the MCP
+     *     server, which is the sole sanctioned LLM/AI data path. Returns 503
+     *     when no MCP command is configured or the server is unreachable,
+     *     502 when the tool itself rejects the call.
+     */
+    post: operations["suggest_import_mappings_imports__session_id__suggestions_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
     trace?: never;
   };
   "/meta/freshness": {
@@ -376,6 +401,8 @@ export interface components {
      * @description One staged row of an import session.
      */
     ImportRowOut: {
+      /** Accepted At */
+      accepted_at: string | null;
       /** Edited */
       edited: boolean;
       /** Excluded */
@@ -389,6 +416,10 @@ export interface components {
       issues: components["schemas"]["RowIssue"][];
       /** Kind */
       kind: string;
+      /** Mappings */
+      mappings: {
+        [key: string]: string;
+      };
       /** Payload */
       payload: {
         [key: string]: unknown;
@@ -397,6 +428,8 @@ export interface components {
       row_index: number;
       /** Status */
       status: string;
+      /** Suggested By */
+      suggested_by: string | null;
     };
     /**
      * ImportSessionListResponse
@@ -497,6 +530,29 @@ export interface components {
        * Format: date-time
        */
       updated_at: string;
+    };
+    /**
+     * MappingSuggestionOut
+     * @description One AI mapping suggestion for one staged row (ADR-0038).
+     */
+    MappingSuggestionOut: {
+      /** Confidence */
+      confidence: number;
+      /** Field */
+      field: string;
+      /** Kind */
+      kind: string;
+      /** Reason */
+      reason: string;
+      /**
+       * Row Id
+       * Format: uuid
+       */
+      row_id: string;
+      /** Row Index */
+      row_index: number;
+      /** Value */
+      value: string;
     };
     /**
      * MartFreshness
@@ -609,10 +665,44 @@ export interface components {
     RowPatchRequest: {
       /** Excluded */
       excluded?: boolean | null;
+      /** Mappings */
+      mappings?: {
+        [key: string]: string;
+      } | null;
       /** Payload */
       payload?: {
         [key: string]: unknown;
       } | null;
+      /** Suggested By */
+      suggested_by?: string | null;
+    };
+    /**
+     * SuggestionSessionOut
+     * @description Session echo returned by the MCP suggestion tool.
+     */
+    SuggestionSessionOut: {
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /** Rows Considered */
+      rows_considered: number;
+      /** Source */
+      source: string;
+      /** Status */
+      status: string;
+    };
+    /**
+     * SuggestionsResponse
+     * @description Mapping suggestions for one staged session, as returned by MCP.
+     */
+    SuggestionsResponse: {
+      session: components["schemas"]["SuggestionSessionOut"];
+      /** Suggested By */
+      suggested_by: string;
+      /** Suggestions */
+      suggestions: components["schemas"]["MappingSuggestionOut"][];
     };
     /** ValidationError */
     ValidationError: {
@@ -921,6 +1011,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ImportRowOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  suggest_import_mappings_imports__session_id__suggestions_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SuggestionsResponse"];
         };
       };
       /** @description Validation Error */

@@ -46,8 +46,9 @@ written to the warehouse (upload → preview → fix/exclude rows → commit):
 | `POST /imports`                           | Upload a file (multipart); detects the source, stages rows   |
 | `GET /imports`                            | List sessions with row counts                                 |
 | `GET /imports/{id}`                       | Session detail with paginated staged rows                     |
-| `PATCH /imports/{id}/rows/{row_id}`       | Edit a row payload (revalidated) or toggle exclusion          |
+| `PATCH /imports/{id}/rows/{row_id}`       | Edit a row payload (revalidated), toggle exclusion, or set mappings |
 | `POST /imports/{id}/commit`               | Write staged rows through the existing connector loaders      |
+| `POST /imports/{id}/suggestions`          | Proxy the MCP `suggest_import_mapping` tool (ADR-0038)        |
 | `DELETE /imports/{id}`                    | Discard the session and delete the stored upload              |
 
 Supported sources: `nordnet_transactions` (CSV), `growney` (Depotauszug PDF),
@@ -60,6 +61,26 @@ Environment knobs: `PENGE_IMPORT_DIR` (upload storage, default
 `PENGE_IMPORT_SESSION_TTL_DAYS` (default 7; stale staged sessions expire
 lazily), and `PENGE_NORDNET_ACCOUNTS_CONFIG` (accounts YAML required to
 commit Nordnet sessions).
+
+### AI mapping suggestions
+
+`POST /imports/{id}/suggestions` spawns the configured MCP server, calls
+its `suggest_import_mapping` tool, and returns the structured suggestion
+list unchanged — the API holds no categorization rules of its own
+(ADR-0038, ADR-0005). The endpoint answers `503` while
+`PENGE_MCP_SUGGEST_COMMAND` is unset (e.g.
+`node apps/mcp/dist/index.js`) or the server is unreachable, and `502`
+when the tool itself rejects the call; the wizard degrades to manual
+review in both cases. `PENGE_MCP_SUGGEST_TIMEOUT_SECONDS` (default 30)
+bounds one call.
+
+Accepted suggestions are written back through the row PATCH as
+`mappings` (allowed keys `category`, `counterparty`, `asset_class`)
+plus `suggested_by`; the server stamps `accepted_at` when
+`suggested_by` is present and clears both for manual mappings. An
+empty `mappings` object is a manual clear: it removes all mappings and
+any AI provenance. Mappings live next to the payload and never modify
+it, so commit behavior is unchanged.
 
 ## Contract
 

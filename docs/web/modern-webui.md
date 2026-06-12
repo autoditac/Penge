@@ -49,8 +49,17 @@ are recorded in ADR-0036.
   confirm step; commits reuse the existing connector loaders and are
   idempotent (ADR-0037). In demo mode the whole flow runs against the
   deterministic in-memory store (`src/demo/importsStore.ts`).
+  The review step carries the AI layer (#210): "Suggest mappings (AI)"
+  proxies the MCP `suggest_import_mapping` tool through
+  `POST /imports/{id}/suggestions` (ADR-0038), renders per-row chips
+  with field, value, confidence, and reason, and offers per-chip
+  accept/reject plus a confidence-threshold bulk accept. Accepted
+  values are stored as row `mappings` with `suggested_by`/`accepted_at`
+  provenance and an "AI mapped" badge; rejections stay local. When the
+  endpoint answers 503 (no `PENGE_MCP_SUGGEST_COMMAND` configured) the
+  wizard says so and falls back to manual review.
 - **Planning** — labelled synthetic preview of the MCP
-  `answer_planning_question` surface until live wiring lands (#210).
+  `answer_planning_question` surface until live wiring lands.
 
 ## Architecture
 

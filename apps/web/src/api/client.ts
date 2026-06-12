@@ -19,6 +19,7 @@ import {
   importSessionWithRowsSchema,
   netWorthSeriesResponseSchema,
   netWorthTotalSeriesResponseSchema,
+  suggestionsResponseSchema,
 } from "./schemas";
 import type {
   AccountSummary,
@@ -33,6 +34,7 @@ import type {
   ImportSessionWithRows,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
+  SuggestionsResponse,
 } from "./schemas";
 
 export const apiBaseUrl: string = import.meta.env.VITE_PENGE_API_URL ?? "http://127.0.0.1:8000";
@@ -229,6 +231,8 @@ export async function fetchImportSession(sessionId: string): Promise<ImportSessi
 export type RowPatch = {
   readonly payload?: Record<string, unknown> | undefined;
   readonly excluded?: boolean | undefined;
+  readonly mappings?: Record<string, string> | undefined;
+  readonly suggestedBy?: string | undefined;
 };
 
 export function patchImportRow(
@@ -236,10 +240,33 @@ export function patchImportRow(
   rowId: string,
   patch: RowPatch,
 ): Promise<ImportRow> {
+  const body: Record<string, unknown> = {};
+  if (patch.payload !== undefined) {
+    body["payload"] = patch.payload;
+  }
+  if (patch.excluded !== undefined) {
+    body["excluded"] = patch.excluded;
+  }
+  if (patch.mappings !== undefined) {
+    body["mappings"] = patch.mappings;
+  }
+  if (patch.suggestedBy !== undefined) {
+    body["suggested_by"] = patch.suggestedBy;
+  }
   return requestJson(
     `/imports/${sessionId}/rows/${rowId}`,
-    { method: "PATCH", jsonBody: patch },
+    { method: "PATCH", jsonBody: body },
     importRowSchema,
+  );
+}
+
+/** Ask the MCP suggestion tool for mapping proposals. The API answers 503
+ * when no MCP command is configured — callers must degrade gracefully. */
+export function fetchImportSuggestions(sessionId: string): Promise<SuggestionsResponse> {
+  return requestJson(
+    `/imports/${sessionId}/suggestions`,
+    { method: "POST" },
+    suggestionsResponseSchema,
   );
 }
 

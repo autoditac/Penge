@@ -480,6 +480,18 @@
       "ImportRowOut": {
         "description": "One staged row of an import session.",
         "properties": {
+          "accepted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Accepted At"
+          },
           "edited": {
             "title": "Edited",
             "type": "boolean"
@@ -504,6 +516,13 @@
             "title": "Kind",
             "type": "string"
           },
+          "mappings": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Mappings",
+            "type": "object"
+          },
           "payload": {
             "additionalProperties": true,
             "title": "Payload",
@@ -516,6 +535,17 @@
           "status": {
             "title": "Status",
             "type": "string"
+          },
+          "suggested_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested By"
           }
         },
         "required": [
@@ -526,7 +556,10 @@
           "status",
           "issues",
           "edited",
-          "excluded"
+          "excluded",
+          "mappings",
+          "suggested_by",
+          "accepted_at"
         ],
         "title": "ImportRowOut",
         "type": "object"
@@ -740,6 +773,51 @@
           "total_rows"
         ],
         "title": "ImportSessionWithRows",
+        "type": "object"
+      },
+      "MappingSuggestionOut": {
+        "description": "One AI mapping suggestion for one staged row (ADR-0038).",
+        "properties": {
+          "confidence": {
+            "title": "Confidence",
+            "type": "number"
+          },
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "row_id": {
+            "format": "uuid",
+            "title": "Row Id",
+            "type": "string"
+          },
+          "row_index": {
+            "title": "Row Index",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_id",
+          "row_index",
+          "kind",
+          "field",
+          "value",
+          "confidence",
+          "reason"
+        ],
+        "title": "MappingSuggestionOut",
         "type": "object"
       },
       "MartFreshness": {
@@ -1013,6 +1091,20 @@
             ],
             "title": "Excluded"
           },
+          "mappings": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "string"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mappings"
+          },
           "payload": {
             "anyOf": [
               {
@@ -1024,9 +1116,76 @@
               }
             ],
             "title": "Payload"
+          },
+          "suggested_by": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested By"
           }
         },
         "title": "RowPatchRequest",
+        "type": "object"
+      },
+      "SuggestionSessionOut": {
+        "description": "Session echo returned by the MCP suggestion tool.",
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "rows_considered": {
+            "title": "Rows Considered",
+            "type": "integer"
+          },
+          "source": {
+            "title": "Source",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "status",
+          "rows_considered"
+        ],
+        "title": "SuggestionSessionOut",
+        "type": "object"
+      },
+      "SuggestionsResponse": {
+        "description": "Mapping suggestions for one staged session, as returned by MCP.",
+        "properties": {
+          "session": {
+            "$ref": "#/components/schemas/SuggestionSessionOut"
+          },
+          "suggested_by": {
+            "title": "Suggested By",
+            "type": "string"
+          },
+          "suggestions": {
+            "items": {
+              "$ref": "#/components/schemas/MappingSuggestionOut"
+            },
+            "title": "Suggestions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "suggested_by",
+          "session",
+          "suggestions"
+        ],
+        "title": "SuggestionsResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -1550,7 +1709,7 @@
     },
     "/imports/{session_id}/rows/{row_id}": {
       "patch": {
-        "description": "Correct or exclude one staged row before commit.",
+        "description": "Correct, exclude, or re-map one staged row before commit.",
         "operationId": "patch_import_row_imports__session_id__rows__row_id__patch",
         "parameters": [
           {
@@ -1607,6 +1766,50 @@
           }
         },
         "summary": "Patch Import Row",
+        "tags": [
+          "imports"
+        ]
+      }
+    },
+    "/imports/{session_id}/suggestions": {
+      "post": {
+        "description": "Ask the MCP suggestion tool for mapping proposals (ADR-0038).\n\nThe API only proxies: the deterministic rules live in the MCP\nserver, which is the sole sanctioned LLM/AI data path. Returns 503\nwhen no MCP command is configured or the server is unreachable,\n502 when the tool itself rejects the call.",
+        "operationId": "suggest_import_mappings_imports__session_id__suggestions_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Session Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuggestionsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Suggest Import Mappings",
         "tags": [
           "imports"
         ]

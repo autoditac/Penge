@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0022-web-projection-dashboard/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0038-import-mapping-suggestions-via-mcp/">
       
       
-        <link rel="prev" href="../0021-de-vorabpauschale/">
+        <link rel="prev" href="../0037-staged-import-sessions/">
       
       
-        <link rel="next" href="../0023-mcp-server-architecture/">
+        <link rel="next" href="../adr-template/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0022 Streamlit projection dashboard tab - Penge</title>
+        <title>ADR-0038 Import mapping suggestions - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0022-streamlit-projection-dashboard-tab" class="md-skip">
+        <a href="#0038-import-mapping-suggestions-via-the-mcp-server" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0022 Streamlit projection dashboard tab
+              ADR-0038 Import mapping suggestions
             
           </span>
         </div>
@@ -2523,37 +2523,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0022 Streamlit projection dashboard tab
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2569,109 +2542,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context and Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#compliance" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Compliance
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2989,10 +2859,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0038 Import mapping suggestions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3008,6 +2905,98 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Outcome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3140,10 +3129,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision
+        Decision Drivers
       
     </span>
   </a>
@@ -3151,44 +3140,33 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-outcome" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Outcome
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Decision Outcome">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
         Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
       
     </span>
   </a>
@@ -3201,10 +3179,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compliance" class="md-nav__link">
+  <a href="#links" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compliance
+        Links
       
     </span>
   </a>
@@ -3228,7 +3206,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0022-web-projection-dashboard.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0038-import-mapping-suggestions-via-mcp.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3236,87 +3214,97 @@
   
 
 
-<h1 id="0022-streamlit-projection-dashboard-tab">0022 — Streamlit projection dashboard tab<a class="headerlink" href="#0022-streamlit-projection-dashboard-tab" title="Permanent link">&para;</a></h1>
+<h1 id="0038-import-mapping-suggestions-via-the-mcp-server">0038 — Import mapping suggestions via the MCP server<a class="headerlink" href="#0038-import-mapping-suggestions-via-the-mcp-server" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-10</li>
+<li><strong>Date:</strong> 2026-06-14</li>
 <li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> web, sim, ux</li>
+<li><strong>Tags:</strong> mcp, llm, ingest, security, data</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>The Phase-2 simulation engine (ADR-0014, runner + ADR-0015, scenarios)
-already produces everything a household needs to reason about its
-FIRE trajectory: per-year p10/p50/p90 portfolio values, the goal
-hit-rate <code>p_goal_met</code>, and the median first-FI year. Issue #25 shipped
-the Streamlit dashboard skeleton with KPI / Time-series / Allocation /
-Drill-down pages backed by the dbt marts.</p>
-<p>Issue #33 asks for a fifth page that exposes the Monte-Carlo result
-interactively: goal sliders, a scenario picker, a fan chart for the
-percentile band and a histogram of "year I become financially
-independent". The page should render on a fresh checkout — even
-before any real data has been ingested — so the demo is usable as
-a teaching tool and the test surface stays hermetic.</p>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>Add a new Streamlit view at <code>src/penge/web/views/projection.py</code>,
-wired into the sidebar radio in <code>app.py</code> as a fifth option. The
-view is <em>self-contained</em>: it does not read the dbt marts, so it
-works on a clean database.</p>
-<p>Inputs come from sidebar widgets only:</p>
+<p>The import wizard (issues #207/#208, ADR-0037) lets a household member upload
+a statement, review staged rows, and commit them. Issue #209 asks for
+AI-assisted categorization on top of that flow: per-row suggestions for the
+spending/investment category, a normalized counterparty label, and a coarse
+asset class.</p>
+<p>ADR-0005 makes the MCP server the <strong>only</strong> sanctioned LLM data path, and
+ADR-0035 keeps the FastAPI read surface free of side effects. Categorization
+assistance must not become a back door: no ad-hoc LLM integration may read
+uploads or staged rows, and nothing on the LLM path may write to the
+database.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>target annual income (EUR), SWR (bp), initial portfolio (EUR)</li>
-<li>equity weight (%), capital-gains effective rate (bp), path count,
-  horizon</li>
-<li>scenario picker over <code>{Baseline, Work reduction, House purchase}</code>
-  with each scenario's parameters</li>
+<li><strong>ADR-0005 compliance.</strong> The suggestion path must terminate at the MCP
+  server; LLM hosts never see raw uploads, raw payloads stay masked.</li>
+<li><strong>Determinism and auditability.</strong> A suggestion that changes between runs
+  cannot be audited. Accept/reject decisions must reference stable output.</li>
+<li><strong>Read-only by construction.</strong> The MCP Postgres pool forces
+  <code>default_transaction_read_only = on</code>; suggestions must never write.</li>
+<li><strong>The wizard owns mutations.</strong> Accepting a suggestion must reuse the
+  existing <code>PATCH /imports/{id}/rows/{row_id}</code> endpoint and its
+  re-validation, not a parallel write path.</li>
+<li>Suggestions should degrade gracefully: no rule match → no suggestion, and
+  the wizard stays fully usable without the MCP server running.</li>
 </ul>
-<p>The Monte-Carlo run is wrapped in <code>streamlit.cache_data</code> keyed on a
-hashable <code>_Inputs</code> dataclass so re-rendering after a slider change is
-sub-second when inputs match a prior run.</p>
-<p>A small helper module <code>penge.web.projection_demo</code> provides synthetic
-defaults for the four sim inputs (cashflow config, tax config, return
-model, MC config). The synthetic return history is a deterministic
-two-asset bootstrap (equity ~7 %/yr drift, bonds ~2 %/yr drift). It
-is <strong>not</strong> a model of any real market; it just gives the chart shape
-on first run. A later issue will replace this with a fitted history
-loader.</p>
-<p>To support the FI-year histogram the runner now exposes
-<code>MonteCarloResult.fire_year_distribution: dict[int, int]</code>. The field
-is additive (defaults to an empty dict) — existing code paths and
-tests are unaffected.</p>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>A deterministic, rule-based MCP tool <code>suggest_import_mapping</code></strong> —
+   reads staged rows over the read-only pool, maps canonical transaction
+   kinds and DA/DE/EN keywords to a fixed category list, normalizes
+   counterparty strings (whitespace collapsed, IBAN/CPR/long-digit-run
+   patterns redacted), and
+   keyword-matches asset classes. The LLM host reasons <em>on top of</em> this
+   structured output.</li>
+<li><strong>An LLM call inside the FastAPI app</strong> ("just ask the model per row") —
+   fast to build, but creates a second LLM integration outside MCP,
+   violates ADR-0005, and produces non-reproducible suggestions.</li>
+<li><strong>Client-side heuristics in the React wizard</strong> — keeps data local but
+   duplicates categorization logic outside the audited tool layer, is
+   invisible to the eval harness, and cannot be reused by other MCP hosts.</li>
+</ol>
+<h2 id="decision-outcome">Decision Outcome<a class="headerlink" href="#decision-outcome" title="Permanent link">&para;</a></h2>
+<p>Chosen option: <strong>1 — deterministic rule-based MCP tool</strong>, because it is the
+only option that keeps the LLM path sanctioned (ADR-0005), reproducible
+(golden evals can pin exact outputs), and read-only (ADR-0035/0037 posture
+survives).</p>
+<p>Key properties:</p>
 <ul>
-<li>The dashboard is interactive on a fresh checkout: no database, no
-  ingest run, no manual config required.</li>
-<li>The MC runner now reports the FI-year <em>distribution</em> (additive
-  field), enabling richer downstream visualisations beyond the
-  median.</li>
-<li>Scenario comparisons are exposed in the UI, surfacing the
-  ADR-0015 work to non-CLI users.</li>
+<li><strong>Input:</strong> <code>import_session_id</code> (UUID) + optional row <code>limit</code>. Only
+  sessions with status <code>staged</code> are accepted; excluded rows are skipped.</li>
+<li><strong>Output:</strong> per-row suggestions <code>{row_id, row_index, kind, field, value,
+  confidence, reason}</code> with <code>field ∈ {category, counterparty, asset_class}</code>,
+  validated by a strict Zod schema before leaving the server.</li>
+<li><strong>Masking:</strong> every value and reason passes through the same value-pattern
+  redaction as vault excerpts (IBAN, CPR, long digit runs → <code>[REDACTED]</code>).</li>
+<li><strong>Confidence tiers are rule strength</strong>, not model probabilities: canonical
+  kind map 0.9, definitional classes (balance→cash, scheme→pension) 0.95,
+  keyword matches 0.5–0.7. No rule → no suggestion.</li>
+<li><strong>Writes stay in the wizard:</strong> accepting a suggestion calls the existing
+  import API PATCH endpoint (#210), which re-validates through the parser
+  models.</li>
 </ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<h3 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h3>
 <ul>
-<li>The synthetic return history could mislead first-time users about
-  the realism of the projection. The page caption flags it explicitly
-  and the next ingestion-side task is to wire a real history loader.</li>
-<li>A live MC run on every slider change would be expensive; we lean
-  on <code>streamlit.cache_data</code> plus a small default <code>n_paths</code> (2 000)
-  to keep interaction snappy. Users who want stable percentile tails
-  can dial paths up to 10 000 from the slider.</li>
+<li>Good: the eval harness gains three golden questions (canonical-kind
+  mapping, leak-freedom, determinism) that gate every release of the tool.</li>
+<li>Good: a future smarter generator (e.g. an embedding lookup) can replace
+  the rule table behind the same wire schema and the same evals.</li>
+<li>Bad: rule-based suggestions are conservative — many rows get no
+  suggestion at all. That is intentional; silence beats wrong guesses on a
+  tax-relevant categorization.</li>
+<li>Bad: the MCP database role now needs <code>SELECT</code> on <code>import_session</code> /
+  <code>import_row</code> in addition to the marts. Deployment grants must be updated
+  alongside this change.</li>
 </ul>
-<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
 <ul>
-<li>The view does not currently surface the scenario <em>delta vs.
-  baseline</em> (issue #34's territory). It only renders one curve at a
-  time. A follow-up can layer baseline + scenario in the same fan
-  chart.</li>
-</ul>
-<h2 id="compliance">Compliance<a class="headerlink" href="#compliance" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Tests at <code>tests/web/test_projection.py</code> cover the AppTest smoke
-  path and the cached MC wrapper directly.</li>
-<li><code>ruff</code> and <code>mypy --strict</code> (with the existing streamlit/plotly
-  override) pass on all new files.</li>
+<li>Supersedes nothing; amends the tool surface documented in
+  <a href="../0005-llm-access-via-mcp-only/">ADR-0005</a>.</li>
+<li>Builds on <a href="../0037-staged-import-sessions/">ADR-0037</a> (staged sessions)
+  and <a href="../0035-fastapi-read-api/">ADR-0035</a> (read-only API posture).</li>
+<li>Tool reference: <a href="../../mcp/tools/">docs/mcp/tools.md</a>;
+  eval coverage: <a href="../../mcp/evals/">docs/mcp/evals.md</a>.</li>
+<li>Issue #209; consumed by the wizard AI review layer in issue #210.</li>
 </ul>
 
 

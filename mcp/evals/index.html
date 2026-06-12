@@ -1869,6 +1869,8 @@
       
         
       
+        
+      
     
     
     
@@ -2854,6 +2856,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0038 Import mapping suggestions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
@@ -2985,10 +3015,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#coverage-23-goldens" class="md-nav__link">
+  <a href="#coverage-26-goldens" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Coverage (23 goldens)
+        Coverage (26 goldens)
       
     </span>
   </a>
@@ -3073,7 +3103,7 @@
 <h1 id="mcp-golden-question-evals">MCP golden-question evals<a class="headerlink" href="#mcp-golden-question-evals" title="Permanent link">&para;</a></h1>
 <p>The MCP server is the only sanctioned LLM data path in Penge. Every
 new release of the tool layer is gated by a deterministic eval suite:
-twenty-three fixture-backed "golden questions" that exercise the real tool
+twenty-six fixture-backed "golden questions" that exercise the real tool
 handlers and assert structural and numeric invariants.</p>
 <p>The suite is <strong>not</strong> an LLM-in-the-loop test. It runs entirely in
 TypeScript with pre-seeded fixtures so it is fast (sub-second locally)
@@ -3098,15 +3128,16 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 ├── assertions.ts           # tolerance/ordering/leak helpers
 ├── fixtures/
 │   ├── cashflowRows.ts     # synthetic mart_cashflow_daily rows
+│   ├── importRows.ts       # synthetic staged import-session rows
 │   ├── netWorthRows.ts     # synthetic mart_net_worth_daily rows
 │   ├── planningPayloads.ts # canned answer_planning_question payload
 │   ├── scenarioPayloads.ts # canned run_scenario payloads
 │   ├── taxPayloads.ts      # canned compute_tax_year payloads
 │   └── vaultDocs.ts        # synthetic vault layout + helpers
-├── goldens.ts              # the 23 golden questions
+├── goldens.ts              # the 26 golden questions
 └── runner.ts               # vitest harness (one it() per golden)
 </code></pre></div>
-<h2 id="coverage-23-goldens">Coverage (23 goldens)<a class="headerlink" href="#coverage-23-goldens" title="Permanent link">&para;</a></h2>
+<h2 id="coverage-26-goldens">Coverage (26 goldens)<a class="headerlink" href="#coverage-26-goldens" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3151,6 +3182,11 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <td>2</td>
 <td>classifier-typed lookup never leaks across types; excerpts never carry raw IBAN / CPR / long digit runs</td>
 </tr>
+<tr>
+<td>Import mapping</td>
+<td>3</td>
+<td>canonical kinds map to documented categories at 0.9; suggestion values/reasons never leak account numbers; identical runs are byte-identical</td>
+</tr>
 </tbody>
 </table>
 <h2 id="adding-a-new-golden">Adding a new golden<a class="headerlink" href="#adding-a-new-golden" title="Permanent link">&para;</a></h2>
@@ -3186,7 +3222,7 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <li>
 <p>Update the count in the dataset-shape check at the top of
    <code>runner.ts</code> if the new golden changes the total count (the runner
-   asserts <code>GOLDENS.length === 23</code>).</p>
+   asserts <code>GOLDENS.length === 26</code>).</p>
 </li>
 <li>
 <p>Run the suite locally:</p>

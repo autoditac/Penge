@@ -1560,6 +1560,78 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#suggest_import_mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        suggest_import_mapping
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="suggest_import_mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rules-and-confidence-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules and confidence tiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#masking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Masking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2400,6 +2472,8 @@
       
         
           
+        
+      
         
       
         
@@ -3455,6 +3529,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0038 Import mapping suggestions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
@@ -4100,6 +4202,78 @@
     <span class="md-ellipsis">
       
         Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#suggest_import_mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        suggest_import_mapping
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="suggest_import_mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#input_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Input
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#output_6" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#rules-and-confidence-tiers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rules and confidence tiers
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#masking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Masking
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-call_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example call
       
     </span>
   </a>
@@ -4852,6 +5026,120 @@ it is not a personal plan and contains no real financial data.</p>
 LLM hosts should cite them rather than turning the answer into unsupported prose.
 The tool returns summaries and references only, not raw documents or raw
 transaction/account rows.</p>
+<h2 id="suggest_import_mapping"><code>suggest_import_mapping</code><a class="headerlink" href="#suggest_import_mapping" title="Permanent link">&para;</a></h2>
+<p>Deterministic, rule-based mapping suggestions for the rows of one
+<strong>staged</strong> import session (ADR-0038). This is the sanctioned data path
+for AI-assisted categorization in the import wizard: the LLM host calls
+this tool instead of ever seeing raw uploads, and the tool itself
+contains no LLM — identical inputs always produce identical output.</p>
+<p>Suggestions are <strong>pure suggestions</strong>. The tool reads through the same
+read-only Postgres pool as every other tool and never writes; accepting
+or rejecting a suggestion happens in the import wizard via
+<code>PATCH /imports/{session_id}/rows/{row_id}</code> (see
+<a href="../../api/">the import sessions API</a>).</p>
+<h3 id="input_6">Input<a class="headerlink" href="#input_6" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>import_session_id</code></td>
+<td><code>string</code></td>
+<td>UUID of a <strong>staged</strong> import session.</td>
+</tr>
+<tr>
+<td><code>limit</code></td>
+<td><code>number</code></td>
+<td>Optional, 1–10000 (default 1000). Max rows read.</td>
+</tr>
+</tbody>
+</table>
+<p>Sessions that are <code>committed</code>, <code>discarded</code>, or <code>expired</code> are rejected
+with an error — suggestions only make sense while a session is still
+reviewable. Excluded rows are skipped.</p>
+<h3 id="output_6">Output<a class="headerlink" href="#output_6" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>{
+  &quot;session&quot;: {
+    &quot;id&quot;: &quot;0b6c1a52-…&quot;,
+    &quot;source&quot;: &quot;nordnet_transactions&quot;,
+    &quot;status&quot;: &quot;staged&quot;,
+    &quot;rows_considered&quot;: 3
+  },
+  &quot;suggestions&quot;: [
+    {
+      &quot;row_id&quot;: &quot;11111111-…&quot;,
+      &quot;row_index&quot;: 0,
+      &quot;kind&quot;: &quot;transaction&quot;,
+      &quot;field&quot;: &quot;category&quot;, // &quot;category&quot; | &quot;counterparty&quot; | &quot;asset_class&quot;
+      &quot;value&quot;: &quot;investment.trade.buy&quot;,
+      &quot;confidence&quot;: 0.9, // 0..1, rule strength
+      &quot;reason&quot;: &quot;canonical nordnet_transactions transaction kind &#39;buy&#39; maps directly to this category&quot;
+    }
+  ]
+}
+</code></pre></div>
+<h3 id="rules-and-confidence-tiers">Rules and confidence tiers<a class="headerlink" href="#rules-and-confidence-tiers" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Rule</th>
+<th>Confidence</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>category</code></td>
+<td>Canonical transaction kind (<code>buy</code>, <code>dividend</code>, <code>internal_transfer</code>, …) mapped to a fixed category list</td>
+<td>0.9</td>
+</tr>
+<tr>
+<td><code>category</code></td>
+<td>DA/DE/EN keyword match on the row's free text (gebyr/Gebühr, udbytte/Dividende, rente/Zins, …)</td>
+<td>0.55–0.6</td>
+</tr>
+<tr>
+<td><code>counterparty</code></td>
+<td>Instrument name normalized (whitespace collapsed, IBAN/CPR/long-digit-run patterns redacted)</td>
+<td>0.7</td>
+</tr>
+<tr>
+<td><code>counterparty</code></td>
+<td>Free text normalized the same way</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td><code>asset_class</code></td>
+<td><code>balance</code> rows → <code>cash</code>; <code>scheme</code> rows → <code>pension</code></td>
+<td>0.95</td>
+</tr>
+<tr>
+<td><code>asset_class</code></td>
+<td>Instrument-name keywords (bond/Anleihe/obligation, ETF/UCITS/MSCI, Geldmarkt, gold/Rohstoff)</td>
+<td>0.65–0.7</td>
+</tr>
+</tbody>
+</table>
+<p>Rows where no rule fires produce no suggestion — the tool never emits a
+low-confidence guess just to fill space.</p>
+<h3 id="masking">Masking<a class="headerlink" href="#masking" title="Permanent link">&para;</a></h3>
+<p>Every suggested <code>value</code> and <code>reason</code> passes through the same value-
+pattern redaction as vault excerpts (<code>redact.ts</code>): IBANs, DK CPR
+numbers, and long digit runs become <code>[REDACTED]</code>. Nordnet free text
+like <code>Internal from 60109543</code> therefore yields
+<code>Internal from [REDACTED]</code> as a counterparty suggestion, and values
+that are only redaction markers are dropped entirely.</p>
+<h3 id="example-call_5">Example call<a class="headerlink" href="#example-call_5" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;suggest_import_mapping&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;import_session_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0b6c1a52-9d9e-4f7d-8a8e-2f5c6d7e8f90&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</code></pre></div>
 
 
 

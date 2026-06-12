@@ -52,10 +52,12 @@ just api-image
 ```
 
 Run it locally (the container binds `0.0.0.0:8000` internally; publish it
-on loopback only):
+on loopback only). On Linux, `host.docker.internal` needs the explicit
+`--add-host` mapping shown below (Docker Desktop provides it by default):
 
 ```bash
 docker run --rm -p 127.0.0.1:8000:8000 \
+  --add-host=host.docker.internal:host-gateway \
   -e DATABASE_URL=postgresql+psycopg://penge:penge@host.docker.internal:5432/penge \
   penge/api:dev
 ```

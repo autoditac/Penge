@@ -2660,7 +2660,7 @@
             }
           },
           {
-            "description": "Filter to one scope key (account id, instrument kind, or 'household').",
+            "description": "Filter to one scope key (account id, asset-class key, or 'household').",
             "in": "query",
             "name": "scope_key",
             "required": false,
@@ -2673,7 +2673,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Filter to one scope key (account id, instrument kind, or 'household').",
+              "description": "Filter to one scope key (account id, asset-class key, or 'household').",
               "title": "Scope Key"
             }
           },
@@ -2848,7 +2848,7 @@
             "required": false,
             "schema": {
               "$ref": "#/components/schemas/ReturnsScope",
-              "default": "account"
+              "default": "household"
             }
           },
           {

@@ -1486,7 +1486,7 @@ export interface operations {
     parameters: {
       query?: {
         scope?: components["schemas"]["ReturnsScope"];
-        /** @description Filter to one scope key (account id, instrument kind, or 'household'). */
+        /** @description Filter to one scope key (account id, asset-class key, or 'household'). */
         scope_key?: string | null;
         /** @description First day of the window (inclusive). Default: one year ago. */
         since?: string | null;

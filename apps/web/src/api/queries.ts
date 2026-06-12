@@ -167,6 +167,7 @@ export function useReturnsDaily(
       params.since ?? null,
       params.until ?? null,
       params.limit ?? null,
+      params.offset ?? null,
     ],
     staleTime: staleTimeMs,
     queryFn: async () => {

@@ -223,7 +223,7 @@ def meta_freshness() -> FreshnessResponse:
 
 _ScopeKeyParam = Annotated[
     str | None,
-    Query(description="Filter to one scope key (account id, instrument kind, or 'household')."),
+    Query(description="Filter to one scope key (account id, asset-class key, or 'household')."),
 ]
 
 
@@ -302,7 +302,7 @@ def _currency_summary(rows: list[dict[str, object]], suffix: str) -> CurrencyRet
 
 @router.get("/returns/summary", response_model=ReturnsSummaryResponse)
 def returns_summary(
-    scope: ReturnsScope = ReturnsScope.ACCOUNT,
+    scope: ReturnsScope = ReturnsScope.HOUSEHOLD,
     since: _SinceParam = None,
     until: _UntilParam = None,
 ) -> ReturnsSummaryResponse:

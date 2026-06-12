@@ -187,6 +187,7 @@ export function fetchFreshness(): Promise<FreshnessResponse> {
 export type ReturnsParams = SeriesParams & {
   readonly scope?: ReturnsScope;
   readonly scopeKey?: string;
+  readonly offset?: number;
 };
 
 export function fetchReturnsDaily(params: ReturnsParams): Promise<ReturnsSeriesResponse> {
@@ -198,6 +199,7 @@ export function fetchReturnsDaily(params: ReturnsParams): Promise<ReturnsSeriesR
       since: params.since,
       until: params.until,
       limit: params.limit,
+      offset: params.offset,
     },
     returnsSeriesResponseSchema,
   );

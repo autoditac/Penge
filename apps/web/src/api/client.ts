@@ -10,8 +10,11 @@ import { PengeApiError } from "../errors";
 import {
   accountsResponseSchema,
   allocationResponseSchema,
+  benchmarkSeriesResponseSchema,
+  benchmarksResponseSchema,
   cashflowSeriesResponseSchema,
   commitResponseSchema,
+  feesResponseSchema,
   freshnessResponseSchema,
   importRowSchema,
   importSessionListSchema,
@@ -19,14 +22,19 @@ import {
   importSessionWithRowsSchema,
   netWorthSeriesResponseSchema,
   netWorthTotalSeriesResponseSchema,
+  returnsSeriesResponseSchema,
+  returnsSummaryResponseSchema,
   suggestionsResponseSchema,
 } from "./schemas";
 import type {
   AccountSummary,
   AllocationDimension,
   AllocationResponse,
+  BenchmarkInfo,
+  BenchmarkSeriesResponse,
   CashflowSeriesResponse,
   CommitResponse,
+  FeesResponse,
   FreshnessResponse,
   ImportRow,
   ImportSession,
@@ -34,6 +42,9 @@ import type {
   ImportSessionWithRows,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
+  ReturnsScope,
+  ReturnsSeriesResponse,
+  ReturnsSummaryResponse,
   SuggestionsResponse,
 } from "./schemas";
 
@@ -169,6 +180,56 @@ export function fetchCashflowDaily(params: SeriesParams): Promise<CashflowSeries
 
 export function fetchFreshness(): Promise<FreshnessResponse> {
   return getJson("/meta/freshness", {}, freshnessResponseSchema);
+}
+
+/* ---- returns, benchmarks, fees (#206) ---- */
+
+export type ReturnsParams = SeriesParams & {
+  readonly scope?: ReturnsScope;
+  readonly scopeKey?: string;
+  readonly offset?: number;
+};
+
+export function fetchReturnsDaily(params: ReturnsParams): Promise<ReturnsSeriesResponse> {
+  return getJson(
+    "/returns/daily",
+    {
+      scope: params.scope,
+      scope_key: params.scopeKey,
+      since: params.since,
+      until: params.until,
+      limit: params.limit,
+      offset: params.offset,
+    },
+    returnsSeriesResponseSchema,
+  );
+}
+
+export function fetchReturnsSummary(params: ReturnsParams): Promise<ReturnsSummaryResponse> {
+  return getJson(
+    "/returns/summary",
+    { scope: params.scope, since: params.since, until: params.until },
+    returnsSummaryResponseSchema,
+  );
+}
+
+export function fetchBenchmarks(): Promise<readonly BenchmarkInfo[]> {
+  return getJson("/benchmarks", {}, benchmarksResponseSchema);
+}
+
+export function fetchBenchmarkDaily(
+  instrumentId: string,
+  params: SeriesParams,
+): Promise<BenchmarkSeriesResponse> {
+  return getJson(
+    "/benchmarks/daily",
+    { instrument_id: instrumentId, ...params },
+    benchmarkSeriesResponseSchema,
+  );
+}
+
+export function fetchFees(params: SeriesParams): Promise<FeesResponse> {
+  return getJson("/returns/fees", { since: params.since, until: params.until }, feesResponseSchema);
 }
 
 /* ---- import sessions (#207/#208) ---- */

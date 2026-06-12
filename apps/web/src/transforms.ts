@@ -5,8 +5,10 @@ import type {
   AccountSummary,
   AllocationSlice,
   CashflowPoint,
+  FeeYearRow,
   NetWorthPoint,
   NetWorthTotalPoint,
+  ReturnsPoint,
 } from "./api/schemas";
 
 export type SeriesPoint = readonly [string, number];
@@ -288,4 +290,150 @@ export function liquidShare(
     }
   }
   return total > 0 ? liquidTotal / total : null;
+}
+
+/* ---- returns, benchmarks, fees (#206) ---- */
+
+/** Chain daily return factors of ONE scope key into an index (base 100).
+ *
+ * Days without a factor (no capital at risk) carry the level forward, so
+ * dormant stretches render flat instead of breaking the line.
+ */
+export function twrIndexSeries(
+  points: readonly ReturnsPoint[],
+  currency: "EUR" | "DKK",
+): SeriesPoint[] {
+  const series: SeriesPoint[] = [];
+  let level = 100;
+  for (const point of points) {
+    const factor = parseDecimal(
+      currency === "EUR" ? point.return_factor_eur : point.return_factor_dkk,
+    );
+    if (factor !== null) {
+      level *= factor;
+    }
+    series.push([point.as_of, level]);
+  }
+  return series;
+}
+
+/** One TWR index line per scope key, labelled via the resolver. */
+export function twrIndexByKey(
+  points: readonly ReturnsPoint[],
+  currency: "EUR" | "DKK",
+  labelFor: (scopeKey: string) => string = (scopeKey) => scopeKey,
+): LabelledSeries[] {
+  const byKey = new Map<string, ReturnsPoint[]>();
+  for (const point of points) {
+    const bucket = byKey.get(point.scope_key) ?? [];
+    bucket.push(point);
+    byKey.set(point.scope_key, bucket);
+  }
+  return [...byKey.entries()]
+    .map(([scopeKey, keyPoints]) => ({
+      label: labelFor(scopeKey),
+      series: twrIndexSeries(keyPoints, currency),
+    }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Normalize a benchmark close series to an index (base 100 at first point).
+ *
+ * The benchmark stays in its native currency: the overlay compares growth
+ * shapes, not absolute money. Currency effects are NOT removed.
+ */
+export function benchmarkIndexSeries(
+  points: readonly { readonly as_of: string; readonly close: string }[],
+): SeriesPoint[] {
+  const first = points.length > 0 ? parseDecimal(points[0]?.close ?? null) : null;
+  if (first === null || first === 0) {
+    return [];
+  }
+  const series: SeriesPoint[] = [];
+  for (const point of points) {
+    const close = parseDecimal(point.close);
+    if (close !== null) {
+      series.push([point.as_of, (close / first) * 100]);
+    }
+  }
+  return series;
+}
+
+export type ContributionGrowthPoint = {
+  readonly date: string;
+  readonly flowsCum: number;
+  readonly growthCum: number;
+};
+
+/** Decompose a value change into cumulative external flows vs market growth.
+ *
+ * Per day: growth = end - begin - flow. Cumulative sums answer "how much of
+ * the change since window start is money I added vs money the market made".
+ */
+export function contributionGrowthSeries(
+  points: readonly ReturnsPoint[],
+  currency: "EUR" | "DKK",
+): ContributionGrowthPoint[] {
+  const series: ContributionGrowthPoint[] = [];
+  let flowsCum = 0;
+  let growthCum = 0;
+  for (const point of points) {
+    const begin = parseDecimal(currency === "EUR" ? point.begin_mv_eur : point.begin_mv_dkk);
+    const end = parseDecimal(currency === "EUR" ? point.end_mv_eur : point.end_mv_dkk);
+    const flow = parseDecimal(currency === "EUR" ? point.net_flow_eur : point.net_flow_dkk) ?? 0;
+    if (begin === null || end === null) {
+      continue;
+    }
+    flowsCum += flow;
+    growthCum += end - begin - flow;
+    series.push({ date: point.as_of, flowsCum, growthCum });
+  }
+  return series;
+}
+
+export type FeeDragRow = {
+  readonly year: number;
+  readonly feesEur: number;
+  readonly feesDkk: number;
+  /** Fees as a share of the average net worth that year; null without data. */
+  readonly dragShare: number | null;
+};
+
+/** Aggregate per-account fee rows into yearly totals with a drag estimate. */
+export function feeDragByYear(
+  rows: readonly FeeYearRow[],
+  netWorth: readonly NetWorthTotalPoint[],
+): FeeDragRow[] {
+  const avgByYear = new Map<number, { sum: number; count: number }>();
+  for (const point of netWorth) {
+    const value = parseDecimal(point.balance_eur);
+    if (value === null) {
+      continue;
+    }
+    const year = Number(point.as_of.slice(0, 4));
+    const bucket = avgByYear.get(year) ?? { sum: 0, count: 0 };
+    bucket.sum += value;
+    bucket.count += 1;
+    avgByYear.set(year, bucket);
+  }
+
+  const feesByYear = new Map<number, { eur: number; dkk: number }>();
+  for (const row of rows) {
+    const bucket = feesByYear.get(row.year) ?? { eur: 0, dkk: 0 };
+    bucket.eur += parseDecimal(row.fees_eur) ?? 0;
+    bucket.dkk += parseDecimal(row.fees_dkk) ?? 0;
+    feesByYear.set(row.year, bucket);
+  }
+
+  return [...feesByYear.entries()]
+    .map(([year, fees]) => {
+      const avg = avgByYear.get(year);
+      return {
+        year,
+        feesEur: fees.eur,
+        feesDkk: fees.dkk,
+        dragShare: avg !== undefined && avg.count > 0 ? fees.eur / (avg.sum / avg.count) : null,
+      };
+    })
+    .sort((a, b) => a.year - b.year);
 }

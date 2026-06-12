@@ -120,6 +120,60 @@ def synthetic_account_rows() -> list[dict[str, object]]:
     ]
 
 
+def synthetic_returns_rows() -> list[dict[str, object]]:
+    """Household scope: +1% day, dormant day, +2% day with a flow."""
+    return [
+        {
+            "as_of": date(2026, 6, 1),
+            "scope": "household",
+            "scope_key": "household",
+            "begin_mv_eur": Decimal("1000.0000"),
+            "end_mv_eur": Decimal("1010.0000"),
+            "net_flow_eur": Decimal("0.0000"),
+            "return_factor_eur": Decimal("1.0100000000"),
+            "begin_mv_dkk": Decimal("7460.0000"),
+            "end_mv_dkk": Decimal("7534.6000"),
+            "net_flow_dkk": Decimal("0.0000"),
+            "return_factor_dkk": Decimal("1.0100000000"),
+        },
+        {
+            "as_of": date(2026, 6, 2),
+            "scope": "household",
+            "scope_key": "household",
+            "begin_mv_eur": Decimal("1010.0000"),
+            "end_mv_eur": Decimal("1010.0000"),
+            "net_flow_eur": Decimal("0.0000"),
+            "return_factor_eur": Decimal("1.0000000000"),
+            "begin_mv_dkk": Decimal("7534.6000"),
+            "end_mv_dkk": Decimal("7534.6000"),
+            "net_flow_dkk": Decimal("0.0000"),
+            "return_factor_dkk": Decimal("1.0000000000"),
+        },
+        {
+            "as_of": date(2026, 6, 3),
+            "scope": "household",
+            "scope_key": "household",
+            "begin_mv_eur": Decimal("1010.0000"),
+            "end_mv_eur": Decimal("1122.0000"),
+            "net_flow_eur": Decimal("90.0000"),
+            "return_factor_eur": Decimal("1.0200000000"),
+            "begin_mv_dkk": Decimal("7534.6000"),
+            "end_mv_dkk": Decimal("8370.1200"),
+            "net_flow_dkk": Decimal("671.4000"),
+            "return_factor_dkk": Decimal("1.0200000000"),
+        },
+    ]
+
+
+def synthetic_benchmark_rows() -> list[dict[str, object]]:
+    """Three daily closes for the synthetic world ETF."""
+    return [
+        {"as_of": date(2026, 6, 1), "close": Decimal("100.0000"), "currency": "EUR"},
+        {"as_of": date(2026, 6, 2), "close": Decimal("101.0000"), "currency": "EUR"},
+        {"as_of": date(2026, 6, 3), "close": Decimal("103.0200"), "currency": "EUR"},
+    ]
+
+
 @pytest.fixture
 def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     """TestClient over the real app with the data layer faked."""
@@ -213,12 +267,85 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
     monkeypatch.setattr(data, "fetch_cashflow", fake_cashflow)
     monkeypatch.setattr(data, "fetch_allocation_rows", synthetic_allocation_rows)
     monkeypatch.setattr(data, "fetch_accounts", synthetic_account_rows)
+
+    def fake_returns(
+        *,
+        since: date,
+        until: date,
+        scope: str,
+        scope_key: str | None,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[dict[str, object]], int]:
+        rows = [
+            row
+            for row in synthetic_returns_rows()
+            if since <= row["as_of"] <= until  # type: ignore[operator]  # as_of is date
+            and row["scope"] == scope
+            and (scope_key is None or row["scope_key"] == scope_key)
+        ]
+        return rows[offset : offset + limit], len(rows)
+
+    def fake_returns_window(*, since: date, until: date, scope: str) -> list[dict[str, object]]:
+        rows, _ = fake_returns(
+            since=since, until=until, scope=scope, scope_key=None, limit=10_000, offset=0
+        )
+        return rows
+
+    def fake_benchmark_series(
+        *,
+        instrument_id: str,
+        since: date,
+        until: date,
+        limit: int,
+        offset: int,
+    ) -> tuple[list[dict[str, object]], int]:
+        if instrument_id != "i1":
+            return [], 0
+        rows = [
+            row
+            for row in synthetic_benchmark_rows()
+            if since <= row["as_of"] <= until  # type: ignore[operator]  # as_of is date
+        ]
+        return rows[offset : offset + limit], len(rows)
+
+    monkeypatch.setattr(data, "fetch_returns", fake_returns)
+    monkeypatch.setattr(data, "fetch_returns_window", fake_returns_window)
+    monkeypatch.setattr(
+        data,
+        "fetch_benchmarks",
+        lambda: [
+            {
+                "instrument_id": "i1",
+                "name": "Synthetic World ETF",
+                "ticker": "SYNW",
+                "currency": "EUR",
+                "first_as_of": date(2026, 6, 1),
+                "last_as_of": date(2026, 6, 3),
+                "points": 3,
+            }
+        ],
+    )
+    monkeypatch.setattr(data, "fetch_benchmark_series", fake_benchmark_series)
+    monkeypatch.setattr(
+        data,
+        "fetch_fees",
+        lambda *, since, until: [
+            {
+                "year": 2026,
+                "account_id": "a1",
+                "fees_eur": Decimal("24.0000"),
+                "fees_dkk": Decimal("179.0400"),
+            }
+        ],
+    )
     monkeypatch.setattr(
         data,
         "fetch_freshness",
         lambda: [
             {"mart": "mart_net_worth_daily", "latest_as_of": date(2026, 6, 2), "row_count": 3},
             {"mart": "mart_cashflow_daily", "latest_as_of": None, "row_count": 0},
+            {"mart": "mart_returns_daily", "latest_as_of": date(2026, 6, 3), "row_count": 3},
         ],
     )
 

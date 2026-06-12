@@ -14,23 +14,37 @@ import {
   discardImport,
   fetchAccounts,
   fetchAllocation,
+  fetchBenchmarkDaily,
+  fetchBenchmarks,
   fetchCashflowDaily,
+  fetchFees,
   fetchFreshness,
   fetchImportSession,
   fetchImportSessions,
   fetchImportSuggestions,
   fetchNetWorthByAccount,
   fetchNetWorthTotal,
+  fetchReturnsDaily,
+  fetchReturnsSummary,
   patchImportRow,
   uploadImport,
 } from "./client";
-import type { CommitOptions, RowPatch, SeriesParams, UploadImportOptions } from "./client";
+import type {
+  CommitOptions,
+  ReturnsParams,
+  RowPatch,
+  SeriesParams,
+  UploadImportOptions,
+} from "./client";
 import type {
   AccountSummary,
   AllocationDimension,
   AllocationResponse,
+  BenchmarkInfo,
+  BenchmarkSeriesResponse,
   CashflowSeriesResponse,
   CommitResponse,
+  FeesResponse,
   FreshnessResponse,
   ImportRow,
   ImportSession,
@@ -38,6 +52,8 @@ import type {
   ImportSessionWithRows,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
+  ReturnsSeriesResponse,
+  ReturnsSummaryResponse,
   SuggestionsResponse,
 } from "./schemas";
 
@@ -134,6 +150,103 @@ export function useFreshness(): UseQueryResult<FreshnessResponse, Error> {
         return fixtures.demoFreshness;
       }
       return fetchFreshness();
+    },
+  });
+}
+
+/* ---- returns, benchmarks, fees (#206) ---- */
+
+export function useReturnsDaily(
+  params: ReturnsParams,
+): UseQueryResult<ReturnsSeriesResponse, Error> {
+  return useQuery({
+    queryKey: [
+      "returns-daily",
+      params.scope ?? null,
+      params.scopeKey ?? null,
+      params.since ?? null,
+      params.until ?? null,
+      params.limit ?? null,
+      params.offset ?? null,
+    ],
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (demoMode) {
+        const fixtures = await import("../demo/fixtures");
+        return fixtures.demoReturnsDaily(params.scope ?? "household");
+      }
+      return fetchReturnsDaily(params);
+    },
+  });
+}
+
+export function useReturnsSummary(
+  params: ReturnsParams,
+): UseQueryResult<ReturnsSummaryResponse, Error> {
+  return useQuery({
+    queryKey: ["returns-summary", params.scope ?? null, params.since ?? null, params.until ?? null],
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (demoMode) {
+        const fixtures = await import("../demo/fixtures");
+        return fixtures.demoReturnsSummary(params.scope ?? "account");
+      }
+      return fetchReturnsSummary(params);
+    },
+  });
+}
+
+export function useBenchmarks(): UseQueryResult<readonly BenchmarkInfo[], Error> {
+  return useQuery({
+    queryKey: ["benchmarks"],
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (demoMode) {
+        const fixtures = await import("../demo/fixtures");
+        return fixtures.demoBenchmarks;
+      }
+      return fetchBenchmarks();
+    },
+  });
+}
+
+export function useBenchmarkDaily(
+  instrumentId: string | null,
+  params: SeriesParams,
+): UseQueryResult<BenchmarkSeriesResponse, Error> {
+  return useQuery({
+    queryKey: [
+      "benchmark-daily",
+      instrumentId,
+      params.since ?? null,
+      params.until ?? null,
+      params.limit ?? null,
+    ],
+    enabled: instrumentId !== null,
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (instrumentId === null) {
+        throw new Error("no benchmark selected");
+      }
+      if (demoMode) {
+        const fixtures = await import("../demo/fixtures");
+        return fixtures.demoBenchmarkDaily(instrumentId);
+      }
+      return fetchBenchmarkDaily(instrumentId, params);
+    },
+  });
+}
+
+export function useFees(params: SeriesParams): UseQueryResult<FeesResponse, Error> {
+  return useQuery({
+    queryKey: ["fees", params.since ?? null, params.until ?? null],
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (demoMode) {
+        const fixtures = await import("../demo/fixtures");
+        return fixtures.demoFees;
+      }
+      return fetchFees(params);
     },
   });
 }

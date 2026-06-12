@@ -36,6 +36,26 @@ Database resolution follows the same rules as every other component:
 All series endpoints accept `since`, `until`, `account_id`, `entity_id`,
 `limit`, and `offset`; the default window is one year.
 
+## Returns and benchmarks (#206)
+
+The returns endpoints expose the TWR/MWR engine (ADR-0039) for the
+performance dashboard:
+
+| Endpoint             | Returns                                                                |
+| -------------------- | ---------------------------------------------------------------------- |
+| `/returns/daily`     | Daily TWR factors and market values per scope (`account`, `asset_class`, `household`) |
+| `/returns/summary`   | Cumulative + annualized TWR and annualized MWR (XIRR) per scope key, computed server-side via `penge.analytics` |
+| `/returns/fees`      | Recorded fees per account and year (explicit fee bookings plus trade fee columns), EUR/DKK |
+| `/benchmarks`        | Instruments with price history usable as benchmark series               |
+| `/benchmarks/daily`  | Daily closes for one instrument (`instrument_id` required), native currency |
+
+`/returns/daily` and `/returns/summary` take `scope` (default `household`)
+plus the usual window parameters. Summary entries degrade per scope key: when
+a window has no data or a currency leg lacks FX coverage, the entry carries
+an `error` note instead of numbers, and `annualized_return` is `null` for
+windows shorter than 30 days. Benchmark closes are **not** FX-adjusted — the
+dashboard overlays them as normalized indexes to compare growth shape only.
+
 ## Import sessions
 
 The `/imports` endpoints stage file uploads for review before anything is

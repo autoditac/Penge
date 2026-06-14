@@ -23,6 +23,7 @@ from penge.ingest.enablebanking.models import (
     Balance,
     BalancesResponse,
     GetSessionResponse,
+    SessionStatus,
     StartAuthorizationResponse,
     Transaction,
     TransactionsResponse,
@@ -47,7 +48,7 @@ class FakeClient:
     def __init__(self) -> None:
         self.authorize_error: EnableBankingError | None = None
         self.get_session_error: EnableBankingError | None = None
-        self.session_status: str = "AUTHORIZED"
+        self.session_status: SessionStatus = "AUTHORIZED"
         self.session_accounts: list[AccountResource] = [_account()]
         self.aspsp_name: str = "GLS Gemeinschaftsbank"
         self.aspsp_country: str = "DE"
@@ -93,11 +94,12 @@ class FakeClient:
             access=Access(valid_until=VALID_UNTIL),
         )
 
-    def get_session(self, session_id: str):  # type: ignore[no-untyped-def]
+    def get_session(self, session_id: str) -> GetSessionResponse:
+        _ = session_id
         if self.get_session_error is not None:
             raise self.get_session_error
         return GetSessionResponse(
-            status=self.session_status,  # type: ignore[arg-type]  # test feeds valid codes
+            status=self.session_status,
             accounts=[a.uid for a in self.session_accounts if a.uid],
             accounts_data=self.session_accounts,
             aspsp=Aspsp(name=self.aspsp_name, country=self.aspsp_country),

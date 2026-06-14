@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -97,7 +97,7 @@ def _error_out(payload: dict[str, object] | None) -> ConnectionErrorOut | None:
     if not payload:
         return None
     raw_at = payload.get("at")
-    at = datetime.fromisoformat(raw_at) if isinstance(raw_at, str) else datetime.now()
+    at = datetime.fromisoformat(raw_at) if isinstance(raw_at, str) else datetime.now(UTC)
     status_code = payload.get("status_code")
     code = payload.get("code")
     return ConnectionErrorOut(

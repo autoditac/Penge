@@ -140,17 +140,21 @@ def _resolve_pending(
 ) -> store.ConnectionRecord | None:
     """Find the ``linking`` connection a callback code belongs to.
 
-    Prefers the CSRF ``state`` (exact match). Falls back to the most
-    recent pending connection for the same ASPSP when the callback did
-    not carry state.
+    Prefers the CSRF ``state`` (exact match). When the callback did not
+    carry state, fall back to a pending connection for the same ASPSP
+    **only when exactly one** is in-flight: with several concurrent
+    links for the same bank, guessing could bind the code to the wrong
+    connection, so the caller is required to supply ``state`` instead.
     """
     if state:
-        found = store.get_by_state(engine, state)
-        if found is not None:
-            return found
-    for record in store.list_connections(engine):
-        if record.status == store.STATUS_LINKING and record.aspsp_name == aspsp_name:
-            return record
+        return store.get_by_state(engine, state)
+    candidates = [
+        record
+        for record in store.list_connections(engine)
+        if record.status == store.STATUS_LINKING and record.aspsp_name == aspsp_name
+    ]
+    if len(candidates) == 1:
+        return candidates[0]
     return None
 
 
@@ -174,9 +178,17 @@ def authorize(
 
     pending = _resolve_pending(engine, state=state, aspsp_name=resp.aspsp.name)
     if pending is None:
+        message = (
+            "no pending connection matched this consent state"
+            if state
+            else (
+                "could not unambiguously match this consent; retry with the "
+                "?state= value from the callback"
+            )
+        )
         raise ConnectionError(
             step="authorize",
-            message="no pending connection matched this consent",
+            message=message,
             not_found=True,
         )
 

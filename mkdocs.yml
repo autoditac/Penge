@@ -88,6 +88,7 @@ nav:
   - Runbook:
       - "Monthly ritual (1-hour close)": runbook/monthly-ritual.md
       - "Monthly automated report": runbook/monthly-report.md
+      - "Enable Banking consent (production)": runbook/enable-banking-consent.md
       - "Web dashboard": runbook/web.md
       - "Container images": runbook/container-images.md
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md

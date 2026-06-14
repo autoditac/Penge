@@ -20,7 +20,9 @@ Bank-specific glue.
    default location used by the CLI is
    `~/.config/penge/enablebanking-sandbox.pem`.
 3. Configure the redirect URL on the application — it must match the
-   `--redirect-url` you'll pass to `penge-ebank link`. For local
+   `--redirect-url` you'll pass to `penge-ebank link`. In **production**
+   (Enable Banking requires HTTPS), use the hosted callback
+   `https://penge.eigmueller.de/eb/callback`. For local sandbox
    testing, `http://localhost:8765/callback` is fine.
 4. Export environment:
 
@@ -40,11 +42,13 @@ you can run each step interactively.
 
 ```fish
 # 1. Get the consent URL
-penge-ebank link --redirect-url http://localhost:8765/callback --days 180
+penge-ebank link --redirect-url https://penge.eigmueller.de/eb/callback --days 180
 # → prints { "consent_url": "...", "authorization_id": "..." }
 # Open consent_url in a browser, log in to Evangelische Bank, approve.
 # After approval the browser is redirected to:
-#   http://localhost:8765/callback?code=<CODE>&state=...
+#   https://penge.eigmueller.de/eb/callback?code=<CODE>&state=...
+# That page (un-gated, no Google login) shows <CODE> for copy/paste.
+# For local sandbox testing, use http://localhost:8765/callback instead.
 
 # 2. Exchange the code for a session
 penge-ebank authorize --code <CODE>

@@ -150,10 +150,24 @@ jobs:
           context: .
           file: apps/${{ matrix.app }}/Containerfile
           push: false
+          # Load the image into the local daemon so the boot smoke-test
+          # below can run it. Single-platform build, so `load` is safe.
+          load: true
           # Build-only verification: BuildKit's default provenance
           # attestation is wasted work here (nothing is published).
           provenance: false
           tags: penge/${{ matrix.app }}:ci
+      - name: Boot smoke-test (api)
+        if: matrix.app == 'api'
+        # A successful `docker build` does not prove the app can import:
+        # runtime dependencies missing from the image only surface when the
+        # process starts. Importing the ASGI app exercises the full import
+        # graph (including the connections router -> Enable Banking client)
+        # without needing a database, so a missing runtime dep fails CI
+        # instead of crash-looping in production. Guards #232.
+        run: |
+          docker run --rm penge/api:ci \
+            python -c "import penge.api.app; print('api import OK')"
 
   alembic-roundtrip:
     name: Alembic round-trip

@@ -174,9 +174,35 @@ To enable on the NAS:
    writes accounts, transactions, and snapshots), not the read-only
    role used for the analytics marts.
 
-4. Restart the container (`systemctl --user restart penge-api`). The
-   Connections page should now list the available banks instead of the
-   disabled note.
+4. Apply the database migration that backs the connections store
+   (`0006_add_bank_connection`). The NAS has no Python/repo, so run
+   Alembic from a workstation over the SSH tunnel:
+
+   ```bash
+   DATABASE_URL=postgresql+psycopg://penge:<pw>@127.0.0.1:15433/penge \
+     uv run --group db alembic upgrade head
+   ```
+
+   Without the `bank_connection` table, `GET /connections` returns `500`
+   (`UndefinedTable`, the `sqlalche.me/e/20/f405` error) even though
+   `GET /connections/aspsps` already works.
+
+5. Restart the container (`systemctl restart penge-api` for the system
+   quadlet; `--user` for a rootless unit). The Connections page should
+   now list the available banks instead of the disabled note.
 
 To keep the public instance off regardless of key presence, set
 `PENGE_CONNECTIONS_ENABLED=false`.
+
+### Deploy gotcha: stale CNI port-forward rules
+
+The API image installs the `enablebanking` dependency group (pyjwt) — the
+connections router imports the Enable Banking client at module load, so an
+image missing that group crash-loops at startup (`ModuleNotFoundError: No
+module named 'jwt'`). CI boots the built image to guard against this
+(issue #232). If the container *did* crash-loop on the NAS, podman's CNI
+backend can leave orphaned `iptables` DNAT rules pointing at dead
+container IPs, so `127.0.0.1:8001` keeps refusing connections even after a
+healthy container is up. Stop the service, delete the stale
+`CNI-DN-*`/`CNI-HOSTPORT-DNAT` rules for the published port, then start
+fresh so exactly one DNAT rule is recreated.

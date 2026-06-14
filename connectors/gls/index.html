@@ -1594,6 +1594,8 @@
       
         
       
+        
+      
     
     
     
@@ -1682,6 +1684,34 @@
     
   
     Monthly automated report
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../runbook/enable-banking-consent/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Enable Banking consent (production)
   
 
     
@@ -3229,7 +3259,9 @@ GLS-specific glue.</p>
    default location used by the CLI is
    <code>~/.config/penge/enablebanking-sandbox.pem</code>.</li>
 <li>Configure the redirect URL on the application — it must match the
-   <code>--redirect-url</code> you'll pass to <code>penge-gls link</code>. For local
+   <code>--redirect-url</code> you'll pass to <code>penge-gls link</code>. In <strong>production</strong>
+   (Enable Banking requires HTTPS), use the hosted callback
+   <code>https://penge.eigmueller.de/eb/callback</code>. For local sandbox
    testing, <code>http://localhost:8765/callback</code> is fine.</li>
 <li>Export environment:</li>
 </ol>
@@ -3241,11 +3273,13 @@ GLS-specific glue.</p>
 the bank to authenticate. The CLI is split into three subcommands so
 you can run each step interactively.</p>
 <div class="highlight"><pre><span></span><code><span class="c"># 1. Get the consent URL</span>
-penge-gls link --redirect-url http://localhost:8765/callback --days 180
+penge-gls link --redirect-url https://penge.eigmueller.de/eb/callback --days 180
 <span class="c"># → prints { &quot;consent_url&quot;: &quot;...&quot;, &quot;authorization_id&quot;: &quot;...&quot; }</span>
 <span class="c"># Open consent_url in a browser, log in to GLS, approve.</span>
 <span class="c"># After approval the browser is redirected to:</span>
-<span class="c">#   http://localhost:8765/callback?code=&lt;CODE&gt;&amp;state=...</span>
+<span class="c">#   https://penge.eigmueller.de/eb/callback?code=&lt;CODE&gt;&amp;state=...</span>
+<span class="c"># That page (un-gated, no Google login) shows &lt;CODE&gt; for copy/paste.</span>
+<span class="c"># For local sandbox testing, use http://localhost:8765/callback instead.</span>
 
 <span class="c"># 2. Exchange the code for a session</span>
 penge-gls authorize --code <span class="o">&lt;</span>CODE&gt;

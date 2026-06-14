@@ -150,6 +150,80 @@
         "title": "AllocationSlice",
         "type": "object"
       },
+      "AspspListResponse": {
+        "description": "The set of providers the deployment can connect to.",
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/AspspOut"
+            },
+            "title": "Providers",
+            "type": "array"
+          }
+        },
+        "required": [
+          "providers"
+        ],
+        "title": "AspspListResponse",
+        "type": "object"
+      },
+      "AspspOut": {
+        "description": "One selectable Enable Banking ASPSP.",
+        "properties": {
+          "aspsp_country": {
+            "title": "Aspsp Country",
+            "type": "string"
+          },
+          "aspsp_name": {
+            "title": "Aspsp Name",
+            "type": "string"
+          },
+          "default_currency": {
+            "title": "Default Currency",
+            "type": "string"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "aspsp_name",
+          "aspsp_country",
+          "default_currency"
+        ],
+        "title": "AspspOut",
+        "type": "object"
+      },
+      "AuthorizeRequest": {
+        "description": "Exchange the redirect ``code`` for a stored session.",
+        "properties": {
+          "code": {
+            "description": "The ?code= value from the callback.",
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "The ?state= value; binds the code to its pending connection.",
+            "title": "State"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "AuthorizeRequest",
+        "type": "object"
+      },
       "BenchmarkInfo": {
         "additionalProperties": false,
         "description": "One instrument with ingested price history, usable as benchmark.",
@@ -568,6 +642,238 @@
           "counts"
         ],
         "title": "CommitResponse",
+        "type": "object"
+      },
+      "ConnectionAccountOut": {
+        "description": "One authorised account on a connection (no raw uid leaks to logs).",
+        "properties": {
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "iban_masked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Iban Masked"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "product": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Product"
+          }
+        },
+        "required": [
+          "name",
+          "iban_masked",
+          "currency",
+          "product"
+        ],
+        "title": "ConnectionAccountOut",
+        "type": "object"
+      },
+      "ConnectionErrorOut": {
+        "description": "Sanitised debug payload for a failed link/authorize/sync.",
+        "properties": {
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status_code": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status Code"
+          },
+          "step": {
+            "title": "Step",
+            "type": "string"
+          }
+        },
+        "required": [
+          "step",
+          "status_code",
+          "code",
+          "message",
+          "at"
+        ],
+        "title": "ConnectionErrorOut",
+        "type": "object"
+      },
+      "ConnectionListResponse": {
+        "description": "All known connections.",
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionOut"
+            },
+            "title": "Connections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "connections"
+        ],
+        "title": "ConnectionListResponse",
+        "type": "object"
+      },
+      "ConnectionOut": {
+        "description": "A bank connection as exposed to the UI.",
+        "properties": {
+          "accounts": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionAccountOut"
+            },
+            "title": "Accounts",
+            "type": "array"
+          },
+          "aspsp_country": {
+            "title": "Aspsp Country",
+            "type": "string"
+          },
+          "aspsp_name": {
+            "title": "Aspsp Name",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "entity_name": {
+            "title": "Entity Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "last_error": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ConnectionErrorOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "last_sync_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync At"
+          },
+          "last_sync_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Sync Status"
+          },
+          "provider": {
+            "title": "Provider",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "valid_until": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Valid Until"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "aspsp_name",
+          "aspsp_country",
+          "entity_name",
+          "status",
+          "valid_until",
+          "accounts",
+          "last_sync_at",
+          "last_sync_status",
+          "last_error",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ConnectionOut",
         "type": "object"
       },
       "CurrencyReturnSummary": {
@@ -1041,6 +1347,60 @@
           "total_rows"
         ],
         "title": "ImportSessionWithRows",
+        "type": "object"
+      },
+      "LinkRequest": {
+        "description": "Start a consent for one provider.",
+        "properties": {
+          "entity_name": {
+            "description": "Canonical person the synced accounts belong to.",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Entity Name",
+            "type": "string"
+          },
+          "provider": {
+            "description": "Penge provider slug: gls | ebank | lunar.",
+            "title": "Provider",
+            "type": "string"
+          }
+        },
+        "required": [
+          "provider",
+          "entity_name"
+        ],
+        "title": "LinkRequest",
+        "type": "object"
+      },
+      "LinkResponse": {
+        "description": "Where to send the browser to obtain consent.",
+        "properties": {
+          "connection_id": {
+            "format": "uuid",
+            "title": "Connection Id",
+            "type": "string"
+          },
+          "consent_url": {
+            "title": "Consent Url",
+            "type": "string"
+          },
+          "state": {
+            "title": "State",
+            "type": "string"
+          },
+          "valid_until": {
+            "format": "date-time",
+            "title": "Valid Until",
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id",
+          "consent_url",
+          "state",
+          "valid_until"
+        ],
+        "title": "LinkResponse",
         "type": "object"
       },
       "MappingSuggestionOut": {
@@ -1720,6 +2080,29 @@
         "title": "SuggestionsResponse",
         "type": "object"
       },
+      "SyncResponse": {
+        "description": "Outcome of a sync run.",
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/ConnectionOut"
+          },
+          "holding_snapshots": {
+            "title": "Holding Snapshots",
+            "type": "integer"
+          },
+          "transactions": {
+            "title": "Transactions",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "connection",
+          "transactions",
+          "holding_snapshots"
+        ],
+        "title": "SyncResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "ctx": {
@@ -1763,7 +2146,7 @@
     }
   },
   "info": {
-    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. The /imports endpoints are the one write surface: staged import sessions per ADR-0037.",
+    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. The /imports endpoints are the one write surface: staged import sessions per ADR-0037. The /connections endpoints add the in-app Enable Banking consent flow per ADR-0040 and are only active where the EB signing key is configured.",
     "title": "Penge read API",
     "version": "1.0.0"
   },
@@ -2092,6 +2475,190 @@
           }
         },
         "summary": "Cashflow Daily"
+      }
+    },
+    "/connections": {
+      "get": {
+        "description": "List every bank connection with its status and last-sync debug info.",
+        "operationId": "list_connections_route_connections_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Connections Route",
+        "tags": [
+          "connections"
+        ]
+      }
+    },
+    "/connections/aspsps": {
+      "get": {
+        "description": "List the Enable Banking ASPSPs this deployment can connect to.",
+        "operationId": "list_aspsps_connections_aspsps_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AspspListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Aspsps",
+        "tags": [
+          "connections"
+        ]
+      }
+    },
+    "/connections/authorize": {
+      "post": {
+        "description": "Exchange the redirect code for a stored session.",
+        "operationId": "authorize_route_connections_authorize_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AuthorizeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Authorize Route",
+        "tags": [
+          "connections"
+        ]
+      }
+    },
+    "/connections/link": {
+      "post": {
+        "description": "Start a consent and return the bank's consent URL.",
+        "operationId": "link_route_connections_link_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Link Route",
+        "tags": [
+          "connections"
+        ]
+      }
+    },
+    "/connections/{connection_id}/sync": {
+      "post": {
+        "description": "Pull transactions + balances for one connection into Postgres.",
+        "operationId": "sync_route_connections__connection_id__sync_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "connection_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Connection Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "days",
+            "required": false,
+            "schema": {
+              "default": 365,
+              "maximum": 1095,
+              "minimum": 1,
+              "title": "Days",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Sync Route",
+        "tags": [
+          "connections"
+        ]
       }
     },
     "/imports": {

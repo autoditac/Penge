@@ -1705,6 +1705,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#in-app-consent-flow-penge-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In-app consent flow (Penge UI)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="In-app consent flow (Penge UI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#will-every-import-require-consent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Will every import require consent?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-the-feature-on-the-nas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling the feature on the NAS
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1956,6 +1995,10 @@
       
         
           
+        
+      
+        
+      
         
       
         
@@ -3041,6 +3084,62 @@
   
   
     <li class="md-nav__item">
+      <a href="../../decisions/0039-returns-engine-twr-mwr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0039 Returns engine (TWR/MWR)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0040 In-app Enable Banking consent flow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
@@ -3193,6 +3292,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#in-app-consent-flow-penge-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        In-app consent flow (Penge UI)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="In-app consent flow (Penge UI)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#will-every-import-require-consent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Will every import require consent?
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-the-feature-on-the-nas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling the feature on the NAS
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -3302,6 +3440,68 @@ sensitive — browser history, upstream proxies, and the bank's own logs
 may record it. The <code>code</code> is single-use and short-lived, so the
 practical exposure is small, but do not paste the URL into shared
 tools.</p>
+<h2 id="in-app-consent-flow-penge-ui">In-app consent flow (Penge UI)<a class="headerlink" href="#in-app-consent-flow-penge-ui" title="Permanent link">&para;</a></h2>
+<p>The same dance is available from the <strong>Connections</strong> page in the Penge
+UI (ADR-0040). It removes the need to run a CLI on the workstation and,
+crucially, <strong>persists the EB session</strong> so re-syncs do not require fresh
+SCA until the consent expires (~180 days).</p>
+<p>Flow on the page:</p>
+<ol>
+<li><strong>Start a consent</strong> — pick the bank and the person the accounts
+   belong to. Penge returns the bank's <code>consent_url</code>, the <code>state</code>, and
+   the <code>valid_until</code> date.</li>
+<li>Open the consent URL, approve at the bank, and copy the <code>code</code> (and
+   <code>state</code>) shown on the un-gated <code>/eb/callback</code> page.</li>
+<li><strong>Authorize</strong> — paste the <code>code</code> (and <code>state</code>). Penge exchanges it
+   for a session and stores it in the <code>bank_connection</code> table.</li>
+<li><strong>Sync now</strong> — pull transactions and balances into Postgres. Re-syncs
+   reuse the stored session; no new consent is needed until it expires.</li>
+</ol>
+<p>Every failed link/authorize/sync records a sanitised <code>last_error</code>
+(step, status code, EB error code, message, timestamp) that is shown
+inline on the connection card — so a <code>422 ALREADY_AUTHORIZED</code> is never
+silent.</p>
+<h3 id="will-every-import-require-consent">Will every import require consent?<a class="headerlink" href="#will-every-import-require-consent" title="Permanent link">&para;</a></h3>
+<p>No. Consent (SCA) is required only the first time and again when the
+stored session expires or is revoked. Normal re-syncs reuse the
+persisted session id.</p>
+<h2 id="enabling-the-feature-on-the-nas">Enabling the feature on the NAS<a class="headerlink" href="#enabling-the-feature-on-the-nas" title="Permanent link">&para;</a></h2>
+<p>The connections surface is <strong>feature-gated</strong>. The Enable Banking RSA
+private key signs every request, so it must live where the API runs.
+The read-only NAS API ships <strong>without</strong> the key, so the endpoints return
+<code>503</code> and the UI shows a "disabled in this deployment" note until the
+key is mounted.</p>
+<p>To enable on the NAS:</p>
+<ol>
+<li>Mount the EB private key into the <code>penge-api</code> container as a podman
+   secret (do <strong>not</strong> bake it into the image):</li>
+</ol>
+<div class="highlight"><pre><span></span><code>podman<span class="w"> </span>secret<span class="w"> </span>create<span class="w"> </span>penge-eb-key<span class="w"> </span>09a4a71a-....pem
+</code></pre></div>
+<p>and reference it from the <code>penge-api.container</code> quadlet:</p>
+<div class="highlight"><pre><span></span><code><span class="na">Secret</span><span class="o">=</span><span class="s">penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400</span>
+</code></pre></div>
+<ol>
+<li>Set the connection environment on the API container:</li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="na">Environment</span><span class="o">=</span><span class="s">ENABLEBANKING_APPLICATION_ID=09a4a71a-1646-41e7-97b1-b79eea6e9d8a</span>
+<span class="na">Environment</span><span class="o">=</span><span class="s">ENABLEBANKING_KEY_PATH=/run/secrets/penge-eb-key</span>
+<span class="na">Environment</span><span class="o">=</span><span class="s">PENGE_EB_REDIRECT_URL=https://penge.eigmueller.de/eb/callback</span>
+</code></pre></div>
+<ol>
+<li>
+<p>The API also needs a <strong>write</strong> database URL (the connections surface
+   writes accounts, transactions, and snapshots), not the read-only
+   role used for the analytics marts.</p>
+</li>
+<li>
+<p>Restart the container (<code>systemctl --user restart penge-api</code>). The
+   Connections page should now list the available banks instead of the
+   disabled note.</p>
+</li>
+</ol>
+<p>To keep the public instance off regardless of key presence, set
+<code>PENGE_CONNECTIONS_ENABLED=false</code>.</p>
 
 
 

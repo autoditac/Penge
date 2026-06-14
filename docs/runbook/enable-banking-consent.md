@@ -100,5 +100,11 @@ It is declared **before** the auth-gated `location /` so the exact
 match wins and the page is reachable without a Google session.
 The landing page lives at `/var/www/penge-eb/index.html`.
 Access logging is disabled for this location and a `no-store` cache
-header is set, so the single-use `code` in the query string is not
-written to logs or cached by intermediaries.
+header is sent, which reduces how often the `code` in the query string
+is persisted on the server side. These are mitigations, not
+guarantees: `no-store` is an advisory caching directive and does not
+affect logging, and the full callback URL should still be treated as
+sensitive — browser history, upstream proxies, and the bank's own logs
+may record it. The `code` is single-use and short-lived, so the
+practical exposure is small, but do not paste the URL into shared
+tools.

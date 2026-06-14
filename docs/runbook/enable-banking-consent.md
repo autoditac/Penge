@@ -89,9 +89,16 @@ location = /eb/callback {
     root  /var/www/penge-eb;
     try_files /index.html =404;
     add_header X-Robots-Tag "noindex, nofollow" always;
+    add_header Cache-Control "no-store" always;
+    # The redirect carries a single-use ?code=... in the query string;
+    # keep it out of the access log.
+    access_log off;
 }
 ```
 
 It is declared **before** the auth-gated `location /` so the exact
 match wins and the page is reachable without a Google session.
 The landing page lives at `/var/www/penge-eb/index.html`.
+Access logging is disabled for this location and a `no-store` cache
+header is set, so the single-use `code` in the query string is not
+written to logs or cached by intermediaries.

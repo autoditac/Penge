@@ -810,3 +810,152 @@ button {
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* --- Bank connections page (#230) --------------------------------------- */
+
+.connectForm {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 1rem;
+    margin: 0.5rem 0 1rem;
+}
+
+.connectForm label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.connectForm input,
+.connectForm select {
+    min-width: 14rem;
+    padding: 0.4rem 0.55rem;
+    border-radius: 0.4rem;
+    border: 1px solid var(--border);
+    background: var(--bg-inset);
+    color: var(--text);
+}
+
+.consentResult {
+    border: 1px solid var(--border);
+    border-radius: 0.6rem;
+    background: var(--bg-inset);
+    padding: 0.75rem 1rem;
+}
+
+.consentMeta,
+.connectionMeta {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 0.2rem 1rem;
+    margin: 0.5rem 0 0;
+    font-size: 0.85rem;
+}
+
+.consentMeta dt,
+.connectionMeta dt {
+    color: var(--text-muted);
+}
+
+.connectionList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 1rem;
+}
+
+.connectionCard {
+    border: 1px solid var(--border);
+    border-radius: 0.7rem;
+    background: var(--bg-inset);
+    padding: 1rem 1.1rem;
+    display: grid;
+    gap: 0.6rem;
+}
+
+.connectionHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.connectionHeader small {
+    display: block;
+    color: var(--text-muted);
+}
+
+.statusPill {
+    display: inline-block;
+    border-radius: 999px;
+    padding: 0.15rem 0.65rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-muted);
+}
+
+.statusPill.tone-good {
+    color: var(--good, #2e9e6b);
+    border-color: color-mix(in srgb, var(--good, #2e9e6b) 45%, transparent);
+}
+
+.statusPill.tone-watch {
+    color: var(--watch, #c98a1b);
+    border-color: color-mix(in srgb, var(--watch, #c98a1b) 45%, transparent);
+}
+
+.statusPill.tone-critical {
+    color: var(--critical);
+    border-color: color-mix(in srgb, var(--critical) 45%, transparent);
+}
+
+.statusPill.tone-info {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.accountList {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.3rem;
+}
+
+.accountList li {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-size: 0.9rem;
+}
+
+.accountList small {
+    color: var(--text-muted);
+}
+
+.connectionActions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.errorDetail {
+    border: 1px solid color-mix(in srgb, var(--critical) 45%, transparent);
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.7rem;
+    background: color-mix(in srgb, var(--critical) 8%, transparent);
+    font-size: 0.85rem;
+}
+
+.errorDetail summary {
+    cursor: pointer;
+    color: var(--critical);
+    font-weight: 600;
+}

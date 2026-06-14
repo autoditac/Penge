@@ -7,6 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from penge.api.connections.routes import router as connections_router
 from penge.api.imports.routes import router as imports_router
 from penge.api.routes import router
 
@@ -32,7 +33,9 @@ def create_app() -> FastAPI:
             "All amounts are reported in EUR and DKK in parallel; "
             "account identifiers are masked server-side. "
             "The /imports endpoints are the one write surface: staged "
-            "import sessions per ADR-0037."
+            "import sessions per ADR-0037. The /connections endpoints add "
+            "the in-app Enable Banking consent flow per ADR-0040 and are "
+            "only active where the EB signing key is configured."
         ),
     )
     app.add_middleware(
@@ -45,4 +48,5 @@ def create_app() -> FastAPI:
     )
     app.include_router(router)
     app.include_router(imports_router)
+    app.include_router(connections_router)
     return app

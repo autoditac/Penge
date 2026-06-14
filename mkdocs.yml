@@ -133,6 +133,8 @@ nav:
       - "ADR-0036 WebUI frontend stack": decisions/0036-webui-frontend-stack.md
       - "ADR-0037 Staged import sessions": decisions/0037-staged-import-sessions.md
       - "ADR-0038 Import mapping suggestions": decisions/0038-import-mapping-suggestions-via-mcp.md
+      - "ADR-0039 Returns engine (TWR/MWR)": decisions/0039-returns-engine-twr-mwr.md
+      - "ADR-0040 In-app Enable Banking consent flow": decisions/0040-in-app-enable-banking-consent-flow.md
       - "ADR template": decisions/adr-template.md
   - Privacy: privacy.md
   - Terms: terms.md

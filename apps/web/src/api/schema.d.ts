@@ -107,6 +107,106 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/connections": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Connections Route
+     * @description List every bank connection with its status and last-sync debug info.
+     */
+    get: operations["list_connections_route_connections_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/connections/aspsps": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * List Aspsps
+     * @description List the Enable Banking ASPSPs this deployment can connect to.
+     */
+    get: operations["list_aspsps_connections_aspsps_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/connections/authorize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Authorize Route
+     * @description Exchange the redirect code for a stored session.
+     */
+    post: operations["authorize_route_connections_authorize_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/connections/link": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Link Route
+     * @description Start a consent and return the bank's consent URL.
+     */
+    post: operations["link_route_connections_link_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/connections/{connection_id}/sync": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Sync Route
+     * @description Pull transactions + balances for one connection into Postgres.
+     */
+    post: operations["sync_route_connections__connection_id__sync_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/imports": {
     parameters: {
       query?: never;
@@ -389,6 +489,44 @@ export interface components {
       weight_eur: string | null;
     };
     /**
+     * AspspListResponse
+     * @description The set of providers the deployment can connect to.
+     */
+    AspspListResponse: {
+      /** Providers */
+      providers: components["schemas"]["AspspOut"][];
+    };
+    /**
+     * AspspOut
+     * @description One selectable Enable Banking ASPSP.
+     */
+    AspspOut: {
+      /** Aspsp Country */
+      aspsp_country: string;
+      /** Aspsp Name */
+      aspsp_name: string;
+      /** Default Currency */
+      default_currency: string;
+      /** Provider */
+      provider: string;
+    };
+    /**
+     * AuthorizeRequest
+     * @description Exchange the redirect ``code`` for a stored session.
+     */
+    AuthorizeRequest: {
+      /**
+       * Code
+       * @description The ?code= value from the callback.
+       */
+      code: string;
+      /**
+       * State
+       * @description The ?state= value; binds the code to its pending connection.
+       */
+      state?: string | null;
+    };
+    /**
      * BenchmarkInfo
      * @description One instrument with ingested price history, usable as benchmark.
      */
@@ -535,6 +673,87 @@ export interface components {
     CommitResponse: {
       counts: components["schemas"]["CommitCountsOut"];
       session: components["schemas"]["ImportSessionOut"];
+    };
+    /**
+     * ConnectionAccountOut
+     * @description One authorised account on a connection (no raw uid leaks to logs).
+     */
+    ConnectionAccountOut: {
+      /** Currency */
+      currency: string | null;
+      /** Iban Masked */
+      iban_masked: string | null;
+      /** Name */
+      name: string | null;
+      /** Product */
+      product: string | null;
+    };
+    /**
+     * ConnectionErrorOut
+     * @description Sanitised debug payload for a failed link/authorize/sync.
+     */
+    ConnectionErrorOut: {
+      /**
+       * At
+       * Format: date-time
+       */
+      at: string;
+      /** Code */
+      code: string | null;
+      /** Message */
+      message: string;
+      /** Status Code */
+      status_code: number | null;
+      /** Step */
+      step: string;
+    };
+    /**
+     * ConnectionListResponse
+     * @description All known connections.
+     */
+    ConnectionListResponse: {
+      /** Connections */
+      connections: components["schemas"]["ConnectionOut"][];
+    };
+    /**
+     * ConnectionOut
+     * @description A bank connection as exposed to the UI.
+     */
+    ConnectionOut: {
+      /** Accounts */
+      accounts: components["schemas"]["ConnectionAccountOut"][];
+      /** Aspsp Country */
+      aspsp_country: string;
+      /** Aspsp Name */
+      aspsp_name: string;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Entity Name */
+      entity_name: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      last_error: components["schemas"]["ConnectionErrorOut"] | null;
+      /** Last Sync At */
+      last_sync_at: string | null;
+      /** Last Sync Status */
+      last_sync_status: string | null;
+      /** Provider */
+      provider: string;
+      /** Status */
+      status: string;
+      /**
+       * Updated At
+       * Format: date-time
+       */
+      updated_at: string;
+      /** Valid Until */
+      valid_until: string | null;
     };
     /**
      * CurrencyReturnSummary
@@ -742,6 +961,42 @@ export interface components {
        * Format: date-time
        */
       updated_at: string;
+    };
+    /**
+     * LinkRequest
+     * @description Start a consent for one provider.
+     */
+    LinkRequest: {
+      /**
+       * Entity Name
+       * @description Canonical person the synced accounts belong to.
+       */
+      entity_name: string;
+      /**
+       * Provider
+       * @description Penge provider slug: gls | ebank | lunar.
+       */
+      provider: string;
+    };
+    /**
+     * LinkResponse
+     * @description Where to send the browser to obtain consent.
+     */
+    LinkResponse: {
+      /**
+       * Connection Id
+       * Format: uuid
+       */
+      connection_id: string;
+      /** Consent Url */
+      consent_url: string;
+      /** State */
+      state: string;
+      /**
+       * Valid Until
+       * Format: date-time
+       */
+      valid_until: string;
     };
     /**
      * MappingSuggestionOut
@@ -1006,6 +1261,17 @@ export interface components {
       /** Suggestions */
       suggestions: components["schemas"]["MappingSuggestionOut"][];
     };
+    /**
+     * SyncResponse
+     * @description Outcome of a sync run.
+     */
+    SyncResponse: {
+      connection: components["schemas"]["ConnectionOut"];
+      /** Holding Snapshots */
+      holding_snapshots: number;
+      /** Transactions */
+      transactions: number;
+    };
     /** ValidationError */
     ValidationError: {
       /** Context */
@@ -1168,6 +1434,145 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["CashflowSeriesResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_connections_route_connections_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ConnectionListResponse"];
+        };
+      };
+    };
+  };
+  list_aspsps_connections_aspsps_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AspspListResponse"];
+        };
+      };
+    };
+  };
+  authorize_route_connections_authorize_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AuthorizeRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ConnectionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  link_route_connections_link_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LinkRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LinkResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  sync_route_connections__connection_id__sync_post: {
+    parameters: {
+      query?: {
+        days?: number;
+      };
+      header?: never;
+      path: {
+        connection_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SyncResponse"];
         };
       };
       /** @description Validation Error */

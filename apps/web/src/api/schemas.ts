@@ -330,6 +330,75 @@ export const suggestionsResponseSchema = z.object({
 });
 export type SuggestionsResponse = z.infer<typeof suggestionsResponseSchema>;
 
+/* ---- bank connections (Enable Banking, #230) ---- */
+
+export const aspspSchema = z.object({
+  aspsp_country: z.string(),
+  aspsp_name: z.string(),
+  default_currency: z.string(),
+  provider: z.string(),
+});
+export type Aspsp = z.infer<typeof aspspSchema>;
+
+export const aspspListResponseSchema = z.object({
+  providers: z.array(aspspSchema),
+});
+export type AspspListResponse = z.infer<typeof aspspListResponseSchema>;
+
+export const connectionAccountSchema = z.object({
+  currency: z.string().nullable(),
+  iban_masked: z.string().nullable(),
+  name: z.string().nullable(),
+  product: z.string().nullable(),
+});
+export type ConnectionAccount = z.infer<typeof connectionAccountSchema>;
+
+export const connectionErrorSchema = z.object({
+  at: z.string(),
+  code: z.string().nullable(),
+  message: z.string(),
+  status_code: z.number().int().nullable(),
+  step: z.string(),
+});
+export type ConnectionError = z.infer<typeof connectionErrorSchema>;
+
+export const connectionSchema = z.object({
+  accounts: z.array(connectionAccountSchema),
+  aspsp_country: z.string(),
+  aspsp_name: z.string(),
+  created_at: z.string(),
+  entity_name: z.string(),
+  id: z.string(),
+  last_error: connectionErrorSchema.nullable(),
+  last_sync_at: z.string().nullable(),
+  last_sync_status: z.string().nullable(),
+  provider: z.string(),
+  status: z.string(),
+  updated_at: z.string(),
+  valid_until: z.string().nullable(),
+});
+export type Connection = z.infer<typeof connectionSchema>;
+
+export const connectionListResponseSchema = z.object({
+  connections: z.array(connectionSchema),
+});
+export type ConnectionListResponse = z.infer<typeof connectionListResponseSchema>;
+
+export const linkResponseSchema = z.object({
+  connection_id: z.string(),
+  consent_url: z.string(),
+  state: z.string(),
+  valid_until: z.string(),
+});
+export type LinkResponse = z.infer<typeof linkResponseSchema>;
+
+export const syncResponseSchema = z.object({
+  connection: connectionSchema,
+  holding_snapshots: z.number().int(),
+  transactions: z.number().int(),
+});
+export type SyncResponse = z.infer<typeof syncResponseSchema>;
+
 /* Compile-time contract checks: each zod-inferred type must stay mutually
  * assignable with the openapi-typescript generated type. A drifted schema
  * makes one of these aliases fail to type-check. */
@@ -406,3 +475,19 @@ type _CheckBenchmarkSeries = Assert<
 >;
 type _CheckFeeYearRow = Assert<MutuallyAssignable<FeeYearRow, Generated["FeeYearRow"]>>;
 type _CheckFeesResponse = Assert<MutuallyAssignable<FeesResponse, Generated["FeesResponse"]>>;
+type _CheckAspsp = Assert<MutuallyAssignable<Aspsp, Generated["AspspOut"]>>;
+type _CheckAspspListResponse = Assert<
+  MutuallyAssignable<AspspListResponse, Generated["AspspListResponse"]>
+>;
+type _CheckConnectionAccount = Assert<
+  MutuallyAssignable<ConnectionAccount, Generated["ConnectionAccountOut"]>
+>;
+type _CheckConnectionError = Assert<
+  MutuallyAssignable<ConnectionError, Generated["ConnectionErrorOut"]>
+>;
+type _CheckConnection = Assert<MutuallyAssignable<Connection, Generated["ConnectionOut"]>>;
+type _CheckConnectionListResponse = Assert<
+  MutuallyAssignable<ConnectionListResponse, Generated["ConnectionListResponse"]>
+>;
+type _CheckLinkResponse = Assert<MutuallyAssignable<LinkResponse, Generated["LinkResponse"]>>;
+type _CheckSyncResponse = Assert<MutuallyAssignable<SyncResponse, Generated["SyncResponse"]>>;

@@ -150,9 +150,10 @@ jobs:
           context: .
           file: apps/${{ matrix.app }}/Containerfile
           push: false
-          # Load the image into the local daemon so the boot smoke-test
-          # below can run it. Single-platform build, so `load` is safe.
-          load: true
+          # Load the API image into the local daemon so the boot
+          # smoke-test below can run it. Single-platform build, so `load`
+          # is safe. Web needs no boot test, so skip the extra load there.
+          load: ${{ matrix.app == 'api' }}
           # Build-only verification: BuildKit's default provenance
           # attestation is wasted work here (nothing is published).
           provenance: false

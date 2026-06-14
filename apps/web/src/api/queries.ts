@@ -9,14 +9,17 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 
 import {
+  authorizeConnection,
   commitImport,
   demoMode,
   discardImport,
   fetchAccounts,
   fetchAllocation,
+  fetchAspsps,
   fetchBenchmarkDaily,
   fetchBenchmarks,
   fetchCashflowDaily,
+  fetchConnections,
   fetchFees,
   fetchFreshness,
   fetchImportSession,
@@ -27,9 +30,12 @@ import {
   fetchReturnsDaily,
   fetchReturnsSummary,
   patchImportRow,
+  startConnectionLink,
+  syncConnection,
   uploadImport,
 } from "./client";
 import type {
+  AuthorizeConnectionInput,
   CommitOptions,
   ReturnsParams,
   RowPatch,
@@ -40,21 +46,26 @@ import type {
   AccountSummary,
   AllocationDimension,
   AllocationResponse,
+  AspspListResponse,
   BenchmarkInfo,
   BenchmarkSeriesResponse,
   CashflowSeriesResponse,
   CommitResponse,
+  Connection,
+  ConnectionListResponse,
   FeesResponse,
   FreshnessResponse,
   ImportRow,
   ImportSession,
   ImportSessionList,
   ImportSessionWithRows,
+  LinkResponse,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
   ReturnsSeriesResponse,
   ReturnsSummaryResponse,
   SuggestionsResponse,
+  SyncResponse,
 } from "./schemas";
 
 const staleTimeMs = 60_000;
@@ -387,6 +398,106 @@ export function useDiscardImport(): UseMutationResult<ImportSession, Error, stri
     onSuccess: (_session, sessionId) => {
       void queryClient.invalidateQueries({ queryKey: ["import", sessionId] });
       void queryClient.invalidateQueries({ queryKey: ["imports"] });
+    },
+  });
+}
+
+/* ---- bank connections (Enable Banking, #230) ---- */
+
+export function useAspsps(): UseQueryResult<AspspListResponse, Error> {
+  return useQuery({
+    queryKey: ["connections-aspsps"],
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (demoMode) {
+        const store = await import("../demo/connectionsStore");
+        return store.demoListAspsps();
+      }
+      return fetchAspsps();
+    },
+  });
+}
+
+export function useConnections(): UseQueryResult<ConnectionListResponse, Error> {
+  return useQuery({
+    queryKey: ["connections"],
+    staleTime: 5_000,
+    queryFn: async () => {
+      if (demoMode) {
+        const store = await import("../demo/connectionsStore");
+        return store.demoListConnections();
+      }
+      return fetchConnections();
+    },
+  });
+}
+
+type StartLinkVariables = {
+  readonly provider: string;
+  readonly entityName: string;
+};
+
+export function useStartConnectionLink(): UseMutationResult<
+  LinkResponse,
+  Error,
+  StartLinkVariables
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ provider, entityName }: StartLinkVariables) => {
+      if (demoMode) {
+        const store = await import("../demo/connectionsStore");
+        return store.demoStartLink(provider, entityName);
+      }
+      return startConnectionLink(provider, entityName);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["connections"] });
+    },
+  });
+}
+
+export function useAuthorizeConnection(): UseMutationResult<
+  Connection,
+  Error,
+  AuthorizeConnectionInput
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: AuthorizeConnectionInput) => {
+      if (demoMode) {
+        const store = await import("../demo/connectionsStore");
+        return store.demoAuthorize(input);
+      }
+      return authorizeConnection(input);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["connections"] });
+    },
+  });
+}
+
+type SyncConnectionVariables = {
+  readonly connectionId: string;
+  readonly days?: number | undefined;
+};
+
+export function useSyncConnection(): UseMutationResult<
+  SyncResponse,
+  Error,
+  SyncConnectionVariables
+> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ connectionId, days }: SyncConnectionVariables) => {
+      if (demoMode) {
+        const store = await import("../demo/connectionsStore");
+        return store.demoSync(connectionId);
+      }
+      return syncConnection(connectionId, days);
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["connections"] });
     },
   });
 }

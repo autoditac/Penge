@@ -10,42 +10,52 @@ import { PengeApiError } from "../errors";
 import {
   accountsResponseSchema,
   allocationResponseSchema,
+  aspspListResponseSchema,
   benchmarkSeriesResponseSchema,
   benchmarksResponseSchema,
   cashflowSeriesResponseSchema,
   commitResponseSchema,
+  connectionListResponseSchema,
+  connectionSchema,
   feesResponseSchema,
   freshnessResponseSchema,
   importRowSchema,
   importSessionListSchema,
   importSessionSchema,
   importSessionWithRowsSchema,
+  linkResponseSchema,
   netWorthSeriesResponseSchema,
   netWorthTotalSeriesResponseSchema,
   returnsSeriesResponseSchema,
   returnsSummaryResponseSchema,
   suggestionsResponseSchema,
+  syncResponseSchema,
 } from "./schemas";
 import type {
   AccountSummary,
   AllocationDimension,
   AllocationResponse,
+  AspspListResponse,
   BenchmarkInfo,
   BenchmarkSeriesResponse,
   CashflowSeriesResponse,
   CommitResponse,
+  Connection,
+  ConnectionListResponse,
   FeesResponse,
   FreshnessResponse,
   ImportRow,
   ImportSession,
   ImportSessionList,
   ImportSessionWithRows,
+  LinkResponse,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
   ReturnsScope,
   ReturnsSeriesResponse,
   ReturnsSummaryResponse,
   SuggestionsResponse,
+  SyncResponse,
 } from "./schemas";
 
 export const apiBaseUrl: string = import.meta.env.VITE_PENGE_API_URL ?? "http://127.0.0.1:8000";
@@ -356,4 +366,47 @@ export function commitImport(
 
 export function discardImport(sessionId: string): Promise<ImportSession> {
   return requestJson(`/imports/${sessionId}`, { method: "DELETE" }, importSessionSchema);
+}
+
+/* ---- bank connections (Enable Banking, #230) ---- */
+
+export function fetchAspsps(): Promise<AspspListResponse> {
+  return getJson("/connections/aspsps", {}, aspspListResponseSchema);
+}
+
+export function fetchConnections(): Promise<ConnectionListResponse> {
+  return getJson("/connections", {}, connectionListResponseSchema);
+}
+
+export function startConnectionLink(provider: string, entityName: string): Promise<LinkResponse> {
+  return requestJson(
+    "/connections/link",
+    { method: "POST", jsonBody: { provider, entity_name: entityName } },
+    linkResponseSchema,
+  );
+}
+
+export type AuthorizeConnectionInput = {
+  readonly code: string;
+  readonly state?: string | undefined;
+};
+
+export function authorizeConnection(input: AuthorizeConnectionInput): Promise<Connection> {
+  const body: Record<string, string> = { code: input.code };
+  if (input.state !== undefined && input.state !== "") {
+    body["state"] = input.state;
+  }
+  return requestJson(
+    "/connections/authorize",
+    { method: "POST", jsonBody: body },
+    connectionSchema,
+  );
+}
+
+export function syncConnection(connectionId: string, days?: number): Promise<SyncResponse> {
+  return requestJson(
+    `/connections/${connectionId}/sync`,
+    { method: "POST", params: { days } },
+    syncResponseSchema,
+  );
 }

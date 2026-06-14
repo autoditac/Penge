@@ -27,6 +27,11 @@ class TestOpenApiSchema:
             "/imports/{session_id}/rows/{row_id}",
             "/imports/{session_id}/commit",
             "/imports/{session_id}/suggestions",
+            "/connections/aspsps",
+            "/connections",
+            "/connections/link",
+            "/connections/authorize",
+            "/connections/{connection_id}/sync",
         }
 
     def test_render_is_deterministic(self) -> None:

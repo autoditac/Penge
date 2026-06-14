@@ -1,0 +1,291 @@
+"""Service layer: link / authorize / sync orchestration.
+
+Wraps the Enable Banking client and the per-bank connectors, persists
+connection state, and converts upstream failures into a small set of
+typed errors carrying a **sanitised** debug payload (status code,
+machine error code, generic message) — never IBANs, names, or amounts.
+"""
+
+from __future__ import annotations
+
+import logging
+import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta
+from typing import TYPE_CHECKING
+
+from penge.api.connections import store
+from penge.api.connections.provider import get_provider
+from penge.ingest.enablebanking.client import EnableBankingError, default_consent_until
+from penge.web.mask import mask_iban
+
+if TYPE_CHECKING:
+    from sqlalchemy.engine import Engine
+
+    from penge.ingest.enablebanking.client import Client
+    from penge.ingest.enablebanking.models import AccountResource
+
+log = logging.getLogger("penge.api.connections")
+
+DEFAULT_CONSENT_DAYS = 180
+DEFAULT_HISTORY_DAYS = 365
+
+_SESSION_AUTHORIZED = "AUTHORIZED"
+
+
+@dataclass(frozen=True, slots=True)
+class ConnectionError(Exception):
+    """A link/authorize/sync failure with a sanitised debug payload."""
+
+    step: str
+    message: str
+    status_code: int | None = None
+    code: str | None = None
+    not_found: bool = False
+
+    def as_error_payload(self) -> dict[str, object]:
+        """Serialise for the ``last_error`` JSONB column."""
+        payload: dict[str, object] = {
+            "step": self.step,
+            "message": self.message,
+            "at": datetime.now(UTC).isoformat(),
+        }
+        if self.status_code is not None:
+            payload["status_code"] = self.status_code
+        if self.code is not None:
+            payload["code"] = self.code
+        return payload
+
+
+def _eb_message(body: object) -> tuple[str | None, str]:
+    """Extract ``(error_code, message)`` from an Enable Banking error body."""
+    if isinstance(body, dict):
+        code = body.get("error")
+        message = body.get("message") or body.get("detail") or "Enable Banking error"
+        return (str(code) if code is not None else None, str(message))
+    return (None, str(body))
+
+
+def _from_eb_error(step: str, exc: EnableBankingError) -> ConnectionError:
+    code, message = _eb_message(exc.body)
+    return ConnectionError(
+        step=step,
+        message=message,
+        status_code=exc.status_code,
+        code=code,
+    )
+
+
+def _account_snapshot(accounts: list[AccountResource]) -> list[dict[str, object]]:
+    """Build the non-sensitive account snapshot stored on the connection."""
+    snapshot: list[dict[str, object]] = []
+    for acct in accounts:
+        iban = acct.account_id.iban if acct.account_id else None
+        snapshot.append(
+            {
+                "name": acct.name,
+                "iban_masked": mask_iban(iban) or None,
+                "currency": acct.currency,
+                "product": acct.product,
+            }
+        )
+    return snapshot
+
+
+def start_link(
+    engine: Engine,
+    client: Client,
+    *,
+    redirect_url: str,
+    provider_slug: str,
+    entity_name: str,
+) -> tuple[store.ConnectionRecord, str]:
+    """Begin a consent: persist a ``linking`` row and return the consent URL."""
+    provider = get_provider(provider_slug)
+    if provider is None:
+        raise ConnectionError(step="link", message=f"unknown provider '{provider_slug}'")
+
+    state = str(uuid.uuid4())
+    valid_until = default_consent_until(days=DEFAULT_CONSENT_DAYS)
+    try:
+        resp = client.start_authorization(
+            aspsp_name=provider.aspsp_name,
+            aspsp_country=provider.aspsp_country,
+            redirect_url=redirect_url,
+            valid_until=valid_until,
+            state=state,
+        )
+    except EnableBankingError as exc:
+        raise _from_eb_error("link", exc) from exc
+
+    record = store.create_linking(
+        engine,
+        provider=provider.slug,
+        aspsp_name=provider.aspsp_name,
+        aspsp_country=provider.aspsp_country,
+        entity_name=entity_name,
+        state=state,
+        authorization_id=resp.authorization_id,
+        valid_until=valid_until,
+    )
+    log.info("connection link started provider=%s id=%s", provider.slug, record.id)
+    return record, resp.url
+
+
+def _resolve_pending(
+    engine: Engine,
+    *,
+    state: str | None,
+    aspsp_name: str,
+) -> store.ConnectionRecord | None:
+    """Find the ``linking`` connection a callback code belongs to.
+
+    Prefers the CSRF ``state`` (exact match). Falls back to the most
+    recent pending connection for the same ASPSP when the callback did
+    not carry state.
+    """
+    if state:
+        found = store.get_by_state(engine, state)
+        if found is not None:
+            return found
+    for record in store.list_connections(engine):
+        if record.status == store.STATUS_LINKING and record.aspsp_name == aspsp_name:
+            return record
+    return None
+
+
+def authorize(
+    engine: Engine,
+    client: Client,
+    *,
+    code: str,
+    state: str | None,
+) -> store.ConnectionRecord:
+    """Exchange the redirect ``code`` for a session and persist it."""
+    try:
+        resp = client.authorize_session(code)
+    except EnableBankingError as exc:
+        err = _from_eb_error("authorize", exc)
+        if state:
+            pending = store.get_by_state(engine, state)
+            if pending is not None:
+                store.record_error(engine, pending.id, error=err.as_error_payload())
+        raise err from exc
+
+    pending = _resolve_pending(engine, state=state, aspsp_name=resp.aspsp.name)
+    if pending is None:
+        raise ConnectionError(
+            step="authorize",
+            message="no pending connection matched this consent",
+            not_found=True,
+        )
+
+    record = store.mark_authorized(
+        engine,
+        pending.id,
+        session_id=resp.session_id,
+        valid_until=resp.access.valid_until,
+        accounts=_account_snapshot(resp.accounts),
+    )
+    log.info("connection authorized provider=%s id=%s", record.provider, record.id)
+    return record
+
+
+@dataclass(frozen=True, slots=True)
+class SyncOutcome:
+    """Counts produced by a sync run."""
+
+    record: store.ConnectionRecord
+    transactions: int
+    holding_snapshots: int
+
+
+def sync(
+    engine: Engine,
+    client: Client,
+    *,
+    connection_id: uuid.UUID,
+    days: int = DEFAULT_HISTORY_DAYS,
+) -> SyncOutcome:
+    """Pull transactions + balances for every account on the connection."""
+    record = store.get_connection(engine, connection_id)
+    if record is None:
+        raise ConnectionError(step="sync", message="connection not found", not_found=True)
+
+    provider = get_provider(record.provider)
+    if provider is None:
+        raise ConnectionError(step="sync", message=f"unknown provider '{record.provider}'")
+
+    if not record.session_id:
+        err = ConnectionError(step="sync", message="connection is not authorized yet")
+        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        raise err
+
+    try:
+        session = client.get_session(record.session_id)
+    except EnableBankingError as exc:
+        err = _from_eb_error("sync", exc)
+        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        raise err from exc
+
+    if session.status != _SESSION_AUTHORIZED:
+        err = ConnectionError(
+            step="sync",
+            message=f"session status is {session.status}; re-consent required",
+        )
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=store.STATUS_EXPIRED,
+            is_sync=True,
+        )
+        raise err
+
+    date_from = (datetime.now(UTC) - timedelta(days=days)).date()
+    date_to = datetime.now(UTC).date()
+    selected = [a for a in session.accounts_data if a.uid is not None]
+    if not selected:
+        err = ConnectionError(step="sync", message="no accounts to sync on this session")
+        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        raise err
+
+    total_txn = 0
+    total_snap = 0
+    try:
+        for acct in selected:
+            result = provider.sync_account(
+                engine,
+                client=client,
+                account=acct,
+                entity_name=record.entity_name,
+                date_from=date_from,
+                date_to=date_to,
+            )
+            total_txn += result.transactions
+            total_snap += result.holding_snapshots
+    except EnableBankingError as exc:
+        err = _from_eb_error("sync", exc)
+        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        raise err from exc
+
+    updated = store.record_sync_ok(engine, record.id, accounts=_account_snapshot(selected))
+    log.info(
+        "connection synced provider=%s id=%s txns=%d snapshots=%d",
+        record.provider,
+        record.id,
+        total_txn,
+        total_snap,
+    )
+    return SyncOutcome(record=updated, transactions=total_txn, holding_snapshots=total_snap)
+
+
+__all__ = [
+    "DEFAULT_CONSENT_DAYS",
+    "DEFAULT_HISTORY_DAYS",
+    "ConnectionError",
+    "SyncOutcome",
+    "authorize",
+    "start_link",
+    "sync",
+]

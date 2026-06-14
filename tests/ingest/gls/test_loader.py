@@ -33,3 +33,16 @@ def test_load_account_delegates_with_provider_gls() -> None:
     kwargs = delegate.call_args.kwargs
     assert kwargs["provider"] == "gls"
     assert kwargs["account_uid"] == "uid-1"
+
+
+def test_cli_aspsp_constants() -> None:
+    """CLI module hardcodes the correct ASPSP name + country for Enable Banking.
+
+    Enable Banking's production catalogue lists the bank as
+    ``GLS Gemeinschaftsbank`` (not the colloquial "GLS Bank"); using the wrong
+    name makes ``/auth`` fail with ``WRONG_ASPSP_PROVIDED``.
+    """
+    from penge.ingest.gls import __main__ as cli
+
+    assert cli.ASPSP_NAME == "GLS Gemeinschaftsbank"
+    assert cli.ASPSP_COUNTRY == "DE"

@@ -34,7 +34,7 @@ from .loader import load_account
 
 log = logging.getLogger("penge.ingest.gls")
 
-ASPSP_NAME = "GLS Bank"
+ASPSP_NAME = "GLS Gemeinschaftsbank"
 ASPSP_COUNTRY = "DE"
 DEFAULT_HISTORY_DAYS = 365
 

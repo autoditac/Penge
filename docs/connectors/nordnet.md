@@ -70,9 +70,11 @@ reconcile the running balance — see ADR-0008 for the rationale.
 | `HÆVNING`                  | `withdrawal` *or* `internal_transfer` (1) |
 | `INDSÆTTELSE`              | `deposit` *or* `internal_transfer` (1) |
 | `KREDITRENTE`              | `cash_interest`               |
+| `DEPOTRENTE`               | `cash_interest` (2)           |
 | `OVERBELÅNINGSRENTE`       | `cash_interest` (2)           |
 | `AFKASTSKAT ASK`           | `tax_ask_charge`              |
 | `SKATTEINDBETALING ASK`    | `tax_ask_payment`             |
+| *…any other* `…RENTE`      | `cash_interest` (2)           |
 
 (1) For `HÆVNING` and `INDSÆTTELSE` the parser inspects
 `Transaktionstekst`; if it matches
@@ -81,12 +83,15 @@ reconcile the running balance — see ADR-0008 for the rationale.
 parsed record. The loader is then responsible for deduping the
 two halves of the transfer (see ADR-0008).
 
-(2) `OVERBELÅNINGSRENTE` is margin / over-collateralization loan
-interest — the debit counterpart of `KREDITRENTE`. Its amount is
-naturally negative, so mapping it to `cash_interest` keeps it in
-the same returns and DK `kapitalindkomst` bucket as credit
-interest, with the sign carrying the income/expense direction. No
-separate canonical kind is introduced.
+(2) Danish interest types all carry the `RENTE` suffix
+(`KREDITRENTE` credit interest, `DEPOTRENTE` custody-account
+interest, `OVERBELÅNINGSRENTE` margin/over-collateralization loan
+interest, …). They all map to `cash_interest`: the amount's sign
+carries the income/expense direction and the row lands in the same
+returns and DK `kapitalindkomst` bucket. The well-known types are
+listed explicitly above; any other unmapped `…RENTE` type falls
+back to `cash_interest` so a new interest label never aborts an
+import. See [ADR-0042](../decisions/0042-nordnet-interest-suffix-fallback.md).
 
 ## Programmatic API
 

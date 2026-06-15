@@ -70,6 +70,7 @@ reconcile the running balance — see ADR-0008 for the rationale.
 | `HÆVNING`                  | `withdrawal` *or* `internal_transfer` (1) |
 | `INDSÆTTELSE`              | `deposit` *or* `internal_transfer` (1) |
 | `KREDITRENTE`              | `cash_interest`               |
+| `OVERBELÅNINGSRENTE`       | `cash_interest` (2)           |
 | `AFKASTSKAT ASK`           | `tax_ask_charge`              |
 | `SKATTEINDBETALING ASK`    | `tax_ask_payment`             |
 
@@ -79,6 +80,13 @@ reconcile the running balance — see ADR-0008 for the rationale.
 `internal_transfer` and the counter-account is preserved on the
 parsed record. The loader is then responsible for deduping the
 two halves of the transfer (see ADR-0008).
+
+(2) `OVERBELÅNINGSRENTE` is margin / over-collateralization loan
+interest — the debit counterpart of `KREDITRENTE`. Its amount is
+naturally negative, so mapping it to `cash_interest` keeps it in
+the same returns and DK `kapitalindkomst` bucket as credit
+interest, with the sign carrying the income/expense direction. No
+separate canonical kind is introduced.
 
 ## Programmatic API
 

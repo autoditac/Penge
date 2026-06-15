@@ -201,6 +201,26 @@ def test_parse_transactions_amount_currency_defaults_to_dkk(tmp_path: Path) -> N
     assert parsed[0].amount_currency == "DKK"
 
 
+def test_parse_transactions_overbelaaningsrente_is_cash_interest(
+    tmp_path: Path,
+) -> None:
+    rows = [
+        TXN_HEADER,
+        txn_row(
+            id_="1",
+            book_date="2026-01-01",
+            depot="99999990",
+            type_="OVERBELÅNINGSRENTE",
+            amount="-7,89",
+            saldo="2,11",
+        ),
+    ]
+    csv_path = write_nordnet_csv(tmp_path / "t.csv", rows)
+    parsed = list(parse_transactions(csv_path))
+    assert parsed[0].canonical_kind == TXN_KIND_CASH_INTEREST
+    assert parsed[0].amount == Decimal("-7.89")
+
+
 def test_parse_transactions_unknown_type_raises(tmp_path: Path) -> None:
     rows = [
         TXN_HEADER,

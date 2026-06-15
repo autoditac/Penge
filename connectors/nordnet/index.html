@@ -3430,6 +3430,10 @@ reconcile the running balance — see ADR-0008 for the rationale.</p>
 <td><code>cash_interest</code></td>
 </tr>
 <tr>
+<td><code>DEPOTRENTE</code></td>
+<td><code>cash_interest</code> (2)</td>
+</tr>
+<tr>
 <td><code>OVERBELÅNINGSRENTE</code></td>
 <td><code>cash_interest</code> (2)</td>
 </tr>
@@ -3441,6 +3445,10 @@ reconcile the running balance — see ADR-0008 for the rationale.</p>
 <td><code>SKATTEINDBETALING ASK</code></td>
 <td><code>tax_ask_payment</code></td>
 </tr>
+<tr>
+<td><em>…any other</em> <code>…RENTE</code></td>
+<td><code>cash_interest</code> (2)</td>
+</tr>
 </tbody>
 </table>
 <p>(1) For <code>HÆVNING</code> and <code>INDSÆTTELSE</code> the parser inspects
@@ -3449,12 +3457,15 @@ reconcile the running balance — see ADR-0008 for the rationale.</p>
 <code>internal_transfer</code> and the counter-account is preserved on the
 parsed record. The loader is then responsible for deduping the
 two halves of the transfer (see ADR-0008).</p>
-<p>(2) <code>OVERBELÅNINGSRENTE</code> is margin / over-collateralization loan
-interest — the debit counterpart of <code>KREDITRENTE</code>. Its amount is
-naturally negative, so mapping it to <code>cash_interest</code> keeps it in
-the same returns and DK <code>kapitalindkomst</code> bucket as credit
-interest, with the sign carrying the income/expense direction. No
-separate canonical kind is introduced.</p>
+<p>(2) Danish interest types all carry the <code>RENTE</code> suffix
+(<code>KREDITRENTE</code> credit interest, <code>DEPOTRENTE</code> custody-account
+interest, <code>OVERBELÅNINGSRENTE</code> margin/over-collateralization loan
+interest, …). They all map to <code>cash_interest</code>: the amount's sign
+carries the income/expense direction and the row lands in the same
+returns and DK <code>kapitalindkomst</code> bucket. The well-known types are
+listed explicitly above; any other unmapped <code>…RENTE</code> type falls
+back to <code>cash_interest</code> so a new interest label never aborts an
+import. See <a href="../../decisions/0042-nordnet-interest-suffix-fallback/">ADR-0042</a>.</p>
 <h2 id="programmatic-api">Programmatic API<a class="headerlink" href="#programmatic-api" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.ingest.nordnet</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">parse_transactions</span><span class="p">,</span>

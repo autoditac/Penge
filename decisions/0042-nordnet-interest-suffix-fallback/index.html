@@ -10,31 +10,27 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0042-nordnet-interest-suffix-fallback/">
       
       
-        <link rel="prev" href="../runbook/restore-log/">
-      
-      
-        <link rel="next" href="0001-self-hosted-postgres-duckdb-stack/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>Architecture Decision Records (ADRs) - Penge</title>
+        <title>0042 — Nordnet interest types: …RENTE suffix fallback to cash_interest - Penge</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -53,7 +49,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -78,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#architecture-decision-records-adrs" class="md-skip">
+        <a href="#0042-nordnet-interest-types-rente-suffix-fallback-to-cash_interest" class="md-skip">
           Skip to content
         </a>
       
@@ -94,7 +90,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -114,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Architecture Decision Records (ADRs)
+              0042 — Nordnet interest types: …RENTE suffix fallback to cash_interest
             
           </span>
         </div>
@@ -230,7 +226,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -260,7 +256,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -310,7 +306,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../architecture/" class="md-nav__link ">
+            <a href="../../architecture/" class="md-nav__link ">
               
   
   
@@ -397,7 +393,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../connectors/" class="md-nav__link ">
+            <a href="../../connectors/" class="md-nav__link ">
               
   
   
@@ -441,7 +437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/ecb_fx/" class="md-nav__link">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
         
   
   
@@ -469,7 +465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/gls/" class="md-nav__link">
+      <a href="../../connectors/gls/" class="md-nav__link">
         
   
   
@@ -497,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/evangelische-bank/" class="md-nav__link">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
         
   
   
@@ -525,7 +521,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/lunar/" class="md-nav__link">
+      <a href="../../connectors/lunar/" class="md-nav__link">
         
   
   
@@ -553,7 +549,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/growney/" class="md-nav__link">
+      <a href="../../connectors/growney/" class="md-nav__link">
         
   
   
@@ -581,7 +577,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/pfa/" class="md-nav__link">
+      <a href="../../connectors/pfa/" class="md-nav__link">
         
   
   
@@ -609,7 +605,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/nordnet/" class="md-nav__link">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
         
   
   
@@ -637,7 +633,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/abis/" class="md-nav__link">
+      <a href="../../connectors/abis/" class="md-nav__link">
         
   
   
@@ -665,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/manual/" class="md-nav__link">
+      <a href="../../connectors/manual/" class="md-nav__link">
         
   
   
@@ -758,7 +754,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dbt/" class="md-nav__link">
+      <a href="../../dbt/" class="md-nav__link">
         
   
   
@@ -786,7 +782,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../analytics/returns/" class="md-nav__link">
+      <a href="../../analytics/returns/" class="md-nav__link">
         
   
   
@@ -846,7 +842,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../api/" class="md-nav__link ">
+            <a href="../../api/" class="md-nav__link ">
               
   
   
@@ -888,7 +884,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../web/modern-webui/" class="md-nav__link">
+      <a href="../../web/modern-webui/" class="md-nav__link">
         
   
   
@@ -981,7 +977,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mcp/tools/" class="md-nav__link">
+      <a href="../../mcp/tools/" class="md-nav__link">
         
   
   
@@ -1086,7 +1082,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/personas/" class="md-nav__link">
+      <a href="../../sim/personas/" class="md-nav__link">
         
   
   
@@ -1114,7 +1110,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/user-stories/" class="md-nav__link">
+      <a href="../../sim/user-stories/" class="md-nav__link">
         
   
   
@@ -1142,7 +1138,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/return-model/" class="md-nav__link">
+      <a href="../../sim/return-model/" class="md-nav__link">
         
   
   
@@ -1170,7 +1166,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/assumptions/" class="md-nav__link">
+      <a href="../../sim/assumptions/" class="md-nav__link">
         
   
   
@@ -1198,7 +1194,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/registry/" class="md-nav__link">
+      <a href="../../sim/registry/" class="md-nav__link">
         
   
   
@@ -1226,7 +1222,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/snapshot/" class="md-nav__link">
+      <a href="../../sim/snapshot/" class="md-nav__link">
         
   
   
@@ -1254,7 +1250,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/spending/" class="md-nav__link">
+      <a href="../../sim/spending/" class="md-nav__link">
         
   
   
@@ -1282,7 +1278,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/planning-outputs/" class="md-nav__link">
+      <a href="../../sim/planning-outputs/" class="md-nav__link">
         
   
   
@@ -1377,7 +1373,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/dk/" class="md-nav__link">
+      <a href="../../tax/dk/" class="md-nav__link">
         
   
   
@@ -1405,7 +1401,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/de/" class="md-nav__link">
+      <a href="../../tax/de/" class="md-nav__link">
         
   
   
@@ -1433,7 +1429,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/dk-refresh-checklist/" class="md-nav__link">
+      <a href="../../tax/dk-refresh-checklist/" class="md-nav__link">
         
   
   
@@ -1544,7 +1540,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/monthly-ritual/" class="md-nav__link">
+      <a href="../../runbook/monthly-ritual/" class="md-nav__link">
         
   
   
@@ -1572,7 +1568,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/monthly-report/" class="md-nav__link">
+      <a href="../../runbook/monthly-report/" class="md-nav__link">
         
   
   
@@ -1600,7 +1596,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/enable-banking-consent/" class="md-nav__link">
+      <a href="../../runbook/enable-banking-consent/" class="md-nav__link">
         
   
   
@@ -1628,7 +1624,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/web/" class="md-nav__link">
+      <a href="../../runbook/web/" class="md-nav__link">
         
   
   
@@ -1656,7 +1652,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/container-images/" class="md-nav__link">
+      <a href="../../runbook/container-images/" class="md-nav__link">
         
   
   
@@ -1684,7 +1680,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/abis-yearly-refresh/" class="md-nav__link">
+      <a href="../../runbook/abis-yearly-refresh/" class="md-nav__link">
         
   
   
@@ -1712,7 +1708,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/branch-protection/" class="md-nav__link">
+      <a href="../../runbook/branch-protection/" class="md-nav__link">
         
   
   
@@ -1740,7 +1736,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/vault-watcher/" class="md-nav__link">
+      <a href="../../runbook/vault-watcher/" class="md-nav__link">
         
   
   
@@ -1768,7 +1764,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/healthchecks/" class="md-nav__link">
+      <a href="../../runbook/healthchecks/" class="md-nav__link">
         
   
   
@@ -1796,7 +1792,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/backup-restore/" class="md-nav__link">
+      <a href="../../runbook/backup-restore/" class="md-nav__link">
         
   
   
@@ -1824,7 +1820,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/restore-log/" class="md-nav__link">
+      <a href="../../runbook/restore-log/" class="md-nav__link">
         
   
   
@@ -1856,8 +1852,6 @@
       
   
   
-    
-  
   
   
     
@@ -1950,15 +1944,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="./" class="md-nav__link md-nav__link--active">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -1976,13 +1970,13 @@
             </a>
             
               
-              <label class="md-nav__link md-nav__link--active" for="__nav_10" id="__nav_10_label" tabindex="">
+              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="">
                 <span class="md-nav__icon md-icon"></span>
               </label>
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2002,7 +1996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -2030,7 +2024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -2058,7 +2052,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -2086,7 +2080,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -2114,7 +2108,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2142,7 +2136,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2170,7 +2164,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2198,7 +2192,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2226,7 +2220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2254,7 +2248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0010-sim-return-model/" class="md-nav__link">
+      <a href="../0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2282,7 +2276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2310,7 +2304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0012-sim-goal-model/" class="md-nav__link">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2338,7 +2332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2366,7 +2360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2394,7 +2388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2422,7 +2416,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2450,7 +2444,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2478,7 +2472,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2506,7 +2500,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2534,7 +2528,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0020-skat-report-generator/" class="md-nav__link">
+      <a href="../0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2562,7 +2556,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2590,7 +2584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2618,7 +2612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2646,7 +2640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0024-vault-layout/" class="md-nav__link">
+      <a href="../0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2674,7 +2668,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0025-encrypted-backups/" class="md-nav__link">
+      <a href="../0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2702,7 +2696,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2730,7 +2724,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2758,7 +2752,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -2786,7 +2780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -2814,7 +2808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0034-application-container-images/" class="md-nav__link">
+      <a href="../0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -2842,7 +2836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0035-fastapi-read-api/" class="md-nav__link">
+      <a href="../0035-fastapi-read-api/" class="md-nav__link">
         
   
   
@@ -2870,7 +2864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0036-webui-frontend-stack/" class="md-nav__link">
+      <a href="../0036-webui-frontend-stack/" class="md-nav__link">
         
   
   
@@ -2898,7 +2892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0037-staged-import-sessions/" class="md-nav__link">
+      <a href="../0037-staged-import-sessions/" class="md-nav__link">
         
   
   
@@ -2926,7 +2920,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+      <a href="../0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
         
   
   
@@ -2954,7 +2948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0039-returns-engine-twr-mwr/" class="md-nav__link">
+      <a href="../0039-returns-engine-twr-mwr/" class="md-nav__link">
         
   
   
@@ -2982,7 +2976,7 @@
   
   
     <li class="md-nav__item">
-      <a href="0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
+      <a href="../0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
         
   
   
@@ -3010,7 +3004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="adr-template/" class="md-nav__link">
+      <a href="../adr-template/" class="md-nav__link">
         
   
   
@@ -3045,7 +3039,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../privacy/" class="md-nav__link">
+      <a href="../../privacy/" class="md-nav__link">
         
   
   
@@ -3072,7 +3066,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../terms/" class="md-nav__link">
+      <a href="../../terms/" class="md-nav__link">
         
   
   
@@ -3119,10 +3113,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#when-to-write-one" class="md-nav__link">
+  <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        When to write one
+        Context and Problem Statement
       
     </span>
   </a>
@@ -3130,10 +3124,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#format" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Format
+        Decision Drivers
       
     </span>
   </a>
@@ -3141,10 +3135,82 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#index" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Index
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
       
     </span>
   </a>
@@ -3168,7 +3234,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/README.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0042-nordnet-interest-suffix-fallback.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3176,131 +3242,94 @@
   
 
 
-<h1 id="architecture-decision-records-adrs">Architecture Decision Records (ADRs)<a class="headerlink" href="#architecture-decision-records-adrs" title="Permanent link">&para;</a></h1>
-<p>This directory captures the <strong>why</strong> behind significant decisions in Penge.</p>
-<h2 id="when-to-write-one">When to write one<a class="headerlink" href="#when-to-write-one" title="Permanent link">&para;</a></h2>
-<p>See the <a href="https://github.com/autoditac/Penge/blob/main/.github/skills/write-adr/SKILL.md"><code>write-adr</code> skill</a>. Roughly: any change that adds/replaces a service, library, or external dependency, alters the data model, changes a tax-rule interpretation, alters an integration pattern, or affects a security boundary.</p>
-<h2 id="format">Format<a class="headerlink" href="#format" title="Permanent link">&para;</a></h2>
-<p>We use the <a href="https://adr.github.io/madr/">MADR</a> template — see <a href="adr-template/"><code>adr-template.md</code></a>.</p>
-<h2 id="index">Index<a class="headerlink" href="#index" title="Permanent link">&para;</a></h2>
-<!-- Keep this list sorted by ADR number. -->
-
-<table>
-<thead>
-<tr>
-<th>#</th>
-<th>Title</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><a href="0001-self-hosted-postgres-duckdb-stack/">0001</a></td>
-<td>Self-hosted Postgres + DuckDB stack over a managed lakehouse</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0002-custom-monorepo-over-off-the-shelf-pfm/">0002</a></td>
-<td>Custom monorepo over off-the-shelf PFM tools</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0003-hybrid-ingestion-psd2-and-csv-pdf/">0003</a></td>
-<td>Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers</td>
-<td>Superseded by <a href="0026-retire-gocardless-for-enable-banking/">0026</a></td>
-</tr>
-<tr>
-<td><a href="0004-eur-and-dkk-shown-in-parallel/">0004</a></td>
-<td>EUR and DKK shown in parallel; no single base currency</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0005-llm-access-via-mcp-only/">0005</a></td>
-<td>LLM access exclusively via MCP server with typed tools</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0006-trunk-based-conventional-commits-adrs/">0006</a></td>
-<td>Trunk-based development with Conventional Commits and ADRs</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0007-initial-relational-data-model/">0007</a></td>
-<td>Initial relational data model</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0008-nordnet-account-modelling/">0008</a></td>
-<td>Nordnet account modelling: kinds, multi-currency cash, ASK</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0026-retire-gocardless-for-enable-banking/">0026</a></td>
-<td>Retire GoCardless; standardize on Enable Banking for PSD2</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0027-liquid-depot-simulation-model/">0027</a></td>
-<td>Liquid depot simulation model (ASK + frie midler, Lager/Realisation)</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0028-sim-payout-model/">0028</a></td>
-<td>Decumulation payout model: annuity factor + PMT</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0033-reporting-first-react-webui/">0033</a></td>
-<td>Reporting-first React WebUI</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0034-application-container-images/">0034</a></td>
-<td>Application container images in CI and releases</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0035-fastapi-read-api/">0035</a></td>
-<td>FastAPI read API as the WebUI data layer</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0036-webui-frontend-stack/">0036</a></td>
-<td>WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0037-staged-import-sessions/">0037</a></td>
-<td>Staged import sessions for file-based connectors</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0038-import-mapping-suggestions-via-mcp/">0038</a></td>
-<td>Import mapping suggestions via the MCP server</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0039-returns-engine-twr-mwr/">0039</a></td>
-<td>Returns engine: TWR and MWR</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0040-in-app-enable-banking-consent-flow/">0040</a></td>
-<td>In-app Enable Banking consent flow</td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><a href="0041-connections-sync-history-window-fallback/">0041</a></td>
-<td>Connections sync history-window fallback</td>
-<td>Accepted</td>
-</tr>
-<tr>
-<td><a href="0042-nordnet-interest-suffix-fallback/">0042</a></td>
-<td>Nordnet interest types: <code>…RENTE</code> suffix fallback to <code>cash_interest</code></td>
-<td>Accepted</td>
-</tr>
-</tbody>
-</table>
+<h1 id="0042-nordnet-interest-types-rente-suffix-fallback-to-cash_interest">0042 — Nordnet interest types: <code>…RENTE</code> suffix fallback to <code>cash_interest</code><a class="headerlink" href="#0042-nordnet-interest-types-rente-suffix-fallback-to-cash_interest" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-06-16</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> ingest</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>The Nordnet transaction parser maps each <code>Transaktionstype</code> to a
+canonical <code>kind</code> via an explicit table (<code>NORDNET_TXN_TYPE_MAP</code>).
+Any value not in the table raises <code>ValueError</code>, which aborts the
+<strong>entire</strong> CSV import — one unknown row blocks every other row.</p>
+<p>Nordnet emits a growing family of interest types, all sharing the
+Danish suffix <code>RENTE</code>: <code>KREDITRENTE</code> (credit interest),
+<code>OVERBELÅNINGSRENTE</code> (margin/over-collateralization loan interest,
+issue #244), <code>DEPOTRENTE</code> (custody-account interest, issue #246),
+and likely others we have not seen yet. Each new label has so far
+broken an import and required a one-line code change plus a deploy.
+This is a whack-a-mole loop with poor user experience: the failure
+is opaque, blocks the whole upload, and needs an engineer.</p>
+<p>All of these are economically the same thing — interest on cash —
+and all map to the existing canonical kind <code>cash_interest</code>, with
+the sign of the amount carrying the income (credit) vs expense
+(debit) direction. They land in the same returns attribution class
+and the same DK <code>kapitalindkomst</code> tax bucket. There is no
+tax-treatment difference between them that the canonical model
+distinguishes today.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li>A new interest label must not abort an otherwise-valid import.</li>
+<li>Interest is unambiguously <code>cash_interest</code>; the sign already
+  encodes direction. No new vocabulary is warranted.</li>
+<li>Keep well-known types explicit and testable for readability.</li>
+<li>Avoid silent misclassification of genuinely unknown,
+  non-interest transaction types.</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Explicit-only mapping</strong> — keep adding each <code>…RENTE</code> value to
+   <code>NORDNET_TXN_TYPE_MAP</code> as it appears.</li>
+<li><strong>Suffix fallback</strong> — keep the explicit table for known types,
+   but if an unmapped type ends in <code>RENTE</code>, classify it as
+   <code>cash_interest</code> instead of raising.</li>
+<li><strong>Drop the unknown-type guard entirely</strong> — default every
+   unmapped type to something generic.</li>
+</ol>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>We chose <strong>Option 2 (suffix fallback)</strong>. <code>_resolve_canonical_kind</code>
+still consults the explicit table first (so known types stay
+documented and unit-tested), still special-cases
+<code>INDSÆTTELSE</code>/<code>HÆVNING</code>, and only then, before raising, returns
+<code>cash_interest</code> for any <code>nordnet_type.endswith("RENTE")</code>. Genuinely
+unknown, non-interest types still raise <code>ValueError</code> as before.</p>
+<p>The well-known interest types (<code>KREDITRENTE</code>, <code>DEPOTRENTE</code>,
+<code>OVERBELÅNINGSRENTE</code>) remain explicit entries in
+<code>NORDNET_TXN_TYPE_MAP</code> for clarity and regression coverage; the
+fallback is the safety net for ones we have not catalogued.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A previously-unseen Danish interest label no longer breaks an
+  import; it is classified correctly without a code change.</li>
+<li>The sign-carries-direction rule keeps debit and credit interest
+  in one bucket with correct returns and tax treatment.</li>
+<li>Known types stay explicit and unit-tested.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A hypothetical non-interest Nordnet type that happens to end in
+  <code>RENTE</code> would be silently classified as <code>cash_interest</code>. We judge
+  this risk negligible: in Danish financial vocabulary the <code>RENTE</code>
+  suffix denotes interest, and the canonical model has no finer
+  interest sub-classification to lose.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>No change to the canonical <code>kind</code> vocabulary, dbt staging
+  schema, marts, or tax modules — <code>cash_interest</code> already exists
+  and is consumed everywhere.</li>
+</ul>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Code: <code>src/penge/ingest/nordnet/parser.py</code> (<code>_resolve_canonical_kind</code>),
+  <code>src/penge/ingest/nordnet/constants.py</code> (<code>NORDNET_TXN_TYPE_MAP</code>)</li>
+<li>Docs: <code>docs/connectors/nordnet.md</code> (transaction-kind mapping table)</li>
+<li>Issues: #244 (<code>OVERBELÅNINGSRENTE</code>), #246 (<code>DEPOTRENTE</code>)</li>
+<li>Related: <a href="../0008-nordnet-account-modelling/">ADR-0008</a> (kind vocabulary)</li>
+</ul>
 
 
 
@@ -3350,10 +3379,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   </body>

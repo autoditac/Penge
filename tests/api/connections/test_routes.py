@@ -7,6 +7,7 @@ guard the loader write path the CLI sync shares.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -129,8 +130,14 @@ def test_sync_dedupes_duplicate_entry_references(
     assert synced.status_code == 200, synced.text
     assert synced.json()["connection"]["last_sync_status"] == "ok"
     with engine.connect() as conn:
-        txns = conn.execute(text('select count(*) from "transaction"')).scalar_one()
-    assert txns == 1
+        rows = conn.execute(text('select amount, description from "transaction"')).all()
+    # Exactly one row survives, and it is the *last* of the two duplicates
+    # (amount -56.78 / "synthetic-dup"), per last-write-wins dedup. DBIT
+    # entries are stored with a negative sign.
+    assert len(rows) == 1
+    amount, description = rows[0]
+    assert amount == Decimal("-56.78")
+    assert description == "synthetic-dup"
 
 
 def test_unknown_provider_rejected(client: TestClient) -> None:

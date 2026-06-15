@@ -55,6 +55,7 @@ class FakeClient:
         # When set, get_account_transactions returns two booked entries that
         # share the same entry_reference, to exercise the upsert dedup path.
         self.duplicate_entry_reference: bool = False
+        self.authorize_calls: int = 0
 
     # -- context manager ------------------------------------------------ #
     def __enter__(self) -> FakeClient:
@@ -87,6 +88,7 @@ class FakeClient:
         )
 
     def authorize_session(self, code: str) -> AuthorizeSessionResponse:
+        self.authorize_calls += 1
         if self.authorize_error is not None:
             raise self.authorize_error
         return AuthorizeSessionResponse(

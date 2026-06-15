@@ -7,11 +7,14 @@ guard the loader write path the CLI sync shares.
 
 from __future__ import annotations
 
+import uuid
 from decimal import Decimal
 from typing import TYPE_CHECKING
+from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy import text
 
+from penge.api.connections import store
 from tests.api.connections.fakes import eb_error
 
 if TYPE_CHECKING:
@@ -138,6 +141,51 @@ def test_sync_dedupes_duplicate_entry_references(
     amount, description = rows[0]
     assert amount == Decimal("-56.78")
     assert description == "synthetic-dup"
+
+
+def test_authorize_unknown_state_does_not_consume_code(
+    client: TestClient, fake_client: FakeClient
+) -> None:
+    # A mismatched/stale state must fail *before* the single-use EB code is
+    # spent, otherwise the code is burned and every retry gets
+    # ALREADY_AUTHORIZED (orphaned consent). Regression guard for #238.
+    _link(client)
+
+    resp = client.post(
+        "/connections/authorize",
+        json={"code": "code-abc", "state": "00000000-0000-0000-0000-000000000000"},
+    )
+
+    assert resp.status_code == 404, resp.text
+    assert fake_client.authorize_calls == 0
+    connection = client.get("/connections").json()["connections"][0]
+    assert connection["status"] == "linking"
+
+
+def test_authorize_stale_error_state_does_not_consume_code(
+    client: TestClient, engine: Engine, fake_client: FakeClient
+) -> None:
+    # record_error keeps the old `state` on a failed row. A freshly issued
+    # code submitted with that stale state must NOT match the error row,
+    # spend the code, and bind to the wrong connection. Regression for the
+    # review follow-up on #238: preflight only accepts `linking` rows.
+    linked = _link(client)
+    consent_url = linked["consent_url"]
+    assert isinstance(consent_url, str)
+    stale_state = parse_qs(urlparse(consent_url).query)["state"][0]
+    connection_id = uuid.UUID(str(linked["connection_id"]))
+
+    store.record_error(engine, connection_id, error={"step": "authorize", "message": "boom"})
+
+    resp = client.post(
+        "/connections/authorize",
+        json={"code": "code-fresh", "state": stale_state},
+    )
+
+    assert resp.status_code == 404, resp.text
+    assert fake_client.authorize_calls == 0
+    connection = client.get("/connections").json()["connections"][0]
+    assert connection["status"] == "error"
 
 
 def test_unknown_provider_rejected(client: TestClient) -> None:

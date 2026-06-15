@@ -165,30 +165,42 @@ def authorize(
     code: str,
     state: str | None,
 ) -> store.ConnectionRecord:
-    """Exchange the redirect ``code`` for a session and persist it."""
+    """Exchange the redirect ``code`` for a session and persist it.
+
+    The Enable Banking ``code`` is single-use: ``POST /sessions`` consumes
+    it and a second exchange returns ``ALREADY_AUTHORIZED``. When the caller
+    supplies the CSRF ``state`` we therefore bind it to the pending
+    connection **before** spending the code, so a mismatched or stale state
+    fails without burning the code (which would otherwise orphan the EB
+    session and leave the connection un-recoverable). The stateless fallback
+    still has to call EB first, because the ASPSP name needed to
+    disambiguate concurrent links is only known from the session response.
+    """
+    pending = store.get_by_state(engine, state) if state else None
+    if state and pending is None:
+        raise ConnectionError(
+            step="authorize",
+            message="no pending connection matched this consent state",
+            not_found=True,
+        )
+
     try:
         resp = client.authorize_session(code)
     except EnableBankingError as exc:
         err = _from_eb_error("authorize", exc)
-        if state:
-            pending = store.get_by_state(engine, state)
-            if pending is not None:
-                store.record_error(engine, pending.id, error=err.as_error_payload())
+        if pending is not None:
+            store.record_error(engine, pending.id, error=err.as_error_payload())
         raise err from exc
 
-    pending = _resolve_pending(engine, state=state, aspsp_name=resp.aspsp.name)
     if pending is None:
-        message = (
-            "no pending connection matched this consent state"
-            if state
-            else (
-                "could not unambiguously match this consent; retry with the "
-                "?state= value from the callback"
-            )
-        )
+        pending = _resolve_pending(engine, state=None, aspsp_name=resp.aspsp.name)
+    if pending is None:
         raise ConnectionError(
             step="authorize",
-            message=message,
+            message=(
+                "could not unambiguously match this consent; retry with the "
+                "?state= value from the callback"
+            ),
             not_found=True,
         )
 

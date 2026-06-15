@@ -140,6 +140,25 @@ def test_sync_dedupes_duplicate_entry_references(
     assert description == "synthetic-dup"
 
 
+def test_authorize_unknown_state_does_not_consume_code(
+    client: TestClient, fake_client: FakeClient
+) -> None:
+    # A mismatched/stale state must fail *before* the single-use EB code is
+    # spent, otherwise the code is burned and every retry gets
+    # ALREADY_AUTHORIZED (orphaned consent). Regression guard for #238.
+    _link(client)
+
+    resp = client.post(
+        "/connections/authorize",
+        json={"code": "code-abc", "state": "00000000-0000-0000-0000-000000000000"},
+    )
+
+    assert resp.status_code == 404, resp.text
+    assert fake_client.authorize_calls == 0
+    connection = client.get("/connections").json()["connections"][0]
+    assert connection["status"] == "linking"
+
+
 def test_unknown_provider_rejected(client: TestClient) -> None:
     resp = client.post(
         "/connections/link",

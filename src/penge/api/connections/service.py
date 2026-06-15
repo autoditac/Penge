@@ -172,11 +172,17 @@ def authorize(
     supplies the CSRF ``state`` we therefore bind it to the pending
     connection **before** spending the code, so a mismatched or stale state
     fails without burning the code (which would otherwise orphan the EB
-    session and leave the connection un-recoverable). The stateless fallback
-    still has to call EB first, because the ASPSP name needed to
-    disambiguate concurrent links is only known from the session response.
+    session and leave the connection un-recoverable). Only a row that is
+    still ``linking`` counts as pending: ``record_error`` keeps the old
+    ``state`` on failed rows, so without this guard a stale ``error`` row
+    could match a freshly issued code, spend it, and bind the session to the
+    wrong (non-linking) connection. The stateless fallback still has to call
+    EB first, because the ASPSP name needed to disambiguate concurrent links
+    is only known from the session response.
     """
     pending = store.get_by_state(engine, state) if state else None
+    if pending is not None and pending.status != store.STATUS_LINKING:
+        pending = None
     if state and pending is None:
         raise ConnectionError(
             step="authorize",

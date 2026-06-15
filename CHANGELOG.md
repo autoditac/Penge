@@ -1,0 +1,116 @@
+# Changelog
+
+## 0.1.0 (2026-06-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **ingest:** penge.ingest.gocardless is removed. Anyone with a fork running against grandfathered GoCardless credentials must pin to the pre-revert SHA or migrate to penge.ingest.enablebanking.
+
+### Features
+
+* **10:** Alembic skeleton + initial migration ([#64](https://github.com/autoditac/Penge/issues/64)) ([2a2053c](https://github.com/autoditac/Penge/commit/2a2053cd5659db9781c4c584d33808206a2b3fb2))
+* **13:** GoCardless PSD2 base client ([b4a9531](https://github.com/autoditac/Penge/commit/b4a953183022aa81ef9ebf5df5badf0ae491440b))
+* **21:** ECB daily FX rate loader ([3f511b3](https://github.com/autoditac/Penge/commit/3f511b367bbbae5bece556b71181ec5859696e3f))
+* **analytics:** add returns engine with TWR/MWR marts and Python solver ([#220](https://github.com/autoditac/Penge/issues/220)) ([e931135](https://github.com/autoditac/Penge/commit/e931135338edbecf4d2c7d8931649fbabc417689))
+* **api:** add FastAPI read API over analytics marts ([#213](https://github.com/autoditac/Penge/issues/213)) ([b2bfa6b](https://github.com/autoditac/Penge/commit/b2bfa6be1b91decab0071d08224526bd59a1d739))
+* **api:** staged import sessions for file-based connectors ([#216](https://github.com/autoditac/Penge/issues/216)) ([723793a](https://github.com/autoditac/Penge/commit/723793a3a1c84b83b9766b4de2b54edd01fd1a65))
+* **connections:** in-app Enable Banking consent flow ([#231](https://github.com/autoditac/Penge/issues/231)) ([940aa70](https://github.com/autoditac/Penge/commit/940aa70171174172c1ce8586b328fbdd4ac7c206))
+* **dbt:** mart_net_worth_daily ([#72](https://github.com/autoditac/Penge/issues/72)) ([7bb3e11](https://github.com/autoditac/Penge/commit/7bb3e1163e7e5f3fb1cce2e75d0becef06298e9f)), closes [#24](https://github.com/autoditac/Penge/issues/24)
+* **dbt:** staging models for all raw source tables ([#76](https://github.com/autoditac/Penge/issues/76)) ([9f03036](https://github.com/autoditac/Penge/commit/9f03036c9bffa679dfc320806fce4fe5a9e62d23)), closes [#23](https://github.com/autoditac/Penge/issues/23)
+* **infra:** age-encrypted backups ([#108](https://github.com/autoditac/Penge/issues/108)) ([7ecea45](https://github.com/autoditac/Penge/commit/7ecea45dd574e07da483803adaa25e890d358679))
+* **infra:** build application container images in CI and releases ([#212](https://github.com/autoditac/Penge/issues/212)) ([e32a33f](https://github.com/autoditac/Penge/commit/e32a33f45e8c5d176edee633c8310bfdeedac973))
+* **infra:** container image for FastAPI backend ([#222](https://github.com/autoditac/Penge/issues/222)) ([2b3814b](https://github.com/autoditac/Penge/commit/2b3814b6efcff9462d3a0c67424f268785914a3e))
+* **infra:** migrate CI to self-hosted Ubuntu VM runner (ADR-0027) ([831e23f](https://github.com/autoditac/Penge/commit/831e23f40ad81b920d5613081a450c486f5f4dec))
+* **infra:** monthly automated PDF and Markdown report ([#117](https://github.com/autoditac/Penge/issues/117)) ([51f96a3](https://github.com/autoditac/Penge/commit/51f96a3c30cd4f9afdeadd3d64157da654386cba))
+* **infra:** Uptime Kuma healthchecks and Sentry ([#111](https://github.com/autoditac/Penge/issues/111)) ([105771e](https://github.com/autoditac/Penge/commit/105771e42134ec867ecbb3235fa33b24c3989e8f))
+* **ingest:** Evangelische Bank PSD2 connector via Enable Banking ([#15](https://github.com/autoditac/Penge/issues/15)) ([#82](https://github.com/autoditac/Penge/issues/82)) ([dcf2f24](https://github.com/autoditac/Penge/commit/dcf2f241803e9c4f6d7b40be43314de5f3d8916d))
+* **ingest:** GLS Bank PSD2 connector via Enable Banking ([#14](https://github.com/autoditac/Penge/issues/14)) ([#81](https://github.com/autoditac/Penge/issues/81)) ([d3b37fb](https://github.com/autoditac/Penge/commit/d3b37fb800222e3497644d7778b56a354ef9b0e4))
+* **ingest:** Growney (Sutor Bank Depotauszug PDF) parser ([#19](https://github.com/autoditac/Penge/issues/19)) ([#84](https://github.com/autoditac/Penge/issues/84)) ([5ffdbd8](https://github.com/autoditac/Penge/commit/5ffdbd8eae31cf8b6c22afea8b879773f642c929))
+* **ingest:** instrument price loader (yfinance + Nordnet cross-check) ([#78](https://github.com/autoditac/Penge/issues/78)) ([78b30a1](https://github.com/autoditac/Penge/commit/78b30a16b9a91fb1aa22082c52bae8474442cc59)), closes [#22](https://github.com/autoditac/Penge/issues/22)
+* **ingest:** Lunar PSD2 connector via Enable Banking ([#16](https://github.com/autoditac/Penge/issues/16)) ([#83](https://github.com/autoditac/Penge/issues/83)) ([ae6dbf6](https://github.com/autoditac/Penge/commit/ae6dbf6632d8a027952ea517415cff809826da39))
+* **ingest:** Nordnet → Postgres loader ([#70](https://github.com/autoditac/Penge/issues/70)) ([#71](https://github.com/autoditac/Penge/issues/71)) ([e1553ce](https://github.com/autoditac/Penge/commit/e1553ce32f0dd254716caae9217f3a6c7d186512))
+* **ingest:** Nordnet DK CSV parser ([#17](https://github.com/autoditac/Penge/issues/17)) ([17a8888](https://github.com/autoditac/Penge/commit/17a88885bcd7fce36ef4daa541140eb977573b47))
+* **ingest:** PFA pension Pensionsoversigt parser ([#18](https://github.com/autoditac/Penge/issues/18)) ([#86](https://github.com/autoditac/Penge/issues/86)) ([83aeefd](https://github.com/autoditac/Penge/commit/83aeefd1b95bdffa5cc647eaad7f4eea6ddd6ded))
+* **manual:** manual-entry CLI for cash & real estate ([#80](https://github.com/autoditac/Penge/issues/80)) ([46db773](https://github.com/autoditac/Penge/commit/46db773a81d9f452acd274ea4abd7fd8f98a1c5d))
+* **mcp:** add planning question surface ([0679c6a](https://github.com/autoditac/Penge/commit/0679c6ae2a1eb5c33c8e40fdf755aafd5210e040))
+* **mcp:** MCP server skeleton ([#104](https://github.com/autoditac/Penge/issues/104)) ([55213a8](https://github.com/autoditac/Penge/commit/55213a84f02171cf2c7fd80365c573ec9225f3ae))
+* **mcp:** suggest_import_mapping tool for AI categorization suggestions ([#218](https://github.com/autoditac/Penge/issues/218)) ([e50ac30](https://github.com/autoditac/Penge/commit/e50ac30eb5240212d2a56c41a5cb4806c42a11b2))
+* **mcp:** tool compute_tax_year ([#114](https://github.com/autoditac/Penge/issues/114)) ([3f5f7ea](https://github.com/autoditac/Penge/commit/3f5f7ea06bbb0786266fc8341eca3b794f7b48d0))
+* **mcp:** tool query_cashflow ([#113](https://github.com/autoditac/Penge/issues/113)) ([f23de8b](https://github.com/autoditac/Penge/commit/f23de8b3b0c9faca558dd8cca9059657a1f4928e))
+* **mcp:** tool query_net_worth ([#109](https://github.com/autoditac/Penge/issues/109)) ([d07651c](https://github.com/autoditac/Penge/commit/d07651c1280a7b91e037ac60d298387839f0c1bb))
+* **mcp:** tool run_scenario ([#115](https://github.com/autoditac/Penge/issues/115)) ([9cc4f8f](https://github.com/autoditac/Penge/commit/9cc4f8f5c290478d9c25d35e5452fe2887558197))
+* **mcp:** tool search_documents ([#116](https://github.com/autoditac/Penge/issues/116)) ([6fb71b6](https://github.com/autoditac/Penge/commit/6fb71b6acd5134d662a7200e4c5672e974d5bd21))
+* **reporting:** assumption registry and audit sheet ([#188](https://github.com/autoditac/Penge/issues/188)) ([d5c8302](https://github.com/autoditac/Penge/commit/d5c8302accca962b489be709b15c98779d494c3b))
+* **sim/liquid:** bridge realisation dividend distributions ([836c0d2](https://github.com/autoditac/Penge/commit/836c0d21af7076f3b539391c3c8b8baa5ef006f4))
+* **sim:** add household planning output reports ([4abb131](https://github.com/autoditac/Penge/commit/4abb131bd908e28f199a6a8756c6cc5bd07ff33d)), closes [#169](https://github.com/autoditac/Penge/issues/169) [#171](https://github.com/autoditac/Penge/issues/171) [#172](https://github.com/autoditac/Penge/issues/172)
+* **sim:** add household scenarios stress tests and drawdown planner ([681d7c8](https://github.com/autoditac/Penge/commit/681d7c88bb866a4ed5b5b915085f7695390d647f)), closes [#170](https://github.com/autoditac/Penge/issues/170) [#180](https://github.com/autoditac/Penge/issues/180) [#178](https://github.com/autoditac/Penge/issues/178)
+* **sim:** add real estate tax context and source assumptions ([2f9a6cf](https://github.com/autoditac/Penge/commit/2f9a6cffd3273331307c9b7988c4e4afaebf1e0a)), closes [#185](https://github.com/autoditac/Penge/issues/185) [#181](https://github.com/autoditac/Penge/issues/181) [#182](https://github.com/autoditac/Penge/issues/182)
+* **sim:** add tax risk and contribution planning outputs ([6f1b7c2](https://github.com/autoditac/Penge/commit/6f1b7c26712a97826e452c82a6c634ae48e9e30b)), closes [#168](https://github.com/autoditac/Penge/issues/168) [#175](https://github.com/autoditac/Penge/issues/175) [#184](https://github.com/autoditac/Penge/issues/184)
+* **sim:** ASK cap overflow contribution router ([#163](https://github.com/autoditac/Penge/issues/163)) ([f208107](https://github.com/autoditac/Penge/commit/f208107e68b87acf5bb51a426587b742b9d519aa))
+* **sim:** decumulation payout model — Livrente, Ratepension, Aldersforsikring (ADR-0028) ([#160](https://github.com/autoditac/Penge/issues/160)) ([a70e65e](https://github.com/autoditac/Penge/commit/a70e65ee9ac6c728dfff2cc5665cf6fed2ea5814))
+* **sim:** deterministic cashflow projection engine ([#27](https://github.com/autoditac/Penge/issues/27)) ([#92](https://github.com/autoditac/Penge/issues/92)) ([96906ba](https://github.com/autoditac/Penge/commit/96906ba559a185f3e261946d9722917d2eea7bf7))
+* **sim:** FIRE goal evaluation model ([#30](https://github.com/autoditac/Penge/issues/30)) ([#93](https://github.com/autoditac/Penge/issues/93)) ([faf860d](https://github.com/autoditac/Penge/commit/faf860d9c1870ce8a7d81e9516bb12bf080fa6b2))
+* **sim:** historical block-bootstrap return model ([#89](https://github.com/autoditac/Penge/issues/89)) ([0ddb8c3](https://github.com/autoditac/Penge/commit/0ddb8c3a42cd4a5d7954f0837906a6b08664cde2)), closes [#26](https://github.com/autoditac/Penge/issues/26)
+* **sim:** household planning snapshot builder ([2f5193b](https://github.com/autoditac/Penge/commit/2f5193b0e7c6ad5b2557a130e8e0c1103ff103d3))
+* **sim:** HouseholdPlan orchestrator and end-to-end projection runner ([2ed17c3](https://github.com/autoditac/Penge/commit/2ed17c3202ac07543e54dde109714e032d8eda11)), closes [#167](https://github.com/autoditac/Penge/issues/167)
+* **sim:** investment assumption catalog for instruments and accounts ([47f8f94](https://github.com/autoditac/Penge/commit/47f8f94d9e52fbdecd2924a99750caf299f348a5))
+* **sim:** liquid depot simulation — ASK, frie midler Lager/Realisation, bridge PMT ([e28c462](https://github.com/autoditac/Penge/commit/e28c46207fe317b6b662bbcda29ab0aacdb1c3fc))
+* **sim:** opening pension balance and PAL-skat compounding ([#133](https://github.com/autoditac/Penge/issues/133)) ([cbc0212](https://github.com/autoditac/Penge/commit/cbc0212dc5ac67a8726a4c127f87897031990e9b))
+* **sim:** scenario engine — diffs over baseline MC run ([#32](https://github.com/autoditac/Penge/issues/32)) ([#96](https://github.com/autoditac/Penge/issues/96)) ([ad371d1](https://github.com/autoditac/Penge/commit/ad371d179e386550072fb35b9e04d8355f91dae5))
+* **sim:** side-by-side comparison of N CashflowConfig projections ([#141](https://github.com/autoditac/Penge/issues/141)) ([10c95a6](https://github.com/autoditac/Penge/commit/10c95a649a15e1465e8fcbb0b13a1eb44181a827))
+* **sim:** tax overlay — statutory rates per regime ([#28](https://github.com/autoditac/Penge/issues/28)) ([#94](https://github.com/autoditac/Penge/issues/94)) ([25d25d5](https://github.com/autoditac/Penge/commit/25d25d5087d731a214e43704fdcb23a2259ea5c3))
+* **sim:** time-bounded cashflow rules (active_from / active_until) ([#126](https://github.com/autoditac/Penge/issues/126)) ([2883b00](https://github.com/autoditac/Penge/commit/2883b00205e7d79b61e2333f2fb009cbbada50b5))
+* **sim:** vectorized Monte-Carlo FIRE runner ([#31](https://github.com/autoditac/Penge/issues/31)) ([#95](https://github.com/autoditac/Penge/issues/95)) ([f3d56b7](https://github.com/autoditac/Penge/commit/f3d56b73550feda915fb42c733389695448b0ab3))
+* **tax/dk:** Topskat exposure check + Folkepension modregning model ([#161](https://github.com/autoditac/Penge/issues/161)) ([66707a3](https://github.com/autoditac/Penge/commit/66707a34ed7eadf2f96669f4859d2fa143331ea9)), closes [#129](https://github.com/autoditac/Penge/issues/129) [#131](https://github.com/autoditac/Penge/issues/131)
+* **tax:** ABIS list ingestion ([#34](https://github.com/autoditac/Penge/issues/34)) ([#85](https://github.com/autoditac/Penge/issues/85)) ([a77df6e](https://github.com/autoditac/Penge/commit/a77df6e8a32835c3020aea73734125ec6ccf9f71))
+* **tax:** add aktiesparekonto (ASK) 17% wrapper ([#37](https://github.com/autoditac/Penge/issues/37)) ([#99](https://github.com/autoditac/Penge/issues/99)) ([f455773](https://github.com/autoditac/Penge/commit/f4557738d86565f5f5b395cd8f138ae94811a6ac))
+* **tax:** add lagerbeskatning calculator ([#36](https://github.com/autoditac/Penge/issues/36)) ([#98](https://github.com/autoditac/Penge/issues/98)) ([b4e6420](https://github.com/autoditac/Penge/commit/b4e642051b39f802cab645e45f496a1540db6b10))
+* **tax:** add PAL-skat 15.3% pension yield tracker ([#38](https://github.com/autoditac/Penge/issues/38)) ([#100](https://github.com/autoditac/Penge/issues/100)) ([aea3696](https://github.com/autoditac/Penge/commit/aea3696584417d7e204b75e72a00a2a0353fcac6))
+* **tax:** annual DK tax-law refresh checklist ([#179](https://github.com/autoditac/Penge/issues/179)) ([6107eea](https://github.com/autoditac/Penge/commit/6107eea5547089ad8405f0a315d0d7b3ee2275f8))
+* **tax:** DE Vorabpauschale + Teilfreistellung calculator ([#40](https://github.com/autoditac/Penge/issues/40)) ([#102](https://github.com/autoditac/Penge/issues/102)) ([06e6c1a](https://github.com/autoditac/Penge/commit/06e6c1a334db16134febc03a4122b0d1d0f56da8))
+* **tax:** SKAT-format report generator ([#39](https://github.com/autoditac/Penge/issues/39)) ([#101](https://github.com/autoditac/Penge/issues/101)) ([a1f106b](https://github.com/autoditac/Penge/commit/a1f106bc55e6d3c4b356591866f84b8c5688f126))
+* **tax:** tax-lot tracker (gennemsnitsmetoden) ([#35](https://github.com/autoditac/Penge/issues/35)) ([#97](https://github.com/autoditac/Penge/issues/97)) ([6ac0075](https://github.com/autoditac/Penge/commit/6ac0075f213329267bd392c6672faaea063e5bae))
+* **vault:** inbox watcher + OCR pipeline ([#107](https://github.com/autoditac/Penge/issues/107)) ([cdb587d](https://github.com/autoditac/Penge/commit/cdb587d37073f784360045fe1e9ea7425eca1fe2))
+* **vault:** rule-based document classifier ([#110](https://github.com/autoditac/Penge/issues/110)) ([7cad641](https://github.com/autoditac/Penge/commit/7cad641f0e988a2e791463df01fb6378cd0c9cf8))
+* **web:** add reporting-first WebUI shell ([03fb0e6](https://github.com/autoditac/Penge/commit/03fb0e60bc7dfe70b855347401fa21e8fb6eea1d))
+* **web:** AI review layer in import wizard with MCP suggestions ([#219](https://github.com/autoditac/Penge/issues/219)) ([5d2ac61](https://github.com/autoditac/Penge/commit/5d2ac614f56db3761fa2681b92416c9012622375))
+* **web:** import assistant wizard — upload, preview, confirm ([#217](https://github.com/autoditac/Penge/issues/217)) ([8b75d79](https://github.com/autoditac/Penge/commit/8b75d7939c6097b6a5e5dca553b5f24aa8dee6cc))
+* **web:** performance dashboard v1 — trends, savings rate, allocation drift ([#215](https://github.com/autoditac/Penge/issues/215)) ([42aab78](https://github.com/autoditac/Penge/commit/42aab784a553b6f6a91fb3074fcd38272f8ea4d3))
+* **web:** performance dashboard v2 with TWR/MWR, benchmarks, and fee drag ([#221](https://github.com/autoditac/Penge/issues/221)) ([fe03e92](https://github.com/autoditac/Penge/commit/fe03e92682f45d7a17503b9ef2741bcd733e2cb0))
+* **web:** projection dashboard tab ([#33](https://github.com/autoditac/Penge/issues/33)) ([#103](https://github.com/autoditac/Penge/issues/103)) ([82dd83a](https://github.com/autoditac/Penge/commit/82dd83a69d0d896b4a124c5bca778fa92d895f45))
+* **web:** Streamlit dashboard skeleton — net worth & allocation ([#75](https://github.com/autoditac/Penge/issues/75)) ([b7a5dbb](https://github.com/autoditac/Penge/commit/b7a5dbb53249dc06ad2c460b73374b80584be182))
+* **web:** upgrade shell to routed app with live API data layer ([#214](https://github.com/autoditac/Penge/issues/214)) ([2804880](https://github.com/autoditac/Penge/commit/28048802af4ee89394eefa237cf8083cb8aea995))
+
+
+### Bug Fixes
+
+* **api:** install enablebanking deps in API image + boot smoke-test ([#233](https://github.com/autoditac/Penge/issues/233)) ([901121f](https://github.com/autoditac/Penge/commit/901121f1dcc14431b64511d4de9ba147156cc761))
+* **connections:** bind consent state before spending EB code ([#239](https://github.com/autoditac/Penge/issues/239)) ([6e28a90](https://github.com/autoditac/Penge/commit/6e28a90bd0fc6de9060cee7116cb389a7f483c35))
+* **connections:** dedupe transactions by conflict key before upsert ([#241](https://github.com/autoditac/Penge/issues/241)) ([fb59819](https://github.com/autoditac/Penge/commit/fb5981958b3c0430900acb355e64b0cb361f5895))
+* **connections:** fall back to narrower history window on WRONG_TRANSACTIONS_PERIOD ([#243](https://github.com/autoditac/Penge/issues/243)) ([816135a](https://github.com/autoditac/Penge/commit/816135a7b0cb2ae3c34d7b07150a7f47248b18ce))
+* **ingest/prices:** address PR [#78](https://github.com/autoditac/Penge/issues/78) review comments ([#79](https://github.com/autoditac/Penge/issues/79)) ([c1a93c8](https://github.com/autoditac/Penge/commit/c1a93c86ee7c32daab47238bf813a5008af09231))
+* **ingest:** use correct GLS Enable Banking ASPSP name ([#227](https://github.com/autoditac/Penge/issues/227)) ([fdd9cb6](https://github.com/autoditac/Penge/commit/fdd9cb66ea029d7b13ddc94e61b8d7781a50808d)), closes [#226](https://github.com/autoditac/Penge/issues/226)
+* **nordnet:** address loader review feedback from PR [#71](https://github.com/autoditac/Penge/issues/71)/[#72](https://github.com/autoditac/Penge/issues/72) ([#74](https://github.com/autoditac/Penge/issues/74)) ([910fa32](https://github.com/autoditac/Penge/commit/910fa32ed9bd94cc37b5596368ecc4f8ee5ac8ff))
+* **nordnet:** map DEPOTRENTE and fall back …RENTE to cash_interest ([#247](https://github.com/autoditac/Penge/issues/247)) ([3466b97](https://github.com/autoditac/Penge/commit/3466b97f74a1d6489a0797b6f307134ffc47f078)), closes [#246](https://github.com/autoditac/Penge/issues/246)
+* **nordnet:** map OVERBELÅNINGSRENTE to cash_interest ([#245](https://github.com/autoditac/Penge/issues/245)) ([97188d8](https://github.com/autoditac/Penge/commit/97188d862f7dc73422b453a0f0697c0fc759f8ca)), closes [#244](https://github.com/autoditac/Penge/issues/244)
+* remove --no-jekyll flag (not a valid mkdocs option) ([#124](https://github.com/autoditac/Penge/issues/124)) ([490d8e5](https://github.com/autoditac/Penge/commit/490d8e586d5ebc71c3ca2932830e44dc7d886422))
+
+
+### Documentation
+
+* 1-hour monthly ritual runbook ([#112](https://github.com/autoditac/Penge/issues/112)) ([bc41261](https://github.com/autoditac/Penge/commit/bc41261afd661f7b694b2d7bff0de96a63ede028))
+* **11:** bootstrap MkDocs Material site + Pages deploy workflow ([#60](https://github.com/autoditac/Penge/issues/60)) ([49a88cc](https://github.com/autoditac/Penge/commit/49a88cc66fb265e909623001fe2198ec817df8bb))
+* **adr:** add ADR-0008 Nordnet account modelling ([#67](https://github.com/autoditac/Penge/issues/67)) ([f1603c6](https://github.com/autoditac/Penge/commit/f1603c6ee3c23bdf82898fcf93545ebdf0434850))
+* **adr:** bootstrap ADRs 0001-0006 ([#55](https://github.com/autoditac/Penge/issues/55)) ([c0d9ef8](https://github.com/autoditac/Penge/commit/c0d9ef85f92cd3a2caa55eb876229571be341b78))
+* **connectors:** production HTTPS redirect URL for Enable Banking ([#225](https://github.com/autoditac/Penge/issues/225)) ([95af3aa](https://github.com/autoditac/Penge/commit/95af3aa1e253e67daf9abe33b0b2f3fcf1b252b8)), closes [#224](https://github.com/autoditac/Penge/issues/224)
+* **decisions:** mark ADR-0029 as Accepted ([#162](https://github.com/autoditac/Penge/issues/162)) ([188ea66](https://github.com/autoditac/Penge/commit/188ea66d39eb4c1225386cd06e10b34a9616be8f))
+* **sim:** add delivered feature user stories ([#165](https://github.com/autoditac/Penge/issues/165)) ([6a7a7f2](https://github.com/autoditac/Penge/commit/6a7a7f288fb31abe08d59e6b88680858b7b72eca))
+
+
+### Refactor
+
+* **dbt:** address PR [#76](https://github.com/autoditac/Penge/issues/76) review feedback on stg_raw models ([#77](https://github.com/autoditac/Penge/issues/77)) ([a2da80a](https://github.com/autoditac/Penge/commit/a2da80a031b1ee2a0ba8f626fd89e461c0fe5516)), closes [#23](https://github.com/autoditac/Penge/issues/23)
+* **ingest:** address PR [#86](https://github.com/autoditac/Penge/issues/86) Copilot review ([#18](https://github.com/autoditac/Penge/issues/18)) ([#87](https://github.com/autoditac/Penge/issues/87)) ([1463669](https://github.com/autoditac/Penge/commit/1463669613d16efc46d77e3e459c82aea0898eb2))
+* **ingest:** retire GoCardless; standardize on Enable Banking for PSD2 ([#121](https://github.com/autoditac/Penge/issues/121)) ([6c945f7](https://github.com/autoditac/Penge/commit/6c945f737191b34f8feab0422d0204167020dd87))
+* **sim:** convert spending model to pydantic BaseModel ([4925dbe](https://github.com/autoditac/Penge/commit/4925dbee7f7d8f7158a6fde67bd6cbb7c8aebd2b))

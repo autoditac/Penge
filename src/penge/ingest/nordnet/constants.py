@@ -54,6 +54,10 @@ NORDNET_TXN_TYPE_MAP: Final[dict[str, str]] = {
     "UDBYTTE": TXN_KIND_DIVIDEND,
     "INDBETALING": TXN_KIND_DEPOSIT,
     "KREDITRENTE": TXN_KIND_CASH_INTEREST,
+    # Margin / over-collateralization loan interest — the debit
+    # counterpart of KREDITRENTE. Its amount is naturally negative,
+    # so it shares the cash_interest bucket with the correct sign.
+    "OVERBELÅNINGSRENTE": TXN_KIND_CASH_INTEREST,
     "AFKASTSKAT ASK": TXN_KIND_TAX_ASK_CHARGE,
     "SKATTEINDBETALING ASK": TXN_KIND_TAX_ASK_PAYMENT,
 }

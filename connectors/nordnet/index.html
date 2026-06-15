@@ -3430,6 +3430,10 @@ reconcile the running balance — see ADR-0008 for the rationale.</p>
 <td><code>cash_interest</code></td>
 </tr>
 <tr>
+<td><code>OVERBELÅNINGSRENTE</code></td>
+<td><code>cash_interest</code> (2)</td>
+</tr>
+<tr>
 <td><code>AFKASTSKAT ASK</code></td>
 <td><code>tax_ask_charge</code></td>
 </tr>
@@ -3445,6 +3449,12 @@ reconcile the running balance — see ADR-0008 for the rationale.</p>
 <code>internal_transfer</code> and the counter-account is preserved on the
 parsed record. The loader is then responsible for deduping the
 two halves of the transfer (see ADR-0008).</p>
+<p>(2) <code>OVERBELÅNINGSRENTE</code> is margin / over-collateralization loan
+interest — the debit counterpart of <code>KREDITRENTE</code>. Its amount is
+naturally negative, so mapping it to <code>cash_interest</code> keeps it in
+the same returns and DK <code>kapitalindkomst</code> bucket as credit
+interest, with the sign carrying the income/expense direction. No
+separate canonical kind is introduced.</p>
 <h2 id="programmatic-api">Programmatic API<a class="headerlink" href="#programmatic-api" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.ingest.nordnet</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
     <span class="n">parse_transactions</span><span class="p">,</span>

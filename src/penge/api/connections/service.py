@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
 
 from penge.api.connections import store
@@ -22,6 +22,7 @@ from penge.web.mask import mask_iban
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
 
+    from penge.api.connections.provider import Provider
     from penge.ingest.enablebanking.client import Client
     from penge.ingest.enablebanking.models import AccountResource
 
@@ -29,6 +30,17 @@ log = logging.getLogger("penge.api.connections")
 
 DEFAULT_CONSENT_DAYS = 180
 DEFAULT_HISTORY_DAYS = 365
+
+# Enable Banking error code an ASPSP returns when the requested
+# ``date_from`` reaches further back than it currently permits. Under
+# PSD2 a bank typically serves the full history only on the first access
+# right after Strong Customer Authentication, then limits unattended
+# repeat access to a shorter window (commonly 90 days). We fall back to
+# progressively narrower windows so a routine sync keeps the connection
+# up to date; older history is already persisted from the initial sync
+# and the transaction upsert is idempotent, so nothing is lost.
+WRONG_TRANSACTIONS_PERIOD = "WRONG_TRANSACTIONS_PERIOD"
+HISTORY_FALLBACK_DAYS: tuple[int, ...] = (90, 30)
 
 _SESSION_AUTHORIZED = "AUTHORIZED"
 
@@ -230,6 +242,46 @@ class SyncOutcome:
     holding_snapshots: int
 
 
+def _history_windows(days: int) -> list[int]:
+    """The requested window plus any strictly narrower fallback windows.
+
+    Used to recover from an ASPSP rejecting an over-long ``date_from``
+    with ``WRONG_TRANSACTIONS_PERIOD`` on unattended repeat access.
+    """
+    return [days, *[w for w in HISTORY_FALLBACK_DAYS if w < days]]
+
+
+def _sync_accounts(
+    engine: Engine,
+    provider: Provider,
+    *,
+    client: Client,
+    accounts: list[AccountResource],
+    entity_name: str,
+    date_from: date,
+    date_to: date,
+) -> tuple[int, int]:
+    """Sync every account for one window, returning ``(txns, snapshots)``.
+
+    Raises :class:`EnableBankingError` unchanged so the caller can decide
+    whether to retry with a narrower window or record the failure.
+    """
+    total_txn = 0
+    total_snap = 0
+    for acct in accounts:
+        result = provider.sync_account(
+            engine,
+            client=client,
+            account=acct,
+            entity_name=entity_name,
+            date_from=date_from,
+            date_to=date_to,
+        )
+        total_txn += result.transactions
+        total_snap += result.holding_snapshots
+    return total_txn, total_snap
+
+
 def sync(
     engine: Engine,
     client: Client,
@@ -272,7 +324,6 @@ def sync(
         )
         raise err
 
-    date_from = (datetime.now(UTC) - timedelta(days=days)).date()
     date_to = datetime.now(UTC).date()
     selected = [a for a in session.accounts_data if a.uid is not None]
     if not selected:
@@ -280,24 +331,45 @@ def sync(
         store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
         raise err
 
+    windows = _history_windows(days)
     total_txn = 0
     total_snap = 0
-    try:
-        for acct in selected:
-            result = provider.sync_account(
+    for index, window in enumerate(windows):
+        date_from = (datetime.now(UTC) - timedelta(days=window)).date()
+        try:
+            total_txn, total_snap = _sync_accounts(
                 engine,
+                provider,
                 client=client,
-                account=acct,
+                accounts=selected,
                 entity_name=record.entity_name,
                 date_from=date_from,
                 date_to=date_to,
             )
-            total_txn += result.transactions
-            total_snap += result.holding_snapshots
-    except EnableBankingError as exc:
-        err = _from_eb_error("sync", exc)
-        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
-        raise err from exc
+        except EnableBankingError as exc:
+            code, _ = _eb_message(exc.body)
+            is_last = index == len(windows) - 1
+            if code == WRONG_TRANSACTIONS_PERIOD and not is_last:
+                log.warning(
+                    "connection %s: ASPSP rejected %d-day history window, retrying with %d days",
+                    record.id,
+                    window,
+                    windows[index + 1],
+                )
+                continue
+            err = _from_eb_error("sync", exc)
+            store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+            raise err from exc
+        else:
+            if window != days:
+                log.warning(
+                    "connection %s: synced with reduced %d-day window "
+                    "(ASPSP rejected the requested %d days)",
+                    record.id,
+                    window,
+                    days,
+                )
+            break
 
     updated = store.record_sync_ok(engine, record.id, accounts=_account_snapshot(selected))
     log.info(
@@ -313,6 +385,8 @@ def sync(
 __all__ = [
     "DEFAULT_CONSENT_DAYS",
     "DEFAULT_HISTORY_DAYS",
+    "HISTORY_FALLBACK_DAYS",
+    "WRONG_TRANSACTIONS_PERIOD",
     "ConnectionError",
     "SyncOutcome",
     "authorize",

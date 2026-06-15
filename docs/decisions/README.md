@@ -35,3 +35,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0038](0038-import-mapping-suggestions-via-mcp.md) | Import mapping suggestions via the MCP server | Proposed |
 | [0039](0039-returns-engine-twr-mwr.md) | Returns engine: TWR and MWR | Proposed |
 | [0040](0040-in-app-enable-banking-consent-flow.md) | In-app Enable Banking consent flow | Proposed |
+| [0041](0041-connections-sync-history-window-fallback.md) | Connections sync history-window fallback | Accepted |

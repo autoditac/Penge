@@ -7,6 +7,7 @@ guard the loader write path the CLI sync shares.
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from sqlalchemy import text
@@ -112,6 +113,31 @@ def test_sync_expired_session_marks_reconsent(client: TestClient, fake_client: F
     assert connection["status"] == "expired"
     assert connection["last_sync_status"] == "error"
     assert connection["last_error"]["step"] == "sync"
+
+
+def test_sync_dedupes_duplicate_entry_references(
+    client: TestClient, fake_client: FakeClient, engine: Engine
+) -> None:
+    # Some ASPSPs return the same entry_reference twice in one page. The
+    # upsert must collapse them, not crash with ON CONFLICT DO UPDATE
+    # CardinalityViolation. Regression guard for #240.
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    fake_client.duplicate_entry_reference = True
+
+    synced = client.post(f"/connections/{linked['connection_id']}/sync")
+
+    assert synced.status_code == 200, synced.text
+    assert synced.json()["connection"]["last_sync_status"] == "ok"
+    with engine.connect() as conn:
+        rows = conn.execute(text('select amount, description from "transaction"')).all()
+    # Exactly one row survives, and it is the *last* of the two duplicates
+    # (amount -56.78 / "synthetic-dup"), per last-write-wins dedup. DBIT
+    # entries are stored with a negative sign.
+    assert len(rows) == 1
+    amount, description = rows[0]
+    assert amount == Decimal("-56.78")
+    assert description == "synthetic-dup"
 
 
 def test_unknown_provider_rejected(client: TestClient) -> None:

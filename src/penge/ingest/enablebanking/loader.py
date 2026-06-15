@@ -306,6 +306,19 @@ def _upsert_transactions(
     if not payload:
         return 0
 
+    # Collapse rows that share the conflict key. Some ASPSPs return the same
+    # ``entry_reference`` on more than one booked entry within a single page;
+    # Postgres rejects ``ON CONFLICT DO UPDATE`` when a single command would
+    # touch the same row twice (CardinalityViolation). Key on the full
+    # ``ux_transaction__account_id_external_id`` constraint so the dedup never
+    # collapses across accounts, even if this helper is reused for a payload
+    # spanning more than one account. Keep the last occurrence, mirroring the
+    # upsert's last-write-wins semantics.
+    deduped: dict[tuple[object, object], dict[str, object]] = {}
+    for row in payload:
+        deduped[(row["account_id"], row["external_id"])] = row
+    payload = list(deduped.values())
+
     stmt = pg_insert(transaction).values(payload)
     stmt = stmt.on_conflict_do_update(
         constraint="ux_transaction__account_id_external_id",

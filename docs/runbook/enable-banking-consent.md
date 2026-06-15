@@ -159,8 +159,16 @@ To enable on the NAS:
    and reference it from the `penge-api.container` quadlet:
 
    ```ini
-   Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400
+   Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000
    ```
+
+   The `uid=1000,gid=1000` is **required**: the API process runs as the
+   non-root `penge` user (uid 1000) inside the container, but a podman
+   secret mount defaults to `root:root 0400`. Without the explicit
+   `uid`/`gid`, the app cannot read the key and every EB call (e.g.
+   `POST /connections/link`) fails with HTTP 500 and
+   `PermissionError: [Errno 13] Permission denied: '/run/secrets/penge-eb-key'`
+   in the container log.
 
 2. Set the connection environment on the API container:
 

@@ -8,6 +8,7 @@ guard the loader write path the CLI sync shares.
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
@@ -141,6 +142,48 @@ def test_sync_dedupes_duplicate_entry_references(
     amount, description = rows[0]
     assert amount == Decimal("-56.78")
     assert description == "synthetic-dup"
+
+
+def test_sync_falls_back_to_narrower_history_window(
+    client: TestClient, fake_client: FakeClient, engine: Engine
+) -> None:
+    # PSD2: an ASPSP may reject the default 365-day window on unattended
+    # repeat access with WRONG_TRANSACTIONS_PERIOD but still serve a
+    # shorter window. Sync must retry with a narrower window and succeed
+    # instead of failing the whole run. Regression guard for #242.
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    fake_client.max_history_days = 90
+
+    synced = client.post(f"/connections/{linked['connection_id']}/sync")
+
+    assert synced.status_code == 200, synced.text
+    body = synced.json()
+    assert body["connection"]["last_sync_status"] == "ok"
+    assert body["transactions"] >= 1
+    # First attempt uses 365 days (rejected), retry uses 90 days (accepted).
+    attempted = [w for w in fake_client.transaction_windows if w is not None]
+    assert len(attempted) >= 2
+    oldest_first = date.fromisoformat(attempted[0])
+    oldest_retry = date.fromisoformat(attempted[1])
+    assert oldest_retry > oldest_first
+
+
+def test_sync_reports_error_when_no_window_is_accepted(
+    client: TestClient, fake_client: FakeClient
+) -> None:
+    # If even the narrowest fallback window is rejected, the sync surfaces
+    # the WRONG_TRANSACTIONS_PERIOD error rather than silently reporting ok.
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    fake_client.max_history_days = 0
+
+    synced = client.post(f"/connections/{linked['connection_id']}/sync")
+
+    assert synced.status_code >= 400, synced.text
+    connection = client.get("/connections").json()["connections"][0]
+    assert connection["last_sync_status"] == "error"
+    assert connection["last_error"]["code"] == "WRONG_TRANSACTIONS_PERIOD"
 
 
 def test_authorize_unknown_state_does_not_consume_code(

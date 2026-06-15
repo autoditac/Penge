@@ -1742,6 +1742,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Enabling the feature on the NAS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deploy-gotcha-stale-cni-port-forward-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy gotcha: stale CNI port-forward rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -3329,6 +3346,23 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Enabling the feature on the NAS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#deploy-gotcha-stale-cni-port-forward-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Deploy gotcha: stale CNI port-forward rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
     </ul>
@@ -3495,13 +3529,35 @@ key is mounted.</p>
    role used for the analytics marts.</p>
 </li>
 <li>
-<p>Restart the container (<code>systemctl --user restart penge-api</code>). The
-   Connections page should now list the available banks instead of the
-   disabled note.</p>
+<p>Apply the database migration that backs the connections store
+   (<code>0006_add_bank_connection</code>). The NAS has no Python/repo, so run
+   Alembic from a workstation over the SSH tunnel:</p>
 </li>
+</ol>
+<div class="highlight"><pre><span></span><code><span class="nv">DATABASE_URL</span><span class="o">=</span>postgresql+psycopg://penge:&lt;pw&gt;@127.0.0.1:15433/penge<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>db<span class="w"> </span>alembic<span class="w"> </span>upgrade<span class="w"> </span>head
+</code></pre></div>
+<p>Without the <code>bank_connection</code> table, <code>GET /connections</code> returns <code>500</code>
+   (<code>UndefinedTable</code>, the <code>sqlalche.me/e/20/f405</code> error) even though
+   <code>GET /connections/aspsps</code> already works.</p>
+<ol>
+<li>Restart the container (<code>systemctl restart penge-api</code> for the system
+   quadlet; <code>--user</code> for a rootless unit). The Connections page should
+   now list the available banks instead of the disabled note.</li>
 </ol>
 <p>To keep the public instance off regardless of key presence, set
 <code>PENGE_CONNECTIONS_ENABLED=false</code>.</p>
+<h3 id="deploy-gotcha-stale-cni-port-forward-rules">Deploy gotcha: stale CNI port-forward rules<a class="headerlink" href="#deploy-gotcha-stale-cni-port-forward-rules" title="Permanent link">&para;</a></h3>
+<p>The API image installs the <code>enablebanking</code> dependency group (pyjwt) — the
+connections router imports the Enable Banking client at module load, so an
+image missing that group crash-loops at startup (<code>ModuleNotFoundError: No
+module named 'jwt'</code>). CI boots the built image to guard against this
+(issue #232). If the container <em>did</em> crash-loop on the NAS, podman's CNI
+backend can leave orphaned <code>iptables</code> DNAT rules pointing at dead
+container IPs, so <code>127.0.0.1:8001</code> keeps refusing connections even after a
+healthy container is up. Stop the service, delete the stale
+<code>CNI-DN-*</code>/<code>CNI-HOSTPORT-DNAT</code> rules for the published port, then start
+fresh so exactly one DNAT rule is recreated.</p>
 
 
 

@@ -244,7 +244,7 @@ web-ui-openapi-client:
 
 # Run the read API locally with auto-reload.
 api-dev:
-    uv run --group api --group db --group http --group parsers --group manual penge-api --reload --verbose
+    uv run --group api --group db --group http --group parsers --group manual --group enablebanking penge-api --reload --verbose
 
 # Run the read-API test suite.
 api-test:

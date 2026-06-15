@@ -324,7 +324,8 @@ def sync(
         )
         raise err
 
-    date_to = datetime.now(UTC).date()
+    today = datetime.now(UTC).date()
+    date_to = today
     selected = [a for a in session.accounts_data if a.uid is not None]
     if not selected:
         err = ConnectionError(step="sync", message="no accounts to sync on this session")
@@ -335,7 +336,7 @@ def sync(
     total_txn = 0
     total_snap = 0
     for index, window in enumerate(windows):
-        date_from = (datetime.now(UTC) - timedelta(days=window)).date()
+        date_from = today - timedelta(days=window)
         try:
             total_txn, total_snap = _sync_accounts(
                 engine,

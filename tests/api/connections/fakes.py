@@ -132,7 +132,7 @@ class FakeClient:
     ) -> TransactionsResponse:
         self.transaction_windows.append(date_from)
         if self.max_history_days is not None and date_from is not None:
-            oldest_allowed = date.today() - timedelta(days=self.max_history_days)
+            oldest_allowed = datetime.now(UTC).date() - timedelta(days=self.max_history_days)
             if date.fromisoformat(date_from) < oldest_allowed:
                 raise EnableBankingError(
                     400,

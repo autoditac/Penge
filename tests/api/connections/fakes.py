@@ -52,6 +52,9 @@ class FakeClient:
         self.session_accounts: list[AccountResource] = [_account()]
         self.aspsp_name: str = "GLS Gemeinschaftsbank"
         self.aspsp_country: str = "DE"
+        # When set, get_account_transactions returns two booked entries that
+        # share the same entry_reference, to exercise the upsert dedup path.
+        self.duplicate_entry_reference: bool = False
 
     # -- context manager ------------------------------------------------ #
     def __enter__(self) -> FakeClient:
@@ -118,19 +121,33 @@ class FakeClient:
         transaction_status: str = "BOOK",
         strategy: str | None = None,
     ) -> TransactionsResponse:
-        return TransactionsResponse(
-            transactions=[
+        txns = [
+            Transaction(
+                entry_reference=f"{account_uid}-tx-1",
+                transaction_amount=Amount(amount=Decimal("12.34"), currency="EUR"),
+                credit_debit_indicator="DBIT",
+                status="BOOK",
+                booking_date=date(2026, 1, 2),
+                value_date=date(2026, 1, 2),
+                remittance_information=["synthetic"],
+            )
+        ]
+        if self.duplicate_entry_reference:
+            # Same entry_reference, different amount: some ASPSPs do this
+            # within a single page. The loader must collapse them instead of
+            # crashing with ON CONFLICT DO UPDATE CardinalityViolation.
+            txns.append(
                 Transaction(
                     entry_reference=f"{account_uid}-tx-1",
-                    transaction_amount=Amount(amount=Decimal("12.34"), currency="EUR"),
+                    transaction_amount=Amount(amount=Decimal("56.78"), currency="EUR"),
                     credit_debit_indicator="DBIT",
                     status="BOOK",
-                    booking_date=date(2026, 1, 2),
-                    value_date=date(2026, 1, 2),
-                    remittance_information=["synthetic"],
+                    booking_date=date(2026, 1, 3),
+                    value_date=date(2026, 1, 3),
+                    remittance_information=["synthetic-dup"],
                 )
-            ]
-        )
+            )
+        return TransactionsResponse(transactions=txns)
 
     def get_account_balances(self, account_uid: str) -> BalancesResponse:
         return BalancesResponse(

@@ -39,8 +39,8 @@ importers:
         specifier: 10.3.0
         version: 10.3.0
       prettier:
-        specifier: 3.4.2
-        version: 3.4.2
+        specifier: 3.8.4
+        version: 3.8.4
       tsx:
         specifier: 4.19.2
         version: 4.19.2
@@ -97,8 +97,8 @@ importers:
         specifier: 7.13.0
         version: 7.13.0(typescript@5.7.2)
       prettier:
-        specifier: 3.4.2
-        version: 3.4.2
+        specifier: 3.8.4
+        version: 3.8.4
       typescript:
         specifier: 5.7.2
         version: 5.7.2
@@ -1407,8 +1407,8 @@ packages:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
 
-  prettier@3.4.2:
-    resolution: {integrity: sha512-e9MewbtFo+Fevyuxn/4rrcDAaq0IYxPGLvObpQjiZBMAzB9IGmzlnG9RZy3FFas+eBMu2vA0CszMeduow5dIuQ==}
+  prettier@3.8.4:
+    resolution: {integrity: sha512-N2MylSdi48+5N/6S5j+maeHbUSIzzZ5uOcX5Hm4QpV8Dkb1HFjfAKTKX6yNPJQD9AhcT3ifHNB66tWTTJDi11Q==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -2898,7 +2898,7 @@ snapshots:
 
   prelude-ls@1.2.1: {}
 
-  prettier@3.4.2: {}
+  prettier@3.8.4: {}
 
   proxy-addr@2.0.7:
     dependencies:

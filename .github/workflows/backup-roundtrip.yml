@@ -57,7 +57,7 @@ jobs:
       DATABASE_URL: postgresql://penge:penge@localhost:5432/penge
       PENGE_BACKUP_ROOT: ${{ github.workspace }}/_backups
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Install age, postgresql-client-17, duckdb
         run: |
@@ -241,7 +241,7 @@ jobs:
     name: shellcheck scripts/
     runs-on: [self-hosted, linux, x64, penge]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
       - name: Install shellcheck
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends shellcheck
       # `-x` follows `source` directives so lib_backup.sh symbols are

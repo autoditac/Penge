@@ -21,7 +21,7 @@ dev = [
 ]
 docs = [
   "mkdocs-material>=9.5",
-  "pymdown-extensions>=10.7",
+  "pymdown-extensions>=10.21.3",
 ]
 db = [
   "alembic>=1.13",

@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/connectors/lunar/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0043-enable-banking-dateless-balance-fallback/">
       
       
-        <link rel="prev" href="../evangelische-bank/">
-      
-      
-        <link rel="next" href="../growney/">
       
       
         
@@ -27,7 +23,7 @@
     
     
       
-        <title>Lunar (Enable Banking) - Penge</title>
+        <title>0043 — Enable Banking balances without a reference date: stamp with the sync date - Penge</title>
       
     
     
@@ -78,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#lunar-enable-banking-psd2" class="md-skip">
+        <a href="#0043-enable-banking-balances-without-a-reference-date-stamp-with-the-sync-date" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Lunar (Enable Banking)
+              0043 — Enable Banking balances without a reference date: stamp with the sync date
             
           </span>
         </div>
@@ -353,8 +349,6 @@
       
   
   
-    
-  
   
   
     
@@ -391,15 +385,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../connectors/" class="md-nav__link ">
               
   
   
@@ -423,7 +417,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -443,7 +437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ecb_fx/" class="md-nav__link">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
         
   
   
@@ -471,7 +465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gls/" class="md-nav__link">
+      <a href="../../connectors/gls/" class="md-nav__link">
         
   
   
@@ -499,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../evangelische-bank/" class="md-nav__link">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
         
   
   
@@ -524,37 +518,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Lunar (Enable Banking)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../connectors/lunar/" class="md-nav__link">
         
   
   
@@ -570,103 +537,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#one-time-setup" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        One-time setup
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consent-flow" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consent flow
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#aktiesparekonto-auto-tagging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Aktiesparekonto auto-tagging
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#field-mapping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Field mapping
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#currency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Currency
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#idempotency" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Idempotency
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#sandbox-limitations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Sandbox limitations
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -679,7 +549,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../growney/" class="md-nav__link">
+      <a href="../../connectors/growney/" class="md-nav__link">
         
   
   
@@ -707,7 +577,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pfa/" class="md-nav__link">
+      <a href="../../connectors/pfa/" class="md-nav__link">
         
   
   
@@ -735,7 +605,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../nordnet/" class="md-nav__link">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
         
   
   
@@ -763,7 +633,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../abis/" class="md-nav__link">
+      <a href="../../connectors/abis/" class="md-nav__link">
         
   
   
@@ -791,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../manual/" class="md-nav__link">
+      <a href="../../connectors/manual/" class="md-nav__link">
         
   
   
@@ -2082,7 +1952,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../decisions/" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -2126,7 +1996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -2154,7 +2024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -2182,7 +2052,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -2210,7 +2080,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -2238,7 +2108,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2266,7 +2136,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2294,7 +2164,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2322,7 +2192,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2350,7 +2220,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2378,7 +2248,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
+      <a href="../0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2406,7 +2276,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2434,7 +2304,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2462,7 +2332,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2490,7 +2360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2518,7 +2388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2546,7 +2416,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2574,7 +2444,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2602,7 +2472,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2630,7 +2500,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2658,7 +2528,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
+      <a href="../0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2686,7 +2556,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2714,7 +2584,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2742,7 +2612,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2770,7 +2640,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
+      <a href="../0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2798,7 +2668,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
+      <a href="../0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2826,7 +2696,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2854,7 +2724,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2882,7 +2752,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -2910,7 +2780,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -2938,7 +2808,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0034-application-container-images/" class="md-nav__link">
+      <a href="../0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -2966,7 +2836,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0035-fastapi-read-api/" class="md-nav__link">
+      <a href="../0035-fastapi-read-api/" class="md-nav__link">
         
   
   
@@ -2994,7 +2864,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0036-webui-frontend-stack/" class="md-nav__link">
+      <a href="../0036-webui-frontend-stack/" class="md-nav__link">
         
   
   
@@ -3022,7 +2892,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0037-staged-import-sessions/" class="md-nav__link">
+      <a href="../0037-staged-import-sessions/" class="md-nav__link">
         
   
   
@@ -3050,7 +2920,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+      <a href="../0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
         
   
   
@@ -3078,7 +2948,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0039-returns-engine-twr-mwr/" class="md-nav__link">
+      <a href="../0039-returns-engine-twr-mwr/" class="md-nav__link">
         
   
   
@@ -3106,7 +2976,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
+      <a href="../0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
         
   
   
@@ -3134,7 +3004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/adr-template/" class="md-nav__link">
+      <a href="../adr-template/" class="md-nav__link">
         
   
   
@@ -3243,10 +3113,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#one-time-setup" class="md-nav__link">
+  <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        One-time setup
+        Context and Problem Statement
       
     </span>
   </a>
@@ -3254,10 +3124,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#consent-flow" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Consent flow
+        Decision Drivers
       
     </span>
   </a>
@@ -3265,10 +3135,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aktiesparekonto-auto-tagging" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Aktiesparekonto auto-tagging
+        Considered Options
       
     </span>
   </a>
@@ -3276,10 +3146,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#field-mapping" class="md-nav__link">
+  <a href="#decision" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Field mapping
+        Decision
       
     </span>
   </a>
@@ -3287,32 +3157,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#currency" class="md-nav__link">
+  <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Currency
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#idempotency" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Idempotency
+        Negative
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#sandbox-limitations" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Sandbox limitations
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
       
     </span>
   </a>
@@ -3336,7 +3234,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/connectors/lunar.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0043-enable-banking-dateless-balance-fallback.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3344,175 +3242,104 @@
   
 
 
-<h1 id="lunar-enable-banking-psd2">Lunar (Enable Banking PSD2)<a class="headerlink" href="#lunar-enable-banking-psd2" title="Permanent link">&para;</a></h1>
-<p><a href="https://www.lunar.app/">Lunar</a> (BIC <code>LNHBDKKB</code>) is a Danish
-challenger bank that exposes account data through the European PSD2
-AISP API. Penge consumes this via
-<a href="https://enablebanking.com/">Enable Banking</a>, which acts as a
-regulated AISP aggregator. The transport client is generic
-(<code>penge.ingest.enablebanking</code>) and is shared with the GLS (#14) and
-Evangelische Bank (#15) connectors; this page covers the
-Lunar-specific glue, in particular the <strong>Aktiesparekonto</strong> auto-tag.</p>
-<h2 id="one-time-setup">One-time setup<a class="headerlink" href="#one-time-setup" title="Permanent link">&para;</a></h2>
-<p>The Enable Banking application is shared across all PSD2 connectors;
-you do <strong>not</strong> need a separate app per bank. If you've already set
-up GLS or Evangelische Bank, the application credentials below are
-already in your shell — skip to "Consent flow".</p>
+<h1 id="0043-enable-banking-balances-without-a-reference-date-stamp-with-the-sync-date">0043 — Enable Banking balances without a reference date: stamp with the sync date<a class="headerlink" href="#0043-enable-banking-balances-without-a-reference-date-stamp-with-the-sync-date" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Accepted</li>
+<li><strong>Date:</strong> 2026-06-17</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> ingest</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p>Bank accounts connected through Enable Banking (GLS, Evangelische Bank,
+Lunar) contributed <strong>€0</strong> to net worth on the dashboard, even though
+their transactions imported correctly. The household expects roughly
+€61k across these accounts.</p>
+<p><code>balance_to_market_value()</code> in
+<code>src/penge/ingest/enablebanking/mapping.py</code> turns a <code>/balances</code> response
+into a <code>(amount, valuation_date)</code> pair for a <code>holding_snapshot</code> row. It
+derives the valuation date from the balance's <code>reference_date</code>, falling
+back to the date part of <code>last_change_date_time</code>. All three ASPSPs
+return valid booked balances (<code>CLBD</code>/<code>ITBD</code>, correct amounts) but with
+<strong>both</strong> date fields <code>null</code>. With no valuation date the function
+returned <code>None</code>, so the snapshot was silently dropped.</p>
+<p>The net-worth marts (<code>mart_position_value_daily</code> →
+<code>mart_net_worth_daily</code>) forward-fill <code>holding_snapshot</code> over a date
+spine. An account with no snapshot is €0 everywhere. Transactions are
+not summed into balances, so importing them did not help.</p>
+<p>The original guard deliberately refused to synthesise a date, to avoid
+breaking idempotency across days. But the <code>/balances</code> endpoint returns
+the account's <strong>current</strong> balance, not a historical one, so the natural
+valuation date is simply <em>when we read it</em>.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Accounts with a real, current balance must contribute to net worth.</li>
+<li>The <code>/balances</code> reading is a point-in-time "now" value; the sync date
+  is a truthful valuation date for it.</li>
+<li>Preserve backward compatibility: existing callers and tests that rely
+  on dateless balances being dropped must not silently change.</li>
+<li>Keep idempotency within a single day (re-running a sync converges).</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Sign up at <a href="https://enablebanking.com/">https://enablebanking.com/</a> and create an
-   <strong>Application</strong>. For development you start in sandbox mode, which
-   only connects to the Mock ASPSP.</li>
-<li>Generate an RSA-2048 keypair, upload the public key to your
-   application, and store the private key with mode <code>0600</code>. The
-   default location used by the CLI is
-   <code>~/.config/penge/enablebanking-sandbox.pem</code>.</li>
-<li>Configure the redirect URL on the application — it must match the
-   <code>--redirect-url</code> you'll pass to <code>penge-lunar link</code>. In <strong>production</strong>
-   (Enable Banking requires HTTPS), use the hosted callback
-   <code>https://penge.eigmueller.de/eb/callback</code>. For local sandbox
-   testing, <code>http://localhost:8765/callback</code> is fine.</li>
-<li>Export environment:</li>
+<li><strong>Keep dropping dateless balances</strong> — status quo; these accounts stay
+   at €0 until the ASPSP starts sending a date (it may never).</li>
+<li><strong>Stamp dateless balances with the sync date (today, UTC)</strong> — the
+   loader passes <code>datetime.now(UTC).date()</code> as a fallback valuation date;
+   <code>balance_to_market_value</code> uses it only when the balance itself carries
+   no date.</li>
+<li><strong>Use the transaction window end (<code>date_to</code>)</strong> — rejected: <code>/balances</code>
+   returns the current balance regardless of the transaction window, so
+   <code>date_to</code> would misdate the snapshot.</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="k">set</span> -gx ENABLEBANKING_APPLICATION_ID <span class="o">&lt;</span>your-app-uuid&gt;
-<span class="k">set</span> -gx ENABLEBANKING_KEY_PATH ~/.config/penge/enablebanking-sandbox.pem
-</code></pre></div>
-<h2 id="consent-flow">Consent flow<a class="headerlink" href="#consent-flow" title="Permanent link">&para;</a></h2>
-<p>PSD2 consent is PSU-driven; you have to redirect a real browser to
-the bank to authenticate. The CLI is split into three subcommands so
-you can run each step interactively.</p>
-<div class="highlight"><pre><span></span><code><span class="c"># 1. Get the consent URL (Lunar is a DK ASPSP)</span>
-penge-lunar link --redirect-url https://penge.eigmueller.de/eb/callback --days 180
-<span class="c"># → prints { &quot;consent_url&quot;: &quot;...&quot;, &quot;authorization_id&quot;: &quot;...&quot; }</span>
-<span class="c"># Open consent_url in a browser, log in to Lunar (MitID), approve.</span>
-<span class="c"># After approval the browser is redirected to:</span>
-<span class="c">#   https://penge.eigmueller.de/eb/callback?code=&lt;CODE&gt;&amp;state=...</span>
-<span class="c"># That page (un-gated, no Google login) shows &lt;CODE&gt; for copy/paste.</span>
-<span class="c"># For local sandbox testing, use http://localhost:8765/callback instead.</span>
-
-<span class="c"># 2. Exchange the code for a session</span>
-penge-lunar authorize --code <span class="o">&lt;</span>CODE&gt;
-<span class="c"># → prints { &quot;session_id&quot;: &quot;...&quot;, &quot;accounts&quot;: [...] }</span>
-<span class="k">set</span> -gx LUNAR_SESSION_ID <span class="o">&lt;</span>session_id&gt;
-
-<span class="c"># 3. Sync transactions + balance into Postgres</span>
-<span class="c">#    All authorised accounts are synced. Aktiesparekonto subaccounts</span>
-<span class="c">#    are auto-tagged.</span>
-penge-lunar sync --entity-name <span class="s2">&quot;Your Name&quot;</span> --days 365
-</code></pre></div>
-<p>The session is valid for the consent duration (capped by Lunar at
-~180 days). When it expires, repeat steps 1–2.</p>
-<h2 id="aktiesparekonto-auto-tagging">Aktiesparekonto auto-tagging<a class="headerlink" href="#aktiesparekonto-auto-tagging" title="Permanent link">&para;</a></h2>
-<p>The Aktiesparekonto (ASK) is a Danish tax-advantaged stock savings
-account with a 17 % flat <em>lagerbeskatning</em> (mark-to-market) tax rate
-and an annual contribution cap. Lunar exposes ASK as a separate
-subaccount whose Berlin Group <code>product</code> field contains
-<code>Aktiesparekonto</code>.</p>
-<p>The connector detects ASK subaccounts and writes
-<code>account.dk_tax_treatment = 'aktiesparekonto'</code> so downstream tax
-models can apply the correct regime. Detection rules
-(<code>penge.ingest.lunar.loader.is_aktiesparekonto</code>):</p>
-<ol>
-<li>case-insensitive substring match <code>aktiesparekonto</code> in <code>product</code>,
-   <strong>or</strong></li>
-<li>case-insensitive substring match <code>aktiesparekonto</code> in <code>name</code>
-   (defensive fallback for renamed accounts).</li>
-</ol>
-<p>To override detection (e.g. in tests), pass
-<code>dk_tax_treatment="aktiesparekonto"</code> (force) or <code>dk_tax_treatment=""</code>
-(force <code>NULL</code>) when calling <code>load_account</code> programmatically.</p>
-<p>The <code>dk_tax_treatment</code> column was added to <code>account</code> by Alembic
-revision <code>0002_add_account_dk_tax</code>; it is constrained to
-the values listed there (today: only <code>aktiesparekonto</code>).</p>
-<h2 id="field-mapping">Field mapping<a class="headerlink" href="#field-mapping" title="Permanent link">&para;</a></h2>
-<p>The loader produces canonical <code>transaction</code> rows from Berlin Group
-PSD2 transactions. The mapping is identical to GLS and Evangelische
-Bank — all of it lives in the shared
-<code>penge.ingest.enablebanking.mapping</code> module:</p>
-<table>
-<thead>
-<tr>
-<th>Penge column</th>
-<th>Source (Enable Banking / Berlin Group)</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>external_id</code></td>
-<td><code>entry_reference</code> (immutable per-account); falls back to <code>transaction_id</code></td>
-</tr>
-<tr>
-<td><code>ts</code></td>
-<td><code>booking_date</code> promoted to UTC midnight; falls back to <code>value_date</code>, <code>transaction_date</code></td>
-</tr>
-<tr>
-<td><code>value_date</code></td>
-<td><code>value_date</code> (verbatim)</td>
-</tr>
-<tr>
-<td><code>kind</code></td>
-<td><code>credit_debit_indicator</code>: <code>CRDT</code>→<code>deposit</code>, <code>DBIT</code>→<code>withdrawal</code></td>
-</tr>
-<tr>
-<td><code>amount</code></td>
-<td><code>transaction_amount.amount</code> with sign from <code>credit_debit_indicator</code> (DBIT negated)</td>
-</tr>
-<tr>
-<td><code>quantity</code></td>
-<td>Always <code>1</code> (cash transactions)</td>
-</tr>
-<tr>
-<td><code>price</code></td>
-<td>Mirrors <code>amount</code></td>
-</tr>
-<tr>
-<td><code>fee</code>, <code>tax</code></td>
-<td>Always <code>0</code> — PSD2 doesn't surface fees as line items</td>
-</tr>
-<tr>
-<td><code>counterparty</code></td>
-<td><code>debtor.name</code> for credits, <code>creditor.name</code> for debits</td>
-</tr>
-<tr>
-<td><code>description</code></td>
-<td><code>remittance_information</code> joined with single spaces; falls back to <code>note</code></td>
-</tr>
-<tr>
-<td><code>account_id</code></td>
-<td>Synthesised from session UID (Enable Banking <code>accounts[].uid</code>)</td>
-</tr>
-</tbody>
-</table>
-<p><code>holding_snapshot</code> rows are produced from <code>GET /accounts/{uid}/balances</code>,
-preferring balance types in this order: <code>CLBD</code> (closing booked) → <code>ITBD</code>
-(interim booked) → <code>CLAV</code> (closing available) → <code>XPCD</code> (expected).</p>
-<p>Lunar returns booked balances with <strong>no</strong> <code>reference_date</code> and no
-<code>last_change_date_time</code>. Because <code>/balances</code> reports the account's
-<em>current</em> balance, the loader stamps such dateless balances with the sync
-date (today, UTC) so the account still contributes to net worth instead
-of showing €0. See
-<a href="../../decisions/0043-enable-banking-dateless-balance-fallback/">ADR-0043</a>.</p>
-<h2 id="currency">Currency<a class="headerlink" href="#currency" title="Permanent link">&para;</a></h2>
-<p>Lunar accounts are denominated in <strong>DKK</strong> by default. The CLI uses the
-currency Enable Banking reports per account (Berlin Group <code>currency</code>
-field) and falls back to DKK if Enable Banking does not return one.
-There is no <code>--currency</code> override flag; if you need to coerce a
-specific subaccount to a different currency, call
-<code>penge.ingest.lunar.load_account(..., currency=...)</code> directly.</p>
-<h2 id="idempotency">Idempotency<a class="headerlink" href="#idempotency" title="Permanent link">&para;</a></h2>
-<p>Every load is safe to re-run. Transactions are upserted on the
-<code>(account_id, external_id)</code> constraint
-<code>ux_transaction__account_id_external_id</code>; balance snapshots on
-<code>(account_id, instrument_id, as_of)</code>
-(<code>ux_holding_snapshot__account_instrument_as_of</code>). The
-<code>dk_tax_treatment</code> column is updated on every run from the connector's
-detection logic, so a Lunar product reclassification upstream is
-reflected on the next sync.</p>
-<h2 id="sandbox-limitations">Sandbox limitations<a class="headerlink" href="#sandbox-limitations" title="Permanent link">&para;</a></h2>
-<p>Sandbox applications can only connect to <strong>Mock ASPSPs</strong>, not real
-banks. To do a true end-to-end test against Lunar you must request
-production access from Enable Banking. The mock ASPSPs are sufficient
-for verifying the consent dance, JWT signing, pagination, and DB
-upserts.</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>We chose <strong>Option 2</strong>. <code>balance_to_market_value</code> gains a keyword-only
+<code>fallback_date: date | None = None</code> parameter. When the preferred booked
+balance has no <code>reference_date</code> and no <code>last_change_date_time</code>:</p>
+<ul>
+<li>if <code>fallback_date</code> is provided, return <code>(amount, fallback_date)</code>;</li>
+<li>if it is <code>None</code>, return <code>None</code> as before.</li>
+</ul>
+<p>The loader (<code>_upsert_balance_snapshot</code> via <code>_persist</code>) passes
+<code>datetime.now(UTC).date()</code>. Balances that <em>do</em> carry their own date are
+unaffected — the payload's date always wins over the fallback.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<ul>
+<li>GLS/EB/Lunar accounts now produce a <code>holding_snapshot</code> and contribute
+  to net worth (~€61k previously shown as €0).</li>
+<li>Re-running a sync on the same UTC day converges (same <code>as_of</code>, upsert
+  on <code>(account_id, instrument_id, as_of)</code>).</li>
+<li>Backward compatible: without a fallback the historical drop-behaviour
+  is preserved, so pure-mapping callers and existing tests are unchanged.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Syncing the same account on two different UTC days writes two
+  snapshots with different <code>as_of</code> dates for what may be the same
+  underlying balance reading. This is acceptable: it reflects our
+  knowledge of the current balance on each day, and the marts forward-
+  fill between readings anyway.</li>
+<li>The stamped date is our read time, not the bank's booking time; for
+  ASPSPs that omit dates we cannot do better without a new data source.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>No change to the <code>holding_snapshot</code> schema, the balance preference
+  order, dbt marts, or tax modules.</li>
+</ul>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Code: <code>src/penge/ingest/enablebanking/mapping.py</code>
+  (<code>balance_to_market_value</code>),
+  <code>src/penge/ingest/enablebanking/loader.py</code>
+  (<code>_persist</code>, <code>_upsert_balance_snapshot</code>)</li>
+<li>Docs: <code>docs/connectors/gls.md</code>,
+  <code>docs/connectors/evangelische-bank.md</code>, <code>docs/connectors/lunar.md</code></li>
+<li>Issue: #259</li>
+<li>Related: <a href="../0040-in-app-enable-banking-consent-flow/">ADR-0040</a>
+  (consent flow), <a href="../0041-connections-sync-history-window-fallback/">ADR-0041</a>
+  (history-window fallback)</li>
+</ul>
 
 
 

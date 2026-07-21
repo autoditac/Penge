@@ -3415,6 +3415,12 @@ in the shared <code>penge.ingest.enablebanking.mapping</code> module:</p>
 <p><code>holding_snapshot</code> rows are produced from <code>GET /accounts/{uid}/balances</code>,
 preferring balance types in this order: <code>CLBD</code> (closing booked) → <code>ITBD</code>
 (interim booked) → <code>CLAV</code> (closing available) → <code>XPCD</code> (expected).</p>
+<p>Evangelische Bank returns booked balances with <strong>no</strong> <code>reference_date</code>
+and no <code>last_change_date_time</code>. Because <code>/balances</code> reports the account's
+<em>current</em> balance, the loader stamps such dateless balances with the sync
+date (today, UTC) so the account still contributes to net worth instead
+of showing €0. See
+<a href="../../decisions/0043-enable-banking-dateless-balance-fallback/">ADR-0043</a>.</p>
 <h2 id="idempotency">Idempotency<a class="headerlink" href="#idempotency" title="Permanent link">&para;</a></h2>
 <p>Every load is safe to re-run. Transactions are upserted on the
 <code>(account_id, external_id)</code> constraint

@@ -102,7 +102,9 @@ def test_sync_persists_snapshot_when_aspsp_omits_reference_date(
     )
     assert authorized.status_code == 200, authorized.text
 
+    before = datetime.now(UTC).date()
     synced = client.post(f"/connections/{connection_id}/sync")
+    after = datetime.now(UTC).date()
     assert synced.status_code == 200, synced.text
     assert synced.json()["holding_snapshots"] >= 1
 
@@ -110,7 +112,8 @@ def test_sync_persists_snapshot_when_aspsp_omits_reference_date(
         rows = conn.execute(text("select as_of, market_value from holding_snapshot")).all()
     assert len(rows) == 1
     as_of, market_value = rows[0]
-    assert as_of == datetime.now(UTC).date()
+    # Stamped with the sync date; allow the UTC day to roll over mid-test.
+    assert as_of in {before, after}
     assert market_value == Decimal("100.00")
 
 

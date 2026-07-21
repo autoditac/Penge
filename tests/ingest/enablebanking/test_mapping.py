@@ -155,3 +155,49 @@ def test_balance_to_market_value_returns_none_when_unrecognised() -> None:
         ]
     )
     assert balance_to_market_value(resp) is None
+
+
+def test_balance_to_market_value_drops_dateless_balance_without_fallback() -> None:
+    resp = BalancesResponse(
+        balances=[
+            Balance(
+                name="Closing",
+                balance_amount=Amount(amount=Decimal("61.00"), currency="EUR"),
+                balance_type="CLBD",
+                reference_date=None,
+                last_change_date_time=None,
+            ),
+        ]
+    )
+    assert balance_to_market_value(resp) is None
+
+
+def test_balance_to_market_value_uses_fallback_date_when_ref_missing() -> None:
+    resp = BalancesResponse(
+        balances=[
+            Balance(
+                name="Closing",
+                balance_amount=Amount(amount=Decimal("61.00"), currency="EUR"),
+                balance_type="CLBD",
+                reference_date=None,
+                last_change_date_time=None,
+            ),
+        ]
+    )
+    picked = balance_to_market_value(resp, fallback_date=date(2026, 6, 15))
+    assert picked == (Decimal("61.00"), date(2026, 6, 15))
+
+
+def test_balance_to_market_value_prefers_own_reference_date_over_fallback() -> None:
+    resp = BalancesResponse(
+        balances=[
+            Balance(
+                name="Closing",
+                balance_amount=Amount(amount=Decimal("42.00"), currency="EUR"),
+                balance_type="CLBD",
+                reference_date=date(2026, 5, 1),
+            ),
+        ]
+    )
+    picked = balance_to_market_value(resp, fallback_date=date(2026, 6, 15))
+    assert picked == (Decimal("42.00"), date(2026, 5, 1))

@@ -37,3 +37,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0040](0040-in-app-enable-banking-consent-flow.md) | In-app Enable Banking consent flow | Proposed |
 | [0041](0041-connections-sync-history-window-fallback.md) | Connections sync history-window fallback | Accepted |
 | [0042](0042-nordnet-interest-suffix-fallback.md) | Nordnet interest types: `…RENTE` suffix fallback to `cash_interest` | Accepted |
+| [0043](0043-enable-banking-dateless-balance-fallback.md) | Enable Banking balances without a reference date: stamp with the sync date | Accepted |

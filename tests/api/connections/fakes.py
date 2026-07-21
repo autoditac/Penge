@@ -63,6 +63,11 @@ class FakeClient:
         # Records the date_from (ISO string) of each transactions call so
         # tests can assert which windows were attempted.
         self.transaction_windows: list[str | None] = []
+        # When True, get_account_balances returns a booked balance with no
+        # reference_date (and no last_change_date_time), mimicking GLS/EB/Lunar
+        # via Enable Banking. The loader must still persist a snapshot, stamped
+        # with today's date.
+        self.balance_without_reference_date: bool = False
 
     # -- context manager ------------------------------------------------ #
     def __enter__(self) -> FakeClient:
@@ -176,7 +181,9 @@ class FakeClient:
                     name="closing",
                     balance_amount=Amount(amount=Decimal("100.00"), currency="EUR"),
                     balance_type="CLBD",
-                    reference_date=date(2026, 1, 2),
+                    reference_date=None
+                    if self.balance_without_reference_date
+                    else date(2026, 1, 2),
                 )
             ]
         )

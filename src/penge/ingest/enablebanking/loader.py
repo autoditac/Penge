@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -159,6 +159,7 @@ def _persist(
             balances=balances,
             account_id=account_id,
             instrument_id=instrument_id,
+            fallback_date=datetime.now(UTC).date(),
         )
     log.info(
         "Enable Banking load: provider=%s account=%s booked=%d snapshots=%d",
@@ -348,8 +349,9 @@ def _upsert_balance_snapshot(
     balances: BalancesResponse,
     account_id: str,
     instrument_id: str,
+    fallback_date: date,
 ) -> int:
-    picked = balance_to_market_value(balances)
+    picked = balance_to_market_value(balances, fallback_date=fallback_date)
     if picked is None:
         return 0
     market_value, as_of = picked

@@ -8,7 +8,7 @@ guard the loader write path the CLI sync shares.
 from __future__ import annotations
 
 import uuid
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 from urllib.parse import parse_qs, urlparse
@@ -80,6 +80,41 @@ def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine) -> N
         txns = conn.execute(text('select count(*) from "transaction"')).scalar_one()
     assert accounts == 1
     assert txns == 1
+
+
+def test_sync_persists_snapshot_when_aspsp_omits_reference_date(
+    client: TestClient, engine: Engine, fake_client: FakeClient
+) -> None:
+    """GLS/EB/Lunar return balances with no reference_date.
+
+    The loader must still write a holding snapshot, stamped with today's
+    date, so these accounts contribute to net worth instead of showing €0.
+    """
+    fake_client.balance_without_reference_date = True
+
+    linked = _link(client)
+    state = linked["state"]
+    connection_id = linked["connection_id"]
+
+    authorized = client.post(
+        "/connections/authorize",
+        json={"code": "code-abc", "state": state},
+    )
+    assert authorized.status_code == 200, authorized.text
+
+    before = datetime.now(UTC).date()
+    synced = client.post(f"/connections/{connection_id}/sync")
+    after = datetime.now(UTC).date()
+    assert synced.status_code == 200, synced.text
+    assert synced.json()["holding_snapshots"] >= 1
+
+    with engine.connect() as conn:
+        rows = conn.execute(text("select as_of, market_value from holding_snapshot")).all()
+    assert len(rows) == 1
+    as_of, market_value = rows[0]
+    # Stamped with the sync date; allow the UTC day to roll over mid-test.
+    assert as_of in {before, after}
+    assert market_value == Decimal("100.00")
 
 
 def test_authorize_failure_records_debug_info(client: TestClient, fake_client: FakeClient) -> None:

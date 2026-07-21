@@ -81,6 +81,12 @@ PSD2 transactions:
 preferring balance types in this order: `CLBD` (closing booked) → `ITBD`
 (interim booked) → `CLAV` (closing available) → `XPCD` (expected).
 
+GLS (like Evangelische Bank and Lunar) returns booked balances with **no**
+`reference_date` and no `last_change_date_time`. Because `/balances` reports
+the account's *current* balance, the loader stamps such dateless balances with
+the sync date (today, UTC) so the account still contributes to net worth
+instead of showing €0. See [ADR-0043](../decisions/0043-enable-banking-dateless-balance-fallback.md).
+
 ## Idempotency
 
 Every load is safe to re-run. Transactions are upserted on the

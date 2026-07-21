@@ -1,6 +1,6 @@
 [project]
 name = "penge"
-version = "0.0.0"
+version = "0.1.0"
 description = "Private personal-finance & FIRE-modeling platform"
 readme = "README.md"
 requires-python = ">=3.12"

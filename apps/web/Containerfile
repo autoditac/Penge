@@ -4,7 +4,7 @@
 #   skopeo inspect docker://node:22-bookworm-slim
 #   skopeo inspect docker://nginxinc/nginx-unprivileged:1.29-alpine-slim
 
-FROM docker.io/library/node:22-bookworm-slim@sha256:7af03b14a13c8cdd38e45058fd957bf00a72bbe17feac43b1c15a689c029c732 AS build
+FROM docker.io/library/node:26-bookworm-slim@sha256:2d49d876e96237d76de412761cf05dbfe5aee325cc4406a4d41d5824c5bb8beb AS build
 
 WORKDIR /workspace
 

@@ -71,6 +71,8 @@ describe("AccountOverview", () => {
 
     expect(screen.getByRole("table", { name: "Tracked accounts" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Provider" })).not.toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Last updated" })).toBeInTheDocument();
+    expect(screen.getAllByText("2026-03-31")).toHaveLength(2);
     expect(screen.getByText("••••1234")).toBeInTheDocument();
     expect(screen.getByLabelText("IBAN not applicable")).toBeInTheDocument();
     expect(screen.getByLabelText(/Increased by.*250.*since 2026-02-28/)).toBeInTheDocument();
@@ -85,6 +87,7 @@ describe("AccountOverview", () => {
     const articles = screen.getAllByRole("article");
     expect(articles).toHaveLength(2);
     expect(within(articles[0]!).getByText(/IBAN ••••1234/)).toBeInTheDocument();
+    expect(within(articles[0]!).getByText("Updated 2026-03-31")).toBeInTheDocument();
     expect(within(articles[1]!).queryByText(/^IBAN /)).not.toBeInTheDocument();
     expect(within(articles[1]!).getByText(/50.000/)).toBeInTheDocument();
   });

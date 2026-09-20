@@ -385,6 +385,7 @@ export function AccountOverview({ accounts, points }: AccountOverviewProps): Rea
               <th scope="col">Owner</th>
               <th scope="col">Kind</th>
               <th scope="col">IBAN</th>
+              <th scope="col">Last updated</th>
               <th scope="col" className="num">
                 Balance
               </th>
@@ -410,6 +411,7 @@ export function AccountOverview({ accounts, points }: AccountOverviewProps): Rea
                       account.iban_masked
                     )}
                   </td>
+                  <td>{snapshot?.asOf ?? "—"}</td>
                   <td
                     className="num"
                     title={snapshot ? `Balance as of ${snapshot.asOf}` : undefined}
@@ -465,14 +467,20 @@ export function AccountOverview({ accounts, points }: AccountOverviewProps): Rea
                 </Typography>
               </Box>
             </Stack>
-            {account.iban_masked !== "" ? (
-              <Typography
-                className="mono"
-                sx={{ color: "text.secondary", fontSize: "0.75rem", mt: 1 }}
-              >
-                IBAN {account.iban_masked}
+            <Stack
+              direction="row"
+              spacing={1.5}
+              sx={{ color: "text.secondary", fontSize: "0.75rem", mt: 1 }}
+            >
+              {account.iban_masked !== "" ? (
+                <Typography className="mono" sx={{ color: "inherit", fontSize: "inherit" }}>
+                  IBAN {account.iban_masked}
+                </Typography>
+              ) : null}
+              <Typography sx={{ color: "inherit", fontSize: "inherit" }}>
+                Updated {snapshot?.asOf ?? "unavailable"}
               </Typography>
-            ) : null}
+            </Stack>
           </Box>
         );
       })}

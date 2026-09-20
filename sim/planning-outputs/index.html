@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3516,19 +3516,19 @@ realisation funds stay consistent with <code>compute_bridge_pmt()</code>.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.liquid</span><span class="w"> </span><span class="kn">import</span> <span class="n">BridgeConfig</span>
 
 <span class="n">config</span> <span class="o">=</span> <span class="n">BridgeConfig</span><span class="p">(</span>
-    <span class="n">starting_balance_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;1000000&quot;</span><span class="p">),</span>
-    <span class="n">cost_basis_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;1000000&quot;</span><span class="p">),</span>
+    <span class="n">starting_balance_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"1000000"</span><span class="p">),</span>
+    <span class="n">cost_basis_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"1000000"</span><span class="p">),</span>
     <span class="n">horizon_months</span><span class="o">=</span><span class="mi">120</span><span class="p">,</span>
-    <span class="n">gross_annual_return_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.05&quot;</span><span class="p">),</span>
-    <span class="n">annual_expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.005&quot;</span><span class="p">),</span>
-    <span class="n">account_type</span><span class="o">=</span><span class="s2">&quot;ask&quot;</span><span class="p">,</span>
-    <span class="n">tax_regime</span><span class="o">=</span><span class="s2">&quot;lager&quot;</span><span class="p">,</span>
-    <span class="n">aktieindkomst_threshold_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;67500&quot;</span><span class="p">),</span>
+    <span class="n">gross_annual_return_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.05"</span><span class="p">),</span>
+    <span class="n">annual_expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.005"</span><span class="p">),</span>
+    <span class="n">account_type</span><span class="o">=</span><span class="s2">"ask"</span><span class="p">,</span>
+    <span class="n">tax_regime</span><span class="o">=</span><span class="s2">"lager"</span><span class="p">,</span>
+    <span class="n">aktieindkomst_threshold_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"67500"</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="n">result</span> <span class="o">=</span> <span class="n">assess_bridge_spending</span><span class="p">(</span>
     <span class="n">config</span><span class="p">,</span>
-    <span class="n">target_monthly_net_spending_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;8000&quot;</span><span class="p">),</span>
+    <span class="n">target_monthly_net_spending_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"8000"</span><span class="p">),</span>
     <span class="n">start_year</span><span class="o">=</span><span class="mi">2056</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -3574,22 +3574,22 @@ available to <code>project_household()</code> and <code>project_balance_sheet()<
     <span class="o">...</span><span class="p">,</span>
     <span class="n">real_estate_assets</span><span class="o">=</span><span class="p">(</span>
         <span class="n">PropertyAssetConfig</span><span class="p">(</span>
-            <span class="n">property_id</span><span class="o">=</span><span class="s2">&quot;home&quot;</span><span class="p">,</span>
-            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Family home&quot;</span><span class="p">,</span>
+            <span class="n">property_id</span><span class="o">=</span><span class="s2">"home"</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">"Family home"</span><span class="p">,</span>
             <span class="n">start_year</span><span class="o">=</span><span class="mi">2027</span><span class="p">,</span>
-            <span class="n">value_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;3500000&quot;</span><span class="p">),</span>
-            <span class="n">annual_value_growth_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.02&quot;</span><span class="p">),</span>
-            <span class="n">annual_recurring_cost_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;25000&quot;</span><span class="p">),</span>
+            <span class="n">value_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"3500000"</span><span class="p">),</span>
+            <span class="n">annual_value_growth_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.02"</span><span class="p">),</span>
+            <span class="n">annual_recurring_cost_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"25000"</span><span class="p">),</span>
         <span class="p">),</span>
     <span class="p">),</span>
     <span class="n">mortgages</span><span class="o">=</span><span class="p">(</span>
         <span class="n">MortgageConfig</span><span class="p">(</span>
-            <span class="n">mortgage_id</span><span class="o">=</span><span class="s2">&quot;home-loan&quot;</span><span class="p">,</span>
-            <span class="n">property_id</span><span class="o">=</span><span class="s2">&quot;home&quot;</span><span class="p">,</span>
+            <span class="n">mortgage_id</span><span class="o">=</span><span class="s2">"home-loan"</span><span class="p">,</span>
+            <span class="n">property_id</span><span class="o">=</span><span class="s2">"home"</span><span class="p">,</span>
             <span class="n">start_year</span><span class="o">=</span><span class="mi">2027</span><span class="p">,</span>
-            <span class="n">principal_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;2500000&quot;</span><span class="p">),</span>
-            <span class="n">annual_interest_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.035&quot;</span><span class="p">),</span>
-            <span class="n">annual_amortization_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;80000&quot;</span><span class="p">),</span>
+            <span class="n">principal_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"2500000"</span><span class="p">),</span>
+            <span class="n">annual_interest_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.035"</span><span class="p">),</span>
+            <span class="n">annual_amortization_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"80000"</span><span class="p">),</span>
         <span class="p">),</span>
     <span class="p">),</span>
 <span class="p">)</span>
@@ -3700,9 +3700,9 @@ plain-language summary.</p>
 <span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.routing</span><span class="w"> </span><span class="kn">import</span> <span class="n">ContributionRouter</span>
 
 <span class="n">router</span> <span class="o">=</span> <span class="n">ContributionRouter</span><span class="p">(</span>
-    <span class="n">ask_cap_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;142500&quot;</span><span class="p">),</span>
-    <span class="n">ask_cumulative_deposits_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;62000&quot;</span><span class="p">),</span>
-    <span class="n">monthly_contribution_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;10000&quot;</span><span class="p">),</span>
+    <span class="n">ask_cap_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"142500"</span><span class="p">),</span>
+    <span class="n">ask_cumulative_deposits_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"62000"</span><span class="p">),</span>
+    <span class="n">monthly_contribution_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"10000"</span><span class="p">),</span>
 <span class="p">)</span>
 
 <span class="n">strategy</span> <span class="o">=</span> <span class="n">explain_contribution_strategy</span><span class="p">(</span><span class="n">router</span><span class="p">,</span> <span class="n">base_year</span><span class="o">=</span><span class="mi">2024</span><span class="p">,</span> <span class="n">horizon_years</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
@@ -3770,10 +3770,10 @@ model fields.</p>
     <span class="n">plan</span><span class="p">,</span>
     <span class="p">(</span>
         <span class="n">RetireInYearPreset</span><span class="p">(</span><span class="n">year</span><span class="o">=</span><span class="mi">2032</span><span class="p">),</span>
-        <span class="n">HigherSpendingPreset</span><span class="p">(</span><span class="n">factor</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;1.10&quot;</span><span class="p">)),</span>
+        <span class="n">HigherSpendingPreset</span><span class="p">(</span><span class="n">factor</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"1.10"</span><span class="p">)),</span>
     <span class="p">),</span>
-    <span class="n">name</span><span class="o">=</span><span class="s2">&quot;retire-2032-higher-spend&quot;</span><span class="p">,</span>
-    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Retire in 2032 with 10</span><span class="si">% hi</span><span class="s2">gher spending&quot;</span><span class="p">,</span>
+    <span class="n">name</span><span class="o">=</span><span class="s2">"retire-2032-higher-spend"</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">"Retire in 2032 with 10</span><span class="si">% hi</span><span class="s2">gher spending"</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
 <p>Presets are composable where they keep the resulting <code>HouseholdPlan</code> valid.
@@ -3808,12 +3808,12 @@ provide explicit <code>DrawdownAccountState</code> values.</p>
 <span class="n">accounts</span> <span class="o">=</span> <span class="n">build_drawdown_accounts</span><span class="p">(</span>
     <span class="n">projection</span><span class="p">,</span>
     <span class="n">start_year</span><span class="o">=</span><span class="mi">2030</span><span class="p">,</span>
-    <span class="n">cash_balance_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;100000&quot;</span><span class="p">),</span>
+    <span class="n">cash_balance_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"100000"</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">compare_drawdown_strategies</span><span class="p">(</span>
     <span class="n">accounts</span><span class="p">,</span>
     <span class="n">start_year</span><span class="o">=</span><span class="mi">2030</span><span class="p">,</span>
-    <span class="n">annual_spending_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;300000&quot;</span><span class="p">),</span>
+    <span class="n">annual_spending_dkk</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"300000"</span><span class="p">),</span>
     <span class="n">horizon_years</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
 <span class="p">)</span>
 </code></pre></div>
@@ -3842,11 +3842,11 @@ It does not send document text to an LLM or any external service.</p>
 <span class="p">)</span>
 
 <span class="n">document</span> <span class="o">=</span> <span class="n">ParsedPlanningDocument</span><span class="p">(</span>
-    <span class="n">document_id</span><span class="o">=</span><span class="s2">&quot;synthetic-pfa-2026&quot;</span><span class="p">,</span>
-    <span class="n">path</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;vault/2026/pension/synthetic.txt&quot;</span><span class="p">),</span>
-    <span class="n">classification</span><span class="o">=</span><span class="s2">&quot;pfa&quot;</span><span class="p">,</span>
-    <span class="n">extracted_via</span><span class="o">=</span><span class="s2">&quot;ocr&quot;</span><span class="p">,</span>
-    <span class="n">text</span><span class="o">=</span><span class="s2">&quot;Pensionssaldo: 1200000 EUR</span><span class="se">\n</span><span class="s2">ÅOP: 0.45%&quot;</span><span class="p">,</span>
+    <span class="n">document_id</span><span class="o">=</span><span class="s2">"synthetic-pfa-2026"</span><span class="p">,</span>
+    <span class="n">path</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">"vault/2026/pension/synthetic.txt"</span><span class="p">),</span>
+    <span class="n">classification</span><span class="o">=</span><span class="s2">"pfa"</span><span class="p">,</span>
+    <span class="n">extracted_via</span><span class="o">=</span><span class="s2">"ocr"</span><span class="p">,</span>
+    <span class="n">text</span><span class="o">=</span><span class="s2">"Pensionssaldo: 1200000 EUR</span><span class="se">\n</span><span class="s2">ÅOP: 0.45%"</span><span class="p">,</span>
 <span class="p">)</span>
 
 <span class="n">suggestions</span> <span class="o">=</span> <span class="n">extract_planning_assumptions</span><span class="p">((</span><span class="n">document</span><span class="p">,))</span>
@@ -3869,9 +3869,9 @@ and documentation.</p>
 <span class="n">surface</span> <span class="o">=</span> <span class="n">generate_planning_surface</span><span class="p">(</span>
     <span class="n">PlanningSurfaceRequest</span><span class="p">(</span>
         <span class="n">questions</span><span class="o">=</span><span class="p">(</span>
-            <span class="s2">&quot;can_we_retire&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;what_breaks_first&quot;</span><span class="p">,</span>
-            <span class="s2">&quot;how_do_taxes_affect_plan&quot;</span><span class="p">,</span>
+            <span class="s2">"can_we_retire"</span><span class="p">,</span>
+            <span class="s2">"what_breaks_first"</span><span class="p">,</span>
+            <span class="s2">"how_do_taxes_affect_plan"</span><span class="p">,</span>
         <span class="p">)</span>
     <span class="p">)</span>
 <span class="p">)</span>
@@ -4039,7 +4039,7 @@ so a UI or LLM host can show the explanation and the audit trail together.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

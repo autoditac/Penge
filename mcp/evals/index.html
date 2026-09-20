@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3314,10 +3314,10 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <li>Open <code>apps/mcp/evals/goldens.ts</code> and append an entry to <code>GOLDENS</code>:</li>
 </ol>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;kebab-case-id-unique-across-the-suite&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">question</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;Human-readable question — appears verbatim in test names and failures.&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">rationale</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;One sentence: why does this matter? What does drift here imply?&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nx">tool</span><span class="o">:</span><span class="w"> </span><span class="s2">&quot;query_net_worth&quot;</span><span class="p">,</span><span class="w"> </span><span class="c1">// or another ToolName</span>
+<span class="w">  </span><span class="nx">id</span><span class="o">:</span><span class="w"> </span><span class="s2">"kebab-case-id-unique-across-the-suite"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">question</span><span class="o">:</span><span class="w"> </span><span class="s2">"Human-readable question — appears verbatim in test names and failures."</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">rationale</span><span class="o">:</span><span class="w"> </span><span class="s2">"One sentence: why does this matter? What does drift here imply?"</span><span class="p">,</span>
+<span class="w">  </span><span class="nx">tool</span><span class="o">:</span><span class="w"> </span><span class="s2">"query_net_worth"</span><span class="p">,</span><span class="w"> </span><span class="c1">// or another ToolName</span>
 <span class="w">  </span><span class="k">async</span><span class="w"> </span><span class="nx">run</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="c1">// Wire fixtures into the *real* tool handler. For DB-backed</span>
 <span class="w">    </span><span class="c1">// tools use a `queuedXRunner([rowsForCall1, rowsForCall2, …])`.</span>
@@ -3328,7 +3328,7 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">tool</span><span class="p">.</span><span class="nx">handler</span><span class="p">({</span><span class="w"> </span><span class="cm">/* … */</span><span class="w"> </span><span class="p">},</span><span class="w"> </span><span class="nx">CTX</span><span class="p">);</span>
 <span class="w">    </span><span class="nx">tool</span><span class="p">.</span><span class="nx">outputSchema</span><span class="p">.</span><span class="nx">parse</span><span class="p">(</span><span class="nx">out</span><span class="p">);</span><span class="w">                  </span><span class="c1">// structural check</span>
 <span class="w">    </span><span class="nx">approxEqual</span><span class="p">(</span><span class="nx">out</span><span class="p">[</span><span class="mf">0</span><span class="p">]</span><span class="o">!</span><span class="p">.</span><span class="nx">value</span><span class="p">,</span><span class="w"> </span><span class="mf">600</span><span class="nx">_000</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0001</span><span class="p">,</span><span class="w">    </span><span class="c1">// numeric check</span>
-<span class="w">      </span><span class="s2">&quot;household total&quot;</span><span class="p">);</span>
+<span class="w">      </span><span class="s2">"household total"</span><span class="p">);</span>
 <span class="w">  </span><span class="p">},</span>
 <span class="p">},</span>
 </code></pre></div>
@@ -3446,7 +3446,7 @@ to drop one, link the ADR or issue that motivated the removal.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

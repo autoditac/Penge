@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3475,11 +3475,11 @@ import. See <a href="../../decisions/0042-nordnet-interest-suffix-fallback/">ADR
     <span class="n">load_accounts_config</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">cfg</span>   <span class="o">=</span> <span class="n">load_accounts_config</span><span class="p">(</span><span class="s2">&quot;config/nordnet-accounts.yaml&quot;</span><span class="p">)</span>
-<span class="n">txns</span>  <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_transactions</span><span class="p">(</span><span class="s2">&quot;20260507-nordnet-transactions-and-notes-export.csv&quot;</span><span class="p">))</span>
+<span class="n">cfg</span>   <span class="o">=</span> <span class="n">load_accounts_config</span><span class="p">(</span><span class="s2">"config/nordnet-accounts.yaml"</span><span class="p">)</span>
+<span class="n">txns</span>  <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_transactions</span><span class="p">(</span><span class="s2">"20260507-nordnet-transactions-and-notes-export.csv"</span><span class="p">))</span>
 <span class="n">isin</span>  <span class="o">=</span> <span class="n">instrument_map_from_transactions</span><span class="p">(</span><span class="n">txns</span><span class="p">)</span>        <span class="c1"># Navn -&gt; ISIN</span>
 <span class="n">cash</span>  <span class="o">=</span> <span class="n">derive_cash_balances</span><span class="p">(</span><span class="n">txns</span><span class="p">)</span>                    <span class="c1"># per (account, ccy)</span>
-<span class="n">hld</span>   <span class="o">=</span> <span class="n">parse_holdings_file</span><span class="p">(</span><span class="s2">&quot;Depotoversigt for kontonummer 60109543, 7.5.2026.csv&quot;</span><span class="p">)</span>
+<span class="n">hld</span>   <span class="o">=</span> <span class="n">parse_holdings_file</span><span class="p">(</span><span class="s2">"Depotoversigt for kontonummer 60109543, 7.5.2026.csv"</span><span class="p">)</span>
 </code></pre></div>
 <p>The parser is pure (no DB writes). To upsert into Postgres use
 the <code>penge-nordnet</code> CLI or the <code>load_files</code> API:</p>
@@ -3487,15 +3487,15 @@ the <code>penge-nordnet</code> CLI or the <code>load_files</code> API:</p>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">penge.ingest.nordnet</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_accounts_config</span><span class="p">,</span> <span class="n">load_files</span>
 
-<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="s2">&quot;postgresql+psycopg://...&quot;</span><span class="p">)</span>
+<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="s2">"postgresql+psycopg://..."</span><span class="p">)</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">load_files</span><span class="p">(</span>
     <span class="n">engine</span><span class="p">,</span>
-    <span class="n">transactions_csv</span><span class="o">=</span><span class="s2">&quot;20260507-nordnet-transactions-and-notes-export.csv&quot;</span><span class="p">,</span>
+    <span class="n">transactions_csv</span><span class="o">=</span><span class="s2">"20260507-nordnet-transactions-and-notes-export.csv"</span><span class="p">,</span>
     <span class="n">holdings_csvs</span><span class="o">=</span><span class="p">[</span>
-        <span class="s2">&quot;Depotoversigt for kontonummer 60109543, 7.5.2026.csv&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;Depotoversigt for kontonummer 60183456, 7.5.2026.csv&quot;</span><span class="p">,</span>
+        <span class="s2">"Depotoversigt for kontonummer 60109543, 7.5.2026.csv"</span><span class="p">,</span>
+        <span class="s2">"Depotoversigt for kontonummer 60183456, 7.5.2026.csv"</span><span class="p">,</span>
     <span class="p">],</span>
-    <span class="n">accounts_config</span><span class="o">=</span><span class="n">load_accounts_config</span><span class="p">(</span><span class="s2">&quot;config/nordnet-accounts.yaml&quot;</span><span class="p">),</span>
+    <span class="n">accounts_config</span><span class="o">=</span><span class="n">load_accounts_config</span><span class="p">(</span><span class="s2">"config/nordnet-accounts.yaml"</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>  <span class="c1"># entities=1 accounts=6 instruments=N transactions=N holding_snapshots=N</span>
 </code></pre></div>
@@ -3505,8 +3505,8 @@ re-running the same export only updates <code>updated_at</code> columns.</p>
 <p>After <code>uv sync</code>:</p>
 <div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>db<span class="w"> </span>penge-nordnet<span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--transactions<span class="w"> </span><span class="m">20260507</span>-nordnet-transactions-and-notes-export.csv<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--holdings<span class="w"> </span><span class="s2">&quot;Depotoversigt for kontonummer 60109543, 7.5.2026.csv&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--holdings<span class="w"> </span><span class="s2">&quot;Depotoversigt for kontonummer 60183456, 7.5.2026.csv&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--holdings<span class="w"> </span><span class="s2">"Depotoversigt for kontonummer 60109543, 7.5.2026.csv"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--holdings<span class="w"> </span><span class="s2">"Depotoversigt for kontonummer 60183456, 7.5.2026.csv"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--accounts-config<span class="w"> </span>config/nordnet-accounts.yaml
 </code></pre></div>
 <p>The CLI reads <code>DATABASE_URL</code> (or the assembled <code>POSTGRES_*</code> set,
@@ -3570,7 +3570,7 @@ vocabulary honest.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

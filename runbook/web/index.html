@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3361,13 +3361,13 @@ penge-web<span class="w"> </span>--server.address<span class="w"> </span><span c
 <h2 id="deploy-behind-caddy-basic-auth">Deploy behind Caddy basic-auth<a class="headerlink" href="#deploy-behind-caddy-basic-auth" title="Permanent link">&para;</a></h2>
 <p>If Tailscale is not an option, terminate TLS and require HTTP basic
 auth at a Caddy reverse proxy:</p>
-<div class="highlight"><pre><span></span><code>penge.example.internal {
-    basic_auth {
-        # bcrypt hash; generate with `caddy hash-password`.
-        admin $2a$14$REDACTED
-    }
-    reverse_proxy 127.0.0.1:8501
-}
+<div class="highlight"><pre><span></span><code>penge.example.internal<span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">basic_auth</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1"># bcrypt hash; generate with `caddy hash-password`.</span>
+<span class="w">        </span>admin<span class="w"> </span>$2a$14$REDACTED
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">reverse_proxy</span><span class="w"> </span>127.0.0.1:8501
+<span class="p">}</span>
 </code></pre></div>
 <p>Run Streamlit bound to localhost only:</p>
 <div class="highlight"><pre><span></span><code>penge-web<span class="w"> </span>--server.address<span class="w"> </span><span class="m">127</span>.0.0.1<span class="w"> </span>--server.port<span class="w"> </span><span class="m">8501</span>
@@ -3438,7 +3438,7 @@ publishing.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3440,11 +3440,11 @@ sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w
 <span class="c1"># Homebrew bash alongside the GNU equivalents and put their gnubin /</span>
 <span class="c1"># Homebrew bin dirs at the *front* of PATH so the scripts pick them up.</span>
 brew<span class="w"> </span>install<span class="w"> </span>age<span class="w"> </span>libpq<span class="w"> </span>bash<span class="w"> </span>coreutils<span class="w"> </span>findutils<span class="w"> </span>gnu-tar
-<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">&quot;</span><span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>bash<span class="k">)</span><span class="s2">/bin:\</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="s2">"</span><span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>bash<span class="k">)</span><span class="s2">/bin:\</span>
 <span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>coreutils<span class="k">)</span><span class="s2">/libexec/gnubin:\</span>
 <span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>findutils<span class="k">)</span><span class="s2">/libexec/gnubin:\</span>
 <span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>gnu-tar<span class="k">)</span><span class="s2">/libexec/gnubin:\</span>
-<span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>libpq<span class="k">)</span><span class="s2">/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="k">$(</span>brew<span class="w"> </span>--prefix<span class="w"> </span>libpq<span class="k">)</span><span class="s2">/bin:</span><span class="si">${</span><span class="nv">PATH</span><span class="si">}</span><span class="s2">"</span>
 </code></pre></div>
 <p>The scripts run a <code>require_gnu_userland</code> preflight at start-up and
 abort early if Bash is older than 4 or if <code>date -d</code> / ISO-week
@@ -3459,7 +3459,7 @@ chmod<span class="w"> </span><span class="m">600</span><span class="w"> </span>~
 
 <span class="c1"># The public key is printed on stderr by age-keygen and embedded as a</span>
 <span class="c1"># comment at the top of the identity file.</span>
-grep<span class="w"> </span><span class="s1">&#39;^# public key:&#39;</span><span class="w"> </span>~/.config/penge/identity.txt
+grep<span class="w"> </span><span class="s1">'^# public key:'</span><span class="w"> </span>~/.config/penge/identity.txt
 </code></pre></div>
 <p>Distribute the <strong>public key</strong> to every host that takes backups; keep
 the private key offline (printed in the safe + encrypted USB stick).</p>
@@ -3594,10 +3594,10 @@ or pass values inline.</p>
 <li>Run <code>scripts/restore.sh --input ... --database-url ...</code>.</li>
 <li>Compare row counts on the headline tables against production:</li>
 </ol>
-<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="s1">&#39;account&#39;</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">account</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="s1">&#39;transaction&#39;</span><span class="p">,</span><span class="w">     </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">transaction</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="s1">&#39;instrument&#39;</span><span class="p">,</span><span class="w">      </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">instrument</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="s1">&#39;holding&#39;</span><span class="p">,</span><span class="w">         </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">holding</span><span class="p">;</span>
+<div class="highlight"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="s1">'account'</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">t</span><span class="p">,</span><span class="w"> </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">account</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="s1">'transaction'</span><span class="p">,</span><span class="w">     </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="k">transaction</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="s1">'instrument'</span><span class="p">,</span><span class="w">      </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">instrument</span><span class="w"> </span><span class="k">UNION</span><span class="w"> </span><span class="k">ALL</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="s1">'holding'</span><span class="p">,</span><span class="w">         </span><span class="k">count</span><span class="p">(</span><span class="o">*</span><span class="p">)</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">holding</span><span class="p">;</span>
 </code></pre></div>
 <ol>
 <li>Drop the throwaway database.</li>
@@ -3694,7 +3694,7 @@ successful drill is suspect.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

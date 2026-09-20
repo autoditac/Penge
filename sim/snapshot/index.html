@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3425,7 +3425,7 @@ the household's financial state:</p>
 accepts one account / holding at a time, validates each entry, and accumulates
 all warnings about missing or unsupported data into
 <code>HouseholdSnapshot.missing_assumptions</code>.</p>
-<div class="highlight"><pre><span></span><code>SnapshotBuilder(&quot;2025-01-15&quot;)
+<div class="highlight"><pre><span></span><code>SnapshotBuilder("2025-01-15")
   .add_account(...)    # cash, ASK, frie_midler, pension, or manual
   .add_holding(...)    # instrument in an account
   .build()             # → HouseholdSnapshot
@@ -3477,77 +3477,77 @@ unrecognised kind string from the database; the warning is recorded in
 <span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.snapshot</span><span class="w"> </span><span class="kn">import</span> <span class="n">SnapshotBuilder</span>
 
 <span class="n">snapshot</span> <span class="o">=</span> <span class="p">(</span>
-    <span class="n">SnapshotBuilder</span><span class="p">(</span><span class="s2">&quot;2025-01-15&quot;</span><span class="p">)</span>
+    <span class="n">SnapshotBuilder</span><span class="p">(</span><span class="s2">"2025-01-15"</span><span class="p">)</span>
     <span class="c1"># Lars — three accounts</span>
     <span class="o">.</span><span class="n">add_account</span><span class="p">(</span>
-        <span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;lars-gls&quot;</span><span class="p">,</span>
-        <span class="n">entity_name</span><span class="o">=</span><span class="s2">&quot;lars&quot;</span><span class="p">,</span>
-        <span class="n">account_name</span><span class="o">=</span><span class="s2">&quot;GLS lønkonto&quot;</span><span class="p">,</span>
-        <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;cash&quot;</span><span class="p">,</span>
-        <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
-        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;45000&quot;</span><span class="p">),</span>
-        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;gls&quot;</span><span class="p">,</span>
-        <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;EnableBanking 2025-01-15&quot;</span><span class="p">,</span>
+        <span class="n">account_id</span><span class="o">=</span><span class="s2">"lars-gls"</span><span class="p">,</span>
+        <span class="n">entity_name</span><span class="o">=</span><span class="s2">"lars"</span><span class="p">,</span>
+        <span class="n">account_name</span><span class="o">=</span><span class="s2">"GLS lønkonto"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="s2">"cash"</span><span class="p">,</span>
+        <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
+        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"45000"</span><span class="p">),</span>
+        <span class="n">provider</span><span class="o">=</span><span class="s2">"gls"</span><span class="p">,</span>
+        <span class="n">data_source</span><span class="o">=</span><span class="s2">"EnableBanking 2025-01-15"</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="o">.</span><span class="n">add_account</span><span class="p">(</span>
-        <span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;lars-ask&quot;</span><span class="p">,</span>
-        <span class="n">entity_name</span><span class="o">=</span><span class="s2">&quot;lars&quot;</span><span class="p">,</span>
-        <span class="n">account_name</span><span class="o">=</span><span class="s2">&quot;Nordnet ASK&quot;</span><span class="p">,</span>
-        <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;ask&quot;</span><span class="p">,</span>
-        <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
-        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;102000&quot;</span><span class="p">),</span>
-        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;nordnet&quot;</span><span class="p">,</span>
-        <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;CSV import 2025-01&quot;</span><span class="p">,</span>
+        <span class="n">account_id</span><span class="o">=</span><span class="s2">"lars-ask"</span><span class="p">,</span>
+        <span class="n">entity_name</span><span class="o">=</span><span class="s2">"lars"</span><span class="p">,</span>
+        <span class="n">account_name</span><span class="o">=</span><span class="s2">"Nordnet ASK"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="s2">"ask"</span><span class="p">,</span>
+        <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
+        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"102000"</span><span class="p">),</span>
+        <span class="n">provider</span><span class="o">=</span><span class="s2">"nordnet"</span><span class="p">,</span>
+        <span class="n">data_source</span><span class="o">=</span><span class="s2">"CSV import 2025-01"</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="o">.</span><span class="n">add_account</span><span class="p">(</span>
-        <span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;lars-pfa&quot;</span><span class="p">,</span>
-        <span class="n">entity_name</span><span class="o">=</span><span class="s2">&quot;lars&quot;</span><span class="p">,</span>
-        <span class="n">account_name</span><span class="o">=</span><span class="s2">&quot;PFA pension&quot;</span><span class="p">,</span>
-        <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;pension&quot;</span><span class="p">,</span>
-        <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
-        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;820000&quot;</span><span class="p">),</span>
-        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;pfa&quot;</span><span class="p">,</span>
-        <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;PDF import 2025-03&quot;</span><span class="p">,</span>
+        <span class="n">account_id</span><span class="o">=</span><span class="s2">"lars-pfa"</span><span class="p">,</span>
+        <span class="n">entity_name</span><span class="o">=</span><span class="s2">"lars"</span><span class="p">,</span>
+        <span class="n">account_name</span><span class="o">=</span><span class="s2">"PFA pension"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="s2">"pension"</span><span class="p">,</span>
+        <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
+        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"820000"</span><span class="p">),</span>
+        <span class="n">provider</span><span class="o">=</span><span class="s2">"pfa"</span><span class="p">,</span>
+        <span class="n">data_source</span><span class="o">=</span><span class="s2">"PDF import 2025-03"</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="c1"># Sofie — two accounts</span>
     <span class="o">.</span><span class="n">add_account</span><span class="p">(</span>
-        <span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;sofie-lunar&quot;</span><span class="p">,</span>
-        <span class="n">entity_name</span><span class="o">=</span><span class="s2">&quot;sofie&quot;</span><span class="p">,</span>
-        <span class="n">account_name</span><span class="o">=</span><span class="s2">&quot;Lunar konto&quot;</span><span class="p">,</span>
-        <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;cash&quot;</span><span class="p">,</span>
-        <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
-        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;22000&quot;</span><span class="p">),</span>
-        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;lunar&quot;</span><span class="p">,</span>
-        <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;EnableBanking 2025-01-15&quot;</span><span class="p">,</span>
+        <span class="n">account_id</span><span class="o">=</span><span class="s2">"sofie-lunar"</span><span class="p">,</span>
+        <span class="n">entity_name</span><span class="o">=</span><span class="s2">"sofie"</span><span class="p">,</span>
+        <span class="n">account_name</span><span class="o">=</span><span class="s2">"Lunar konto"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="s2">"cash"</span><span class="p">,</span>
+        <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
+        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"22000"</span><span class="p">),</span>
+        <span class="n">provider</span><span class="o">=</span><span class="s2">"lunar"</span><span class="p">,</span>
+        <span class="n">data_source</span><span class="o">=</span><span class="s2">"EnableBanking 2025-01-15"</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="o">.</span><span class="n">add_account</span><span class="p">(</span>
-        <span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;sofie-fm&quot;</span><span class="p">,</span>
-        <span class="n">entity_name</span><span class="o">=</span><span class="s2">&quot;sofie&quot;</span><span class="p">,</span>
-        <span class="n">account_name</span><span class="o">=</span><span class="s2">&quot;Nordnet frie midler&quot;</span><span class="p">,</span>
-        <span class="n">kind</span><span class="o">=</span><span class="s2">&quot;frie_midler&quot;</span><span class="p">,</span>
-        <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
-        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;315000&quot;</span><span class="p">),</span>
-        <span class="n">provider</span><span class="o">=</span><span class="s2">&quot;nordnet&quot;</span><span class="p">,</span>
-        <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;CSV import 2025-01&quot;</span><span class="p">,</span>
+        <span class="n">account_id</span><span class="o">=</span><span class="s2">"sofie-fm"</span><span class="p">,</span>
+        <span class="n">entity_name</span><span class="o">=</span><span class="s2">"sofie"</span><span class="p">,</span>
+        <span class="n">account_name</span><span class="o">=</span><span class="s2">"Nordnet frie midler"</span><span class="p">,</span>
+        <span class="n">kind</span><span class="o">=</span><span class="s2">"frie_midler"</span><span class="p">,</span>
+        <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
+        <span class="n">balance</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"315000"</span><span class="p">),</span>
+        <span class="n">provider</span><span class="o">=</span><span class="s2">"nordnet"</span><span class="p">,</span>
+        <span class="n">data_source</span><span class="o">=</span><span class="s2">"CSV import 2025-01"</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="c1"># Holdings</span>
     <span class="o">.</span><span class="n">add_holding</span><span class="p">(</span>
-        <span class="n">account_id</span><span class="o">=</span><span class="s2">&quot;lars-ask&quot;</span><span class="p">,</span>
-        <span class="n">isin</span><span class="o">=</span><span class="s2">&quot;IE00B4L5Y983&quot;</span><span class="p">,</span>
-        <span class="n">instrument_name</span><span class="o">=</span><span class="s2">&quot;iShares Core MSCI World (Acc)&quot;</span><span class="p">,</span>
-        <span class="n">quantity</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;34.2&quot;</span><span class="p">),</span>
-        <span class="n">market_value</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;102000&quot;</span><span class="p">),</span>
-        <span class="n">cost_basis</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;88000&quot;</span><span class="p">),</span>
-        <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
-        <span class="n">data_source</span><span class="o">=</span><span class="s2">&quot;CSV import 2025-01&quot;</span><span class="p">,</span>
+        <span class="n">account_id</span><span class="o">=</span><span class="s2">"lars-ask"</span><span class="p">,</span>
+        <span class="n">isin</span><span class="o">=</span><span class="s2">"IE00B4L5Y983"</span><span class="p">,</span>
+        <span class="n">instrument_name</span><span class="o">=</span><span class="s2">"iShares Core MSCI World (Acc)"</span><span class="p">,</span>
+        <span class="n">quantity</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"34.2"</span><span class="p">),</span>
+        <span class="n">market_value</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"102000"</span><span class="p">),</span>
+        <span class="n">cost_basis</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"88000"</span><span class="p">),</span>
+        <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
+        <span class="n">data_source</span><span class="o">=</span><span class="s2">"CSV import 2025-01"</span><span class="p">,</span>
     <span class="p">)</span>
     <span class="o">.</span><span class="n">build</span><span class="p">()</span>
 <span class="p">)</span>
 
 <span class="c1"># Inspect</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">snapshot_date</span><span class="p">)</span>               <span class="c1"># 2025-01-15</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">total_by_kind</span><span class="p">(</span><span class="s2">&quot;cash&quot;</span><span class="p">))</span>       <span class="c1"># {&#39;EUR&#39;: Decimal(&#39;0&#39;), &#39;DKK&#39;: Decimal(&#39;67000&#39;)}</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">total_by_kind</span><span class="p">(</span><span class="s2">&quot;ask&quot;</span><span class="p">))</span>        <span class="c1"># {&#39;EUR&#39;: Decimal(&#39;0&#39;), &#39;DKK&#39;: Decimal(&#39;102000&#39;)}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">total_by_kind</span><span class="p">(</span><span class="s2">"cash"</span><span class="p">))</span>       <span class="c1"># {'EUR': Decimal('0'), 'DKK': Decimal('67000')}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">total_by_kind</span><span class="p">(</span><span class="s2">"ask"</span><span class="p">))</span>        <span class="c1"># {'EUR': Decimal('0'), 'DKK': Decimal('102000')}</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">snapshot</span><span class="o">.</span><span class="n">missing_assumptions</span><span class="p">)</span>         <span class="c1"># []  — all clean</span>
 </code></pre></div>
 <hr />
@@ -3702,7 +3702,7 @@ the snapshot before each planning run to avoid projecting from stale data.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

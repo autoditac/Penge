@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3497,13 +3497,13 @@ environment or <code>.env</code>:</p>
 <p>Wire it into the cron wrapper for each job. Example for ECB FX:</p>
 <div class="highlight"><pre><span></span><code><span class="ch">#!/usr/bin/env bash</span>
 <span class="nb">set</span><span class="w"> </span>-euo<span class="w"> </span>pipefail
-<span class="nv">SLUG</span><span class="o">=</span><span class="s2">&quot;&lt;token-from-uptime-kuma&gt;&quot;</span>
+<span class="nv">SLUG</span><span class="o">=</span><span class="s2">"&lt;token-from-uptime-kuma&gt;"</span>
 <span class="k">if</span><span class="w"> </span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>http<span class="w"> </span>penge-ecb-fx<span class="w"> </span>--latest<span class="p">;</span><span class="w"> </span><span class="k">then</span>
 <span class="w">    </span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>ops<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span><span class="s2">&quot;from penge.ops.heartbeat import heartbeat; heartbeat(&#39;</span><span class="nv">$SLUG</span><span class="s2">&#39;, &#39;up&#39;, &#39;ok&#39;)&quot;</span>
+<span class="w">        </span><span class="s2">"from penge.ops.heartbeat import heartbeat; heartbeat('</span><span class="nv">$SLUG</span><span class="s2">', 'up', 'ok')"</span>
 <span class="k">else</span>
 <span class="w">    </span>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>ops<span class="w"> </span>python<span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<span class="w">        </span><span class="s2">&quot;from penge.ops.heartbeat import heartbeat; heartbeat(&#39;</span><span class="nv">$SLUG</span><span class="s2">&#39;, &#39;down&#39;, &#39;failed&#39;)&quot;</span>
+<span class="w">        </span><span class="s2">"from penge.ops.heartbeat import heartbeat; heartbeat('</span><span class="nv">$SLUG</span><span class="s2">', 'down', 'failed')"</span>
 <span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
 <span class="k">fi</span>
 </code></pre></div>
@@ -3649,7 +3649,7 @@ working directory; restore from backup and re-create monitors.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3622,11 +3622,11 @@ CPI vs. healthcare CPI).</p>
 
 <span class="c1"># Rent inflates at 3 % per year from 2025</span>
 <span class="n">rent</span> <span class="o">=</span> <span class="n">SpendingRule</span><span class="p">(</span>
-    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;rent&quot;</span><span class="p">,</span>
-    <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;12000&quot;</span><span class="p">),</span>
-    <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">"rent"</span><span class="p">,</span>
+    <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"12000"</span><span class="p">),</span>
+    <span class="n">currency</span><span class="o">=</span><span class="s2">"EUR"</span><span class="p">,</span>
     <span class="n">active_from</span><span class="o">=</span><span class="mi">2025</span><span class="p">,</span>
-    <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.03&quot;</span><span class="p">),</span>
+    <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.03"</span><span class="p">),</span>
 <span class="p">)</span>
 <span class="c1"># In 2030: 12 000 × 1.03^5 = 13 911.29 EUR</span>
 </code></pre></div>
@@ -3634,9 +3634,9 @@ CPI vs. healthcare CPI).</p>
 <h2 id="api-reference">API reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
 <h3 id="spendingphase"><code>SpendingPhase</code><a class="headerlink" href="#spendingphase" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">SpendingPhase</span><span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Enum</span><span class="p">):</span>
-    <span class="n">ACCUMULATION</span> <span class="o">=</span> <span class="s2">&quot;accumulation&quot;</span>
-    <span class="n">BRIDGE</span> <span class="o">=</span> <span class="s2">&quot;bridge&quot;</span>
-    <span class="n">RETIREMENT</span> <span class="o">=</span> <span class="s2">&quot;retirement&quot;</span>
+    <span class="n">ACCUMULATION</span> <span class="o">=</span> <span class="s2">"accumulation"</span>
+    <span class="n">BRIDGE</span> <span class="o">=</span> <span class="s2">"bridge"</span>
+    <span class="n">RETIREMENT</span> <span class="o">=</span> <span class="s2">"retirement"</span>
 </code></pre></div>
 <h3 id="spendingrule"><code>SpendingRule</code><a class="headerlink" href="#spendingrule" title="Permanent link">&para;</a></h3>
 <table>
@@ -3743,7 +3743,7 @@ CPI vs. healthcare CPI).</p>
     <span class="n">plan</span><span class="p">:</span> <span class="n">HouseholdSpendingPlan</span><span class="p">,</span>
     <span class="n">year</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
     <span class="n">phase</span><span class="p">:</span> <span class="n">SpendingPhase</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span> <span class="s2">&quot;DKK&quot;</span><span class="p">],</span> <span class="n">Decimal</span><span class="p">]:</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Literal</span><span class="p">[</span><span class="s2">"EUR"</span><span class="p">,</span> <span class="s2">"DKK"</span><span class="p">],</span> <span class="n">Decimal</span><span class="p">]:</span>
     <span class="o">...</span>
 </code></pre></div>
 <p>Returns <code>{"EUR": &lt;total&gt;, "DKK": &lt;total&gt;}</code> — always both keys, zero if
@@ -3763,50 +3763,50 @@ nothing applies.</p>
     <span class="n">rules</span><span class="o">=</span><span class="p">[</span>
         <span class="c1"># Base living costs — all phases, CPI-indexed from 2025</span>
         <span class="n">SpendingRule</span><span class="p">(</span>
-            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;living_costs&quot;</span><span class="p">,</span>
-            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;36000&quot;</span><span class="p">),</span>
-            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">"living_costs"</span><span class="p">,</span>
+            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"36000"</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">"EUR"</span><span class="p">,</span>
             <span class="n">active_from</span><span class="o">=</span><span class="mi">2025</span><span class="p">,</span>
-            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.02&quot;</span><span class="p">),</span>
+            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.02"</span><span class="p">),</span>
         <span class="p">),</span>
         <span class="c1"># Commuting costs — accumulation phase only</span>
         <span class="n">SpendingRule</span><span class="p">(</span>
-            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;commuting&quot;</span><span class="p">,</span>
-            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;3600&quot;</span><span class="p">),</span>
-            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">"commuting"</span><span class="p">,</span>
+            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"3600"</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">"EUR"</span><span class="p">,</span>
             <span class="n">phase</span><span class="o">=</span><span class="n">SpendingPhase</span><span class="o">.</span><span class="n">ACCUMULATION</span><span class="p">,</span>
             <span class="n">active_from</span><span class="o">=</span><span class="mi">2025</span><span class="p">,</span>
-            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.02&quot;</span><span class="p">),</span>
+            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.02"</span><span class="p">),</span>
         <span class="p">),</span>
         <span class="c1"># Danish pension supplementary costs in DKK — bridge phase</span>
         <span class="n">SpendingRule</span><span class="p">(</span>
-            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;dk_bridge_costs&quot;</span><span class="p">,</span>
-            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;60000&quot;</span><span class="p">),</span>
-            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">"dk_bridge_costs"</span><span class="p">,</span>
+            <span class="n">annual_amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"60000"</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
             <span class="n">phase</span><span class="o">=</span><span class="n">SpendingPhase</span><span class="o">.</span><span class="n">BRIDGE</span><span class="p">,</span>
             <span class="n">active_from</span><span class="o">=</span><span class="mi">2042</span><span class="p">,</span>
             <span class="n">active_until</span><span class="o">=</span><span class="mi">2051</span><span class="p">,</span>
-            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.025&quot;</span><span class="p">),</span>
+            <span class="n">inflation_rate</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.025"</span><span class="p">),</span>
         <span class="p">),</span>
     <span class="p">],</span>
     <span class="n">one_offs</span><span class="o">=</span><span class="p">[</span>
         <span class="c1"># Kitchen renovation in 2028</span>
         <span class="n">OneOffExpense</span><span class="p">(</span>
-            <span class="n">label</span><span class="o">=</span><span class="s2">&quot;kitchen_renovation&quot;</span><span class="p">,</span>
+            <span class="n">label</span><span class="o">=</span><span class="s2">"kitchen_renovation"</span><span class="p">,</span>
             <span class="n">year</span><span class="o">=</span><span class="mi">2028</span><span class="p">,</span>
-            <span class="n">amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;20000&quot;</span><span class="p">),</span>
-            <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+            <span class="n">amount</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"20000"</span><span class="p">),</span>
+            <span class="n">currency</span><span class="o">=</span><span class="s2">"EUR"</span><span class="p">,</span>
         <span class="p">),</span>
     <span class="p">],</span>
 <span class="p">)</span>
 
 <span class="c1"># Accumulation year 2030</span>
 <span class="n">acc</span> <span class="o">=</span> <span class="n">compute_spending</span><span class="p">(</span><span class="n">plan</span><span class="p">,</span> <span class="mi">2030</span><span class="p">,</span> <span class="n">SpendingPhase</span><span class="o">.</span><span class="n">ACCUMULATION</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span>  <span class="c1"># {&#39;EUR&#39;: ..., &#39;DKK&#39;: Decimal(&#39;0.00&#39;)}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">acc</span><span class="p">)</span>  <span class="c1"># {'EUR': ..., 'DKK': Decimal('0.00')}</span>
 
 <span class="c1"># Bridge year 2045</span>
 <span class="n">brg</span> <span class="o">=</span> <span class="n">compute_spending</span><span class="p">(</span><span class="n">plan</span><span class="p">,</span> <span class="mi">2045</span><span class="p">,</span> <span class="n">SpendingPhase</span><span class="o">.</span><span class="n">BRIDGE</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">brg</span><span class="p">)</span>  <span class="c1"># {&#39;EUR&#39;: ..., &#39;DKK&#39;: ...}</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">brg</span><span class="p">)</span>  <span class="c1"># {'EUR': ..., 'DKK': ...}</span>
 </code></pre></div>
 <hr />
 <h2 id="assumptions-and-limitations">Assumptions and limitations<a class="headerlink" href="#assumptions-and-limitations" title="Permanent link">&para;</a></h2>
@@ -3893,7 +3893,7 @@ nothing applies.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

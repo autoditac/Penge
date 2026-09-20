@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3983,7 +3983,7 @@ just<span class="w"> </span>migrate-up<span class="w">             </span><span 
   lines and returns <code>0</code>.</li>
 <li>Last successful backup run is visible:</li>
 </ul>
-<div class="highlight"><pre><span></span><code>ls<span class="w"> </span>-lh<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PENGE_BACKUP_ROOT</span><span class="k">:-</span><span class="p">./backups</span><span class="si">}</span><span class="s2">/postgres&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-3
+<div class="highlight"><pre><span></span><code>ls<span class="w"> </span>-lh<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">PENGE_BACKUP_ROOT</span><span class="k">:-</span><span class="p">./backups</span><span class="si">}</span><span class="s2">/postgres"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-3
 </code></pre></div>
 <p>The newest <code>pg-*.sql.age</code> should be ≤ 24 h old; if not, see
   <a href="../backup-restore/#scheduling">Encrypted backups → Scheduling</a>.</p>
@@ -4045,9 +4045,9 @@ batch. See <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/">ADR
 outage gets back-filled. See
 <a href="../../connectors/ecb_fx/">ECB daily FX rates</a>.</p>
 <h3 id="psd2-banks-enable-banking">PSD2 banks (Enable Banking)<a class="headerlink" href="#psd2-banks-enable-banking" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>just<span class="w"> </span>ingest-gls<span class="w">    </span>sync<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">&quot;Operator A&quot;</span><span class="w"> </span>--days<span class="w"> </span><span class="m">45</span>
-just<span class="w"> </span>ingest-ebank<span class="w">  </span>sync<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">&quot;Operator A&quot;</span><span class="w"> </span>--days<span class="w"> </span><span class="m">45</span>
-just<span class="w"> </span>ingest-lunar<span class="w">  </span>sync<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">&quot;Operator B&quot;</span><span class="w"> </span>--days<span class="w"> </span><span class="m">45</span>
+<div class="highlight"><pre><span></span><code>just<span class="w"> </span>ingest-gls<span class="w">    </span>sync<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">"Operator A"</span><span class="w"> </span>--days<span class="w"> </span><span class="m">45</span>
+just<span class="w"> </span>ingest-ebank<span class="w">  </span>sync<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">"Operator A"</span><span class="w"> </span>--days<span class="w"> </span><span class="m">45</span>
+just<span class="w"> </span>ingest-lunar<span class="w">  </span>sync<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">"Operator B"</span><span class="w"> </span>--days<span class="w"> </span><span class="m">45</span>
 </code></pre></div>
 <p><code>--days 45</code> deliberately overlaps the previous run so a delayed
 booking still gets caught. Re-running is idempotent — duplicates
@@ -4064,20 +4064,20 @@ uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </s
 <span class="w">    </span>--accounts-config<span class="w"> </span>config/nordnet-accounts.yaml
 
 <span class="c1"># Growney / Sutor — quarterly PDF (skip outside quarter-end months)</span>
-just<span class="w"> </span>ingest-growney<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">&quot;Operator A&quot;</span><span class="w"> </span><span class="se">\</span>
+just<span class="w"> </span>ingest-growney<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">"Operator A"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>~/Nextcloud/Finance/vault/<span class="si">${</span><span class="nv">CLOSE_YEAR</span><span class="si">}</span>/depotauszug/sutor-*.pdf
 
 <span class="c1"># PFA pension — annual; only on the once-a-year delivery</span>
-just<span class="w"> </span>ingest-pfa<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">&quot;Operator A&quot;</span><span class="w"> </span><span class="se">\</span>
+just<span class="w"> </span>ingest-pfa<span class="w"> </span>--entity-name<span class="w"> </span><span class="s2">"Operator A"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>~/Nextcloud/Finance/vault/<span class="si">${</span><span class="nv">CLOSE_YEAR</span><span class="si">}</span>/pfa-statement/pensionsoversigt-*.pdf
 </code></pre></div>
 <h3 id="manual-entries">Manual entries<a class="headerlink" href="#manual-entries" title="Permanent link">&para;</a></h3>
 <p>Anything not covered by a connector — cash balances, real-estate
 valuations:</p>
-<div class="highlight"><pre><span></span><code>just<span class="w"> </span>manual-add-balance<span class="w"> </span>--entity<span class="w"> </span><span class="s2">&quot;Operator A&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--account<span class="w"> </span><span class="s2">&quot;DKB Tagesgeld&quot;</span><span class="w"> </span>--currency<span class="w"> </span>EUR<span class="w"> </span>--balance<span class="w"> </span><span class="m">12345</span>.67
-just<span class="w"> </span>manual-mark-property<span class="w"> </span>--entity<span class="w"> </span><span class="s2">&quot;Operator A&quot;</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--account<span class="w"> </span><span class="s2">&quot;Nederbyvej 36&quot;</span><span class="w"> </span>--property<span class="w"> </span><span class="s2">&quot;Nederbyvej 36 (DK)&quot;</span><span class="w"> </span><span class="se">\</span>
+<div class="highlight"><pre><span></span><code>just<span class="w"> </span>manual-add-balance<span class="w"> </span>--entity<span class="w"> </span><span class="s2">"Operator A"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--account<span class="w"> </span><span class="s2">"DKB Tagesgeld"</span><span class="w"> </span>--currency<span class="w"> </span>EUR<span class="w"> </span>--balance<span class="w"> </span><span class="m">12345</span>.67
+just<span class="w"> </span>manual-mark-property<span class="w"> </span>--entity<span class="w"> </span><span class="s2">"Operator A"</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--account<span class="w"> </span><span class="s2">"Nederbyvej 36"</span><span class="w"> </span>--property<span class="w"> </span><span class="s2">"Nederbyvej 36 (DK)"</span><span class="w"> </span><span class="se">\</span>
 <span class="w">    </span>--currency<span class="w"> </span>DKK<span class="w"> </span>--valuation<span class="w"> </span><span class="m">4500000</span>
 </code></pre></div>
 <h3 id="prices">Prices<a class="headerlink" href="#prices" title="Permanent link">&para;</a></h3>
@@ -4135,8 +4135,8 @@ yourself typing this often.)</p>
 </ul>
 <div class="highlight"><pre><span></span><code><span class="c1"># DATABASE_URL in the repo is a SQLAlchemy URL</span>
 <span class="c1"># (postgresql+psycopg://…); strip the dialect prefix for libpq tools.</span>
-psql<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">/+psycopg/</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
-<span class="w">  </span><span class="s2">&quot;select max(asof_date) from analytics_marts.mart_net_worth_daily;&quot;</span>
+psql<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">/+psycopg/</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-c<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s2">"select max(asof_date) from analytics_marts.mart_net_worth_daily;"</span>
 </code></pre></div>
 <h3 id="common-failures_2">Common failures<a class="headerlink" href="#common-failures_2" title="Permanent link">&para;</a></h3>
 <ul>
@@ -4191,12 +4191,12 @@ the operator already remembers.</p>
 today:</p>
 <div class="highlight"><pre><span></span><code><span class="c1"># DK ABIS treatment audit — list any instruments without a sticky</span>
 <span class="c1"># tax treatment in case Skat moved the list mid-year.</span>
-psql<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">/+psycopg/</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;</span>
+psql<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">/+psycopg/</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span>-c<span class="w"> </span><span class="s2">"</span>
 <span class="s2">select isin, name, dk_tax_treatment, dk_tax_treatment_source</span>
 <span class="s2">from instrument</span>
 <span class="s2">where dk_tax_treatment is null</span>
 <span class="s2">order by name;</span>
-<span class="s2">&quot;</span>
+<span class="s2">"</span>
 </code></pre></div>
 <p>The lagerbeskatning, aktiesparekonto, PAL-skat, and
 Vorabpauschale calculators are tracked under
@@ -4238,8 +4238,8 @@ log the YTD totals into your free-form notes.</p>
 and the manual capture goes away.</p>
 <hr />
 <h2 id="8-backup-verification-5-min">8. Backup verification — 5 min<a class="headerlink" href="#8-backup-verification-5-min" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>ls<span class="w"> </span>-lh<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PENGE_BACKUP_ROOT</span><span class="k">:-</span><span class="p">./backups</span><span class="si">}</span><span class="s2">/postgres&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-5
-ls<span class="w"> </span>-lh<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PENGE_BACKUP_ROOT</span><span class="k">:-</span><span class="p">./backups</span><span class="si">}</span><span class="s2">/duckdb&quot;</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-5
+<div class="highlight"><pre><span></span><code>ls<span class="w"> </span>-lh<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">PENGE_BACKUP_ROOT</span><span class="k">:-</span><span class="p">./backups</span><span class="si">}</span><span class="s2">/postgres"</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-5
+ls<span class="w"> </span>-lh<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">PENGE_BACKUP_ROOT</span><span class="k">:-</span><span class="p">./backups</span><span class="si">}</span><span class="s2">/duckdb"</span><span class="w">  </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-5
 </code></pre></div>
 <h3 id="what-good-looks-like_5">What "good" looks like<a class="headerlink" href="#what-good-looks-like_5" title="Permanent link">&para;</a></h3>
 <ul>
@@ -4250,9 +4250,9 @@ ls<span class="w"> </span>-lh<span class="w"> </span><span class="s2">&quot;</sp
 <h3 id="quarterly-drill-every-third-monthly-ritual-jan-apr-jul-oct">Quarterly drill (every third monthly ritual — Jan / Apr / Jul / Oct)<a class="headerlink" href="#quarterly-drill-every-third-monthly-ritual-jan-apr-jul-oct" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="c1"># Derive a throwaway DB URL from the existing connection env vars.</span>
 <span class="c1"># Adjust the host/port/credentials if your local setup differs from .env.example.</span>
-<span class="nv">DRILL_DB</span><span class="o">=</span><span class="s2">&quot;penge_drill_</span><span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span><span class="s2">&quot;</span>
-<span class="nb">export</span><span class="w"> </span><span class="nv">PENGE_TEST_DATABASE_URL</span><span class="o">=</span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">%/*</span><span class="si">}</span><span class="s2">/</span><span class="si">${</span><span class="nv">DRILL_DB</span><span class="si">}</span><span class="s2">&quot;</span>
-createdb<span class="w"> </span>--maintenance-db<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">/+psycopg/</span><span class="si">}</span><span class="s2">&quot;</span><span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">DRILL_DB</span><span class="si">}</span><span class="s2">&quot;</span>
+<span class="nv">DRILL_DB</span><span class="o">=</span><span class="s2">"penge_drill_</span><span class="k">$(</span>date<span class="w"> </span>+%F<span class="k">)</span><span class="s2">"</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">PENGE_TEST_DATABASE_URL</span><span class="o">=</span><span class="s2">"</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">%/*</span><span class="si">}</span><span class="s2">/</span><span class="si">${</span><span class="nv">DRILL_DB</span><span class="si">}</span><span class="s2">"</span>
+createdb<span class="w"> </span>--maintenance-db<span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">DATABASE_URL</span><span class="p">/+psycopg/</span><span class="si">}</span><span class="s2">"</span><span class="w"> </span><span class="s2">"</span><span class="si">${</span><span class="nv">DRILL_DB</span><span class="si">}</span><span class="s2">"</span>
 just<span class="w"> </span>restore-test
 </code></pre></div>
 <p>Then compare row counts on <code>account</code>, <code>transaction</code>, <code>instrument</code>,
@@ -4272,7 +4272,7 @@ A failed drill is a P1 incident — see ADR-0025.</p>
 </ol>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>switch<span class="w"> </span>-c<span class="w"> </span>chore/<span class="k">$(</span>date<span class="w"> </span>+%Y-%m<span class="k">)</span>-monthly-overrides
 git<span class="w"> </span>add<span class="w"> </span>docs/runbook/restore-log.md<span class="w">  </span><span class="c1"># if you did a drill</span>
-git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">&quot;chore: </span><span class="k">$(</span>date<span class="w"> </span>+%Y-%m<span class="k">)</span><span class="s2"> monthly ritual overrides&quot;</span>
+git<span class="w"> </span>commit<span class="w"> </span>-m<span class="w"> </span><span class="s2">"chore: </span><span class="k">$(</span>date<span class="w"> </span>+%Y-%m<span class="k">)</span><span class="s2"> monthly ritual overrides"</span>
 gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </span>--fill
 </code></pre></div>
 <ol>
@@ -4400,7 +4400,7 @@ gh<span class="w"> </span>pr<span class="w"> </span>create<span class="w"> </spa
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

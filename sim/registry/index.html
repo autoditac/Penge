@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3517,12 +3517,12 @@ threshold or a different expected-return assumption).</p>
 <h3 id="assumptionentry"><code>AssumptionEntry</code><a class="headerlink" href="#assumptionentry" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">AssumptionEntry</span><span class="p">:</span>
-    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># e.g. &quot;DK PAL-skat rate&quot;</span>
+    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># e.g. "DK PAL-skat rate"</span>
     <span class="n">value</span><span class="p">:</span> <span class="nb">str</span>    <span class="c1"># always str — JSON round-trips are trivial</span>
-    <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># e.g. &quot;%&quot;, &quot;DKK&quot;, &quot;EUR&quot;, &quot;fraction&quot;</span>
-    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>   <span class="c1"># e.g. &quot;SKAT 2025&quot;, &quot;ECB&quot;, &quot;user input&quot;</span>
-    <span class="n">adr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span> <span class="c1"># e.g. &quot;ADR-0013&quot;</span>
-    <span class="n">notes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="n">unit</span><span class="p">:</span> <span class="nb">str</span>     <span class="c1"># e.g. "%", "DKK", "EUR", "fraction"</span>
+    <span class="n">source</span><span class="p">:</span> <span class="nb">str</span>   <span class="c1"># e.g. "SKAT 2025", "ECB", "user input"</span>
+    <span class="n">adr</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span> <span class="c1"># e.g. "ADR-0013"</span>
+    <span class="n">notes</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">""</span>
 </code></pre></div>
 <p><code>value</code> is always a <code>str</code> so that the record serialises to JSON without
 a custom encoder.  Convert <code>Decimal</code> or numeric values before creating an
@@ -3545,7 +3545,7 @@ installed release.</p>
 <h3 id="build-a-standard-record">Build a standard record<a class="headerlink" href="#build-a-standard-record" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">build_standard_audit_record</span>
 
-<span class="n">record</span> <span class="o">=</span> <span class="n">build_standard_audit_record</span><span class="p">(</span><span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;2025-01-baseline&quot;</span><span class="p">)</span>
+<span class="n">record</span> <span class="o">=</span> <span class="n">build_standard_audit_record</span><span class="p">(</span><span class="n">run_id</span><span class="o">=</span><span class="s2">"2025-01-baseline"</span><span class="p">)</span>
 </code></pre></div>
 <p><code>build_standard_audit_record</code> accesses the <strong>current values</strong> of constants at
 call time from the authoritative source modules (<code>penge.sim.tax</code>,
@@ -3556,7 +3556,7 @@ numbers.</p>
 <h3 id="serialize-to-json">Serialize to JSON<a class="headerlink" href="#serialize-to-json" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="n">json_str</span> <span class="o">=</span> <span class="n">record</span><span class="o">.</span><span class="n">to_json</span><span class="p">()</span>
 <span class="c1"># write to disk, attach to a report, store in a database …</span>
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2025-01.json&quot;</span><span class="p">,</span> <span class="s2">&quot;w&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"audit_2025-01.json"</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">f</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">json_str</span><span class="p">)</span>
 </code></pre></div>
 <h3 id="render-as-markdown">Render as Markdown<a class="headerlink" href="#render-as-markdown" title="Permanent link">&para;</a></h3>
@@ -3581,27 +3581,27 @@ Penge version: 1.2.3
 <span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">AssumptionEntry</span><span class="p">,</span> <span class="n">build_standard_audit_record</span>
 
 <span class="n">record</span> <span class="o">=</span> <span class="n">build_standard_audit_record</span><span class="p">(</span>
-    <span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;2025-01-optimistic&quot;</span><span class="p">,</span>
+    <span class="n">run_id</span><span class="o">=</span><span class="s2">"2025-01-optimistic"</span><span class="p">,</span>
     <span class="n">extra_entries</span><span class="o">=</span><span class="p">[</span>
         <span class="n">AssumptionEntry</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Portfolio expected real return&quot;</span><span class="p">,</span>
-            <span class="n">value</span><span class="o">=</span><span class="s2">&quot;5.5&quot;</span><span class="p">,</span>
-            <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;%&quot;</span><span class="p">,</span>
-            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;user input&quot;</span><span class="p">,</span>
-            <span class="n">notes</span><span class="o">=</span><span class="s2">&quot;MSCI World 30-year geometric mean estimate&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">"Portfolio expected real return"</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="s2">"5.5"</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s2">"%"</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">"user input"</span><span class="p">,</span>
+            <span class="n">notes</span><span class="o">=</span><span class="s2">"MSCI World 30-year geometric mean estimate"</span><span class="p">,</span>
         <span class="p">),</span>
         <span class="n">AssumptionEntry</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;EUR/DKK FX rate&quot;</span><span class="p">,</span>
-            <span class="n">value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;7.4604&quot;</span><span class="p">)),</span>
-            <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;DKK per EUR&quot;</span><span class="p">,</span>
-            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;ECB 2025-01-01&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">"EUR/DKK FX rate"</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"7.4604"</span><span class="p">)),</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s2">"DKK per EUR"</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">"ECB 2025-01-01"</span><span class="p">,</span>
         <span class="p">),</span>
         <span class="n">AssumptionEntry</span><span class="p">(</span>
-            <span class="n">name</span><span class="o">=</span><span class="s2">&quot;Inflation assumption&quot;</span><span class="p">,</span>
-            <span class="n">value</span><span class="o">=</span><span class="s2">&quot;2.0&quot;</span><span class="p">,</span>
-            <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;%&quot;</span><span class="p">,</span>
-            <span class="n">source</span><span class="o">=</span><span class="s2">&quot;ECB target&quot;</span><span class="p">,</span>
-            <span class="n">notes</span><span class="o">=</span><span class="s2">&quot;Used to deflate nominal returns&quot;</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="s2">"Inflation assumption"</span><span class="p">,</span>
+            <span class="n">value</span><span class="o">=</span><span class="s2">"2.0"</span><span class="p">,</span>
+            <span class="n">unit</span><span class="o">=</span><span class="s2">"%"</span><span class="p">,</span>
+            <span class="n">source</span><span class="o">=</span><span class="s2">"ECB target"</span><span class="p">,</span>
+            <span class="n">notes</span><span class="o">=</span><span class="s2">"Used to deflate nominal returns"</span><span class="p">,</span>
         <span class="p">),</span>
     <span class="p">],</span>
 <span class="p">)</span>
@@ -3611,20 +3611,20 @@ Penge version: 1.2.3
 <span class="kn">import</span><span class="w"> </span><span class="nn">datetime</span>
 
 <span class="n">record</span> <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="p">(</span>
-    <span class="n">run_id</span><span class="o">=</span><span class="s2">&quot;manual-run&quot;</span><span class="p">,</span>
+    <span class="n">run_id</span><span class="o">=</span><span class="s2">"manual-run"</span><span class="p">,</span>
     <span class="n">captured_at</span><span class="o">=</span><span class="n">datetime</span><span class="o">.</span><span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">(</span><span class="n">datetime</span><span class="o">.</span><span class="n">timezone</span><span class="o">.</span><span class="n">utc</span><span class="p">)</span><span class="o">.</span><span class="n">isoformat</span><span class="p">(),</span>
-    <span class="n">penge_version</span><span class="o">=</span><span class="s2">&quot;dev&quot;</span><span class="p">,</span>
+    <span class="n">penge_version</span><span class="o">=</span><span class="s2">"dev"</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">record</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">AssumptionEntry</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">&quot;My rate&quot;</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">&quot;3.5&quot;</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">&quot;%&quot;</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;estimate&quot;</span><span class="p">))</span>
+<span class="n">record</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">AssumptionEntry</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s2">"My rate"</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="s2">"3.5"</span><span class="p">,</span> <span class="n">unit</span><span class="o">=</span><span class="s2">"%"</span><span class="p">,</span> <span class="n">source</span><span class="o">=</span><span class="s2">"estimate"</span><span class="p">))</span>
 </code></pre></div>
 <hr />
 <h2 id="restore-from-json">Restore from JSON<a class="headerlink" href="#restore-from-json" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.sim.registry</span><span class="w"> </span><span class="kn">import</span> <span class="n">ProjectionAuditRecord</span>
 
-<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2025-01.json&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="s2">"audit_2025-01.json"</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
     <span class="n">restored</span> <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
 
-<span class="k">assert</span> <span class="n">restored</span><span class="o">.</span><span class="n">run_id</span> <span class="o">==</span> <span class="s2">&quot;2025-01-baseline&quot;</span>
+<span class="k">assert</span> <span class="n">restored</span><span class="o">.</span><span class="n">run_id</span> <span class="o">==</span> <span class="s2">"2025-01-baseline"</span>
 </code></pre></div>
 <hr />
 <h2 id="compare-two-records-diff">Compare two records (diff)<a class="headerlink" href="#compare-two-records-diff" title="Permanent link">&para;</a></h2>
@@ -3634,7 +3634,7 @@ two records with standard Python:</p>
     <span class="n">before</span><span class="p">:</span> <span class="n">ProjectionAuditRecord</span><span class="p">,</span>
     <span class="n">after</span><span class="p">:</span> <span class="n">ProjectionAuditRecord</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return lines describing changed / added / removed assumptions.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Return lines describing changed / added / removed assumptions."""</span>
     <span class="n">before_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">e</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">before</span><span class="o">.</span><span class="n">assumptions</span><span class="p">}</span>
     <span class="n">after_map</span> <span class="o">=</span> <span class="p">{</span><span class="n">e</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">e</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">after</span><span class="o">.</span><span class="n">assumptions</span><span class="p">}</span>
     <span class="n">lines</span> <span class="o">=</span> <span class="p">[]</span>
@@ -3643,18 +3643,18 @@ two records with standard Python:</p>
         <span class="n">b</span> <span class="o">=</span> <span class="n">before_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
         <span class="n">a</span> <span class="o">=</span> <span class="n">after_map</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">b</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;+ ADDED   </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"+ ADDED   </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">a</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;- REMOVED </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"- REMOVED </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> = </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">b</span><span class="o">.</span><span class="n">value</span> <span class="o">!=</span> <span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="p">:</span>
             <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;~ CHANGED </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="sa">f</span><span class="s2">"~ CHANGED </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">b</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2"> → </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">value</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">a</span><span class="o">.</span><span class="n">unit</span><span class="si">}</span><span class="s2">"</span>
             <span class="p">)</span>
     <span class="k">return</span> <span class="n">lines</span>
 
 
-<span class="n">before</span> <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2024-12.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
-<span class="n">after</span>  <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">&quot;audit_2025-01.json&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+<span class="n">before</span> <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">"audit_2024-12.json"</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
+<span class="n">after</span>  <span class="o">=</span> <span class="n">ProjectionAuditRecord</span><span class="o">.</span><span class="n">from_json</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="s2">"audit_2025-01.json"</span><span class="p">)</span><span class="o">.</span><span class="n">read</span><span class="p">())</span>
 <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">diff_records</span><span class="p">(</span><span class="n">before</span><span class="p">,</span> <span class="n">after</span><span class="p">):</span>
     <span class="nb">print</span><span class="p">(</span><span class="n">line</span><span class="p">)</span>
 </code></pre></div>
@@ -3763,7 +3763,7 @@ conversion.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

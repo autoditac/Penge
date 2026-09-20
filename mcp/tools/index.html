@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -4476,10 +4476,10 @@ requested date range, valued in the requested currency.</p>
 <h3 id="output">Output<a class="headerlink" href="#output" title="Permanent link">&para;</a></h3>
 <p>Array of:</p>
 <div class="highlight"><pre><span></span><code>{
-  &quot;date&quot;: &quot;2024-01-31&quot;, // ISO YYYY-MM-DD
-  &quot;currency&quot;: &quot;EUR&quot;, // echoes the request
-  &quot;breakdown_key&quot;: &quot;brokerage&quot;, // omitted when breakdown_by = &quot;none&quot;
-  &quot;value&quot;: 123456.78, // numeric, summed across the breakdown
+  "date": "2024-01-31", // ISO YYYY-MM-DD
+  "currency": "EUR", // echoes the request
+  "breakdown_key": "brokerage", // omitted when breakdown_by = "none"
+  "value": 123456.78, // numeric, summed across the breakdown
 }
 </code></pre></div>
 <h3 id="breakdown-semantics">Breakdown semantics<a class="headerlink" href="#breakdown-semantics" title="Permanent link">&para;</a></h3>
@@ -4498,20 +4498,20 @@ requested date range, valued in the requested currency.</p>
 </ul>
 <h3 id="example-call">Example call<a class="headerlink" href="#example-call" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;query_net_worth&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;date_range&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;from&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;to&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-03&quot;</span><span class="w"> </span><span class="p">},</span>
-<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;breakdown_by&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;asset_class&quot;</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"query_net_worth"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"arguments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"date_range"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"from"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01"</span><span class="p">,</span><span class="w"> </span><span class="nt">"to"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-03"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"breakdown_by"</span><span class="p">:</span><span class="w"> </span><span class="s2">"asset_class"</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="example-response">Example response<a class="headerlink" href="#example-response" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">[</span>
-<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bank&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">12000.0</span><span class="w"> </span><span class="p">},</span>
-<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;brokerage&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">84500.5</span><span class="w"> </span><span class="p">},</span>
-<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-02&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;bank&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">12100.0</span><span class="w"> </span><span class="p">},</span>
-<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;date&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-02&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;breakdown_key&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;brokerage&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">85010.2</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">"date"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01"</span><span class="p">,</span><span class="w"> </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span><span class="w"> </span><span class="nt">"breakdown_key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"bank"</span><span class="p">,</span><span class="w"> </span><span class="nt">"value"</span><span class="p">:</span><span class="w"> </span><span class="mf">12000.0</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">"date"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01"</span><span class="p">,</span><span class="w"> </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span><span class="w"> </span><span class="nt">"breakdown_key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"brokerage"</span><span class="p">,</span><span class="w"> </span><span class="nt">"value"</span><span class="p">:</span><span class="w"> </span><span class="mf">84500.5</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">"date"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-02"</span><span class="p">,</span><span class="w"> </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span><span class="w"> </span><span class="nt">"breakdown_key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"bank"</span><span class="p">,</span><span class="w"> </span><span class="nt">"value"</span><span class="p">:</span><span class="w"> </span><span class="mf">12100.0</span><span class="w"> </span><span class="p">},</span>
+<span class="w">  </span><span class="p">{</span><span class="w"> </span><span class="nt">"date"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-02"</span><span class="p">,</span><span class="w"> </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span><span class="w"> </span><span class="nt">"breakdown_key"</span><span class="p">:</span><span class="w"> </span><span class="s2">"brokerage"</span><span class="p">,</span><span class="w"> </span><span class="nt">"value"</span><span class="p">:</span><span class="w"> </span><span class="mf">85010.2</span><span class="w"> </span><span class="p">}</span>
 <span class="p">]</span>
 </code></pre></div>
 <h3 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h3>
@@ -4560,12 +4560,12 @@ movement valued in the requested currency.</p>
 <h3 id="output_1">Output<a class="headerlink" href="#output_1" title="Permanent link">&para;</a></h3>
 <p>Array of:</p>
 <div class="highlight"><pre><span></span><code>{
-  &quot;period_start&quot;: &quot;2024-01-01&quot;, // ISO YYYY-MM-DD, clipped to date_range.from
-  &quot;period_end&quot;: &quot;2024-01-31&quot;, // ISO YYYY-MM-DD, clipped to date_range.to
-  &quot;currency&quot;: &quot;EUR&quot;, // echoes the request (or the default)
-  &quot;inflow&quot;: 12345.67, // sum of positive cashflows in the bucket
-  &quot;outflow&quot;: 2345.67, // absolute value of summed negatives
-  &quot;net&quot;: 10000.0, // inflow - outflow
+  "period_start": "2024-01-01", // ISO YYYY-MM-DD, clipped to date_range.from
+  "period_end": "2024-01-31", // ISO YYYY-MM-DD, clipped to date_range.to
+  "currency": "EUR", // echoes the request (or the default)
+  "inflow": 12345.67, // sum of positive cashflows in the bucket
+  "outflow": 2345.67, // absolute value of summed negatives
+  "net": 10000.0, // inflow - outflow
 }
 </code></pre></div>
 <h3 id="period-semantics">Period semantics<a class="headerlink" href="#period-semantics" title="Permanent link">&para;</a></h3>
@@ -4581,39 +4581,39 @@ movement valued in the requested currency.</p>
 </ul>
 <h3 id="example-call_1">Example call<a class="headerlink" href="#example-call_1" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;query_cashflow&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;date_range&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;from&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;to&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-03-31&quot;</span><span class="w"> </span><span class="p">},</span>
-<span class="w">    </span><span class="nt">&quot;granularity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;month&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"query_cashflow"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"arguments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"date_range"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"from"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01"</span><span class="p">,</span><span class="w"> </span><span class="nt">"to"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-03-31"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">"granularity"</span><span class="p">:</span><span class="w"> </span><span class="s2">"month"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="example-response_1">Example response<a class="headerlink" href="#example-response_1" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">[</span>
 <span class="w">  </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;period_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-01&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;period_end&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-01-31&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;inflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">4200.0</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;outflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">3100.5</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;net&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1099.5</span>
+<span class="w">    </span><span class="nt">"period_start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"period_end"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-31"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"inflow"</span><span class="p">:</span><span class="w"> </span><span class="mf">4200.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"outflow"</span><span class="p">:</span><span class="w"> </span><span class="mf">3100.5</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"net"</span><span class="p">:</span><span class="w"> </span><span class="mf">1099.5</span>
 <span class="w">  </span><span class="p">},</span>
 <span class="w">  </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;period_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-02-01&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;period_end&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-02-29&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;inflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">4250.0</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;outflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">2900.0</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;net&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1350.0</span>
+<span class="w">    </span><span class="nt">"period_start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-02-01"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"period_end"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-02-29"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"inflow"</span><span class="p">:</span><span class="w"> </span><span class="mf">4250.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"outflow"</span><span class="p">:</span><span class="w"> </span><span class="mf">2900.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"net"</span><span class="p">:</span><span class="w"> </span><span class="mf">1350.0</span>
 <span class="w">  </span><span class="p">},</span>
 <span class="w">  </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;period_start&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-03-01&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;period_end&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;2024-03-31&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;inflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">4300.0</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;outflow&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">3050.0</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;net&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">1250.0</span>
+<span class="w">    </span><span class="nt">"period_start"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-03-01"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"period_end"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-03-31"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"inflow"</span><span class="p">:</span><span class="w"> </span><span class="mf">4300.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"outflow"</span><span class="p">:</span><span class="w"> </span><span class="mf">3050.0</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"net"</span><span class="p">:</span><span class="w"> </span><span class="mf">1250.0</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">]</span>
 </code></pre></div>
@@ -4671,21 +4671,21 @@ project's locked uv environment.</p>
 <h3 id="output_2">Output<a class="headerlink" href="#output_2" title="Permanent link">&para;</a></h3>
 <p>Array of:</p>
 <div class="highlight"><pre><span></span><code>{
-  &quot;year&quot;: 2024,
-  &quot;jurisdiction&quot;: &quot;DK&quot;, // or &quot;DE&quot;
-  &quot;currency&quot;: &quot;EUR&quot;, // echoes the request
-  &quot;summary&quot;: {
+  "year": 2024,
+  "jurisdiction": "DK", // or "DE"
+  "currency": "EUR", // echoes the request
+  "summary": {
     // jurisdiction-specific totals (numbers)
-    &quot;gross_capital_income&quot;: 0.0,
-    &quot;taxable_capital_income&quot;: 0.0,
-    &quot;loss_carry_forward&quot;: 0.0,
-    &quot;tax_withheld_total&quot;: 0.0,
-    &quot;prior_loss_carry_forward&quot;: 0.0,
+    "gross_capital_income": 0.0,
+    "taxable_capital_income": 0.0,
+    "loss_carry_forward": 0.0,
+    "tax_withheld_total": 0.0,
+    "prior_loss_carry_forward": 0.0,
   },
-  &quot;line_items&quot;: [
-    { &quot;category&quot;: &quot;lager&quot;, &quot;amount&quot;: 1700.0, &quot;source&quot;: &quot;lager:nordnet-1:DK0001234567&quot; },
-    { &quot;category&quot;: &quot;ask&quot;, &quot;amount&quot;: 500.0, &quot;source&quot;: &quot;ask:ask-1&quot; },
-    { &quot;category&quot;: &quot;ask_tax_withheld&quot;, &quot;amount&quot;: 85.0, &quot;source&quot;: &quot;ask:ask-1&quot; },
+  "line_items": [
+    { "category": "lager", "amount": 1700.0, "source": "lager:nordnet-1:DK0001234567" },
+    { "category": "ask", "amount": 500.0, "source": "ask:ask-1" },
+    { "category": "ask_tax_withheld", "amount": 85.0, "source": "ask:ask-1" },
   ],
 }
 </code></pre></div>
@@ -4766,11 +4766,11 @@ currency.</p>
 </table>
 <h3 id="example-call_2">Example call<a class="headerlink" href="#example-call_2" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;compute_tax_year&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;year&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2024</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;jurisdictions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;DK&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;DE&quot;</span><span class="p">],</span>
-<span class="w">    </span><span class="nt">&quot;currency&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;EUR&quot;</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"compute_tax_year"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"arguments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"year"</span><span class="p">:</span><span class="w"> </span><span class="mi">2024</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"jurisdictions"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"DK"</span><span class="p">,</span><span class="w"> </span><span class="s2">"DE"</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">"currency"</span><span class="p">:</span><span class="w"> </span><span class="s2">"EUR"</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -4892,22 +4892,22 @@ malformed baseline JSON is a hard error (no safe empty default).</p>
 </table>
 <h3 id="output_3">Output<a class="headerlink" href="#output_3" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>{
-  &quot;baseline&quot;: {
-    &quot;p10&quot;: { &quot;2025&quot;: 209028.14, &quot;2026&quot;: 218463.81 /* ... */ },
-    &quot;p50&quot;: {
+  "baseline": {
+    "p10": { "2025": 209028.14, "2026": 218463.81 /* ... */ },
+    "p50": {
       /* ... */
     },
-    &quot;p90&quot;: {
+    "p90": {
       /* ... */
     },
-    &quot;fire_year_distribution&quot;: { &quot;2032&quot;: 17, &quot;2033&quot;: 23 }, // empty when no path met the goal
+    "fire_year_distribution": { "2032": 17, "2033": 23 }, // empty when no path met the goal
   },
-  &quot;scenario&quot;: {
+  "scenario": {
     /* same shape */
   },
-  &quot;deltas&quot;: {
-    &quot;p50_value_eur&quot;: -54321.0, // terminal-year p50 delta (scenario - baseline)
-    &quot;fire_year_shift_years&quot;: 2, // median-FIRE-year shift, or null if undefined
+  "deltas": {
+    "p50_value_eur": -54321.0, // terminal-year p50 delta (scenario - baseline)
+    "fire_year_shift_years": 2, // median-FIRE-year shift, or null if undefined
   },
 }
 </code></pre></div>
@@ -4918,11 +4918,11 @@ baseline.median_fire_year</code>; either is <code>null</code> when the correspon
 median FIRE year is undefined (fewer than 50 % of paths met the goal).</p>
 <h3 id="example-call_3">Example call<a class="headerlink" href="#example-call_3" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;run_scenario&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
-<span class="w">    </span><span class="nt">&quot;scenario_type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;work_reduction&quot;</span><span class="p">,</span>
-<span class="w">    </span><span class="nt">&quot;params&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;entity&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;person_dk&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;year&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2027</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;fte_fraction&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.8&quot;</span><span class="w"> </span><span class="p">},</span>
-<span class="w">    </span><span class="nt">&quot;monte_carlo&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;paths&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;seed&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;horizon_years&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">25</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"run_scenario"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"arguments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">"scenario_type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"work_reduction"</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">"params"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"entity"</span><span class="p">:</span><span class="w"> </span><span class="s2">"person_dk"</span><span class="p">,</span><span class="w"> </span><span class="nt">"year"</span><span class="p">:</span><span class="w"> </span><span class="mi">2027</span><span class="p">,</span><span class="w"> </span><span class="nt">"fte_fraction"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0.8"</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="nt">"monte_carlo"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"paths"</span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w"> </span><span class="nt">"seed"</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span><span class="w"> </span><span class="nt">"horizon_years"</span><span class="p">:</span><span class="w"> </span><span class="mi">25</span><span class="w"> </span><span class="p">}</span>
 <span class="w">  </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
@@ -4988,13 +4988,13 @@ value-pattern policy described under "Privacy notes" below.</p>
 <h3 id="output_4">Output<a class="headerlink" href="#output_4" title="Permanent link">&para;</a></h3>
 <p>Array of:</p>
 <div class="highlight"><pre><span></span><code>{
-  &quot;vault_path&quot;: &quot;2024/kontoauszug/abcd…-gls-bank-january.pdf&quot;, // relative to PENGE_VAULT_ROOT
-  &quot;year&quot;: 2024, // null when the vault path does not start with a 4-digit year folder
-  &quot;type&quot;: &quot;kontoauszug&quot;,
-  &quot;classified_at&quot;: &quot;2024-02-02T08:00:00Z&quot;, // = vault index `filed_at`
-  &quot;hash&quot;: &quot;abcd…&quot;, // sha256 of the document
-  &quot;excerpt&quot;: &quot;…Kontoauszug Januar 2024. IBAN: [REDACTED] Saldo am 31.01: …&quot;,
-  &quot;confidence&quot;: 0.4, // search-relevance score in [0, 1]
+  "vault_path": "2024/kontoauszug/abcd…-gls-bank-january.pdf", // relative to PENGE_VAULT_ROOT
+  "year": 2024, // null when the vault path does not start with a 4-digit year folder
+  "type": "kontoauszug",
+  "classified_at": "2024-02-02T08:00:00Z", // = vault index `filed_at`
+  "hash": "abcd…", // sha256 of the document
+  "excerpt": "…Kontoauszug Januar 2024. IBAN: [REDACTED] Saldo am 31.01: …",
+  "confidence": 0.4, // search-relevance score in [0, 1]
 }
 </code></pre></div>
 <p>Hits are sorted by descending match count, then most-recently-filed,
@@ -5042,8 +5042,8 @@ confidence (which is not persisted in the index today).</p>
 </ul>
 <h3 id="example-call_4">Example call<a class="headerlink" href="#example-call_4" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;search_documents&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;query&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Kontoauszug&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;year&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">2024</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;limit&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"search_documents"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"arguments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"query"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Kontoauszug"</span><span class="p">,</span><span class="w"> </span><span class="nt">"year"</span><span class="p">:</span><span class="w"> </span><span class="mi">2024</span><span class="p">,</span><span class="w"> </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 <h3 id="errors_4">Errors<a class="headerlink" href="#errors_4" title="Permanent link">&para;</a></h3>
@@ -5121,25 +5121,25 @@ it is not a personal plan and contains no real financial data.</p>
 </table>
 <h3 id="output_5">Output<a class="headerlink" href="#output_5" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>{
-  &quot;plan_id&quot;: &quot;synthetic_household&quot;,
-  &quot;surface&quot;: &quot;household_planning_questions&quot;,
-  &quot;overall_status&quot;: &quot;watch&quot;,
-  &quot;questions&quot;: [
+  "plan_id": "synthetic_household",
+  "surface": "household_planning_questions",
+  "overall_status": "watch",
+  "questions": [
     {
-      &quot;question_id&quot;: &quot;can_we_retire&quot;,
-      &quot;status&quot;: &quot;watch&quot;,
-      &quot;answer&quot;: &quot;The plan is watch for retirement in 2029...&quot;,
-      &quot;evidence&quot;: [{ &quot;label&quot;: &quot;planned_retirement_year&quot;, &quot;value&quot;: &quot;2029&quot;, &quot;source&quot;: &quot;RetirementReadinessReport&quot; }],
-      &quot;risk_codes&quot;: [&quot;de_vorabpauschale_not_in_household_plan&quot;],
-      &quot;assumption_keys&quot;: [&quot;planned_retirement_year&quot;, &quot;annual_spending_plan&quot;],
-      &quot;limitation_codes&quot;: [&quot;planning_grade_not_filing_advice&quot;],
-      &quot;docs&quot;: [&quot;docs/sim/planning-outputs.md&quot;]
+      "question_id": "can_we_retire",
+      "status": "watch",
+      "answer": "The plan is watch for retirement in 2029...",
+      "evidence": [{ "label": "planned_retirement_year", "value": "2029", "source": "RetirementReadinessReport" }],
+      "risk_codes": ["de_vorabpauschale_not_in_household_plan"],
+      "assumption_keys": ["planned_retirement_year", "annual_spending_plan"],
+      "limitation_codes": ["planning_grade_not_filing_advice"],
+      "docs": ["docs/sim/planning-outputs.md"]
     }
   ],
-  &quot;risks&quot;: [{ &quot;code&quot;: &quot;de_vorabpauschale_not_in_household_plan&quot;, &quot;severity&quot;: &quot;warning&quot; }],
-  &quot;assumptions&quot;: [{ &quot;key&quot;: &quot;planned_retirement_year&quot;, &quot;value&quot;: &quot;2029&quot;, &quot;source&quot;: &quot;HouseholdPlan.members&quot; }],
-  &quot;limitations&quot;: [{ &quot;code&quot;: &quot;planning_grade_not_filing_advice&quot;, &quot;docs&quot;: [&quot;docs/sim/planning-outputs.md&quot;] }],
-  &quot;docs&quot;: [&quot;docs/sim/planning-outputs.md&quot;, &quot;docs/tax/dk.md&quot;, &quot;docs/tax/de.md&quot;]
+  "risks": [{ "code": "de_vorabpauschale_not_in_household_plan", "severity": "warning" }],
+  "assumptions": [{ "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" }],
+  "limitations": [{ "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] }],
+  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"]
 }
 </code></pre></div>
 <p>The <code>risk_codes</code>, <code>assumption_keys</code>, and <code>limitation_codes</code> fields are deliberate:
@@ -5184,21 +5184,21 @@ with an error — suggestions only make sense while a session is still
 reviewable. Excluded rows are skipped.</p>
 <h3 id="output_6">Output<a class="headerlink" href="#output_6" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>{
-  &quot;session&quot;: {
-    &quot;id&quot;: &quot;0b6c1a52-…&quot;,
-    &quot;source&quot;: &quot;nordnet_transactions&quot;,
-    &quot;status&quot;: &quot;staged&quot;,
-    &quot;rows_considered&quot;: 3
+  "session": {
+    "id": "0b6c1a52-…",
+    "source": "nordnet_transactions",
+    "status": "staged",
+    "rows_considered": 3
   },
-  &quot;suggestions&quot;: [
+  "suggestions": [
     {
-      &quot;row_id&quot;: &quot;11111111-…&quot;,
-      &quot;row_index&quot;: 0,
-      &quot;kind&quot;: &quot;transaction&quot;,
-      &quot;field&quot;: &quot;category&quot;, // &quot;category&quot; | &quot;counterparty&quot; | &quot;asset_class&quot;
-      &quot;value&quot;: &quot;investment.trade.buy&quot;,
-      &quot;confidence&quot;: 0.9, // 0..1, rule strength
-      &quot;reason&quot;: &quot;canonical nordnet_transactions transaction kind &#39;buy&#39; maps directly to this category&quot;
+      "row_id": "11111111-…",
+      "row_index": 0,
+      "kind": "transaction",
+      "field": "category", // "category" | "counterparty" | "asset_class"
+      "value": "investment.trade.buy",
+      "confidence": 0.9, // 0..1, rule strength
+      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category"
     }
   ]
 }
@@ -5256,8 +5256,8 @@ like <code>Internal from 60109543</code> therefore yields
 that are only redaction markers are dropped entirely.</p>
 <h3 id="example-call_5">Example call<a class="headerlink" href="#example-call_5" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
-<span class="w">  </span><span class="nt">&quot;name&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;suggest_import_mapping&quot;</span><span class="p">,</span>
-<span class="w">  </span><span class="nt">&quot;arguments&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">&quot;import_session_id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0b6c1a52-9d9e-4f7d-8a8e-2f5c6d7e8f90&quot;</span><span class="w"> </span><span class="p">}</span>
+<span class="w">  </span><span class="nt">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"suggest_import_mapping"</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">"arguments"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"import_session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0b6c1a52-9d9e-4f7d-8a8e-2f5c6d7e8f90"</span><span class="w"> </span><span class="p">}</span>
 <span class="p">}</span>
 </code></pre></div>
 
@@ -5312,7 +5312,7 @@ that are only redaction markers are dropped entirely.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

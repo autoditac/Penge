@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -31,7 +31,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -3633,49 +3633,49 @@ list means the catalog looks clean.  The following checks are performed:</p>
 <span class="n">catalog</span> <span class="o">=</span> <span class="n">AssumptionCatalog</span><span class="p">()</span>
 
 <span class="n">catalog</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">InstrumentAssumptions</span><span class="p">(</span>
-    <span class="n">isin</span><span class="o">=</span><span class="s2">&quot;IE00B4L5Y983&quot;</span><span class="p">,</span>
-    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;iShares Core MSCI World UCITS ETF (Acc)&quot;</span><span class="p">,</span>
-    <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+    <span class="n">isin</span><span class="o">=</span><span class="s2">"IE00B4L5Y983"</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">"iShares Core MSCI World UCITS ETF (Acc)"</span><span class="p">,</span>
+    <span class="n">currency</span><span class="o">=</span><span class="s2">"EUR"</span><span class="p">,</span>
     <span class="n">tax_regime</span><span class="o">=</span><span class="n">TaxRegime</span><span class="o">.</span><span class="n">LAGER</span><span class="p">,</span>       <span class="c1"># ABIS-listed → lagerbeskatning</span>
-    <span class="n">expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.002&quot;</span><span class="p">),</span>    <span class="c1"># 0.20 % ÅOP</span>
-    <span class="n">dividend_yield</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">),</span>       <span class="c1"># accumulation class</span>
+    <span class="n">expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.002"</span><span class="p">),</span>    <span class="c1"># 0.20 % ÅOP</span>
+    <span class="n">dividend_yield</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0"</span><span class="p">),</span>       <span class="c1"># accumulation class</span>
     <span class="n">ask_eligible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="n">fx_cost</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.0025&quot;</span><span class="p">),</span>         <span class="c1"># Nordnet 0.25 % FX spread</span>
-    <span class="n">notes</span><span class="o">=</span><span class="s2">&quot;ABIS list 2024; TER from KIID 2024-01-15&quot;</span><span class="p">,</span>
+    <span class="n">fx_cost</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.0025"</span><span class="p">),</span>         <span class="c1"># Nordnet 0.25 % FX spread</span>
+    <span class="n">notes</span><span class="o">=</span><span class="s2">"ABIS list 2024; TER from KIID 2024-01-15"</span><span class="p">,</span>
 <span class="p">))</span>
 </code></pre></div>
 <h3 id="adding-an-ask-eligible-instrument">Adding an ASK-eligible instrument<a class="headerlink" href="#adding-an-ask-eligible-instrument" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="n">catalog</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">InstrumentAssumptions</span><span class="p">(</span>
-    <span class="n">isin</span><span class="o">=</span><span class="s2">&quot;DK0060950053&quot;</span><span class="p">,</span>
-    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;Example ASK-eligible fund&quot;</span><span class="p">,</span>
-    <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;DKK&quot;</span><span class="p">,</span>
+    <span class="n">isin</span><span class="o">=</span><span class="s2">"DK0060950053"</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">"Example ASK-eligible fund"</span><span class="p">,</span>
+    <span class="n">currency</span><span class="o">=</span><span class="s2">"DKK"</span><span class="p">,</span>
     <span class="n">tax_regime</span><span class="o">=</span><span class="n">TaxRegime</span><span class="o">.</span><span class="n">ASK</span><span class="p">,</span>
-    <span class="n">expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.005&quot;</span><span class="p">),</span>
-    <span class="n">dividend_yield</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">),</span>
+    <span class="n">expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.005"</span><span class="p">),</span>
+    <span class="n">dividend_yield</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0"</span><span class="p">),</span>
     <span class="n">ask_eligible</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">fx_cost</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">),</span>
+    <span class="n">fx_cost</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0"</span><span class="p">),</span>
 <span class="p">))</span>
 </code></pre></div>
 <h3 id="correcting-an-assumption-override">Correcting an assumption (override)<a class="headerlink" href="#correcting-an-assumption-override" title="Permanent link">&para;</a></h3>
 <p>Adding an entry for an ISIN that is already in the catalog silently replaces
 the old entry.  Document the reason in <code>notes</code>:</p>
 <div class="highlight"><pre><span></span><code><span class="n">catalog</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">InstrumentAssumptions</span><span class="p">(</span>
-    <span class="n">isin</span><span class="o">=</span><span class="s2">&quot;IE00B4L5Y983&quot;</span><span class="p">,</span>
-    <span class="n">label</span><span class="o">=</span><span class="s2">&quot;iShares Core MSCI World UCITS ETF (Acc)&quot;</span><span class="p">,</span>
-    <span class="n">currency</span><span class="o">=</span><span class="s2">&quot;EUR&quot;</span><span class="p">,</span>
+    <span class="n">isin</span><span class="o">=</span><span class="s2">"IE00B4L5Y983"</span><span class="p">,</span>
+    <span class="n">label</span><span class="o">=</span><span class="s2">"iShares Core MSCI World UCITS ETF (Acc)"</span><span class="p">,</span>
+    <span class="n">currency</span><span class="o">=</span><span class="s2">"EUR"</span><span class="p">,</span>
     <span class="n">tax_regime</span><span class="o">=</span><span class="n">TaxRegime</span><span class="o">.</span><span class="n">LAGER</span><span class="p">,</span>
-    <span class="n">expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.0015&quot;</span><span class="p">),</span>   <span class="c1"># corrected: TER reduced from 0.20 % to 0.15 %</span>
-    <span class="n">dividend_yield</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0&quot;</span><span class="p">),</span>
+    <span class="n">expense_ratio</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.0015"</span><span class="p">),</span>   <span class="c1"># corrected: TER reduced from 0.20 % to 0.15 %</span>
+    <span class="n">dividend_yield</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0"</span><span class="p">),</span>
     <span class="n">ask_eligible</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="n">fx_cost</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">&quot;0.0025&quot;</span><span class="p">),</span>
-    <span class="n">notes</span><span class="o">=</span><span class="s2">&quot;override: new TER confirmed in fund factsheet 2025-03-01&quot;</span><span class="p">,</span>
+    <span class="n">fx_cost</span><span class="o">=</span><span class="n">Decimal</span><span class="p">(</span><span class="s2">"0.0025"</span><span class="p">),</span>
+    <span class="n">notes</span><span class="o">=</span><span class="s2">"override: new TER confirmed in fund factsheet 2025-03-01"</span><span class="p">,</span>
 <span class="p">))</span>
 </code></pre></div>
 <h3 id="running-validation-before-a-projection">Running validation before a projection<a class="headerlink" href="#running-validation-before-a-projection" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="n">warnings</span> <span class="o">=</span> <span class="n">catalog</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
 <span class="k">if</span> <span class="n">warnings</span><span class="p">:</span>
     <span class="k">for</span> <span class="n">w</span> <span class="ow">in</span> <span class="n">warnings</span><span class="p">:</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[WARN] </span><span class="si">{</span><span class="n">w</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"[WARN] </span><span class="si">{</span><span class="n">w</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
     <span class="c1"># raise or log depending on your strictness preference</span>
 </code></pre></div>
 <hr />
@@ -3748,7 +3748,7 @@ across multiple projections or catalog instances without defensive copying.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

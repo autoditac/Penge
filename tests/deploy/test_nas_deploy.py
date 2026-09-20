@@ -11,15 +11,20 @@ def test_every_buildx_setup_has_an_explicit_teardown() -> None:
 
     setup_count = 0
     teardown_count = 0
+    partial_setup_cleanup_count = 0
     for workflow in workflows:
         content = workflow.read_text()
         setup_count += content.count("docker/setup-buildx-action@")
         teardown_count += content.count(
             'docker buildx rm --force "${{ steps.buildx.outputs.name }}"'
         )
+        partial_setup_cleanup_count += content.count(
+            "if: always() && steps.buildx.outputs.name != ''"
+        )
 
     assert setup_count == 3
     assert teardown_count == setup_count
+    assert partial_setup_cleanup_count == setup_count
 
 
 def test_image_matrix_jobs_isolate_docker_configuration() -> None:
@@ -49,3 +54,10 @@ def test_nas_nginx_routes_spa_to_web_container_and_api_separately() -> None:
     assert "proxy_pass http://127.0.0.1:8082;" in nginx
     assert "proxy_pass http://127.0.0.1:8001;" in nginx
     assert "root  /var/www/penge;" not in nginx
+
+
+def test_web_image_targets_the_production_api_origin() -> None:
+    containerfile = (ROOT / "apps/web/Containerfile").read_text()
+
+    assert "ARG VITE_PENGE_API_URL=https://penge.eigmueller.de" in containerfile
+    assert "ENV VITE_PENGE_API_URL=${VITE_PENGE_API_URL}" in containerfile

@@ -143,5 +143,5 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
       - name: Remove Buildx builder
-        if: always() && steps.buildx.outcome == 'success'
+        if: always() && steps.buildx.outputs.name != ''
         run: docker buildx rm --force "${{ steps.buildx.outputs.name }}"

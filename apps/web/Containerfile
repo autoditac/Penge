@@ -21,6 +21,9 @@ RUN pnpm install --frozen-lockfile
 
 COPY apps/web apps/web
 
+ARG VITE_PENGE_API_URL=https://penge.eigmueller.de
+ENV VITE_PENGE_API_URL=${VITE_PENGE_API_URL}
+
 RUN pnpm --filter @penge/web build
 
 FROM docker.io/nginxinc/nginx-unprivileged:1.29-alpine-slim@sha256:59678856b05324b7f6371f26eb1520be7fcd8bdc8ab380fc4913db8503e5a842

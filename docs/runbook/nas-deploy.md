@@ -18,6 +18,8 @@ The host nginx configuration, tracked at
 `deploy/nas/penge.eigmueller.de.conf`, keeps TLS and OAuth on the host,
 proxies API routes to the API container on `127.0.0.1:8001`, and proxies the
 SPA to the WebUI container on `127.0.0.1:8082`.
+The WebUI image is built with `VITE_PENGE_API_URL=https://penge.eigmueller.de`,
+so its browser requests return through the same host and OAuth gate.
 
 `podman-auto-update.timer` (already enabled on the NAS, runs daily) resolves
 `:main` to its current digest on each poll.

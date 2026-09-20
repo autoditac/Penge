@@ -141,6 +141,9 @@ The NAS now runs the published `penge/web:main` image through a
 digest-log, and rollback properties as the API container.
 The host nginx remains the TLS and OAuth boundary and proxies authenticated SPA
 requests to the WebUI container over a loopback-only port.
+The WebUI Containerfile sets its overridable production build argument
+`VITE_PENGE_API_URL` to `https://penge.eigmueller.de`, so browser API requests
+return through that same authenticated host instead of targeting localhost.
 This removes the separate, manually copied `/var/www/penge` deployment path.
 
 The self-hosted runner also accumulated orphaned Buildx builder containers and

@@ -64,15 +64,30 @@ GHCR (#229, follow-up PR).
 `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, so it
 never runs for `pull_request` events (forked PRs never gain
 `packages: write`). It `needs` every other push-triggered job in `ci.yml`
-(lint, gitleaks, bootstrap smoke, WebUI build, container image build
-verification, Alembic round-trip, pytest). `dbt build (smoke)` and
-`Build (mkdocs --strict)` run as separate workflow files (`dbt.yml`,
-`docs.yml`), which `needs` cannot reach across workflow boundaries; a new
-`external-checks-gate` job polls the commit's check-runs via the GitHub API
-for those two checks (skipping `dbt build (smoke)` when the push didn't
-touch a path that triggers `dbt.yml`) and fails if either concludes
-anything but `success`, before `publish-images` is allowed to `need` it too.
-It mirrors `release.yml`'s `images` job: Buildx build,
+that validates the *content of the published images*: lint, secret scan,
+bootstrap smoke, the WebUI build, the Containerfile builds
+(`container-images`), the Alembic migration round-trip the API runs on
+startup, and pytest.
+
+`dbt.yml`, `docs.yml`, `backup-roundtrip.yml`, and `mcp-evals.yml` also run
+on the same push, as separate workflow files -- `needs:` cannot reach jobs
+across workflow-file boundaries, and an earlier draft of this ADR/PR tried
+to work around that by adding a job that polled the GitHub API for those
+checks' status. That approach was dropped: it duplicated runner capacity
+against the same constrained self-hosted pool the checks it waited on also
+needed (risking contention or, in the worst case, deadlock), matched
+check-runs by name and commit SHA alone (risking a stale match against an
+earlier `pull_request` run of the same SHA), and required hand-maintaining
+an ever-growing list of check names and path filters in lockstep with
+unrelated workflow files. Instead, `publish-images` simply does not wait on
+those four workflows: each validates an orthogonal subsystem -- dbt
+models, the docs site, backup/restore scripts, MCP tool behaviour -- none
+of which is part of the api/web container images' content, and each
+already gates its own consequences independently (e.g. docs' GitHub Pages
+deploy job already depends on its own build job succeeding). A failure in
+any of them does not mean the just-built images are wrong.
+
+`publish-images` mirrors `release.yml`'s `images` job: Buildx build,
 SBOM request, GHCR push, and a build-provenance attestation for the pushed
 digest. Tags are `:main` (moving, "latest known-good") and `:<commit-sha>`
 (immutable, used for rollback and for pinning the NAS quadlet).

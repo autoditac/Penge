@@ -8,7 +8,10 @@
 # never pushes (`push: false`) -- verification only, safe for forked PRs.
 # `publish-images` re-builds and pushes to GHCR, but only runs on pushes to
 # `main` (never on `pull_request`), so it never runs with a fork's
-# credentials. See ADR-0044 for why merges to `main` now publish images.
+# credentials. It waits only on jobs that validate the images' own
+# content (app code, web bundle, migrations, Containerfiles, lint/secret
+# scan) -- not on the separate dbt/docs/backup-roundtrip/mcp-evals
+# workflows, which validate orthogonal subsystems. See ADR-0044.
 
 name: ci
 
@@ -176,98 +179,28 @@ jobs:
           docker run --rm penge/api:ci \
             python -c "import penge.api.app; print('api import OK')"
 
-  external-checks-gate:
-    name: Wait for external workflow checks
-    # dbt build, docs build, backup-roundtrip, and mcp-evals run as
-    # separate workflow files (dbt.yml, docs.yml, backup-roundtrip.yml,
-    # mcp-evals.yml) triggered by the same push, so `needs:` here can't
-    # see them directly -- GitHub Actions `needs` only spans jobs within
-    # one workflow file. Poll the commit's check-runs instead so
-    # publish-images genuinely waits on every push-triggered workflow,
-    # not just the jobs defined in this file.
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: [self-hosted, linux, x64, penge]
-    timeout-minutes: 20
-    permissions:
-      contents: read
-      checks: read
-    steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: Determine which checks were actually triggered
-        id: filter
-        run: |
-          set -euo pipefail
-          # docs.yml's `push` trigger has no path filter, so its check
-          # always runs. The other three workflows' `push` triggers are
-          # path-filtered -- mirror each filter here (kept in sync with
-          # the corresponding workflow file) so we don't wait forever for
-          # a check-run that GitHub never scheduled for this push.
-          changed="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
-
-          required=("Build (mkdocs --strict)")
-
-          if grep -qE '^(dbt/|migrations/|pyproject\.toml$|uv\.lock$|\.github/workflows/dbt\.yml$)' <<<"$changed"; then
-            required+=("dbt build (smoke)")
-          fi
-          if grep -qE '^(scripts/|tests/scripts/|\.github/workflows/backup-roundtrip\.yml$)' <<<"$changed"; then
-            required+=("encrypt → decrypt → restore")
-          fi
-          if grep -qE '^(apps/mcp/|src/penge/sim/|src/penge/tax/|\.github/workflows/mcp-evals\.yml$)' <<<"$changed"; then
-            required+=("MCP golden-question evals")
-          fi
-
-          printf '%s\n' "${required[@]}" > required-checks.txt
-          echo "Required checks for this push:"
-          cat required-checks.txt
-
-      - name: Wait for sibling workflow checks to succeed
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
-          SHA: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-          deadline=$(( $(date +%s) + 900 ))
-          while IFS= read -r name; do
-            echo "Waiting for check run: $name"
-            while true; do
-              run_json=$(gh api "repos/$REPO/commits/$SHA/check-runs" \
-                --jq "[.check_runs[] | select(.name == \"$name\")] | sort_by(.started_at) | last")
-              status=$(jq -r '.status // "missing"' <<<"$run_json")
-              conclusion=$(jq -r '.conclusion // "null"' <<<"$run_json")
-              if [ "$status" = "completed" ]; then
-                if [ "$conclusion" != "success" ]; then
-                  echo "::error::Required check '$name' concluded '$conclusion'"
-                  exit 1
-                fi
-                echo "Check '$name' succeeded."
-                break
-              fi
-              if [ "$(date +%s)" -ge "$deadline" ]; then
-                echo "::error::Timed out waiting for '$name' (last status: $status)"
-                exit 1
-              fi
-              sleep 15
-            done
-          done < required-checks.txt
-
   publish-images:
     name: Publish image (${{ matrix.app }})
     # Only merges to `main` produce a deployable artifact; PR builds stay
     # verification-only (see the `container-images` job above), so forked
     # PRs never gain package-write credentials. See ADR-0044.
     #
-    # `needs` lists every push-triggered validation job in this workflow
-    # (all jobs except `pr-title`, which is PR-only and would be reported
-    # "skipped" -- and therefore not "success" -- on a push run), plus
-    # `external-checks-gate`, which polls every sibling push-triggered
-    # workflow (dbt, docs, backup-roundtrip, mcp-evals) that `needs`
-    # cannot reach directly. This is the actual CI-green gate: a lint,
-    # test, or build failure anywhere blocks the publish, matching the
-    # review bar this ADR-0044 relies on.
+    # `needs` covers every push-triggered job in this workflow that
+    # validates the *content of the published images*: app/API code
+    # (pytest), the web bundle (web-ui), the migration chain the API
+    # runs on startup (alembic-roundtrip), the Containerfiles themselves
+    # (container-images), plus lint/secret-scan hygiene. `pr-title` is
+    # excluded -- it's PR-only and would report "skipped" (not
+    # "success") on a push, permanently blocking this job.
+    #
+    # dbt.yml, docs.yml, backup-roundtrip.yml, and mcp-evals.yml also run
+    # on this push, as separate workflow files that `needs:` cannot
+    # reference. They are deliberately NOT gated on here: each validates
+    # an orthogonal subsystem (dbt models, the docs site, backup/restore
+    # scripts, MCP tool behaviour) that does not affect whether the
+    # api/web container images are correct, and each already fails its
+    # own workflow (docs' GitHub Pages deploy is itself gated on its
+    # build job) independently of image publishing. See ADR-0044.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - lint-markdown
@@ -278,7 +211,6 @@ jobs:
       - container-images
       - alembic-roundtrip
       - pytest
-      - external-checks-gate
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 20
     permissions:

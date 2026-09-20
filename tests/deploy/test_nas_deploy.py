@@ -26,7 +26,8 @@ def test_image_matrix_jobs_isolate_docker_configuration() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text()
     release = (ROOT / ".github/workflows/release.yml").read_text()
     docker_config = (
-        "DOCKER_CONFIG: ${{ runner.temp }}/docker-config-${{ github.job }}-${{ matrix.app }}"
+        "DOCKER_CONFIG: /tmp/penge-docker-"
+        "${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}"
     )
 
     assert ci.count(docker_config) == 2

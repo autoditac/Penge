@@ -149,7 +149,7 @@ the runner VM disk.
 Both CI and release workflows now include an explicit `if: always()` teardown
 step for every Buildx setup so normal failed jobs remove their builder state
 before the runner accepts more work.
-Each matrix job also uses a runner-temporary `DOCKER_CONFIG` directory.
+Each matrix job also uses a run-unique `DOCKER_CONFIG` directory under `/tmp`.
 The runner services share an operating-system user, so this prevents one
 concurrent job's login-action cleanup from removing another job's GHCR
 credentials during provenance upload.

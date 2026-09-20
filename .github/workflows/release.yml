@@ -84,7 +84,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 30
     env:
-      DOCKER_CONFIG: ${{ runner.temp }}/docker-config-${{ github.job }}-${{ matrix.app }}
+      DOCKER_CONFIG: /tmp/penge-docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
     permissions:
       contents: read
       id-token: write

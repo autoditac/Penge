@@ -147,7 +147,7 @@ jobs:
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 15
     env:
-      DOCKER_CONFIG: ${{ runner.temp }}/docker-config-${{ github.job }}-${{ matrix.app }}
+      DOCKER_CONFIG: /tmp/penge-docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
     strategy:
       fail-fast: false
       matrix:
@@ -224,7 +224,7 @@ jobs:
     # Isolate Docker credentials so one job's post-action logout cannot remove
     # another job's GHCR credentials during provenance upload.
     env:
-      DOCKER_CONFIG: ${{ runner.temp }}/docker-config-${{ github.job }}-${{ matrix.app }}
+      DOCKER_CONFIG: /tmp/penge-docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
     permissions:
       contents: read
       id-token: write

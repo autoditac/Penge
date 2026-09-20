@@ -47,7 +47,7 @@ export const demoAccounts: readonly AccountSummary[] = [
     currency: "DKK",
     entity_id: "person-b",
     entity_name: "Person B",
-    iban_masked: "****9012",
+    iban_masked: "",
     kind: "investment",
     name: "Nordnet ASK ****SK",
     provider: "nordnet",

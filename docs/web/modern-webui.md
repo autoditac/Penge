@@ -27,7 +27,11 @@ are recorded in ADR-0036.
 ## Surfaces
 
 - **Overview** — net-worth trend (365 days, EUR + DKK), current allocation by
-  kind/currency/entity with donut + table, masked account dimension.
+  kind/currency/entity with donut + table, and a tracked-account overview with
+  each account's latest native-currency balance, optional masked IBAN, and
+  absolute change from the latest available balance on or before one calendar
+  month earlier. Desktop uses a dense table; mobile switches to account cards
+  without empty IBAN rows.
 - **Performance** — dashboard v2 (#204, #206): KPI header (net worth,
   month-over-month delta, liquid share), range-selectable net-worth trend
   (1M/3M/1Y/5Y/all) with drawdown shading and max-drawdown KPI, TWR index

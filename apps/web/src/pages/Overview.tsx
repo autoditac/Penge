@@ -3,9 +3,12 @@
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
 import Stack from "@mui/material/Stack";
+import Typography from "@mui/material/Typography";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
 
-import { useAccounts, useAllocation, useNetWorthTotal } from "../api/queries";
-import type { AllocationDimension } from "../api/schemas";
+import { useAccounts, useAllocation, useNetWorthByAccount, useNetWorthTotal } from "../api/queries";
+import type { AccountSummary, AllocationDimension, NetWorthPoint } from "../api/schemas";
 import { EChart } from "../components/EChart";
 import type { EChartOption } from "../components/EChart";
 import {
@@ -21,9 +24,24 @@ import {
   TableScroll,
 } from "../components/primitives";
 import type { SegmentedOption } from "../components/primitives";
-import { formatCompact, formatShare, isoDaysAgo, parseDecimal } from "../money";
+import {
+  formatCompact,
+  formatMoney,
+  formatShare,
+  formatSignedMoney,
+  isoDaysAgo,
+  parseDecimal,
+} from "../money";
+import type { Currency } from "../money";
 import { chartPalette, chartTextColor } from "../theme";
-import { allocationData, latestNetWorth, netWorthSeries, periodChange } from "../transforms";
+import {
+  accountBalanceSnapshots,
+  allocationData,
+  latestNetWorth,
+  netWorthSeries,
+  periodChange,
+} from "../transforms";
+import type { AccountBalanceSnapshot } from "../transforms";
 
 const dimensionLabels: Record<AllocationDimension, string> = {
   kind: "Asset kind",
@@ -248,17 +266,24 @@ function AllocationBody({
 
 function AccountsSection(): React.JSX.Element {
   const accounts = useAccounts();
+  const historyParams = useMemo(() => ({ since: isoDaysAgo(400), limit: 10_000 }), []);
+  const balances = useNetWorthByAccount(historyParams);
 
-  if (accounts.isPending) {
+  if (accounts.isPending || balances.isPending) {
     return <LoadingState label="accounts" />;
   }
-  if (accounts.isError) {
+  if (accounts.isError || balances.isError) {
+    const error =
+      accounts.error ??
+      balances.error ??
+      new Error("The accounts query failed without providing error details.");
     return (
       <ErrorState
         label="accounts"
-        error={accounts.error}
+        error={error}
         onRetry={() => {
           void accounts.refetch();
+          void balances.refetch();
         }}
       />
     );
@@ -273,32 +298,186 @@ function AccountsSection(): React.JSX.Element {
       title="Tracked accounts"
       actions={<Pill>{accounts.data.length} accounts</Pill>}
     >
+      <AccountOverview accounts={accounts.data} points={balances.data.points} />
+    </Panel>
+  );
+}
+
+type AccountOverviewProps = {
+  readonly accounts: readonly AccountSummary[];
+  readonly points: readonly NetWorthPoint[];
+};
+
+function supportedCurrency(value: string): Currency | null {
+  return value === "EUR" || value === "DKK" ? value : null;
+}
+
+function balanceLabel(snapshot: AccountBalanceSnapshot | undefined, currencyCode: string): string {
+  if (snapshot === undefined) {
+    return "—";
+  }
+  const currency = supportedCurrency(currencyCode);
+  return currency === null
+    ? `${formatCompact(snapshot.balance)} ${currencyCode}`
+    : formatMoney(snapshot.balance, currency);
+}
+
+function DeltaValue({
+  snapshot,
+  currencyCode,
+}: {
+  readonly snapshot: AccountBalanceSnapshot | undefined;
+  readonly currencyCode: string;
+}): React.JSX.Element {
+  if (snapshot?.monthDelta === null || snapshot === undefined) {
+    return (
+      <Box
+        component="span"
+        aria-label="Monthly change unavailable"
+        sx={{ color: "text.secondary" }}
+      >
+        —
+      </Box>
+    );
+  }
+
+  const currency = supportedCurrency(currencyCode);
+  const value =
+    currency === null
+      ? `${snapshot.monthDelta >= 0 ? "+" : ""}${formatCompact(snapshot.monthDelta)} ${currencyCode}`
+      : formatSignedMoney(snapshot.monthDelta, currency);
+  const direction =
+    snapshot.monthDelta > 0 ? "Increased" : snapshot.monthDelta < 0 ? "Decreased" : "Unchanged";
+
+  return (
+    <Box
+      component="span"
+      aria-label={`${direction} by ${value} since ${snapshot.comparisonAsOf ?? "last month"}`}
+      title={`Compared with ${snapshot.comparisonAsOf ?? "last month"}`}
+      sx={{
+        color:
+          snapshot.monthDelta > 0
+            ? "success.main"
+            : snapshot.monthDelta < 0
+              ? "error.main"
+              : "text.secondary",
+        fontVariantNumeric: "tabular-nums",
+        fontWeight: 600,
+      }}
+    >
+      {value}
+    </Box>
+  );
+}
+
+export function AccountOverview({ accounts, points }: AccountOverviewProps): React.JSX.Element {
+  const theme = useTheme();
+  const desktop = useMediaQuery(theme.breakpoints.up("md"));
+  const snapshots = useMemo(() => accountBalanceSnapshots(points), [points]);
+
+  if (desktop) {
+    return (
       <TableScroll>
-        <table className="dataTable">
+        <table className="dataTable" aria-label="Tracked accounts">
           <thead>
             <tr>
               <th scope="col">Account</th>
               <th scope="col">Owner</th>
               <th scope="col">Provider</th>
               <th scope="col">Kind</th>
-              <th scope="col">CCY</th>
               <th scope="col">IBAN</th>
+              <th scope="col" className="num">
+                Balance
+              </th>
+              <th scope="col" className="num">
+                1M delta
+              </th>
             </tr>
           </thead>
           <tbody>
-            {accounts.data.map((account) => (
-              <tr key={account.account_id}>
-                <td>{account.name}</td>
-                <td>{account.entity_name}</td>
-                <td>{account.provider}</td>
-                <td>{account.kind}</td>
-                <td>{account.currency}</td>
-                <td className="mono">{account.iban_masked}</td>
-              </tr>
-            ))}
+            {accounts.map((account) => {
+              const snapshot = snapshots.get(account.account_id);
+              return (
+                <tr key={account.account_id}>
+                  <td>{account.name}</td>
+                  <td>{account.entity_name}</td>
+                  <td>{account.provider}</td>
+                  <td>{account.kind}</td>
+                  <td className="mono">
+                    {account.iban_masked === "" ? (
+                      <Box component="span" aria-label="IBAN not applicable" color="text.secondary">
+                        —
+                      </Box>
+                    ) : (
+                      account.iban_masked
+                    )}
+                  </td>
+                  <td
+                    className="num"
+                    title={snapshot ? `Balance as of ${snapshot.asOf}` : undefined}
+                  >
+                    {balanceLabel(snapshot, account.currency)}
+                  </td>
+                  <td className="num">
+                    <DeltaValue snapshot={snapshot} currencyCode={account.currency} />
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </TableScroll>
-    </Panel>
+    );
+  }
+
+  return (
+    <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+      {accounts.map((account) => {
+        const snapshot = snapshots.get(account.account_id);
+        return (
+          <Box
+            component="article"
+            key={account.account_id}
+            sx={{
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2.5,
+              bgcolor: "background.default",
+              p: 1.5,
+            }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between" }}>
+              <Box>
+                <Typography component="h3" sx={{ fontSize: "0.95rem", fontWeight: 700 }}>
+                  {account.name}
+                </Typography>
+                <Typography sx={{ color: "text.secondary", fontSize: "0.8rem" }}>
+                  {account.entity_name} · {account.provider} · {account.kind}
+                </Typography>
+              </Box>
+              <Box sx={{ textAlign: "right", flexShrink: 0 }}>
+                <Typography
+                  title={snapshot ? `Balance as of ${snapshot.asOf}` : undefined}
+                  sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
+                >
+                  {balanceLabel(snapshot, account.currency)}
+                </Typography>
+                <Typography component="div" sx={{ fontSize: "0.82rem" }}>
+                  <DeltaValue snapshot={snapshot} currencyCode={account.currency} />
+                </Typography>
+              </Box>
+            </Stack>
+            {account.iban_masked !== "" ? (
+              <Typography
+                className="mono"
+                sx={{ color: "text.secondary", fontSize: "0.75rem", mt: 1 }}
+              >
+                IBAN {account.iban_masked}
+              </Typography>
+            ) : null}
+          </Box>
+        );
+      })}
+    </Stack>
   );
 }

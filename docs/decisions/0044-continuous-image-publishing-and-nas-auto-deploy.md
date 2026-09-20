@@ -40,7 +40,8 @@ reviewed, they just aren't tagged as a release.
 - Prefer the NAS's existing `podman-auto-update.timer` machinery over adding
   a bespoke deploy runner or webhook receiver.
 - Rollback must stay possible without re-triggering CI (pin the quadlet to
-  an immutable `:<commit-sha>` tag, temporarily overriding auto-update).
+  a previously-recorded manifest digest, temporarily overriding
+  auto-update).
 
 ## Considered Options
 
@@ -90,7 +91,11 @@ any of them does not mean the just-built images are wrong.
 `publish-images` mirrors `release.yml`'s `images` job: Buildx build,
 SBOM request, GHCR push, and a build-provenance attestation for the pushed
 digest. Tags are `:main` (moving, "latest known-good") and `:<commit-sha>`
-(immutable, used for rollback and for pinning the NAS quadlet).
+(immutable, useful for pinning to a specific reviewed commit). The NAS
+rollback path implemented in #229 pins to the recorded manifest digest
+instead (see the "Update (implementation, #229)" note below), since it is
+exact and does not depend on a `release.yml`-only tag existing for the
+build in question.
 
 The release workflow (`release.yml`) is unchanged: tagged releases still
 additionally publish `<release-tag>` and `<commit-sha>` images with the same
@@ -103,13 +108,20 @@ reference `ghcr.io/autoditac/penge/api:main` with `AutoUpdate=registry`, so
 `:main` to its current digest on each poll and restarts the container when
 it changes. The `Image=` line intentionally stays on the moving `:main` tag
 -- that is what gives `AutoUpdate=registry` something to compare against;
-pinning it to a digest would disable auto-update entirely. The digest podman
-actually pulled is always inspectable after the fact (`podman inspect
-penge-api --format '{{.Image}}'`), so no separate record-keeping step is
-needed for audit. Rollback (see Consequences below) uses the immutable
-`:<commit-sha>` tag instead: editing `Image=` to a specific `:<sha>` and
-restarting pins the container to that exact reviewed build until the
-quadlet is switched back to `:main`.
+pinning it to a digest would disable auto-update entirely. An
+`ExecStartPost` step resolves the container's actual running image
+(`podman inspect penge-api --format '{{.Image}}'`, then `podman image
+inspect <that id> --format '{{.Digest}}'`) and logs it to the unit's
+journal on every start, so the digest that was actually deployed is always
+recorded, not just inspectable after the fact. Rollback (see Consequences
+below) pins `Image=` to that recorded manifest digest
+(`ghcr.io/autoditac/penge/api@sha256:<digest>`) instead of a tag: a digest
+is immutable and exact, whereas a `:<commit-sha>` tag from `release.yml`
+would only exist for tagged releases and could not point at an arbitrary
+`main` build. Editing `Image=` to the pinned digest and restarting freezes
+the container on that exact build (and incidentally halts auto-update,
+since a digest never changes) until the quadlet is switched back to
+`:main`.
 
 **Update (implementation, #229):** GHCR packages inherit their visibility
 from the repository, and `autoditac/Penge` is public, so
@@ -131,8 +143,9 @@ of scope for #229 and can be a later follow-up if desired.
   minutes, without waiting for a release.
 - The NAS converges to the latest `main` image automatically via existing
   `podman-auto-update` machinery — no new runner or webhook to maintain.
-- Rollback is a one-line quadlet edit (pin to a prior commit-sha tag) plus
-  `systemctl restart`, with no rebuild needed.
+- Rollback is a one-line quadlet edit (pin `Image=` to a prior digest
+  recorded in the unit's journal log) plus `systemctl restart`, with no
+  rebuild needed.
 - Release publishing keeps working unchanged for anyone tracking version
   tags instead of `main`.
 

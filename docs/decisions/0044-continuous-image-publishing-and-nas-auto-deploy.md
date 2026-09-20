@@ -39,7 +39,8 @@ reviewed, they just aren't tagged as a release.
   instead of inventing a second one.
 - Prefer the NAS's existing `podman-auto-update.timer` machinery over adding
   a bespoke deploy runner or webhook receiver.
-- Rollback must stay possible without re-triggering CI (pin by digest).
+- Rollback must stay possible without re-triggering CI (pin the quadlet to
+  an immutable `:<commit-sha>` tag, temporarily overriding auto-update).
 
 ## Considered Options
 
@@ -62,7 +63,16 @@ GHCR (#229, follow-up PR).
 `ci.yml` gains a `publish-images` job, gated with
 `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, so it
 never runs for `pull_request` events (forked PRs never gain
-`packages: write`). It mirrors `release.yml`'s `images` job: Buildx build,
+`packages: write`). It `needs` every other push-triggered job in `ci.yml`
+(lint, gitleaks, bootstrap smoke, WebUI build, container image build
+verification, Alembic round-trip, pytest). `dbt build (smoke)` and
+`Build (mkdocs --strict)` run as separate workflow files (`dbt.yml`,
+`docs.yml`), which `needs` cannot reach across workflow boundaries; a new
+`external-checks-gate` job polls the commit's check-runs via the GitHub API
+for those two checks (skipping `dbt build (smoke)` when the push didn't
+touch a path that triggers `dbt.yml`) and fails if either concludes
+anything but `success`, before `publish-images` is allowed to `need` it too.
+It mirrors `release.yml`'s `images` job: Buildx build,
 SBOM request, GHCR push, and a build-provenance attestation for the pushed
 digest. Tags are `:main` (moving, "latest known-good") and `:<commit-sha>`
 (immutable, used for rollback and for pinning the NAS quadlet).
@@ -73,18 +83,26 @@ attestation, for consumers who want a stable version number rather than
 tracking `main`.
 
 Follow-up work (#229) will update the NAS `penge-api.container` quadlet to
-reference `ghcr.io/autoditac/penge/api:main`, pinned to a specific digest at
-deploy time, with `AutoUpdate=registry` so `podman-auto-update.timer`
-(already enabled, currently a no-op) picks up new digests automatically.
-GHCR pull credentials for the NAS will be a fine-grained PAT with
-`read:packages` only, stored in the podman system auth file on the NAS —
-never in the repository. This PR only adds the publish side (`ci.yml`); no
-quadlet or NAS configuration changes are included here, and the NAS remains
-on its current manual/local-image deploy process until #229 lands. The
-WebUI is currently served as static files from `/var/www/penge` by the
-host's own nginx, not from the containerized image; bringing it onto the
-same registry-pull path is out of scope for #229 and can be a later
-follow-up if desired.
+reference `ghcr.io/autoditac/penge/api:main` with `AutoUpdate=registry`, so
+`podman-auto-update.timer` (already enabled, currently a no-op) resolves
+`:main` to its current digest on each poll and restarts the container when
+it changes. The `Image=` line intentionally stays on the moving `:main` tag
+-- that is what gives `AutoUpdate=registry` something to compare against;
+pinning it to a digest would disable auto-update entirely. The digest podman
+actually pulled is always inspectable after the fact (`podman inspect
+penge-api --format '{{.Image}}'`), so no separate record-keeping step is
+needed for audit. Rollback (see Consequences below) uses the immutable
+`:<commit-sha>` tag instead: editing `Image=` to a specific `:<sha>` and
+restarting pins the container to that exact reviewed build until the
+quadlet is switched back to `:main`. GHCR pull credentials for the NAS will
+be a fine-grained PAT with `read:packages` only, stored in the podman system
+auth file on the NAS -- never in the repository. This PR only adds the
+publish side (`ci.yml`); no quadlet or NAS configuration changes are
+included here, and the NAS remains on its current manual/local-image deploy
+process until #229 lands. The WebUI is currently served as static files
+from `/var/www/penge` by the host's own nginx, not from the containerized
+image; bringing it onto the same registry-pull path is out of scope for that
+issue and can be a later follow-up if desired.
 
 ## Consequences
 

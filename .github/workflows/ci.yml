@@ -176,17 +176,86 @@ jobs:
           docker run --rm penge/api:ci \
             python -c "import penge.api.app; print('api import OK')"
 
+  external-checks-gate:
+    name: Wait for dbt/docs checks
+    # dbt build and docs build run as separate workflows (dbt.yml, docs.yml)
+    # triggered by the same push, so `needs:` here can't see them directly
+    # -- GitHub Actions `needs` only spans jobs within one workflow file.
+    # Poll the commit's check-runs instead so publish-images genuinely
+    # waits on every push-triggered workflow, not just this one.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      checks: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Determine which checks were actually triggered
+        id: filter
+        run: |
+          set -euo pipefail
+          # docs.yml's `push` trigger has no path filter, so it always
+          # runs. dbt.yml's `push` trigger is path-filtered (dbt/**,
+          # migrations/**, pyproject.toml, uv.lock, its own workflow
+          # file) -- mirror that filter here so we don't wait forever
+          # for a check-run that GitHub never scheduled.
+          required=("Build (mkdocs --strict)")
+          if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
+              | grep -qE '^(dbt/|migrations/|pyproject\.toml$|uv\.lock$|\.github/workflows/dbt\.yml$)'; then
+            required+=("dbt build (smoke)")
+          fi
+          printf '%s\n' "${required[@]}" > required-checks.txt
+          echo "Required checks for this push:"
+          cat required-checks.txt
+
+      - name: Wait for dbt and docs workflows to succeed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          deadline=$(( $(date +%s) + 900 ))
+          while IFS= read -r name; do
+            echo "Waiting for check run: $name"
+            while true; do
+              run_json=$(gh api "repos/$REPO/commits/$SHA/check-runs" \
+                --jq "[.check_runs[] | select(.name == \"$name\")] | sort_by(.started_at) | last")
+              status=$(jq -r '.status // "missing"' <<<"$run_json")
+              conclusion=$(jq -r '.conclusion // "null"' <<<"$run_json")
+              if [ "$status" = "completed" ]; then
+                if [ "$conclusion" != "success" ]; then
+                  echo "::error::Required check '$name' concluded '$conclusion'"
+                  exit 1
+                fi
+                echo "Check '$name' succeeded."
+                break
+              fi
+              if [ "$(date +%s)" -ge "$deadline" ]; then
+                echo "::error::Timed out waiting for '$name' (last status: $status)"
+                exit 1
+              fi
+              sleep 15
+            done
+          done < required-checks.txt
+
   publish-images:
     name: Publish image (${{ matrix.app }})
     # Only merges to `main` produce a deployable artifact; PR builds stay
     # verification-only (see the `container-images` job above), so forked
     # PRs never gain package-write credentials. See ADR-0044.
     #
-    # `needs` lists every push-triggered validation job (all jobs except
-    # `pr-title`, which is PR-only and would be reported "skipped" -- and
-    # therefore not "success" -- on a push run). This is the actual
-    # CI-green gate: a lint, test, or build failure anywhere blocks the
-    # publish, matching the review bar this ADR-0044 relies on.
+    # `needs` lists every push-triggered validation job in this workflow
+    # (all jobs except `pr-title`, which is PR-only and would be reported
+    # "skipped" -- and therefore not "success" -- on a push run), plus
+    # `external-checks-gate`, which polls the sibling dbt/docs workflows
+    # that `needs` cannot reach directly. This is the actual CI-green
+    # gate: a lint, test, or build failure anywhere blocks the publish,
+    # matching the review bar this ADR-0044 relies on.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - lint-markdown
@@ -197,6 +266,7 @@ jobs:
       - container-images
       - alembic-roundtrip
       - pytest
+      - external-checks-gate
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 20
     permissions:

@@ -70,6 +70,7 @@ describe("AccountOverview", () => {
     renderWithTheme(<AccountOverview accounts={accounts} points={points} />);
 
     expect(screen.getByRole("table", { name: "Tracked accounts" })).toBeInTheDocument();
+    expect(screen.queryByRole("columnheader", { name: "Provider" })).not.toBeInTheDocument();
     expect(screen.getByText("••••1234")).toBeInTheDocument();
     expect(screen.getByLabelText("IBAN not applicable")).toBeInTheDocument();
     expect(screen.getByLabelText(/Increased by.*250.*since 2026-02-28/)).toBeInTheDocument();

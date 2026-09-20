@@ -383,7 +383,6 @@ export function AccountOverview({ accounts, points }: AccountOverviewProps): Rea
             <tr>
               <th scope="col">Account</th>
               <th scope="col">Owner</th>
-              <th scope="col">Provider</th>
               <th scope="col">Kind</th>
               <th scope="col">IBAN</th>
               <th scope="col" className="num">
@@ -401,7 +400,6 @@ export function AccountOverview({ accounts, points }: AccountOverviewProps): Rea
                 <tr key={account.account_id}>
                   <td>{account.name}</td>
                   <td>{account.entity_name}</td>
-                  <td>{account.provider}</td>
                   <td>{account.kind}</td>
                   <td className="mono">
                     {account.iban_masked === "" ? (

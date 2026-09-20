@@ -3485,7 +3485,10 @@ before the runner accepts more work.
 Each matrix job also uses a run-unique <code>DOCKER_CONFIG</code> directory under <code>/tmp</code>.
 The runner services share an operating-system user, so this prevents one
 concurrent job's login-action cleanup from removing another job's GHCR
-credentials during provenance upload.</p>
+credentials during provenance upload.
+Because <code>actions/attest</code> currently reads only <code>$HOME/.docker/config.json</code>, the
+workflow copies that isolated config into a step-local HOME immediately before
+attestation.</p>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>

@@ -10,29 +10,31 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/terms/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/runbook/nas-deploy/">
       
       
-        <link rel="prev" href="../privacy/">
+        <link rel="prev" href="../container-images/">
       
+      
+        <link rel="next" href="../abis-yearly-refresh/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Terms - Penge</title>
+        <title>NAS deploy and rollback - Penge</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -51,7 +53,7 @@
       
     
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -76,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#terms-of-service" class="md-skip">
+        <a href="#nas-deploy-and-rollback" class="md-skip">
           Skip to content
         </a>
       
@@ -92,7 +94,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-header__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -112,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Terms
+              NAS deploy and rollback
             
           </span>
         </div>
@@ -228,7 +230,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
+    <a href="../.." title="Penge" class="md-nav__button md-logo" aria-label="Penge" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
@@ -258,7 +260,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -308,7 +310,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../architecture/" class="md-nav__link ">
+            <a href="../../architecture/" class="md-nav__link ">
               
   
   
@@ -395,7 +397,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../connectors/" class="md-nav__link ">
+            <a href="../../connectors/" class="md-nav__link ">
               
   
   
@@ -439,7 +441,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/ecb_fx/" class="md-nav__link">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
         
   
   
@@ -467,7 +469,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/gls/" class="md-nav__link">
+      <a href="../../connectors/gls/" class="md-nav__link">
         
   
   
@@ -495,7 +497,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/evangelische-bank/" class="md-nav__link">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
         
   
   
@@ -523,7 +525,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/lunar/" class="md-nav__link">
+      <a href="../../connectors/lunar/" class="md-nav__link">
         
   
   
@@ -551,7 +553,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/growney/" class="md-nav__link">
+      <a href="../../connectors/growney/" class="md-nav__link">
         
   
   
@@ -579,7 +581,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/pfa/" class="md-nav__link">
+      <a href="../../connectors/pfa/" class="md-nav__link">
         
   
   
@@ -607,7 +609,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/nordnet/" class="md-nav__link">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
         
   
   
@@ -635,7 +637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/abis/" class="md-nav__link">
+      <a href="../../connectors/abis/" class="md-nav__link">
         
   
   
@@ -663,7 +665,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../connectors/manual/" class="md-nav__link">
+      <a href="../../connectors/manual/" class="md-nav__link">
         
   
   
@@ -756,7 +758,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../dbt/" class="md-nav__link">
+      <a href="../../dbt/" class="md-nav__link">
         
   
   
@@ -784,7 +786,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../analytics/returns/" class="md-nav__link">
+      <a href="../../analytics/returns/" class="md-nav__link">
         
   
   
@@ -844,7 +846,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../api/" class="md-nav__link ">
+            <a href="../../api/" class="md-nav__link ">
               
   
   
@@ -886,7 +888,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../web/modern-webui/" class="md-nav__link">
+      <a href="../../web/modern-webui/" class="md-nav__link">
         
   
   
@@ -979,7 +981,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../mcp/tools/" class="md-nav__link">
+      <a href="../../mcp/tools/" class="md-nav__link">
         
   
   
@@ -1084,7 +1086,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/personas/" class="md-nav__link">
+      <a href="../../sim/personas/" class="md-nav__link">
         
   
   
@@ -1112,7 +1114,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/user-stories/" class="md-nav__link">
+      <a href="../../sim/user-stories/" class="md-nav__link">
         
   
   
@@ -1140,7 +1142,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/return-model/" class="md-nav__link">
+      <a href="../../sim/return-model/" class="md-nav__link">
         
   
   
@@ -1168,7 +1170,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/assumptions/" class="md-nav__link">
+      <a href="../../sim/assumptions/" class="md-nav__link">
         
   
   
@@ -1196,7 +1198,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/registry/" class="md-nav__link">
+      <a href="../../sim/registry/" class="md-nav__link">
         
   
   
@@ -1224,7 +1226,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/snapshot/" class="md-nav__link">
+      <a href="../../sim/snapshot/" class="md-nav__link">
         
   
   
@@ -1252,7 +1254,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/spending/" class="md-nav__link">
+      <a href="../../sim/spending/" class="md-nav__link">
         
   
   
@@ -1280,7 +1282,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../sim/planning-outputs/" class="md-nav__link">
+      <a href="../../sim/planning-outputs/" class="md-nav__link">
         
   
   
@@ -1375,7 +1377,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/dk/" class="md-nav__link">
+      <a href="../../tax/dk/" class="md-nav__link">
         
   
   
@@ -1403,7 +1405,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/de/" class="md-nav__link">
+      <a href="../../tax/de/" class="md-nav__link">
         
   
   
@@ -1431,7 +1433,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../tax/dk-refresh-checklist/" class="md-nav__link">
+      <a href="../../tax/dk-refresh-checklist/" class="md-nav__link">
         
   
   
@@ -1463,8 +1465,10 @@
       
   
   
+    
   
   
+  
     
     
       
@@ -1501,11 +1505,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
           
           <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
@@ -1526,7 +1530,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1544,7 +1548,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/monthly-ritual/" class="md-nav__link">
+      <a href="../monthly-ritual/" class="md-nav__link">
         
   
   
@@ -1572,7 +1576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/monthly-report/" class="md-nav__link">
+      <a href="../monthly-report/" class="md-nav__link">
         
   
   
@@ -1600,7 +1604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/enable-banking-consent/" class="md-nav__link">
+      <a href="../enable-banking-consent/" class="md-nav__link">
         
   
   
@@ -1628,7 +1632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/web/" class="md-nav__link">
+      <a href="../web/" class="md-nav__link">
         
   
   
@@ -1656,7 +1660,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/container-images/" class="md-nav__link">
+      <a href="../container-images/" class="md-nav__link">
         
   
   
@@ -1681,10 +1685,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../runbook/nas-deploy/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NAS deploy and rollback
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1700,6 +1731,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#applying-a-quadlet-change" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Applying a quadlet change
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#manual-immediate-update" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual / immediate update
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#finding-the-running-digest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Finding the running digest
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-coordination" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration coordination
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rollback
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1712,7 +1840,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/abis-yearly-refresh/" class="md-nav__link">
+      <a href="../abis-yearly-refresh/" class="md-nav__link">
         
   
   
@@ -1740,7 +1868,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/branch-protection/" class="md-nav__link">
+      <a href="../branch-protection/" class="md-nav__link">
         
   
   
@@ -1768,7 +1896,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/vault-watcher/" class="md-nav__link">
+      <a href="../vault-watcher/" class="md-nav__link">
         
   
   
@@ -1796,7 +1924,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/healthchecks/" class="md-nav__link">
+      <a href="../healthchecks/" class="md-nav__link">
         
   
   
@@ -1824,7 +1952,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/backup-restore/" class="md-nav__link">
+      <a href="../backup-restore/" class="md-nav__link">
         
   
   
@@ -1852,7 +1980,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../runbook/restore-log/" class="md-nav__link">
+      <a href="../restore-log/" class="md-nav__link">
         
   
   
@@ -1984,7 +2112,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../decisions/" class="md-nav__link ">
+            <a href="../../decisions/" class="md-nav__link ">
               
   
   
@@ -2028,7 +2156,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -2056,7 +2184,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -2084,7 +2212,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -2112,7 +2240,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -2140,7 +2268,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2168,7 +2296,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2196,7 +2324,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2224,7 +2352,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2252,7 +2380,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2280,7 +2408,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0010-sim-return-model/" class="md-nav__link">
+      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2308,7 +2436,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2336,7 +2464,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0012-sim-goal-model/" class="md-nav__link">
+      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2364,7 +2492,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2392,7 +2520,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2420,7 +2548,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2448,7 +2576,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2476,7 +2604,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2504,7 +2632,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2532,7 +2660,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2560,7 +2688,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0020-skat-report-generator/" class="md-nav__link">
+      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2588,7 +2716,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2616,7 +2744,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2644,7 +2772,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2672,7 +2800,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0024-vault-layout/" class="md-nav__link">
+      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2700,7 +2828,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0025-encrypted-backups/" class="md-nav__link">
+      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2728,7 +2856,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2756,7 +2884,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2784,7 +2912,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -2812,7 +2940,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -2840,7 +2968,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0034-application-container-images/" class="md-nav__link">
+      <a href="../../decisions/0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -2868,7 +2996,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0035-fastapi-read-api/" class="md-nav__link">
+      <a href="../../decisions/0035-fastapi-read-api/" class="md-nav__link">
         
   
   
@@ -2896,7 +3024,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0036-webui-frontend-stack/" class="md-nav__link">
+      <a href="../../decisions/0036-webui-frontend-stack/" class="md-nav__link">
         
   
   
@@ -2924,7 +3052,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0037-staged-import-sessions/" class="md-nav__link">
+      <a href="../../decisions/0037-staged-import-sessions/" class="md-nav__link">
         
   
   
@@ -2952,7 +3080,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+      <a href="../../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
         
   
   
@@ -2980,7 +3108,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0039-returns-engine-twr-mwr/" class="md-nav__link">
+      <a href="../../decisions/0039-returns-engine-twr-mwr/" class="md-nav__link">
         
   
   
@@ -3008,7 +3136,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
+      <a href="../../decisions/0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
         
   
   
@@ -3036,7 +3164,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../decisions/adr-template/" class="md-nav__link">
+      <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
   
@@ -3071,7 +3199,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../privacy/" class="md-nav__link">
+      <a href="../../privacy/" class="md-nav__link">
         
   
   
@@ -3095,37 +3223,10 @@
       
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Terms
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../terms/" class="md-nav__link">
         
   
   
@@ -3141,92 +3242,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#1-scope" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Scope
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-use" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Use
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-data-access-via-enable-banking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Data access via Enable Banking
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-liability" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Liability
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5-changes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Changes
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6-contact" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Contact
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -3258,10 +3273,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#1-scope" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Scope
+        How it works
       
     </span>
   </a>
@@ -3269,10 +3284,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#2-use" class="md-nav__link">
+  <a href="#applying-a-quadlet-change" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2. Use
+        Applying a quadlet change
       
     </span>
   </a>
@@ -3280,10 +3295,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#3-data-access-via-enable-banking" class="md-nav__link">
+  <a href="#manual-immediate-update" class="md-nav__link">
     <span class="md-ellipsis">
       
-        3. Data access via Enable Banking
+        Manual / immediate update
       
     </span>
   </a>
@@ -3291,10 +3306,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-liability" class="md-nav__link">
+  <a href="#finding-the-running-digest" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Liability
+        Finding the running digest
       
     </span>
   </a>
@@ -3302,10 +3317,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-changes" class="md-nav__link">
+  <a href="#migration-coordination" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Changes
+        Migration coordination
       
     </span>
   </a>
@@ -3313,10 +3328,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-contact" class="md-nav__link">
+  <a href="#rollback" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6. Contact
+        Rollback
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope
       
     </span>
   </a>
@@ -3340,7 +3366,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/terms.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/runbook/nas-deploy.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3348,41 +3374,123 @@
   
 
 
-<h1 id="terms-of-service">Terms of Service<a class="headerlink" href="#terms-of-service" title="Permanent link">&para;</a></h1>
-<p><strong>Service:</strong> Penge</p>
-<p><strong>Operator:</strong> autoditac (private individual)</p>
-<p><strong>Last updated:</strong> 2026-05-12</p>
-<h2 id="1-scope">1. Scope<a class="headerlink" href="#1-scope" title="Permanent link">&para;</a></h2>
-<p>Penge is a <strong>self-hosted, single-user personal finance tool</strong> operated
-exclusively for the private use of its owner. It is not offered to the
-general public and has no users other than the operator.</p>
-<p>These terms exist solely to satisfy the registration requirements of
-third-party API providers (Enable Banking AG) and do not constitute a
-commercial offering.</p>
-<h2 id="2-use">2. Use<a class="headerlink" href="#2-use" title="Permanent link">&para;</a></h2>
-<p>The software is used by the operator for personal net-worth tracking and
-long-term financial planning. No commercial activity is conducted via
-Penge. No financial advice, investment recommendations, or payment
-initiation services are provided to any third party.</p>
-<h2 id="3-data-access-via-enable-banking">3. Data access via Enable Banking<a class="headerlink" href="#3-data-access-via-enable-banking" title="Permanent link">&para;</a></h2>
-<p>Penge uses Enable Banking's PSD2 AISP interface to fetch read-only
-account data for accounts held by the operator at GLS Bank (DE),
-Evangelische Bank (DE), and Lunar (DK). Access is subject to:</p>
+<h1 id="nas-deploy-and-rollback">NAS deploy and rollback<a class="headerlink" href="#nas-deploy-and-rollback" title="Permanent link">&para;</a></h1>
+<p>How the <code>penge-api</code> container on the NAS (<code>penge.eigmueller.de</code>) stays current
+with <code>main</code>, and how to roll it back.
+See <a href="../../decisions/0044-continuous-image-publishing-and-nas-auto-deploy/">ADR-0044</a>
+for the design rationale.</p>
+<h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<p>Every merge to <code>main</code> publishes <code>ghcr.io/autoditac/penge/api:main</code> and
+<code>ghcr.io/autoditac/penge/api:&lt;commit-sha&gt;</code> (see the
+<a href="../container-images/">container images runbook</a>).</p>
+<p>The NAS quadlet at <code>/etc/containers/systemd/penge-api.container</code> (tracked in
+this repo at <code>deploy/nas/penge-api.container</code>) references the moving
+<code>:main</code> tag and carries <code>AutoUpdate=registry</code>.</p>
+<p><code>podman-auto-update.timer</code> (already enabled on the NAS, runs daily) resolves
+<code>:main</code> to its current digest on each poll.
+If the digest changed, it pulls the new image, restarts the container, and
+watches the <code>HealthCmd</code> result.
+An unhealthy new container is rolled back automatically to the previous
+image; a healthy one stays.
+(<code>Notify=healthy</code> in the quadlet makes systemd — and therefore
+<code>podman-auto-update</code>'s success/rollback decision — wait for the first
+<code>HealthCmd</code> result before treating a restart as started; without it,
+Quadlet's default readiness signal fires as soon as the container process
+starts, before health is known.)</p>
+<p>Every (re)start, including auto-update-triggered ones, appends a
+timestamped record of the digest that ended up running to the unit's
+journal (<code>ExecStartPost</code> in the quadlet) — see "Finding the running
+digest" below. This is the deploy log required for reproducibility: which
+digest ran, and since when.</p>
+<p>The GHCR packages (<code>penge/api</code>, <code>penge/web</code>) inherit public visibility from
+the public <code>autoditac/Penge</code> repository, so the NAS pulls anonymously — no
+registry credential is stored or rotated on the NAS for this path.
+If the repository or its packages are ever made private, a read-only,
+<code>read:packages</code>-scoped fine-grained PAT would need to be added to the
+system's <code>containers-auth.json</code> (<code>podman login ghcr.io</code>); this is not
+required today.</p>
+<h2 id="applying-a-quadlet-change">Applying a quadlet change<a class="headerlink" href="#applying-a-quadlet-change" title="Permanent link">&para;</a></h2>
+<ol>
+<li>Edit <code>deploy/nas/penge-api.container</code> in this repo, open a PR, get it
+   reviewed and merged (same DoD as any other change).</li>
+<li>Copy the merged file to the NAS as
+   <code>/etc/containers/systemd/penge-api.container</code> (root-owned).</li>
+<li><code>systemctl daemon-reload</code></li>
+<li><code>systemctl restart penge-api.service</code></li>
+<li>Confirm health:
+   <code>podman inspect penge-api --format '{{.State.Health.Status}}'</code></li>
+</ol>
+<h2 id="manual-immediate-update">Manual / immediate update<a class="headerlink" href="#manual-immediate-update" title="Permanent link">&para;</a></h2>
+<p>To pull the current <code>:main</code> image right away instead of waiting for the
+daily timer:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>podman<span class="w"> </span>auto-update
+</code></pre></div>
+<p>Use <code>sudo podman auto-update --dry-run</code> first to see what <em>would</em> update
+without making changes.</p>
+<h2 id="finding-the-running-digest">Finding the running digest<a class="headerlink" href="#finding-the-running-digest" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code>journalctl<span class="w"> </span>-u<span class="w"> </span>penge-api.service<span class="w"> </span>-g<span class="w"> </span><span class="s1">'digest='</span><span class="w"> </span>--no-pager<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20
+</code></pre></div>
+<p>Each line looks like:</p>
+<div class="highlight"><pre><span></span><code>penge-api deploy: 2026-09-20T11:55:18+02:00 digest=sha256:978cb42eb7e4bb7639bca66496171bd430748ee1114d6740621f1a16c47a3d6b
+</code></pre></div>
+<p>The digest is the exact, immutable manifest digest GHCR resolved <code>:main</code> to
+at that moment — it identifies the build precisely, independent of any tag
+ever being reused or repointed.</p>
+<h2 id="migration-coordination">Migration coordination<a class="headerlink" href="#migration-coordination" title="Permanent link">&para;</a></h2>
+<p>Auto-deploy only replaces the <code>penge-api</code> container image; it never runs
+Alembic. A merge that changes both the schema and the API in the same PR
+can therefore roll out to the NAS <strong>before</strong> its migration has been
+applied, because the image update and the DB migration are not gated on
+each other.</p>
+<p><strong>Contract:</strong> any PR that requires a new migration to be applied before its
+API changes can run correctly must not rely on auto-deploy ordering.
+Instead:</p>
 <ul>
-<li>The operator's active consent (PSU = operator = data subject).</li>
-<li>Enable Banking's <a href="https://enablebanking.com/terms/">Terms of Service</a>.</li>
-<li>The applicable PSD2 regulations (EU Directive 2015/2366).</li>
+<li>Prefer the expand/contract pattern: land the migration (additive,
+  backward-compatible with the <em>currently deployed</em> API) in its own PR
+  first, apply it to the NAS (see below), confirm the running <code>:main</code>
+  image still works against the new schema, and only then merge the PR
+  that starts relying on it. Drop/narrow migrations (the "contract" step)
+  follow once no deployed image reads the old shape anymore.</li>
+<li>If a single PR cannot reasonably be split that way, apply the migration
+  to the NAS <strong>manually, before merging</strong>, using the workstation-over-SSH-tunnel
+  method already documented in the
+  <a href="../enable-banking-consent/">Enable Banking consent runbook</a> (<code>DATABASE_URL=... uv run --group db alembic upgrade head</code>
+  against the tunnelled NAS Postgres) -- the NAS has no repo checkout to
+  run Alembic locally.</li>
 </ul>
-<p>No payment initiation (PIS) is used or intended.</p>
-<h2 id="4-liability">4. Liability<a class="headerlink" href="#4-liability" title="Permanent link">&para;</a></h2>
-<p>Penge is provided as-is for personal use. The operator assumes all
-responsibility for the accuracy of financial calculations and the
-security of locally stored data. No warranty is given.</p>
-<h2 id="5-changes">5. Changes<a class="headerlink" href="#5-changes" title="Permanent link">&para;</a></h2>
-<p>These terms may be updated at any time. The <code>Last updated</code> date above
-reflects the most recent revision.</p>
-<h2 id="6-contact">6. Contact<a class="headerlink" href="#6-contact" title="Permanent link">&para;</a></h2>
-<p><a href="https://github.com/autoditac/Penge">https://github.com/autoditac/Penge</a></p>
+<p>This is a manual, reviewed step by design: schema changes already require
+a working <code>downgrade()</code> and (for destructive changes) an ADR per
+<code>.github/instructions/migrations.instructions.md</code>; adding unattended
+migration execution to the auto-update path would let an unreviewed
+schema change run against production with no human in the loop, which is
+a larger change warranting its own ADR if ever pursued.</p>
+<h2 id="rollback">Rollback<a class="headerlink" href="#rollback" title="Permanent link">&para;</a></h2>
+<p>Auto-update already rolls back automatically on a failed health check (see
+above).
+For a manual rollback — e.g. <code>:main</code> is healthy but produces wrong
+application behaviour — pin the quadlet directly to the last known-good
+<strong>digest</strong> from the journal (not a tag, so no lookup or guesswork is
+needed):</p>
+<ol>
+<li>Find the last known-good digest with the <code>journalctl</code> command above
+   (the entry from before the bad deploy).</li>
+<li>On the NAS, edit <code>/etc/containers/systemd/penge-api.container</code> and change
+   <code>Image=ghcr.io/autoditac/penge/api:main</code> to
+   <code>Image=ghcr.io/autoditac/penge/api@&lt;digest&gt;</code> (e.g.
+   <code>ghcr.io/autoditac/penge/api@sha256:978cb42e...</code>).</li>
+<li><code>systemctl daemon-reload &amp;&amp; systemctl restart penge-api.service</code></li>
+</ol>
+<p>Pinning to a digest also <strong>stops</strong> <code>AutoUpdate=registry</code> from doing
+anything further (a fixed digest never changes), which is exactly what you
+want while investigating a bad release.
+Revert <code>Image=</code> back to <code>:main</code> (and reload/restart) once the fix has
+merged and republished, to resume automatic updates.</p>
+<h2 id="scope">Scope<a class="headerlink" href="#scope" title="Permanent link">&para;</a></h2>
+<p>This covers the <code>penge-api</code> container only.
+The WebUI is currently served as static files from <code>/var/www/penge</code> by the
+host's own nginx, not from the <code>penge/web</code> container image; bringing it onto
+the same auto-update path is a separate follow-up (see ADR-0044).</p>
 
 
 
@@ -3432,10 +3540,10 @@ reflects the most recent revision.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tracking", "navigation.sections", "navigation.indexes", "content.code.copy", "content.action.edit"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

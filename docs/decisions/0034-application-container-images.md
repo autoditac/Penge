@@ -101,9 +101,17 @@ This is useful for continuous deployment, but Penge currently follows a release
 workflow with explicit review and merge gates.
 Rejected for now to avoid unreviewed deployment artefacts.
 
+> **Update (2026-09-20):** [ADR-0044](0044-continuous-image-publishing-and-nas-auto-deploy.md)
+> revisits this rejection — every merge to `main` already passes the same
+> review bar as a release (CI green, Copilot review threads resolved), so
+> ADR-0044 adds a `main`-merge publish path alongside release publishing.
+> The rest of this ADR's design (Containerfiles, SBOM, provenance) is
+> unchanged.
+
 ## Links
 
 - [ADR-0033 Reporting-first React WebUI](0033-reporting-first-react-webui.md)
+- [ADR-0044 Continuous image publishing and NAS auto-deploy](0044-continuous-image-publishing-and-nas-auto-deploy.md)
 - [Container images runbook](../runbook/container-images.md)
 - `apps/web/Containerfile`
 - `.github/workflows/ci.yml`

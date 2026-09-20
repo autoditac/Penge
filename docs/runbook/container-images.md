@@ -8,7 +8,10 @@ apps/api/Containerfile   # FastAPI read API (uv-built virtualenv)
 ```
 
 CI builds application images on pull requests without pushing them.
-Published releases push images to GHCR and attach supply-chain metadata.
+Every merge to `main` publishes fresh `:main` and `:<commit-sha>` images to
+GHCR (see [ADR-0044](../decisions/0044-continuous-image-publishing-and-nas-auto-deploy.md)).
+Published releases additionally push `<release-tag>` images to GHCR and
+attach supply-chain metadata.
 
 ## Image names
 
@@ -87,9 +90,17 @@ Do not pass ad-hoc alternate build contexts that bypass this file.
 Never copy real statements, reports, backups, or local databases into image
 fixtures.
 
-## Release publishing
+## Merge and release publishing
 
-The release workflow pushes application images on:
+On every merge to `main`, the `publish-images` job in `.github/workflows/ci.yml`
+pushes:
+
+- `ghcr.io/autoditac/penge/<app>:main` (moving tag — always the latest
+  `main` build);
+- `ghcr.io/autoditac/penge/<app>:<commit-sha>` (immutable, used for pinning
+  and rollback).
+
+The release workflow additionally pushes application images on:
 
 - `release: published`
 - `workflow_dispatch`

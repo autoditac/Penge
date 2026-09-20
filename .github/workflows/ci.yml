@@ -3,6 +3,12 @@
 # All third-party actions are pinned to a full commit SHA, with the human-readable
 # version on a trailing comment. Dependabot keeps both in sync (see
 # `.github/dependabot.yml`).
+#
+# `container-images` builds every Containerfile on every PR and push, but
+# never pushes (`push: false`) -- verification only, safe for forked PRs.
+# `publish-images` re-builds and pushes to GHCR, but only runs on pushes to
+# `main` (never on `pull_request`), so it never runs with a fork's
+# credentials. See ADR-0044 for why merges to `main` now publish images.
 
 name: ci
 
@@ -169,6 +175,58 @@ jobs:
         run: |
           docker run --rm penge/api:ci \
             python -c "import penge.api.app; print('api import OK')"
+
+  publish-images:
+    name: Publish image (${{ matrix.app }})
+    # Only merges to `main` produce a deployable artifact; PR builds stay
+    # verification-only (see the `container-images` job above), so forked
+    # PRs never gain package-write credentials. See ADR-0044.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: container-images
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, api]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Login to GHCR
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Containerfile
+          push: true
+          sbom: true
+          # Provenance is recorded once, via the explicit
+          # actions/attest-build-provenance step below; BuildKit's
+          # built-in attestation would be a second, divergent record.
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:main
+            ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.sha }}
+
+      - name: Attest image provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
 
   alembic-roundtrip:
     name: Alembic round-trip

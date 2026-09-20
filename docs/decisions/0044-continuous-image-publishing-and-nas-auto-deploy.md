@@ -1,6 +1,6 @@
 # 0044 — Continuous image publishing and NAS auto-deploy
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-20
 - **Deciders:** @autoditac
 - **Tags:** infra, security
@@ -40,7 +40,8 @@ reviewed, they just aren't tagged as a release.
 - Prefer the NAS's existing `podman-auto-update.timer` machinery over adding
   a bespoke deploy runner or webhook receiver.
 - Rollback must stay possible without re-triggering CI (pin the quadlet to
-  an immutable `:<commit-sha>` tag, temporarily overriding auto-update).
+  a previously-recorded manifest digest, temporarily overriding
+  auto-update).
 
 ## Considered Options
 
@@ -90,34 +91,49 @@ any of them does not mean the just-built images are wrong.
 `publish-images` mirrors `release.yml`'s `images` job: Buildx build,
 SBOM request, GHCR push, and a build-provenance attestation for the pushed
 digest. Tags are `:main` (moving, "latest known-good") and `:<commit-sha>`
-(immutable, used for rollback and for pinning the NAS quadlet).
+(immutable, useful for pinning to a specific reviewed commit). The NAS
+rollback path implemented in #229 pins to the recorded manifest digest
+instead (see the "Update (implementation, #229)" note below), since it is
+exact and does not depend on a `release.yml`-only tag existing for the
+build in question.
 
 The release workflow (`release.yml`) is unchanged: tagged releases still
 additionally publish `<release-tag>` and `<commit-sha>` images with the same
 attestation, for consumers who want a stable version number rather than
 tracking `main`.
 
-Follow-up work (#229) will update the NAS `penge-api.container` quadlet to
+Follow-up work (#229) updates the NAS `penge-api.container` quadlet to
 reference `ghcr.io/autoditac/penge/api:main` with `AutoUpdate=registry`, so
-`podman-auto-update.timer` (already enabled, currently a no-op) resolves
+`podman-auto-update.timer` (already enabled, previously a no-op) resolves
 `:main` to its current digest on each poll and restarts the container when
 it changes. The `Image=` line intentionally stays on the moving `:main` tag
 -- that is what gives `AutoUpdate=registry` something to compare against;
-pinning it to a digest would disable auto-update entirely. The digest podman
-actually pulled is always inspectable after the fact (`podman inspect
-penge-api --format '{{.Image}}'`), so no separate record-keeping step is
-needed for audit. Rollback (see Consequences below) uses the immutable
-`:<commit-sha>` tag instead: editing `Image=` to a specific `:<sha>` and
-restarting pins the container to that exact reviewed build until the
-quadlet is switched back to `:main`. GHCR pull credentials for the NAS will
-be a fine-grained PAT with `read:packages` only, stored in the podman system
-auth file on the NAS -- never in the repository. This PR only adds the
-publish side (`ci.yml`); no quadlet or NAS configuration changes are
-included here, and the NAS remains on its current manual/local-image deploy
-process until #229 lands. The WebUI is currently served as static files
-from `/var/www/penge` by the host's own nginx, not from the containerized
-image; bringing it onto the same registry-pull path is out of scope for that
-issue and can be a later follow-up if desired.
+pinning it to a digest would disable auto-update entirely. An
+`ExecStartPost` step resolves the container's actual running image
+(`podman inspect penge-api --format '{{.Image}}'`, then `podman image
+inspect <that id> --format '{{.Digest}}'`) and logs it to the unit's
+journal on every start, so the digest that was actually deployed is always
+recorded, not just inspectable after the fact. Rollback (see Consequences
+below) pins `Image=` to that recorded manifest digest
+(`ghcr.io/autoditac/penge/api@sha256:<digest>`) instead of a tag: a digest
+is immutable and exact, whereas a `:<commit-sha>` tag from `release.yml`
+would only exist for tagged releases and could not point at an arbitrary
+`main` build. Editing `Image=` to the pinned digest and restarting freezes
+the container on that exact build (and incidentally halts auto-update,
+since a digest never changes) until the quadlet is switched back to
+`:main`.
+
+**Update (implementation, #229):** GHCR packages inherit their visibility
+from the repository, and `autoditac/Penge` is public, so
+`ghcr.io/autoditac/penge/{api,web}` are pullable anonymously (verified with
+an unauthenticated `skopeo inspect`). The NAS therefore needs **no** GHCR
+credential for this pull path -- the fine-grained-PAT plan below was the
+default assumption before the images existed and publish visibility could
+be checked; it is kept here as the documented fallback if the repository or
+its packages are ever made private. The WebUI is currently served as static
+files from `/var/www/penge` by the host's own nginx, not from the
+containerized image; bringing it onto the same registry-pull path is out
+of scope for #229 and can be a later follow-up if desired.
 
 ## Consequences
 
@@ -127,8 +143,9 @@ issue and can be a later follow-up if desired.
   minutes, without waiting for a release.
 - The NAS converges to the latest `main` image automatically via existing
   `podman-auto-update` machinery — no new runner or webhook to maintain.
-- Rollback is a one-line quadlet edit (pin to a prior commit-sha tag) plus
-  `systemctl restart`, with no rebuild needed.
+- Rollback is a one-line quadlet edit (pin `Image=` to a prior digest
+  recorded in the unit's journal log) plus `systemctl restart`, with no
+  rebuild needed.
 - Release publishing keeps working unchanged for anyone tracking version
   tags instead of `main`.
 
@@ -137,12 +154,20 @@ issue and can be a later follow-up if desired.
 - `main` now always has a corresponding published image, increasing GHCR
   storage/quota usage over time (mitigated by GHCR's default retention and
   the option to prune old `:<sha>` tags later).
-- The NAS PAT is a new secret to rotate and audit outside the repository.
+- GHCR package visibility (public, inherited from the public repository) is
+  a soft dependency for anonymous NAS pulls; if it is ever tightened, a PAT
+  must be provisioned before the next auto-update poll (see the
+  implementation note above).
 - Auto-update means a merge to `main` reaches production without an
   explicit human "go" — mitigated by the existing pre-merge review bar
   (CI green + Copilot review threads resolved) being the actual gate now,
   matching how ADR-0034's "reviewed artefact" concern is already satisfied
   before merge.
+- Auto-update replaces the image only; it never runs Alembic. A PR that
+  needs its migration applied before its API changes work correctly must
+  not rely on deploy ordering -- see "Migration coordination" in the
+  [NAS deploy runbook](../runbook/nas-deploy.md) for the expand/contract
+  and manual-migration-before-merge contract this requires.
 
 ### Neutral
 
@@ -171,6 +196,8 @@ machinery that only needs a registry image to point at.
 
 - [ADR-0034 Application container images in CI and releases](0034-application-container-images.md)
 - [Container images runbook](../runbook/container-images.md)
+- [NAS deploy and rollback runbook](../runbook/nas-deploy.md)
 - `.github/workflows/ci.yml` (`publish-images` job)
 - `.github/workflows/release.yml`
+- `deploy/nas/penge-api.container` (tracked quadlet)
 - Issue #227, #228, #229

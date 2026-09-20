@@ -7,7 +7,12 @@ import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 
-import { useAccounts, useAllocation, useNetWorthByAccount, useNetWorthTotal } from "../api/queries";
+import {
+  useAccounts,
+  useAllocation,
+  useAllNetWorthByAccount,
+  useNetWorthTotal,
+} from "../api/queries";
 import type { AccountSummary, AllocationDimension, NetWorthPoint } from "../api/schemas";
 import { EChart } from "../components/EChart";
 import type { EChartOption } from "../components/EChart";
@@ -267,7 +272,7 @@ function AllocationBody({
 function AccountsSection(): React.JSX.Element {
   const accounts = useAccounts();
   const historyParams = useMemo(() => ({ since: isoDaysAgo(400), limit: 10_000 }), []);
-  const balances = useNetWorthByAccount(historyParams);
+  const balances = useAllNetWorthByAccount(historyParams);
 
   if (accounts.isPending || balances.isPending) {
     return <LoadingState label="accounts" />;

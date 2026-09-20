@@ -23,7 +23,18 @@ import {
 } from "../api/queries";
 import { EChart } from "../components/EChart";
 import type { EChartOption } from "../components/EChart";
-import { EmptyState, ErrorState, KpiCard, LoadingState, MoneyPair } from "../components/primitives";
+import {
+  EmptyState,
+  ErrorState,
+  KpiCard,
+  LoadingState,
+  MoneyPair,
+  PageHeader,
+  Panel,
+  Pill,
+  SegmentedControl,
+  TableScroll,
+} from "../components/primitives";
 import { liquidKinds, targetWeightsByKind } from "../config/targets";
 import { formatCompact, formatMoney, formatShare, isoDaysAgo, parseDecimal } from "../money";
 import { chartPalette, chartTextColor } from "../theme";
@@ -64,13 +75,10 @@ export function PerformancePage(): React.JSX.Element {
 
   return (
     <>
-      <section className="pageIntro">
-        <h1>Performance</h1>
-        <p>
-          Net-worth development, time- and money-weighted returns, benchmark comparison, savings
-          rate, and fee drag from the analytics marts (ADR-0039).
-        </p>
-      </section>
+      <PageHeader
+        title="Performance"
+        description="Net-worth development, time- and money-weighted returns, benchmark comparison, savings rate, and fee drag from the analytics marts (ADR-0039)."
+      />
       <KpiHeader />
       <TrendSection range={range} onRangeChange={setRange} />
       <ReturnsSection range={range} />
@@ -95,21 +103,12 @@ function RangeSelector({
   readonly onRangeChange: (range: RangeKey) => void;
 }): React.JSX.Element {
   return (
-    <div className="segmented" role="group" aria-label="History range">
-      {rangeKeys.map((key) => (
-        <button
-          key={key}
-          type="button"
-          className={key === range ? "segmentActive" : undefined}
-          aria-pressed={key === range}
-          onClick={() => {
-            onRangeChange(key);
-          }}
-        >
-          {key}
-        </button>
-      ))}
-    </div>
+    <SegmentedControl
+      options={rangeKeys.map((key) => ({ value: key, label: key }))}
+      value={range}
+      onChange={onRangeChange}
+      ariaLabel="History range"
+    />
   );
 }
 
@@ -280,14 +279,12 @@ function TrendSection({
   };
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Trend — {range === "All" ? "full history" : `last ${range}`}</p>
-          <h2>Net-worth development</h2>
-        </div>
+    <Panel
+      eyebrow={`Trend — ${range === "All" ? "full history" : `last ${range}`}`}
+      title="Net-worth development"
+      actions={
         <div className="kpiRow">
-          {truncated ? <span className="pill">window truncated — narrow the range</span> : null}
+          {truncated ? <Pill tone="watch">window truncated — narrow the range</Pill> : null}
           <KpiCard
             label="Max drawdown"
             tone={deepest !== null && deepest < -0.1 ? "watch" : "info"}
@@ -297,13 +294,14 @@ function TrendSection({
           </KpiCard>
           <RangeSelector range={range} onRangeChange={onRangeChange} />
         </div>
-      </div>
+      }
+    >
       <EChart
         option={option}
         height={460}
         ariaLabel="Zoomable net worth trend in DKK and EUR with drawdown shading"
       />
-    </section>
+    </Panel>
   );
 }
 
@@ -382,13 +380,11 @@ function SavingsRateSection(): React.JSX.Element {
   };
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Savings rate — last 24 months</p>
-          <h2>Monthly in/out and rolling savings rate (EUR leg)</h2>
-        </div>
-        {latestRate !== undefined ? (
+    <Panel
+      eyebrow="Savings rate — last 24 months"
+      title="Monthly in/out and rolling savings rate (EUR leg)"
+      actions={
+        latestRate !== undefined ? (
           <KpiCard
             label={`Rate ${latestRate.month}`}
             tone={latestRate.rate !== null && latestRate.rate < 0 ? "watch" : "good"}
@@ -396,14 +392,15 @@ function SavingsRateSection(): React.JSX.Element {
           >
             {formatShare(latestRate.rate)}
           </KpiCard>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
       <EChart
         option={option}
         height={300}
         ariaLabel="Monthly cashflow bars and rolling savings rate in EUR"
       />
-    </section>
+    </Panel>
   );
 }
 
@@ -477,46 +474,45 @@ function DriftSection({ range }: { readonly range: RangeKey }): React.JSX.Elemen
   };
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Allocation drift — EUR leg</p>
-          <h2>Asset-class weights over time</h2>
-        </div>
-        {truncated ? <span className="pill">window truncated — narrow the range</span> : null}
-      </div>
+    <Panel
+      eyebrow="Allocation drift — EUR leg"
+      title="Asset-class weights over time"
+      actions={truncated ? <Pill tone="watch">window truncated — narrow the range</Pill> : null}
+    >
       <EChart option={option} height={260} ariaLabel="Asset-class weights over time, EUR leg" />
-      <table className="dataTable">
-        <thead>
-          <tr>
-            <th scope="col">Asset kind</th>
-            <th scope="col" className="num">
-              Current
-            </th>
-            <th scope="col" className="num">
-              Target
-            </th>
-            <th scope="col" className="num">
-              Drift
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {drift.map((entry) => (
-            <tr key={entry.kind}>
-              <td>{entry.kind}</td>
-              <td className="num">{formatShare(entry.current)}</td>
-              <td className="num">{formatShare(entry.target)}</td>
-              <td className="num">{formatShare(entry.drift)}</td>
+      <TableScroll>
+        <table className="dataTable">
+          <thead>
+            <tr>
+              <th scope="col">Asset kind</th>
+              <th scope="col" className="num">
+                Current
+              </th>
+              <th scope="col" className="num">
+                Target
+              </th>
+              <th scope="col" className="num">
+                Drift
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {drift.map((entry) => (
+              <tr key={entry.kind}>
+                <td>{entry.kind}</td>
+                <td className="num">{formatShare(entry.current)}</td>
+                <td className="num">{formatShare(entry.target)}</td>
+                <td className="num">{formatShare(entry.drift)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
       <p className="footnote">
         Targets are documented planning defaults (<code>src/config/targets.ts</code>), not a
         persisted household setting yet.
       </p>
-    </section>
+    </Panel>
   );
 }
 
@@ -529,37 +525,23 @@ function DrilldownSection({ range }: { readonly range: RangeKey }): React.JSX.El
   const accounts = useAccounts();
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Drill-down — EUR leg</p>
-          <h2>Per-account and per-asset-class balances</h2>
-        </div>
-        <div className="segmented" role="group" aria-label="Drill-down dimension">
-          <button
-            type="button"
-            className={mode === "kind" ? "segmentActive" : undefined}
-            aria-pressed={mode === "kind"}
-            onClick={() => {
-              setMode("kind");
-            }}
-          >
-            Asset class
-          </button>
-          <button
-            type="button"
-            className={mode === "account" ? "segmentActive" : undefined}
-            aria-pressed={mode === "account"}
-            onClick={() => {
-              setMode("account");
-            }}
-          >
-            Accounts
-          </button>
-        </div>
-      </div>
+    <Panel
+      eyebrow="Drill-down — EUR leg"
+      title="Per-account and per-asset-class balances"
+      actions={
+        <SegmentedControl
+          options={[
+            { value: "kind", label: "Asset class" },
+            { value: "account", label: "Accounts" },
+          ]}
+          value={mode}
+          onChange={setMode}
+          ariaLabel="Drill-down dimension"
+        />
+      }
+    >
       <DrilldownBody mode={mode} netWorth={netWorth} accounts={accounts} />
-    </section>
+    </Panel>
   );
 }
 
@@ -641,26 +623,28 @@ function DrilldownBody({
         height={260}
         ariaLabel={`Balances over time by ${mode === "account" ? "account" : "asset class"}, EUR leg`}
       />
-      <table className="dataTable">
-        <thead>
-          <tr>
-            <th scope="col">{mode === "account" ? "Account" : "Asset kind"}</th>
-            <th scope="col" className="num">
-              Latest (EUR)
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {latestTotals.map((entry) => (
-            <tr key={entry.label}>
-              <td>{entry.label}</td>
-              <td className="num">
-                {entry.latest !== null ? formatMoney(entry.latest, "EUR") : "—"}
-              </td>
+      <TableScroll>
+        <table className="dataTable">
+          <thead>
+            <tr>
+              <th scope="col">{mode === "account" ? "Account" : "Asset kind"}</th>
+              <th scope="col" className="num">
+                Latest (EUR)
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {latestTotals.map((entry) => (
+              <tr key={entry.label}>
+                <td>{entry.label}</td>
+                <td className="num">
+                  {entry.latest !== null ? formatMoney(entry.latest, "EUR") : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
     </>
   );
 }
@@ -684,42 +668,28 @@ function ReturnsSection({ range }: { readonly range: RangeKey }): React.JSX.Elem
   const benchmark = useBenchmarkDaily(benchmarkId, benchmarkParams);
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Returns — {range === "All" ? "full history" : `last ${range}`}</p>
-          <h2>Time-weighted return (index, start = 100)</h2>
-        </div>
+    <Panel
+      eyebrow={`Returns — ${range === "All" ? "full history" : `last ${range}`}`}
+      title="Time-weighted return (index, start = 100)"
+      actions={
         <div className="kpiRow">
-          <div className="segmented" role="group" aria-label="Returns scope">
-            <button
-              type="button"
-              className={scope === "asset_class" ? "segmentActive" : undefined}
-              aria-pressed={scope === "asset_class"}
-              onClick={() => {
-                setScope("asset_class");
-              }}
-            >
-              Asset class
-            </button>
-            <button
-              type="button"
-              className={scope === "account" ? "segmentActive" : undefined}
-              aria-pressed={scope === "account"}
-              onClick={() => {
-                setScope("account");
-              }}
-            >
-              Accounts
-            </button>
-          </div>
+          <SegmentedControl
+            options={[
+              { value: "asset_class", label: "Asset class" },
+              { value: "account", label: "Accounts" },
+            ]}
+            value={scope}
+            onChange={setScope}
+            ariaLabel="Returns scope"
+          />
           <BenchmarkPicker
             benchmarks={benchmarks.data ?? []}
             selected={benchmarkId}
             onSelect={setBenchmarkId}
           />
         </div>
-      </div>
+      }
+    >
       <HouseholdSummaryCards summary={summary} />
       <ReturnsChart
         returns={returns}
@@ -735,7 +705,7 @@ function ReturnsSection({ range }: { readonly range: RangeKey }): React.JSX.Elem
         Benchmark lines are price indexes in the instrument&apos;s native currency — growth shape
         comparison only, currency effects are not removed.
       </p>
-    </section>
+    </Panel>
   );
 }
 
@@ -970,13 +940,11 @@ function ContributionSection({ range }: { readonly range: RangeKey }): React.JSX
   };
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Contribution vs growth — EUR leg</p>
-          <h2>What moved net worth</h2>
-        </div>
-        {latest !== undefined ? (
+    <Panel
+      eyebrow="Contribution vs growth — EUR leg"
+      title="What moved net worth"
+      actions={
+        latest !== undefined ? (
           <KpiCard
             label="Window split"
             tone="info"
@@ -984,14 +952,15 @@ function ContributionSection({ range }: { readonly range: RangeKey }): React.JSX
           >
             {formatCompact(latest.flowsCum)} / {formatCompact(latest.growthCum)}
           </KpiCard>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
       <EChart
         option={option}
         height={280}
         ariaLabel="Cumulative external flows versus cumulative market growth, EUR leg"
       />
-    </section>
+    </Panel>
   );
 }
 
@@ -1029,57 +998,47 @@ function FeeDragSection(): React.JSX.Element {
   const rows = feeDragByYear(fees.data.rows, netWorth.data.points);
   if (rows.length === 0) {
     return (
-      <section className="panel">
-        <div className="panelHeader">
-          <div>
-            <p className="eyebrow">Fee drag — last 5 years</p>
-            <h2>Recorded fees per year</h2>
-          </div>
-        </div>
+      <Panel eyebrow="Fee drag — last 5 years" title="Recorded fees per year">
         <EmptyState label="fees" />
-      </section>
+      </Panel>
     );
   }
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Fee drag — last 5 years</p>
-          <h2>Recorded fees per year</h2>
-        </div>
-      </div>
-      <table className="dataTable">
-        <thead>
-          <tr>
-            <th scope="col">Year</th>
-            <th scope="col" className="num">
-              Fees (EUR)
-            </th>
-            <th scope="col" className="num">
-              Fees (DKK)
-            </th>
-            <th scope="col" className="num">
-              Drag
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.year}>
-              <td>{row.year}</td>
-              <td className="num">{formatMoney(row.feesEur, "EUR")}</td>
-              <td className="num">{formatMoney(row.feesDkk, "DKK")}</td>
-              <td className="num">{formatShare(row.dragShare)}</td>
+    <Panel eyebrow="Fee drag — last 5 years" title="Recorded fees per year">
+      <TableScroll>
+        <table className="dataTable">
+          <thead>
+            <tr>
+              <th scope="col">Year</th>
+              <th scope="col" className="num">
+                Fees (EUR)
+              </th>
+              <th scope="col" className="num">
+                Fees (DKK)
+              </th>
+              <th scope="col" className="num">
+                Drag
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.year}>
+                <td>{row.year}</td>
+                <td className="num">{formatMoney(row.feesEur, "EUR")}</td>
+                <td className="num">{formatMoney(row.feesDkk, "DKK")}</td>
+                <td className="num">{formatShare(row.dragShare)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
       <p className="footnote">
         Fees as recorded on transactions (explicit fee bookings plus trade fee columns). Drag is the
         year&apos;s fees over that year&apos;s average net worth (EUR leg) — a planning indicator,
         not a TER.
       </p>
-    </section>
+    </Panel>
   );
 }

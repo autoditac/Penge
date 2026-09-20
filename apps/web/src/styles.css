@@ -1,39 +1,47 @@
 /* Penge WebUI design system — CSS custom properties, dark default. */
 
+/*
+ * Token values are the initial paint only; `applyThemeTokens` (src/theme/tokens.ts)
+ * overwrites these as inline styles on <html> as soon as React mounts, so the
+ * MUI theme and this stylesheet always agree. Keep these in sync with
+ * `paletteTokens` to avoid an unstyled flash before hydration.
+ */
 :root,
 :root[data-theme="dark"] {
-    --bg: #0d1117;
-    --bg-raised: #161b27;
-    --bg-inset: #10141d;
-    --border: rgba(148, 163, 184, 0.16);
-    --text: #e6e9f0;
-    --text-muted: #9aa3b2;
-    --accent: #5b8def;
-    --good: #43c59e;
-    --watch: #f2a65a;
-    --critical: #e36588;
-    --chart-1: #5b8def;
-    --chart-2: #43c59e;
-    --chart-3: #f2a65a;
+    --bg: #0b0f14;
+    --bg-raised: #12181f;
+    --bg-inset: #0e1319;
+    --border: rgba(148, 163, 184, 0.14);
+    --text: #e8ecf1;
+    --text-muted: #8b96a5;
+    --accent: #2dd4bf;
+    --accent-contrast: #04211d;
+    --good: #34d399;
+    --watch: #f2b155;
+    --critical: #f36a80;
+    --chart-1: #2dd4bf;
+    --chart-2: #5b8def;
+    --chart-3: #f2b155;
     --chart-4: #b083f0;
-    --chart-5: #e36588;
+    --chart-5: #f36a80;
     color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-    --bg: #f4f6fa;
+    --bg: #f2f4f8;
     --bg-raised: #ffffff;
-    --bg-inset: #eceff5;
-    --border: rgba(71, 85, 105, 0.18);
-    --text: #1c2433;
+    --bg-inset: #e9edf3;
+    --border: rgba(51, 65, 85, 0.16);
+    --text: #111827;
     --text-muted: #5b6678;
-    --accent: #2f6bdb;
-    --good: #14866c;
-    --watch: #b9701f;
+    --accent: #0f9c8d;
+    --accent-contrast: #ffffff;
+    --good: #0f8f63;
+    --watch: #b06a10;
     --critical: #c23b5e;
-    --chart-1: #2f6bdb;
-    --chart-2: #14866c;
-    --chart-3: #b9701f;
+    --chart-1: #0f9c8d;
+    --chart-2: #2f6bdb;
+    --chart-3: #b06a10;
     --chart-4: #7c4fd0;
     --chart-5: #c23b5e;
     color-scheme: light;
@@ -740,6 +748,7 @@ button {
 
 .suggestionChip .buttonGhost {
     padding: 0.05rem 0.45rem;
+    min-height: 2.75rem;
     font-size: 0.8rem;
 }
 
@@ -786,6 +795,7 @@ button {
     background: var(--accent);
     color: var(--accent-contrast, #fff);
     padding: 0.55rem 1.1rem;
+    min-height: 2.75rem;
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
@@ -796,14 +806,24 @@ button {
     cursor: not-allowed;
 }
 
+/* Compact ghost buttons inside dense table rows may opt out of the 44px
+ * minimum (they sit beside several peers in a single row) via
+ * `.buttonGhostCompact`; every other ghost button meets #271's touch-target
+ * floor. */
 .buttonGhost {
     border: 1px solid var(--border);
     border-radius: 9px;
     background: transparent;
     color: var(--text);
     padding: 0.5rem 0.9rem;
+    min-height: 2.75rem;
     font-size: 0.85rem;
     cursor: pointer;
+}
+
+.buttonGhostCompact {
+    min-height: 2rem;
+    padding: 0.3rem 0.6rem;
 }
 
 .buttonGhost:disabled {

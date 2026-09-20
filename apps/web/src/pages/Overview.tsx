@@ -1,12 +1,26 @@
 /** Overview: net-worth trend, allocation donut, account dimension. */
 
 import { useMemo, useState } from "react";
+import Box from "@mui/material/Box";
+import Stack from "@mui/material/Stack";
 
 import { useAccounts, useAllocation, useNetWorthTotal } from "../api/queries";
 import type { AllocationDimension } from "../api/schemas";
 import { EChart } from "../components/EChart";
 import type { EChartOption } from "../components/EChart";
-import { EmptyState, ErrorState, KpiCard, LoadingState, MoneyPair } from "../components/primitives";
+import {
+  EmptyState,
+  ErrorState,
+  LoadingState,
+  MetricCard,
+  MoneyPair,
+  PageHeader,
+  Panel,
+  Pill,
+  SegmentedControl,
+  TableScroll,
+} from "../components/primitives";
+import type { SegmentedOption } from "../components/primitives";
 import { formatCompact, formatShare, isoDaysAgo, parseDecimal } from "../money";
 import { chartPalette, chartTextColor } from "../theme";
 import { allocationData, latestNetWorth, netWorthSeries, periodChange } from "../transforms";
@@ -17,21 +31,29 @@ const dimensionLabels: Record<AllocationDimension, string> = {
   entity: "Household member",
 };
 
+const dimensionOptions: readonly SegmentedOption<AllocationDimension>[] = (
+  Object.keys(dimensionLabels) as AllocationDimension[]
+).map((key) => ({ value: key, label: dimensionLabels[key] }));
+
 export function OverviewPage(): React.JSX.Element {
   return (
     <>
-      <section className="pageIntro">
-        <h1>Overview</h1>
-        <p>
-          Deterministic reporting from the analytics marts. EUR and DKK stay side by side; AI
-          explanations remain on the Planning surface.
-        </p>
-      </section>
+      <PageHeader
+        title="Overview"
+        description="Deterministic reporting from the analytics marts. EUR and DKK stay side by side; AI explanations remain on the Planning surface."
+      />
       <NetWorthSection />
-      <div className="twoColumn">
+      <Box
+        sx={{
+          display: "grid",
+          gap: 2,
+          gridTemplateColumns: { xs: "1fr", lg: "1.2fr 1fr" },
+          alignItems: "start",
+        }}
+      >
         <AllocationSection />
         <AccountsSection />
-      </div>
+      </Box>
     </>
   );
 }
@@ -97,30 +119,29 @@ function NetWorthSection(): React.JSX.Element {
   };
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Net worth — last 365 days</p>
-          <h2>Household net worth</h2>
-        </div>
-        <div className="kpiRow">
-          <KpiCard label="Latest" tone="good">
+    <Panel
+      eyebrow="Net worth — last 365 days"
+      title="Household net worth"
+      actions={
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+          <MetricCard label="Latest" tone="good">
             <MoneyPair
               dkk={latest !== null ? parseDecimal(latest.balance_dkk) : null}
               eur={latest !== null ? parseDecimal(latest.balance_eur) : null}
             />
-          </KpiCard>
-          <KpiCard
+          </MetricCard>
+          <MetricCard
             label="Change in window"
             tone={change !== null && change < 0 ? "watch" : "good"}
             detail="DKK series"
           >
             {formatShare(change)}
-          </KpiCard>
-        </div>
-      </div>
+          </MetricCard>
+        </Stack>
+      }
+    >
       <EChart option={option} height={320} ariaLabel="Net worth over time in DKK and EUR" />
-    </section>
+    </Panel>
   );
 }
 
@@ -129,30 +150,20 @@ function AllocationSection(): React.JSX.Element {
   const allocation = useAllocation(dimension);
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Current allocation</p>
-          <h2>Where the money sits</h2>
-        </div>
-        <div className="segmented" role="group" aria-label="Allocation dimension">
-          {(Object.keys(dimensionLabels) as AllocationDimension[]).map((key) => (
-            <button
-              key={key}
-              type="button"
-              className={key === dimension ? "segmentActive" : undefined}
-              aria-pressed={key === dimension}
-              onClick={() => {
-                setDimension(key);
-              }}
-            >
-              {dimensionLabels[key]}
-            </button>
-          ))}
-        </div>
-      </div>
+    <Panel
+      eyebrow="Current allocation"
+      title="Where the money sits"
+      actions={
+        <SegmentedControl
+          options={dimensionOptions}
+          value={dimension}
+          onChange={setDimension}
+          ariaLabel="Allocation dimension"
+        />
+      }
+    >
       <AllocationBody dimension={dimension} state={allocation} />
-    </section>
+    </Panel>
   );
 }
 
@@ -207,28 +218,30 @@ function AllocationBody({
         height={260}
         ariaLabel={`Allocation by ${dimensionLabels[dimension]} (EUR leg)`}
       />
-      <table className="dataTable">
-        <thead>
-          <tr>
-            <th scope="col">{dimensionLabels[dimension]}</th>
-            <th scope="col" className="num">
-              Balance (EUR)
-            </th>
-            <th scope="col" className="num">
-              Share
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.map((datum) => (
-            <tr key={datum.name}>
-              <td>{datum.name}</td>
-              <td className="num">{formatCompact(datum.value)}</td>
-              <td className="num">{formatShare(datum.share)}</td>
+      <TableScroll>
+        <table className="dataTable">
+          <thead>
+            <tr>
+              <th scope="col">{dimensionLabels[dimension]}</th>
+              <th scope="col" className="num">
+                Balance (EUR)
+              </th>
+              <th scope="col" className="num">
+                Share
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {data.map((datum) => (
+              <tr key={datum.name}>
+                <td>{datum.name}</td>
+                <td className="num">{formatCompact(datum.value)}</td>
+                <td className="num">{formatShare(datum.share)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
     </>
   );
 }
@@ -255,38 +268,37 @@ function AccountsSection(): React.JSX.Element {
   }
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Accounts</p>
-          <h2>Tracked accounts</h2>
-        </div>
-        <span className="pill">{accounts.data.length} accounts</span>
-      </div>
-      <table className="dataTable">
-        <thead>
-          <tr>
-            <th scope="col">Account</th>
-            <th scope="col">Owner</th>
-            <th scope="col">Provider</th>
-            <th scope="col">Kind</th>
-            <th scope="col">CCY</th>
-            <th scope="col">IBAN</th>
-          </tr>
-        </thead>
-        <tbody>
-          {accounts.data.map((account) => (
-            <tr key={account.account_id}>
-              <td>{account.name}</td>
-              <td>{account.entity_name}</td>
-              <td>{account.provider}</td>
-              <td>{account.kind}</td>
-              <td>{account.currency}</td>
-              <td className="mono">{account.iban_masked}</td>
+    <Panel
+      eyebrow="Accounts"
+      title="Tracked accounts"
+      actions={<Pill>{accounts.data.length} accounts</Pill>}
+    >
+      <TableScroll>
+        <table className="dataTable">
+          <thead>
+            <tr>
+              <th scope="col">Account</th>
+              <th scope="col">Owner</th>
+              <th scope="col">Provider</th>
+              <th scope="col">Kind</th>
+              <th scope="col">CCY</th>
+              <th scope="col">IBAN</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </section>
+          </thead>
+          <tbody>
+            {accounts.data.map((account) => (
+              <tr key={account.account_id}>
+                <td>{account.name}</td>
+                <td>{account.entity_name}</td>
+                <td>{account.provider}</td>
+                <td>{account.kind}</td>
+                <td>{account.currency}</td>
+                <td className="mono">{account.iban_masked}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </TableScroll>
+    </Panel>
   );
 }

@@ -136,6 +136,7 @@ nav:
       - "ADR-0038 Import mapping suggestions": decisions/0038-import-mapping-suggestions-via-mcp.md
       - "ADR-0039 Returns engine (TWR/MWR)": decisions/0039-returns-engine-twr-mwr.md
       - "ADR-0040 In-app Enable Banking consent flow": decisions/0040-in-app-enable-banking-consent-flow.md
+      - "ADR-0045 MUI Core WebUI design system": decisions/0045-mui-core-webui-design-system.md
       - "ADR template": decisions/adr-template.md
   - Privacy: privacy.md
   - Terms: terms.md

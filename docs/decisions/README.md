@@ -39,3 +39,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0042](0042-nordnet-interest-suffix-fallback.md) | Nordnet interest types: `…RENTE` suffix fallback to `cash_interest` | Accepted |
 | [0043](0043-enable-banking-dateless-balance-fallback.md) | Enable Banking balances without a reference date: stamp with the sync date | Accepted |
 | [0044](0044-continuous-image-publishing-and-nas-auto-deploy.md) | Continuous image publishing and NAS auto-deploy | Accepted |
+| [0045](0045-mui-core-webui-design-system.md) | MUI Core with a custom Penge theme for the WebUI design system | Proposed |

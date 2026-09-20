@@ -37,6 +37,11 @@ def test_image_matrix_jobs_isolate_docker_configuration() -> None:
 
     assert ci.count(docker_config) == 2
     assert release.count(docker_config) == 1
+    assert ci.count('cp "$DOCKER_CONFIG/config.json" "$ATTEST_HOME/.docker/config.json"') == 1
+    assert release.count('cp "$DOCKER_CONFIG/config.json" "$ATTEST_HOME/.docker/config.json"') == 1
+    attest_home = "\n          HOME: ${{ runner.temp }}/attest-home-${{ matrix.app }}"
+    assert ci.count(attest_home) == 1
+    assert release.count(attest_home) == 1
 
 
 def test_nas_web_container_is_loopback_only_and_auto_updated() -> None:

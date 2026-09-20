@@ -156,6 +156,9 @@ Each matrix job also uses a run-unique `DOCKER_CONFIG` directory under `/tmp`.
 The runner services share an operating-system user, so this prevents one
 concurrent job's login-action cleanup from removing another job's GHCR
 credentials during provenance upload.
+Because `actions/attest` currently reads only `$HOME/.docker/config.json`, the
+workflow copies that isolated config into a step-local HOME immediately before
+attestation.
 
 ## Consequences
 

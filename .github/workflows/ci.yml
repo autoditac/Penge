@@ -177,12 +177,14 @@ jobs:
             python -c "import penge.api.app; print('api import OK')"
 
   external-checks-gate:
-    name: Wait for dbt/docs checks
-    # dbt build and docs build run as separate workflows (dbt.yml, docs.yml)
-    # triggered by the same push, so `needs:` here can't see them directly
-    # -- GitHub Actions `needs` only spans jobs within one workflow file.
-    # Poll the commit's check-runs instead so publish-images genuinely
-    # waits on every push-triggered workflow, not just this one.
+    name: Wait for external workflow checks
+    # dbt build, docs build, backup-roundtrip, and mcp-evals run as
+    # separate workflow files (dbt.yml, docs.yml, backup-roundtrip.yml,
+    # mcp-evals.yml) triggered by the same push, so `needs:` here can't
+    # see them directly -- GitHub Actions `needs` only spans jobs within
+    # one workflow file. Poll the commit's check-runs instead so
+    # publish-images genuinely waits on every push-triggered workflow,
+    # not just the jobs defined in this file.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 20
@@ -198,21 +200,30 @@ jobs:
         id: filter
         run: |
           set -euo pipefail
-          # docs.yml's `push` trigger has no path filter, so it always
-          # runs. dbt.yml's `push` trigger is path-filtered (dbt/**,
-          # migrations/**, pyproject.toml, uv.lock, its own workflow
-          # file) -- mirror that filter here so we don't wait forever
-          # for a check-run that GitHub never scheduled.
+          # docs.yml's `push` trigger has no path filter, so its check
+          # always runs. The other three workflows' `push` triggers are
+          # path-filtered -- mirror each filter here (kept in sync with
+          # the corresponding workflow file) so we don't wait forever for
+          # a check-run that GitHub never scheduled for this push.
+          changed="$(git diff --name-only "${{ github.event.before }}" "${{ github.sha }}")"
+
           required=("Build (mkdocs --strict)")
-          if git diff --name-only "${{ github.event.before }}" "${{ github.sha }}" \
-              | grep -qE '^(dbt/|migrations/|pyproject\.toml$|uv\.lock$|\.github/workflows/dbt\.yml$)'; then
+
+          if grep -qE '^(dbt/|migrations/|pyproject\.toml$|uv\.lock$|\.github/workflows/dbt\.yml$)' <<<"$changed"; then
             required+=("dbt build (smoke)")
           fi
+          if grep -qE '^(scripts/|tests/scripts/|\.github/workflows/backup-roundtrip\.yml$)' <<<"$changed"; then
+            required+=("encrypt → decrypt → restore")
+          fi
+          if grep -qE '^(apps/mcp/|src/penge/sim/|src/penge/tax/|\.github/workflows/mcp-evals\.yml$)' <<<"$changed"; then
+            required+=("MCP golden-question evals")
+          fi
+
           printf '%s\n' "${required[@]}" > required-checks.txt
           echo "Required checks for this push:"
           cat required-checks.txt
 
-      - name: Wait for dbt and docs workflows to succeed
+      - name: Wait for sibling workflow checks to succeed
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
@@ -252,10 +263,11 @@ jobs:
     # `needs` lists every push-triggered validation job in this workflow
     # (all jobs except `pr-title`, which is PR-only and would be reported
     # "skipped" -- and therefore not "success" -- on a push run), plus
-    # `external-checks-gate`, which polls the sibling dbt/docs workflows
-    # that `needs` cannot reach directly. This is the actual CI-green
-    # gate: a lint, test, or build failure anywhere blocks the publish,
-    # matching the review bar this ADR-0044 relies on.
+    # `external-checks-gate`, which polls every sibling push-triggered
+    # workflow (dbt, docs, backup-roundtrip, mcp-evals) that `needs`
+    # cannot reach directly. This is the actual CI-green gate: a lint,
+    # test, or build failure anywhere blocks the publish, matching the
+    # review bar this ADR-0044 relies on.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs:
       - lint-markdown

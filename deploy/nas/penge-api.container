@@ -5,8 +5,9 @@
 # Image= intentionally stays on the moving `:main` tag rather than a
 # digest: AutoUpdate=registry compares the running container's digest
 # against the tag's *current* digest on each poll, so pinning here would
-# disable auto-update entirely. Rollback pins to an immutable
-# `:<commit-sha>` tag instead (see the runbook).
+# disable auto-update entirely. Rollback pins Image= to an explicit
+# `@sha256:<digest>` instead (see the runbook), using a digest recorded
+# by the ExecStartPost journal log below.
 
 [Unit]
 Description=Penge API
@@ -36,10 +37,22 @@ HealthCmd=python -c "import sys,urllib.request; sys.exit(0 if urllib.request.url
 HealthInterval=30s
 HealthRetries=3
 HealthStartPeriod=30s
+# Quadlet's default sd-notify mode reports the unit "started" as soon as
+# conmon starts, before HealthCmd has run even once -- podman auto-update
+# would then treat every update as successful regardless of health.
+# Notify=healthy makes systemd (and therefore auto-update's success/
+# rollback decision) wait for the first HealthCmd result instead.
+Notify=healthy
 
 [Service]
 Restart=always
 TimeoutStartSec=120
+# Append a timestamped record of the digest actually running after every
+# (re)start, including ones triggered by podman-auto-update, to this
+# unit's journal. journalctl -u penge-api.service -g digest= is the
+# reproducibility/deploy-log record required by #229's acceptance
+# criteria: which digest ran, and since when.
+ExecStartPost=/bin/sh -c 'echo "penge-api deploy: $(date -Iseconds) digest=$(podman image inspect ghcr.io/autoditac/penge/api:main --format \"{{.Digest}}\" 2>/dev/null)"'
 
 [Install]
 WantedBy=multi-user.target default.target

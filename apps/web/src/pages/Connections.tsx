@@ -453,7 +453,7 @@ function ConnectionCard({ connection }: { readonly connection: Connection }): Re
           size="small"
           disabled={sync.isPending}
           onClick={() => sync.mutate({ connectionId: connection.id })}
-          sx={{ minHeight: 40 }}
+          sx={{ minHeight: "2.75rem" }}
         >
           {sync.isPending ? "Syncing…" : "Sync now"}
         </Button>

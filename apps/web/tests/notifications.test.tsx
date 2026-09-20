@@ -30,6 +30,31 @@ function TriggerButton({
   );
 }
 
+/** Fires two distinct messages from a single click, so a test can queue
+ * both notifications up front without an intervening clickaway dismissing
+ * the first toast early (clicking elsewhere on the page while a toast is
+ * open dismisses it via MUI's Snackbar clickaway handling). */
+function TwoTriggerButtons({
+  firstMessage,
+  secondMessage,
+}: {
+  readonly firstMessage: string;
+  readonly secondMessage: string;
+}): React.JSX.Element {
+  const notify = useNotify();
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        notify(firstMessage);
+        notify(secondMessage);
+      }}
+    >
+      fire both
+    </button>
+  );
+}
+
 function renderWithProvider(ui: React.ReactElement): ReturnType<typeof render> {
   return render(
     <ThemeProvider theme={buildMuiTheme("dark")}>
@@ -52,18 +77,23 @@ describe("NotificationsProvider / useNotify", () => {
     expect(screen.getByRole("alert")).toHaveClass("MuiAlert-colorSuccess", "MuiAlert-filled");
   });
 
-  it("dismisses the current toast and can show a new one afterwards", async () => {
+  it("advances the queue: dismissing the first toast reveals the second", async () => {
     const user = userEvent.setup();
-    renderWithProvider(<TriggerButton message="first" severity="info" />);
+    renderWithProvider(<TwoTriggerButtons firstMessage="first" secondMessage="second" />);
 
-    await user.click(screen.getByRole("button", { name: "fire" }));
+    // Queue both notifications before dismissing either, so the second one
+    // is waiting behind the first when it closes.
+    await user.click(screen.getByRole("button", { name: "fire both" }));
     await waitFor(() => {
       expect(screen.getByText("first")).toBeInTheDocument();
     });
+    expect(screen.queryByText("second")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /close/i }));
+
     await waitFor(() => {
       expect(screen.queryByText("first")).not.toBeInTheDocument();
+      expect(screen.getByText("second")).toBeInTheDocument();
     });
   });
 

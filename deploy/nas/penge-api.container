@@ -52,7 +52,12 @@ TimeoutStartSec=120
 # unit's journal. journalctl -u penge-api.service -g digest= is the
 # reproducibility/deploy-log record required by #229's acceptance
 # criteria: which digest ran, and since when.
-ExecStartPost=/bin/sh -c 'echo "penge-api deploy: $(date -Iseconds) digest=$(podman image inspect ghcr.io/autoditac/penge/api:main --format \"{{.Digest}}\" 2>/dev/null)"'
+#
+# Resolve via the *container's* image ID (podman inspect penge-api),
+# not the :main tag: after a digest-pinned rollback (see the runbook)
+# the container no longer runs whatever :main happens to point to
+# locally, so inspecting the tag directly would log the wrong digest.
+ExecStartPost=/bin/sh -c 'echo "penge-api deploy: $(date -Iseconds) digest=$(podman image inspect "$(podman inspect penge-api --format \"{{.Image}}\" 2>/dev/null)" --format \"{{.Digest}}\" 2>/dev/null)"'
 
 [Install]
 WantedBy=multi-user.target default.target

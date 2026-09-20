@@ -3466,6 +3466,26 @@ its packages are ever made private. The WebUI is currently served as static
 files from <code>/var/www/penge</code> by the host's own nginx, not from the
 containerized image; bringing it onto the same registry-pull path is out
 of scope for #229 and can be a later follow-up if desired.</p>
+<p><strong>Update (implementation, #273):</strong> The deferred WebUI follow-up is complete.
+The NAS now runs the published <code>penge/web:main</code> image through a
+<code>penge-web.container</code> quadlet with the same registry auto-update, health-check,
+digest-log, and rollback properties as the API container.
+The host nginx remains the TLS and OAuth boundary and proxies authenticated SPA
+requests to the WebUI container over a loopback-only port.
+The WebUI Containerfile sets its overridable production build argument
+<code>VITE_PENGE_API_URL</code> to <code>https://penge.eigmueller.de</code>, so browser API requests
+return through that same authenticated host instead of targeting localhost.
+This removes the separate, manually copied <code>/var/www/penge</code> deployment path.</p>
+<p>The self-hosted runner also accumulated orphaned Buildx builder containers and
+volumes after jobs did not complete their action post-hooks, eventually filling
+the runner VM disk.
+Both CI and release workflows now include an explicit <code>if: always()</code> teardown
+step for every Buildx setup so normal failed jobs remove their builder state
+before the runner accepts more work.
+Each matrix job also uses a run-unique <code>DOCKER_CONFIG</code> directory under <code>/tmp</code>.
+The runner services share an operating-system user, so this prevents one
+concurrent job's login-action cleanup from removing another job's GHCR
+credentials during provenance upload.</p>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
@@ -3525,7 +3545,9 @@ machinery that only needs a registry image to point at.</p>
 <li><code>.github/workflows/ci.yml</code> (<code>publish-images</code> job)</li>
 <li><code>.github/workflows/release.yml</code></li>
 <li><code>deploy/nas/penge-api.container</code> (tracked quadlet)</li>
-<li>Issue #227, #228, #229</li>
+<li><code>deploy/nas/penge-web.container</code> (tracked quadlet)</li>
+<li><code>deploy/nas/penge.eigmueller.de.conf</code> (tracked host proxy)</li>
+<li>Issue #227, #228, #229, #273</li>
 </ul>
 
 

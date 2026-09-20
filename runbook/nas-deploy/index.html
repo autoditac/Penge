@@ -3405,17 +3405,23 @@
 
 
 <h1 id="nas-deploy-and-rollback">NAS deploy and rollback<a class="headerlink" href="#nas-deploy-and-rollback" title="Permanent link">&para;</a></h1>
-<p>How the <code>penge-api</code> container on the NAS (<code>penge.eigmueller.de</code>) stays current
-with <code>main</code>, and how to roll it back.
+<p>How the <code>penge-api</code> and <code>penge-web</code> containers on the NAS
+(<code>penge.eigmueller.de</code>) stay current with <code>main</code>, and how to roll them back.
 See <a href="../../decisions/0044-continuous-image-publishing-and-nas-auto-deploy/">ADR-0044</a>
 for the design rationale.</p>
 <h2 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
-<p>Every merge to <code>main</code> publishes <code>ghcr.io/autoditac/penge/api:main</code> and
-<code>ghcr.io/autoditac/penge/api:&lt;commit-sha&gt;</code> (see the
+<p>Every merge to <code>main</code> publishes <code>ghcr.io/autoditac/penge/{api,web}:main</code> and
+<code>ghcr.io/autoditac/penge/{api,web}:&lt;commit-sha&gt;</code> (see the
 <a href="../container-images/">container images runbook</a>).</p>
-<p>The NAS quadlet at <code>/etc/containers/systemd/penge-api.container</code> (tracked in
-this repo at <code>deploy/nas/penge-api.container</code>) references the moving
-<code>:main</code> tag and carries <code>AutoUpdate=registry</code>.</p>
+<p>The NAS quadlets at <code>/etc/containers/systemd/penge-{api,web}.container</code>
+(tracked in this repo under <code>deploy/nas/</code>) reference the moving <code>:main</code> tags
+and carry <code>AutoUpdate=registry</code>.
+The host nginx configuration, tracked at
+<code>deploy/nas/penge.eigmueller.de.conf</code>, keeps TLS and OAuth on the host,
+proxies API routes to the API container on <code>127.0.0.1:8001</code>, and proxies the
+SPA to the WebUI container on <code>127.0.0.1:8082</code>.
+The WebUI image is built with <code>VITE_PENGE_API_URL=https://penge.eigmueller.de</code>,
+so its browser requests return through the same host and OAuth gate.</p>
 <p><code>podman-auto-update.timer</code> (already enabled on the NAS, runs daily) resolves
 <code>:main</code> to its current digest on each poll.
 If the digest changed, it pulls the new image, restarts the container, and
@@ -3441,14 +3447,15 @@ system's <code>containers-auth.json</code> (<code>podman login ghcr.io</code>); 
 required today.</p>
 <h2 id="applying-a-quadlet-change">Applying a quadlet change<a class="headerlink" href="#applying-a-quadlet-change" title="Permanent link">&para;</a></h2>
 <ol>
-<li>Edit <code>deploy/nas/penge-api.container</code> in this repo, open a PR, get it
-   reviewed and merged (same DoD as any other change).</li>
-<li>Copy the merged file to the NAS as
-   <code>/etc/containers/systemd/penge-api.container</code> (root-owned).</li>
+<li>Edit the applicable files in <code>deploy/nas/</code>, open a PR, get it reviewed and
+   merged (same DoD as any other change).</li>
+<li>Copy the merged quadlets to <code>/etc/containers/systemd/</code> and the nginx
+   configuration to <code>/etc/nginx/conf.d/penge.eigmueller.de.conf</code> (root-owned).</li>
 <li><code>systemctl daemon-reload</code></li>
-<li><code>systemctl restart penge-api.service</code></li>
-<li>Confirm health:
-   <code>podman inspect penge-api --format '{{.State.Health.Status}}'</code></li>
+<li>Validate nginx with <code>nginx -t</code>, then restart the changed
+   <code>penge-{api,web}.service</code> units and reload nginx.</li>
+<li>Confirm both containers report <code>healthy</code> with
+   <code>podman inspect penge-api penge-web --format '{{.Name}} {{.State.Health.Status}}'</code>.</li>
 </ol>
 <h2 id="manual-immediate-update">Manual / immediate update<a class="headerlink" href="#manual-immediate-update" title="Permanent link">&para;</a></h2>
 <p>To pull the current <code>:main</code> image right away instead of waiting for the
@@ -3458,17 +3465,17 @@ daily timer:</p>
 <p>Use <code>sudo podman auto-update --dry-run</code> first to see what <em>would</em> update
 without making changes.</p>
 <h2 id="finding-the-running-digest">Finding the running digest<a class="headerlink" href="#finding-the-running-digest" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code>journalctl<span class="w"> </span>-u<span class="w"> </span>penge-api.service<span class="w"> </span>-g<span class="w"> </span><span class="s1">'digest='</span><span class="w"> </span>--no-pager<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20
+<div class="highlight"><pre><span></span><code>journalctl<span class="w"> </span>-u<span class="w"> </span>penge-api.service<span class="w"> </span>-u<span class="w"> </span>penge-web.service<span class="w"> </span>-g<span class="w"> </span><span class="s1">'digest='</span><span class="w"> </span>--no-pager<span class="w"> </span><span class="p">|</span><span class="w"> </span>tail<span class="w"> </span>-20
 </code></pre></div>
 <p>Each line looks like:</p>
-<div class="highlight"><pre><span></span><code>penge-api deploy: 2026-09-20T11:55:18+02:00 digest=sha256:978cb42eb7e4bb7639bca66496171bd430748ee1114d6740621f1a16c47a3d6b
+<div class="highlight"><pre><span></span><code>penge-web deploy: 2026-09-20T19:30:00+02:00 digest=sha256:28beeef4...
 </code></pre></div>
 <p>The digest is the exact, immutable manifest digest GHCR resolved <code>:main</code> to
 at that moment — it identifies the build precisely, independent of any tag
 ever being reused or repointed.</p>
 <h2 id="migration-coordination">Migration coordination<a class="headerlink" href="#migration-coordination" title="Permanent link">&para;</a></h2>
-<p>Auto-deploy only replaces the <code>penge-api</code> container image; it never runs
-Alembic. A merge that changes both the schema and the API in the same PR
+<p>Auto-deploy only replaces container images; it never runs Alembic.
+A merge that changes both the schema and the API in the same PR
 can therefore roll out to the NAS <strong>before</strong> its migration has been
 applied, because the image update and the DB migration are not gated on
 each other.</p>
@@ -3505,11 +3512,10 @@ needed):</p>
 <ol>
 <li>Find the last known-good digest with the <code>journalctl</code> command above
    (the entry from before the bad deploy).</li>
-<li>On the NAS, edit <code>/etc/containers/systemd/penge-api.container</code> and change
-   <code>Image=ghcr.io/autoditac/penge/api:main</code> to
-   <code>Image=ghcr.io/autoditac/penge/api@&lt;digest&gt;</code> (e.g.
-   <code>ghcr.io/autoditac/penge/api@sha256:978cb42e...</code>).</li>
-<li><code>systemctl daemon-reload &amp;&amp; systemctl restart penge-api.service</code></li>
+<li>On the NAS, edit the affected <code>penge-{api,web}.container</code> file and change
+   its <code>Image=...:main</code> reference to <code>Image=...@&lt;digest&gt;</code> (for example,
+   <code>ghcr.io/autoditac/penge/web@sha256:28beeef4...</code>).</li>
+<li>Run <code>systemctl daemon-reload</code> and restart the affected service.</li>
 </ol>
 <p>Pinning to a digest also <strong>stops</strong> <code>AutoUpdate=registry</code> from doing
 anything further (a fixed digest never changes), which is exactly what you
@@ -3517,10 +3523,9 @@ want while investigating a bad release.
 Revert <code>Image=</code> back to <code>:main</code> (and reload/restart) once the fix has
 merged and republished, to resume automatic updates.</p>
 <h2 id="scope">Scope<a class="headerlink" href="#scope" title="Permanent link">&para;</a></h2>
-<p>This covers the <code>penge-api</code> container only.
-The WebUI is currently served as static files from <code>/var/www/penge</code> by the
-host's own nginx, not from the <code>penge/web</code> container image; bringing it onto
-the same auto-update path is a separate follow-up (see ADR-0044).</p>
+<p>This covers the <code>penge-api</code> and <code>penge-web</code> containers.
+PostgreSQL remains a host-managed quadlet pinned to a versioned image digest;
+database upgrades follow the migration procedure above and are never automatic.</p>
 
 
 

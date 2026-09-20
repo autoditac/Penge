@@ -13,6 +13,68 @@ import type {
 
 export type SeriesPoint = readonly [string, number];
 
+export type AccountBalanceSnapshot = {
+  readonly accountId: string;
+  readonly asOf: string;
+  readonly balance: number;
+  readonly comparisonAsOf: string | null;
+  readonly monthDelta: number | null;
+};
+
+function previousCalendarMonth(isoDateValue: string): string {
+  const date = new Date(`${isoDateValue}T00:00:00Z`);
+  const targetMonth = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1));
+  const lastTargetDay = new Date(
+    Date.UTC(targetMonth.getUTCFullYear(), targetMonth.getUTCMonth() + 1, 0),
+  ).getUTCDate();
+  targetMonth.setUTCDate(Math.min(date.getUTCDate(), lastTargetDay));
+  return targetMonth.toISOString().slice(0, 10);
+}
+
+/** Latest native-currency balance and absolute change from one calendar month ago.
+ *
+ * The comparison uses the newest observation on or before the target date so
+ * weekends and sparse account histories do not turn a valid delta into a gap.
+ */
+export function accountBalanceSnapshots(
+  points: readonly NetWorthPoint[],
+): ReadonlyMap<string, AccountBalanceSnapshot> {
+  const byAccount = new Map<string, NetWorthPoint[]>();
+  for (const point of points) {
+    const accountPoints = byAccount.get(point.account_id) ?? [];
+    accountPoints.push(point);
+    byAccount.set(point.account_id, accountPoints);
+  }
+
+  const snapshots = new Map<string, AccountBalanceSnapshot>();
+  for (const [accountId, accountPoints] of byAccount) {
+    const sorted = [...accountPoints].sort((a, b) => a.as_of.localeCompare(b.as_of));
+    const latest = sorted.findLast((point) => parseDecimal(point.balance_acct_ccy) !== null);
+    if (latest === undefined) {
+      continue;
+    }
+    const balance = parseDecimal(latest.balance_acct_ccy);
+    if (balance === null) {
+      continue;
+    }
+
+    const targetDate = previousCalendarMonth(latest.as_of);
+    const comparison = sorted.findLast(
+      (point) => point.as_of <= targetDate && parseDecimal(point.balance_acct_ccy) !== null,
+    );
+    const comparisonBalance =
+      comparison === undefined ? null : parseDecimal(comparison.balance_acct_ccy);
+    snapshots.set(accountId, {
+      accountId,
+      asOf: latest.as_of,
+      balance,
+      comparisonAsOf: comparison?.as_of ?? null,
+      monthDelta: comparisonBalance === null ? null : balance - comparisonBalance,
+    });
+  }
+  return snapshots;
+}
+
 /** Build [date, value] pairs for one currency leg of the net-worth series. */
 export function netWorthSeries(
   points: readonly NetWorthTotalPoint[],

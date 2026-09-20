@@ -22,11 +22,12 @@ import {
   fetchConnections,
   fetchFees,
   fetchFreshness,
+  fetchAllNetWorthByAccount,
   fetchImportSession,
   fetchImportSessions,
   fetchImportSuggestions,
-  fetchNetWorthByAccount,
   fetchNetWorthTotal,
+  fetchNetWorthByAccount,
   fetchReturnsDaily,
   fetchReturnsSummary,
   patchImportRow,
@@ -131,6 +132,27 @@ export function useNetWorthByAccount(
         return fixtures.demoNetWorthByAccount;
       }
       return fetchNetWorthByAccount(params);
+    },
+  });
+}
+
+export function useAllNetWorthByAccount(
+  params: SeriesParams,
+): UseQueryResult<NetWorthSeriesResponse, Error> {
+  return useQuery({
+    queryKey: [
+      "all-net-worth-by-account",
+      params.since ?? null,
+      params.until ?? null,
+      params.limit ?? null,
+    ],
+    staleTime: staleTimeMs,
+    queryFn: async () => {
+      if (demoMode) {
+        const fixtures = await import("../demo/fixtures");
+        return fixtures.demoNetWorthByAccount;
+      }
+      return fetchAllNetWorthByAccount(params);
     },
   });
 }

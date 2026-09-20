@@ -7,6 +7,7 @@ import type {
   NetWorthTotalPoint,
 } from "../src/api/schemas";
 import {
+  accountBalanceSnapshots,
   allocationData,
   allocationDrift,
   drawdownSeries,
@@ -138,6 +139,7 @@ const drillAccounts: AccountSummary[] = [
     entity_name: "Person A",
     iban_masked: "****1",
     kind: "checking",
+    last_updated_at: "2026-01-03T08:00:00Z",
     name: "Giro",
     provider: "gls",
   },
@@ -148,6 +150,7 @@ const drillAccounts: AccountSummary[] = [
     entity_name: "Person B",
     iban_masked: "****2",
     kind: "investment",
+    last_updated_at: "2026-01-03T09:00:00Z",
     name: "Depot",
     provider: "nordnet",
   },
@@ -172,6 +175,43 @@ const drillPoints: NetWorthPoint[] = [
   netWorthPoint("a2", "2026-01-02", "290.0"),
   netWorthPoint("a2", "2026-01-03", null),
 ];
+
+describe("accountBalanceSnapshots", () => {
+  it("uses the latest observation and the last balance on or before one month earlier", () => {
+    const snapshots = accountBalanceSnapshots([
+      netWorthPoint("a1", "2026-02-26", "95.0"),
+      netWorthPoint("a1", "2026-02-27", "100.0"),
+      { ...netWorthPoint("a1", "2026-02-28", null), balance_acct_ccy: "" },
+      netWorthPoint("a1", "2026-03-01", "110.0"),
+      netWorthPoint("a1", "2026-03-31", "150.0"),
+      { ...netWorthPoint("a1", "2026-04-01", null), balance_acct_ccy: "" },
+    ]);
+
+    expect(snapshots.get("a1")).toEqual({
+      accountId: "a1",
+      asOf: "2026-03-31",
+      balance: 150,
+      comparisonAsOf: "2026-02-27",
+      monthDelta: 50,
+    });
+  });
+
+  it("clamps month-end dates and returns null when no baseline exists", () => {
+    const clamped = accountBalanceSnapshots([
+      netWorthPoint("a1", "2026-02-28", "90.0"),
+      netWorthPoint("a1", "2026-03-31", "100.0"),
+    ]);
+    expect(clamped.get("a1")?.monthDelta).toBe(10);
+    expect(clamped.get("a1")?.comparisonAsOf).toBe("2026-02-28");
+
+    const unavailable = accountBalanceSnapshots([
+      netWorthPoint("a2", "2026-03-15", "200.0"),
+      netWorthPoint("a2", "2026-03-31", "220.0"),
+    ]);
+    expect(unavailable.get("a2")?.monthDelta).toBeNull();
+    expect(unavailable.get("a2")?.comparisonAsOf).toBeNull();
+  });
+});
 
 describe("perAccountSeries / perKindSeries", () => {
   it("builds one labelled EUR series per account, sorted by label", () => {

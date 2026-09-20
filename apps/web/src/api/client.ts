@@ -184,6 +184,33 @@ export function fetchNetWorthByAccount(params: SeriesParams): Promise<NetWorthSe
   return getJson("/net-worth/daily", { group: "account", ...params }, netWorthSeriesResponseSchema);
 }
 
+/** Fetch every account-level point, following the API's offset pagination. */
+export async function fetchAllNetWorthByAccount(
+  params: SeriesParams,
+): Promise<NetWorthSeriesResponse> {
+  const limit = params.limit ?? 10_000;
+  const points: NetWorthSeriesResponse["points"] = [];
+  let total = 0;
+
+  do {
+    const page = await getJson(
+      "/net-worth/daily",
+      { group: "account", ...params, limit, offset: points.length },
+      netWorthSeriesResponseSchema,
+    );
+    total = page.total;
+    if (page.points.length === 0 && points.length < total) {
+      throw new PengeApiError(
+        "api_invalid_pagination",
+        `Penge API returned an empty account-history page at offset ${points.length} of ${total}.`,
+      );
+    }
+    points.push(...page.points);
+  } while (points.length < total);
+
+  return { limit, offset: 0, points, total };
+}
+
 export function fetchCashflowDaily(params: SeriesParams): Promise<CashflowSeriesResponse> {
   return getJson("/cashflow/daily", { ...params }, cashflowSeriesResponseSchema);
 }

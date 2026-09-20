@@ -2,8 +2,12 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router";
+import CssBaseline from "@mui/material/CssBaseline";
+import { ThemeProvider } from "@mui/material/styles";
 
+import { NotificationsProvider } from "./components/Notifications";
 import { router } from "./router";
+import { useTheme } from "./theme";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -21,10 +25,23 @@ const queryClient = new QueryClient({
   },
 });
 
+function App(): React.JSX.Element {
+  const { muiTheme } = useTheme();
+
+  return (
+    <ThemeProvider theme={muiTheme}>
+      <CssBaseline />
+      <NotificationsProvider>
+        <RouterProvider router={router} />
+      </NotificationsProvider>
+    </ThemeProvider>
+  );
+}
+
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
+      <App />
     </QueryClientProvider>
   </StrictMode>,
 );

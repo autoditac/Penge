@@ -66,6 +66,48 @@ are recorded in ADR-0036.
 - **Planning** — labelled synthetic preview of the MCP
   `answer_planning_question` surface until live wiring lands.
 
+## Design system (ADR-0045)
+
+Since the Nordnet-inspired redesign (issue #271) the WebUI is built on
+[MUI Core](https://mui.com/material-ui/) with a fully custom Penge theme —
+see [ADR-0045](../decisions/0045-mui-core-webui-design-system.md) for the
+toolkit decision, alternatives considered, and why MUI X Data Grid was
+deliberately left out of scope. MUI is a component and interaction
+foundation only; the visual language stays Penge's own.
+
+- **Tokens**: `src/theme/tokens.ts` defines the deep charcoal/slate surface
+  scale, the restrained turquoise accent, semantic finance colors (gain /
+  loss / neutral), spacing, radii, and typography (tabular numerals for all
+  financial figures). `src/theme/muiTheme.ts` builds a light and a dark MUI
+  `Theme` from those tokens, wires the existing dark/light toggle, and
+  respects `prefers-reduced-motion` by disabling MUI's transition
+  durations. `styles.css` keeps a small set of CSS variables in sync with
+  the same tokens for the legacy, not-yet-MUI-ified markup.
+- **Shell**: `src/shell/AppShell.tsx` is a responsive `AppBar` +
+  navigation shell — a permanent side drawer on desktop, and a compact
+  `AppBar` with a bottom `BottomNavigation` on mobile (all touch targets
+  ≥44px). It renders the freshness banner and the demo-data badge as
+  before.
+- **Primitives**: `src/components/primitives.tsx` provides the shared
+  building blocks used by every page: `PageHeader`, `Panel` (a raised
+  surface with an eyebrow/title/actions header), `MetricCard`/`KpiCard`,
+  `Pill` (status/tone chip), `SegmentedControl` (range and view-mode
+  switches), `LoadingState`/`ErrorState`/`EmptyState`, `MoneyPair`, and
+  `TableScroll` (a horizontally scrollable wrapper that keeps dense tables
+  from overflowing the viewport on mobile).
+- **Notifications**: `src/components/Notifications.tsx` exposes a
+  `NotificationsProvider` / `useNotify()` pair that queues toast messages
+  (MUI `Snackbar` + `Alert`) for background actions such as import commits.
+- **Pages**: Overview, Performance, Imports, Connections, and Planning all
+  consume the primitives above instead of bespoke section markup. Existing
+  data contracts, TanStack Query hooks, and demo fixtures are unchanged —
+  this was a presentation-layer migration, not a data-layer one.
+- **Testing**: `apps/web/tests/*.test.tsx` (Vitest + Testing Library, jsdom
+  environment via a `@vitest-environment jsdom` docblock per file) cover
+  the primitives, `AppShell` responsive behaviour, and the notifications
+  queue. Existing `*.test.ts` unit tests for data/transform logic are
+  unaffected.
+
 ## Architecture
 
 - **Routing**: React Router v7 (library mode); all surfaces share the

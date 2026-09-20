@@ -1,8 +1,12 @@
-/** Light/dark theme state persisted to localStorage, applied via data-theme. */
+/** Light/dark theme state persisted to localStorage; drives CSS vars + MUI. */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
-export type Theme = "dark" | "light";
+import { applyThemeTokens, paletteTokens } from "./tokens";
+import { buildMuiTheme } from "./muiTheme";
+import type { ThemeMode } from "./tokens";
+
+export type Theme = ThemeMode;
 
 const storageKey = "penge-webui-theme";
 
@@ -18,11 +22,16 @@ function readStoredTheme(): Theme {
   return "dark";
 }
 
-export function useTheme(): { theme: Theme; toggleTheme: () => void } {
+export function useTheme(): {
+  theme: Theme;
+  toggleTheme: () => void;
+  muiTheme: ReturnType<typeof buildMuiTheme>;
+} {
   const [theme, setTheme] = useState<Theme>(readStoredTheme);
 
   useEffect(() => {
     document.documentElement.dataset["theme"] = theme;
+    applyThemeTokens(theme);
     try {
       window.localStorage.setItem(storageKey, theme);
     } catch {
@@ -34,7 +43,9 @@ export function useTheme(): { theme: Theme; toggleTheme: () => void } {
     setTheme((current) => (current === "dark" ? "light" : "dark"));
   }, []);
 
-  return { theme, toggleTheme };
+  const muiTheme = useMemo(() => buildMuiTheme(theme), [theme]);
+
+  return { theme, toggleTheme, muiTheme };
 }
 
 /** Chart palette resolved from the active CSS custom properties. */
@@ -43,10 +54,10 @@ export function chartPalette(): readonly string[] {
   const palette = [1, 2, 3, 4, 5]
     .map((index) => styles.getPropertyValue(`--chart-${index}`).trim())
     .filter((color) => color.length > 0);
-  return palette.length > 0 ? palette : ["#5b8def", "#43c59e", "#f2a65a", "#b083f0", "#e36588"];
+  return palette.length > 0 ? palette : paletteTokens.dark.chart;
 }
 
 export function chartTextColor(): string {
   const color = getComputedStyle(document.documentElement).getPropertyValue("--text-muted").trim();
-  return color.length > 0 ? color : "#9aa3b2";
+  return color.length > 0 ? color : paletteTokens.dark.textMuted;
 }

@@ -83,6 +83,8 @@ jobs:
     name: Image build + SBOM + provenance
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 30
+    env:
+      DOCKER_CONFIG: /tmp/penge-docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
     permissions:
       contents: read
       id-token: write
@@ -94,7 +96,9 @@ jobs:
         app: [web, api]
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - name: Set up Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
 
       - name: Login to GHCR
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
@@ -138,3 +142,6 @@ jobs:
           subject-name: ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+      - name: Remove Buildx builder
+        if: always() && steps.buildx.outputs.name != ''
+        run: docker buildx rm --force "${{ steps.buildx.outputs.name }}"

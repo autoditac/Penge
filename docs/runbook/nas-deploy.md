@@ -1,19 +1,25 @@
 # NAS deploy and rollback
 
-How the `penge-api` container on the NAS (`penge.eigmueller.de`) stays current
-with `main`, and how to roll it back.
+How the `penge-api` and `penge-web` containers on the NAS
+(`penge.eigmueller.de`) stay current with `main`, and how to roll them back.
 See [ADR-0044](../decisions/0044-continuous-image-publishing-and-nas-auto-deploy.md)
 for the design rationale.
 
 ## How it works
 
-Every merge to `main` publishes `ghcr.io/autoditac/penge/api:main` and
-`ghcr.io/autoditac/penge/api:<commit-sha>` (see the
+Every merge to `main` publishes `ghcr.io/autoditac/penge/{api,web}:main` and
+`ghcr.io/autoditac/penge/{api,web}:<commit-sha>` (see the
 [container images runbook](container-images.md)).
 
-The NAS quadlet at `/etc/containers/systemd/penge-api.container` (tracked in
-this repo at `deploy/nas/penge-api.container`) references the moving
-`:main` tag and carries `AutoUpdate=registry`.
+The NAS quadlets at `/etc/containers/systemd/penge-{api,web}.container`
+(tracked in this repo under `deploy/nas/`) reference the moving `:main` tags
+and carry `AutoUpdate=registry`.
+The host nginx configuration, tracked at
+`deploy/nas/penge.eigmueller.de.conf`, keeps TLS and OAuth on the host,
+proxies API routes to the API container on `127.0.0.1:8001`, and proxies the
+SPA to the WebUI container on `127.0.0.1:8082`.
+The WebUI image is built with `VITE_PENGE_API_URL=https://penge.eigmueller.de`,
+so its browser requests return through the same host and OAuth gate.
 
 `podman-auto-update.timer` (already enabled on the NAS, runs daily) resolves
 `:main` to its current digest on each poll.
@@ -43,14 +49,15 @@ required today.
 
 ## Applying a quadlet change
 
-1. Edit `deploy/nas/penge-api.container` in this repo, open a PR, get it
-   reviewed and merged (same DoD as any other change).
-2. Copy the merged file to the NAS as
-   `/etc/containers/systemd/penge-api.container` (root-owned).
+1. Edit the applicable files in `deploy/nas/`, open a PR, get it reviewed and
+   merged (same DoD as any other change).
+2. Copy the merged quadlets to `/etc/containers/systemd/` and the nginx
+   configuration to `/etc/nginx/conf.d/penge.eigmueller.de.conf` (root-owned).
 3. `systemctl daemon-reload`
-4. `systemctl restart penge-api.service`
-5. Confirm health:
-   `podman inspect penge-api --format '{{.State.Health.Status}}'`
+4. Validate nginx with `nginx -t`, then restart the changed
+   `penge-{api,web}.service` units and reload nginx.
+5. Confirm both containers report `healthy` with
+   `podman inspect penge-api penge-web --format '{{.Name}} {{.State.Health.Status}}'`.
 
 ## Manual / immediate update
 
@@ -67,13 +74,13 @@ without making changes.
 ## Finding the running digest
 
 ```bash
-journalctl -u penge-api.service -g 'digest=' --no-pager | tail -20
+journalctl -u penge-api.service -u penge-web.service -g 'digest=' --no-pager | tail -20
 ```
 
 Each line looks like:
 
 ```text
-penge-api deploy: 2026-09-20T11:55:18+02:00 digest=sha256:978cb42eb7e4bb7639bca66496171bd430748ee1114d6740621f1a16c47a3d6b
+penge-web deploy: 2026-09-20T19:30:00+02:00 digest=sha256:28beeef4...
 ```
 
 The digest is the exact, immutable manifest digest GHCR resolved `:main` to
@@ -82,8 +89,8 @@ ever being reused or repointed.
 
 ## Migration coordination
 
-Auto-deploy only replaces the `penge-api` container image; it never runs
-Alembic. A merge that changes both the schema and the API in the same PR
+Auto-deploy only replaces container images; it never runs Alembic.
+A merge that changes both the schema and the API in the same PR
 can therefore roll out to the NAS **before** its migration has been
 applied, because the image update and the DB migration are not gated on
 each other.
@@ -123,11 +130,10 @@ needed):
 
 1. Find the last known-good digest with the `journalctl` command above
    (the entry from before the bad deploy).
-2. On the NAS, edit `/etc/containers/systemd/penge-api.container` and change
-   `Image=ghcr.io/autoditac/penge/api:main` to
-   `Image=ghcr.io/autoditac/penge/api@<digest>` (e.g.
-   `ghcr.io/autoditac/penge/api@sha256:978cb42e...`).
-3. `systemctl daemon-reload && systemctl restart penge-api.service`
+2. On the NAS, edit the affected `penge-{api,web}.container` file and change
+   its `Image=...:main` reference to `Image=...@<digest>` (for example,
+   `ghcr.io/autoditac/penge/web@sha256:28beeef4...`).
+3. Run `systemctl daemon-reload` and restart the affected service.
 
 Pinning to a digest also **stops** `AutoUpdate=registry` from doing
 anything further (a fixed digest never changes), which is exactly what you
@@ -137,7 +143,6 @@ merged and republished, to resume automatic updates.
 
 ## Scope
 
-This covers the `penge-api` container only.
-The WebUI is currently served as static files from `/var/www/penge` by the
-host's own nginx, not from the `penge/web` container image; bringing it onto
-the same auto-update path is a separate follow-up (see ADR-0044).
+This covers the `penge-api` and `penge-web` containers.
+PostgreSQL remains a host-managed quadlet pinned to a versioned image digest;
+database upgrades follow the migration procedure above and are never automatic.

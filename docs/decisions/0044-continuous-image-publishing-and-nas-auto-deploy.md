@@ -135,6 +135,28 @@ files from `/var/www/penge` by the host's own nginx, not from the
 containerized image; bringing it onto the same registry-pull path is out
 of scope for #229 and can be a later follow-up if desired.
 
+**Update (implementation, #273):** The deferred WebUI follow-up is complete.
+The NAS now runs the published `penge/web:main` image through a
+`penge-web.container` quadlet with the same registry auto-update, health-check,
+digest-log, and rollback properties as the API container.
+The host nginx remains the TLS and OAuth boundary and proxies authenticated SPA
+requests to the WebUI container over a loopback-only port.
+The WebUI Containerfile sets its overridable production build argument
+`VITE_PENGE_API_URL` to `https://penge.eigmueller.de`, so browser API requests
+return through that same authenticated host instead of targeting localhost.
+This removes the separate, manually copied `/var/www/penge` deployment path.
+
+The self-hosted runner also accumulated orphaned Buildx builder containers and
+volumes after jobs did not complete their action post-hooks, eventually filling
+the runner VM disk.
+Both CI and release workflows now include an explicit `if: always()` teardown
+step for every Buildx setup so normal failed jobs remove their builder state
+before the runner accepts more work.
+Each matrix job also uses a run-unique `DOCKER_CONFIG` directory under `/tmp`.
+The runner services share an operating-system user, so this prevents one
+concurrent job's login-action cleanup from removing another job's GHCR
+credentials during provenance upload.
+
 ## Consequences
 
 ### Positive
@@ -200,4 +222,6 @@ machinery that only needs a registry image to point at.
 - `.github/workflows/ci.yml` (`publish-images` job)
 - `.github/workflows/release.yml`
 - `deploy/nas/penge-api.container` (tracked quadlet)
-- Issue #227, #228, #229
+- `deploy/nas/penge-web.container` (tracked quadlet)
+- `deploy/nas/penge.eigmueller.de.conf` (tracked host proxy)
+- Issue #227, #228, #229, #273

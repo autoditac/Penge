@@ -56,8 +56,8 @@ reviewed, they just aren't tagged as a release.
 
 We chose **option 2**: publish images on every merge to `main` (this ADR,
 implemented by #228 / the `publish-images` job in `ci.yml`), and switch the
-NAS quadlets to `podman-auto-update.timer`-driven pulls from GHCR (#229,
-follow-up PR).
+NAS `penge-api` quadlet to `podman-auto-update.timer`-driven pulls from
+GHCR (#229, follow-up PR).
 
 `ci.yml` gains a `publish-images` job, gated with
 `if: github.event_name == 'push' && github.ref == 'refs/heads/main'`, so it
@@ -72,13 +72,19 @@ additionally publish `<release-tag>` and `<commit-sha>` images with the same
 attestation, for consumers who want a stable version number rather than
 tracking `main`.
 
-The NAS quadlets (`penge-api.container`, `penge-web.container`) are updated
-to reference `ghcr.io/autoditac/penge/<app>:main`, pinned to a specific
-digest at deploy time, with `AutoUpdate=registry` so
-`podman-auto-update.timer` (already enabled, previously a no-op) picks up
-new digests automatically. GHCR pull credentials for the NAS are a
-fine-grained PAT with `read:packages` only, stored in the podman system auth
-file on the NAS — never in the repository.
+Follow-up work (#229) will update the NAS `penge-api.container` quadlet to
+reference `ghcr.io/autoditac/penge/api:main`, pinned to a specific digest at
+deploy time, with `AutoUpdate=registry` so `podman-auto-update.timer`
+(already enabled, currently a no-op) picks up new digests automatically.
+GHCR pull credentials for the NAS will be a fine-grained PAT with
+`read:packages` only, stored in the podman system auth file on the NAS —
+never in the repository. This PR only adds the publish side (`ci.yml`); no
+quadlet or NAS configuration changes are included here, and the NAS remains
+on its current manual/local-image deploy process until #229 lands. The
+WebUI is currently served as static files from `/var/www/penge` by the
+host's own nginx, not from the containerized image; bringing it onto the
+same registry-pull path is out of scope for #229 and can be a later
+follow-up if desired.
 
 ## Consequences
 

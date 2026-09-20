@@ -181,8 +181,22 @@ jobs:
     # Only merges to `main` produce a deployable artifact; PR builds stay
     # verification-only (see the `container-images` job above), so forked
     # PRs never gain package-write credentials. See ADR-0044.
+    #
+    # `needs` lists every push-triggered validation job (all jobs except
+    # `pr-title`, which is PR-only and would be reported "skipped" -- and
+    # therefore not "success" -- on a push run). This is the actual
+    # CI-green gate: a lint, test, or build failure anywhere blocks the
+    # publish, matching the review bar this ADR-0044 relies on.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: container-images
+    needs:
+      - lint-markdown
+      - yaml-lint
+      - gitleaks
+      - bootstrap-smoke
+      - web-ui
+      - container-images
+      - alembic-roundtrip
+      - pytest
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 20
     permissions:

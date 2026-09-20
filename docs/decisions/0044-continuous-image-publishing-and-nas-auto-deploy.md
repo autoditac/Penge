@@ -102,9 +102,9 @@ additionally publish `<release-tag>` and `<commit-sha>` images with the same
 attestation, for consumers who want a stable version number rather than
 tracking `main`.
 
-Follow-up work (#229) will update the NAS `penge-api.container` quadlet to
+Follow-up work (#229) updates the NAS `penge-api.container` quadlet to
 reference `ghcr.io/autoditac/penge/api:main` with `AutoUpdate=registry`, so
-`podman-auto-update.timer` (already enabled, currently a no-op) resolves
+`podman-auto-update.timer` (already enabled, previously a no-op) resolves
 `:main` to its current digest on each poll and restarts the container when
 it changes. The `Image=` line intentionally stays on the moving `:main` tag
 -- that is what gives `AutoUpdate=registry` something to compare against;

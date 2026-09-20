@@ -91,6 +91,7 @@ nav:
       - "Enable Banking consent (production)": runbook/enable-banking-consent.md
       - "Web dashboard": runbook/web.md
       - "Container images": runbook/container-images.md
+      - "NAS deploy and rollback": runbook/nas-deploy.md
       - "ABIS yearly refresh": runbook/abis-yearly-refresh.md
       - "Branch protection": runbook/branch-protection.md
       - "Vault watcher": runbook/vault-watcher.md

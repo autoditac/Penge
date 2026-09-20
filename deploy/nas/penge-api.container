@@ -1,0 +1,45 @@
+# Tracked source of truth for /etc/containers/systemd/penge-api.container
+# on the NAS (penge.eigmueller.de). See docs/decisions/0044 and
+# docs/runbook/nas-deploy.md.
+#
+# Image= intentionally stays on the moving `:main` tag rather than a
+# digest: AutoUpdate=registry compares the running container's digest
+# against the tag's *current* digest on each poll, so pinning here would
+# disable auto-update entirely. Rollback pins to an immutable
+# `:<commit-sha>` tag instead (see the runbook).
+
+[Unit]
+Description=Penge API
+After=penge-db.service
+Requires=penge-db.service
+
+[Container]
+Image=ghcr.io/autoditac/penge/api:main
+AutoUpdate=registry
+ContainerName=penge-api
+SecurityLabelDisable=true
+Network=penge
+EnvironmentFile=/etc/penge/penge-api.env
+Volume=/etc/penge/nordnet-accounts.yaml:/etc/penge/nordnet-accounts.yaml:ro
+Environment=PENGE_NORDNET_ACCOUNTS_CONFIG=/etc/penge/nordnet-accounts.yaml
+PublishPort=127.0.0.1:8001:8000
+Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000
+Environment=ENABLEBANKING_APPLICATION_ID=09a4a71a-1646-41e7-97b1-b79eea6e9d8a
+Environment=ENABLEBANKING_KEY_PATH=/run/secrets/penge-eb-key
+Environment=PENGE_EB_REDIRECT_URL=https://penge.eigmueller.de/eb/callback
+# Liveness probe backing podman-auto-update's automatic rollback: if the
+# freshly pulled image's container turns unhealthy, podman reverts to the
+# previous image on the next auto-update cycle instead of leaving a
+# broken container running. /meta/freshness exercises the DB connection
+# too (the API depends on penge-db, already required above).
+HealthCmd=python -c "import sys,urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/meta/freshness', timeout=3).status == 200 else 1)"
+HealthInterval=30s
+HealthRetries=3
+HealthStartPeriod=30s
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+
+[Install]
+WantedBy=multi-user.target default.target

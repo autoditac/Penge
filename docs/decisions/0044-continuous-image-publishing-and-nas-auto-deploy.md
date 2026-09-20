@@ -1,6 +1,6 @@
 # 0044 — Continuous image publishing and NAS auto-deploy
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-09-20
 - **Deciders:** @autoditac
 - **Tags:** infra, security
@@ -109,15 +109,19 @@ penge-api --format '{{.Image}}'`), so no separate record-keeping step is
 needed for audit. Rollback (see Consequences below) uses the immutable
 `:<commit-sha>` tag instead: editing `Image=` to a specific `:<sha>` and
 restarting pins the container to that exact reviewed build until the
-quadlet is switched back to `:main`. GHCR pull credentials for the NAS will
-be a fine-grained PAT with `read:packages` only, stored in the podman system
-auth file on the NAS -- never in the repository. This PR only adds the
-publish side (`ci.yml`); no quadlet or NAS configuration changes are
-included here, and the NAS remains on its current manual/local-image deploy
-process until #229 lands. The WebUI is currently served as static files
-from `/var/www/penge` by the host's own nginx, not from the containerized
-image; bringing it onto the same registry-pull path is out of scope for that
-issue and can be a later follow-up if desired.
+quadlet is switched back to `:main`.
+
+**Update (implementation, #229):** GHCR packages inherit their visibility
+from the repository, and `autoditac/Penge` is public, so
+`ghcr.io/autoditac/penge/{api,web}` are pullable anonymously (verified with
+an unauthenticated `skopeo inspect`). The NAS therefore needs **no** GHCR
+credential for this pull path -- the fine-grained-PAT plan below was the
+default assumption before the images existed and publish visibility could
+be checked; it is kept here as the documented fallback if the repository or
+its packages are ever made private. The WebUI is currently served as static
+files from `/var/www/penge` by the host's own nginx, not from the
+containerized image; bringing it onto the same registry-pull path is out
+of scope for #229 and can be a later follow-up if desired.
 
 ## Consequences
 
@@ -137,7 +141,10 @@ issue and can be a later follow-up if desired.
 - `main` now always has a corresponding published image, increasing GHCR
   storage/quota usage over time (mitigated by GHCR's default retention and
   the option to prune old `:<sha>` tags later).
-- The NAS PAT is a new secret to rotate and audit outside the repository.
+- GHCR package visibility (public, inherited from the public repository) is
+  a soft dependency for anonymous NAS pulls; if it is ever tightened, a PAT
+  must be provisioned before the next auto-update poll (see the
+  implementation note above).
 - Auto-update means a merge to `main` reaches production without an
   explicit human "go" — mitigated by the existing pre-merge review bar
   (CI green + Copilot review threads resolved) being the actual gate now,
@@ -171,6 +178,8 @@ machinery that only needs a registry image to point at.
 
 - [ADR-0034 Application container images in CI and releases](0034-application-container-images.md)
 - [Container images runbook](../runbook/container-images.md)
+- [NAS deploy and rollback runbook](../runbook/nas-deploy.md)
 - `.github/workflows/ci.yml` (`publish-images` job)
 - `.github/workflows/release.yml`
+- `deploy/nas/penge-api.container` (tracked quadlet)
 - Issue #227, #228, #229

@@ -119,6 +119,19 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.event.release.tag_name || format('manual-{0}', github.run_number) }}
             ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.sha }}
 
+      - name: Re-login to GHCR (attestation push)
+        # actions/attest-build-provenance pushes the attestation as a
+        # separate OCI artifact and does its own registry-credential
+        # lookup; on self-hosted runners the config.json written by the
+        # login step above is not always still readable by the time this
+        # step runs (docker/login-action#822). Logging in again
+        # immediately before the attest step is the documented workaround.
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Attest image provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:

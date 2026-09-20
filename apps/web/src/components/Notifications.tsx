@@ -46,6 +46,12 @@ export function NotificationsProvider({
     <NotificationsContext.Provider value={value}>
       {children}
       <Snackbar
+        // Keying by notification id forces React to remount the Snackbar
+        // whenever the queue advances, so each toast gets its own fresh
+        // auto-hide timer instead of inheriting the previous item's timer
+        // (MUI ties the timer to the open-state transition, which never
+        // flips false->true while the queue still has items).
+        key={current?.id}
         open={current !== undefined}
         autoHideDuration={5000}
         onClose={handleClose}

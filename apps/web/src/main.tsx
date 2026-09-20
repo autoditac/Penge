@@ -7,7 +7,7 @@ import { ThemeProvider } from "@mui/material/styles";
 
 import { NotificationsProvider } from "./components/Notifications";
 import { router } from "./router";
-import { useTheme } from "./theme";
+import { ThemeModeContext, useTheme } from "./theme";
 import "./styles.css";
 
 const root = document.getElementById("root");
@@ -26,15 +26,17 @@ const queryClient = new QueryClient({
 });
 
 function App(): React.JSX.Element {
-  const { muiTheme } = useTheme();
+  const { theme, toggleTheme, muiTheme } = useTheme();
 
   return (
-    <ThemeProvider theme={muiTheme}>
-      <CssBaseline />
-      <NotificationsProvider>
-        <RouterProvider router={router} />
-      </NotificationsProvider>
-    </ThemeProvider>
+    <ThemeModeContext.Provider value={{ theme, toggleTheme }}>
+      <ThemeProvider theme={muiTheme}>
+        <CssBaseline />
+        <NotificationsProvider>
+          <RouterProvider router={router} />
+        </NotificationsProvider>
+      </ThemeProvider>
+    </ThemeModeContext.Provider>
   );
 }
 

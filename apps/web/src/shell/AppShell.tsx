@@ -29,7 +29,7 @@ import { useTheme as useMuiTheme } from "@mui/material/styles";
 import { demoMode } from "../api/client";
 import { useFreshness } from "../api/queries";
 import { Pill } from "../components/primitives";
-import { useTheme } from "../theme";
+import { useThemeMode } from "../theme";
 
 const navItems = [
   { to: "/", label: "Overview", end: true, icon: <DashboardOutlinedIcon /> },
@@ -42,7 +42,7 @@ const navItems = [
 const drawerWidth = 232;
 
 export function AppShell(): React.JSX.Element {
-  const { theme, toggleTheme } = useTheme();
+  const { theme, toggleTheme } = useThemeMode();
   const muiTheme = useMuiTheme();
   const isDesktop = useMediaQuery(muiTheme.breakpoints.up("md"));
 
@@ -288,6 +288,8 @@ function MobileBottomNav(): React.JSX.Element {
 
   return (
     <Paper
+      component="nav"
+      aria-label="Primary (mobile)"
       sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: (t) => t.zIndex.appBar }}
       elevation={0}
     >

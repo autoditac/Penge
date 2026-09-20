@@ -141,7 +141,7 @@ describe("EmptyState", () => {
 });
 
 describe("TableScroll", () => {
-  it("wraps its table child in a scrollable region", () => {
+  it("wraps its table child in a horizontally scrollable region", () => {
     renderWithTheme(
       <TableScroll>
         <table>
@@ -154,5 +154,10 @@ describe("TableScroll", () => {
       </TableScroll>,
     );
     expect(screen.getByText("cell")).toBeInTheDocument();
+    const table = screen.getByRole("table");
+    // The scroll wrapper (not the table itself) must permit horizontal
+    // overflow so wide tables scroll within their own bounds on narrow
+    // viewports instead of stretching the page (#271 mobile acceptance).
+    expect(table.parentElement).toHaveStyle({ overflowX: "auto" });
   });
 });

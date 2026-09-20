@@ -41,6 +41,11 @@ import { ErrorState, LoadingState, PageHeader, Panel, Pill } from "../components
 import type { Tone } from "../components/primitives";
 import { PengeApiError } from "../errors";
 
+// MUI's "small" TextField input is ~40px tall; bump it to the 44px mobile
+// touch-target minimum (#271 acceptance) without switching to the taller
+// "medium" size everywhere.
+const TOUCH_TARGET_FIELD_SX = { "& .MuiInputBase-root": { minHeight: "2.75rem" } } as const;
+
 const STATUS_TONE: Readonly<Record<string, Tone>> = {
   authorized: "good",
   linking: "watch",
@@ -147,7 +152,7 @@ function LinkPanel(): React.JSX.Element {
           label="Bank"
           value={selected}
           onChange={(event) => setProvider(event.target.value)}
-          sx={{ minWidth: "16rem" }}
+          sx={{ minWidth: "16rem", ...TOUCH_TARGET_FIELD_SX }}
           size="small"
         >
           {providers.map((aspsp) => (
@@ -162,6 +167,7 @@ function LinkPanel(): React.JSX.Element {
           placeholder="e.g. Rouven"
           onChange={(event) => setEntityName(event.target.value)}
           size="small"
+          sx={TOUCH_TARGET_FIELD_SX}
         />
         <Button type="submit" variant="contained" disabled={!canSubmit} sx={{ minHeight: 44 }}>
           {startLink.isPending ? "Starting…" : "Start consent"}
@@ -195,8 +201,13 @@ function LinkPanel(): React.JSX.Element {
           >
             Open consent page ↗
           </Link>
-          <Stack direction="row" spacing={3} sx={{ mt: 1.5, flexWrap: "wrap" }}>
-            <Box>
+          <Stack
+            component="dl"
+            direction="row"
+            spacing={3}
+            sx={{ mt: 1.5, mb: 0, flexWrap: "wrap" }}
+          >
+            <Box component="div" sx={{ m: 0 }}>
               <Typography
                 component="dt"
                 color="text.secondary"
@@ -204,9 +215,11 @@ function LinkPanel(): React.JSX.Element {
               >
                 state
               </Typography>
-              <Box component="code">{result.state}</Box>
+              <Box component="dd" sx={{ m: 0 }}>
+                <Box component="code">{result.state}</Box>
+              </Box>
             </Box>
-            <Box>
+            <Box component="div" sx={{ m: 0 }}>
               <Typography
                 component="dt"
                 color="text.secondary"
@@ -214,7 +227,9 @@ function LinkPanel(): React.JSX.Element {
               >
                 valid until
               </Typography>
-              <Box>{formatTimestamp(result.valid_until)}</Box>
+              <Box component="dd" sx={{ m: 0 }}>
+                {formatTimestamp(result.valid_until)}
+              </Box>
             </Box>
           </Stack>
         </Box>
@@ -259,7 +274,7 @@ function AuthorizePanel(): React.JSX.Element {
           placeholder="?code= value from the callback"
           onChange={(event) => setCode(event.target.value)}
           size="small"
-          sx={{ minWidth: "16rem" }}
+          sx={{ minWidth: "16rem", ...TOUCH_TARGET_FIELD_SX }}
         />
         <TextField
           label="State (optional)"
@@ -267,7 +282,7 @@ function AuthorizePanel(): React.JSX.Element {
           placeholder="?state= value"
           onChange={(event) => setState(event.target.value)}
           size="small"
-          sx={{ minWidth: "12rem" }}
+          sx={{ minWidth: "12rem", ...TOUCH_TARGET_FIELD_SX }}
         />
         <Button type="submit" variant="contained" disabled={!canSubmit} sx={{ minHeight: 44 }}>
           {authorize.isPending ? "Authorizing…" : "Authorize"}
@@ -401,27 +416,31 @@ function ConnectionCard({ connection }: { readonly connection: Connection }): Re
         </Typography>
       )}
 
-      <Stack direction="row" spacing={3} sx={{ flexWrap: "wrap" }}>
-        <Box>
+      <Stack component="dl" direction="row" spacing={3} sx={{ m: 0, flexWrap: "wrap" }}>
+        <Box component="div" sx={{ m: 0 }}>
           <Typography
+            component="dt"
             color="text.secondary"
             sx={{ fontSize: "0.72rem", textTransform: "uppercase" }}
           >
             Last sync
           </Typography>
-          <Box sx={{ fontSize: "0.88rem" }}>
+          <Box component="dd" sx={{ m: 0, fontSize: "0.88rem" }}>
             {formatTimestamp(connection.last_sync_at)}
             {connection.last_sync_status !== null ? ` · ${connection.last_sync_status}` : ""}
           </Box>
         </Box>
-        <Box>
+        <Box component="div" sx={{ m: 0 }}>
           <Typography
+            component="dt"
             color="text.secondary"
             sx={{ fontSize: "0.72rem", textTransform: "uppercase" }}
           >
             Valid until
           </Typography>
-          <Box sx={{ fontSize: "0.88rem" }}>{formatTimestamp(connection.valid_until)}</Box>
+          <Box component="dd" sx={{ m: 0, fontSize: "0.88rem" }}>
+            {formatTimestamp(connection.valid_until)}
+          </Box>
         </Box>
       </Stack>
 

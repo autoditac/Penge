@@ -144,7 +144,21 @@ export function LoadingState({ label }: { readonly label: string }): React.JSX.E
         p: 3,
       }}
     >
-      <CircularProgress size={18} thickness={5} aria-hidden="true" />
+      <CircularProgress
+        size={18}
+        thickness={5}
+        aria-hidden="true"
+        sx={{
+          // Respect prefers-reduced-motion (#271 acceptance: preserve
+          // reduced-motion support) by freezing the spin animation; the
+          // spinner still communicates a pending state visually via its
+          // partial ring, just without continuous motion.
+          "@media (prefers-reduced-motion: reduce)": {
+            animation: "none",
+            "& .MuiCircularProgress-circle": { animation: "none" },
+          },
+        }}
+      />
       <Box component="p" sx={{ m: 0 }}>
         Loading {label}…
       </Box>
@@ -165,7 +179,7 @@ export function ErrorState({ label, error, onRetry }: ErrorStateProps): React.JS
       variant="outlined"
       action={
         onRetry !== undefined ? (
-          <Button color="inherit" size="small" onClick={onRetry}>
+          <Button color="inherit" size="small" onClick={onRetry} sx={{ minHeight: "2.75rem" }}>
             Retry
           </Button>
         ) : undefined
@@ -355,8 +369,10 @@ export function SegmentedControl<T extends string>({
         sx={{
           bgcolor: "background.default",
           "& .MuiToggleButton-root": {
-            minHeight: "2.25rem",
-            minWidth: "2.25rem",
+            // 2.75rem (44px) keeps this an accessible mobile touch target
+            // (#271 acceptance: minimum 44px mobile targets).
+            minHeight: "2.75rem",
+            minWidth: "2.75rem",
             px: 1.4,
             textTransform: "none",
             fontWeight: 600,

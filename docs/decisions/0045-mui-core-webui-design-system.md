@@ -1,6 +1,6 @@
 # 0045 — MUI Core with a custom Penge theme for the WebUI design system
 
-- **Status:** Accepted
+- **Status:** Proposed
 - **Date:** 2025-06-09
 - **Deciders:** @autoditac
 - **Tags:** web

@@ -1,6 +1,6 @@
 /** Light/dark theme state persisted to localStorage; drives CSS vars + MUI. */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 import { applyThemeTokens, paletteTokens } from "./tokens";
 import { buildMuiTheme } from "./muiTheme";
@@ -22,6 +22,10 @@ function readStoredTheme(): Theme {
   return "dark";
 }
 
+/** Owns the single source of truth for the active theme (call once, at the
+ * app root). Every other component reads it via {@link useThemeMode} so the
+ * MUI theme, CSS custom properties, and chart palette never fall out of
+ * sync with each other. */
 export function useTheme(): {
   theme: Theme;
   toggleTheme: () => void;
@@ -40,12 +44,36 @@ export function useTheme(): {
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
+    setTheme((current) => {
+      const next: Theme = current === "dark" ? "light" : "dark";
+      // Apply CSS custom properties synchronously (before React renders any
+      // consumer for this update), not only in the effect above: an effect
+      // runs after the commit that reads them (e.g. chart palette lookups
+      // during render), which otherwise leaves charts one toggle behind.
+      document.documentElement.dataset["theme"] = next;
+      applyThemeTokens(next);
+      return next;
+    });
   }, []);
 
   const muiTheme = useMemo(() => buildMuiTheme(theme), [theme]);
 
   return { theme, toggleTheme, muiTheme };
+}
+
+type ThemeModeValue = { readonly theme: Theme; readonly toggleTheme: () => void };
+
+/** Provided once by the app root ({@link useTheme}'s owner); consumed by
+ * {@link useThemeMode} so nested components (shell, pages) share the same
+ * theme state instead of instantiating their own independent copy. */
+export const ThemeModeContext = createContext<ThemeModeValue | null>(null);
+
+/** Reads the shared theme mode + toggle set up by the app root. Falls back
+ * to a static dark default (no-op toggle) when rendered without a provider,
+ * e.g. in component tests that do not exercise theme switching. */
+export function useThemeMode(): ThemeModeValue {
+  const context = useContext(ThemeModeContext);
+  return context ?? { theme: "dark", toggleTheme: () => {} };
 }
 
 /** Chart palette resolved from the active CSS custom properties. */

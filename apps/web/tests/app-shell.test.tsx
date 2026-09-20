@@ -6,6 +6,7 @@ import { render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ThemeModeContext } from "../src/theme";
 import { buildMuiTheme } from "../src/theme/muiTheme";
 
 const useFreshnessMock = vi.fn();
@@ -29,9 +30,11 @@ function renderShell(): ReturnType<typeof render> {
     { initialEntries: ["/"] },
   );
   return render(
-    <ThemeProvider theme={buildMuiTheme("dark")}>
-      <RouterProvider router={router} />
-    </ThemeProvider>,
+    <ThemeModeContext.Provider value={{ theme: "dark", toggleTheme: vi.fn() }}>
+      <ThemeProvider theme={buildMuiTheme("dark")}>
+        <RouterProvider router={router} />
+      </ThemeProvider>
+    </ThemeModeContext.Provider>,
   );
 }
 

@@ -972,6 +972,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#design-system-adr-0045" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design system (ADR-0045)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1997,6 +2008,8 @@
       
         
           
+        
+      
         
       
         
@@ -3142,6 +3155,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../decisions/0045-mui-core-webui-design-system/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0045 MUI Core WebUI design system
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
@@ -3273,6 +3314,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#design-system-adr-0045" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Design system (ADR-0045)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3394,6 +3446,47 @@ are recorded in ADR-0036.</p>
   wizard says so and falls back to manual review.</li>
 <li><strong>Planning</strong> — labelled synthetic preview of the MCP
   <code>answer_planning_question</code> surface until live wiring lands.</li>
+</ul>
+<h2 id="design-system-adr-0045">Design system (ADR-0045)<a class="headerlink" href="#design-system-adr-0045" title="Permanent link">&para;</a></h2>
+<p>Since the Nordnet-inspired redesign (issue #271) the WebUI is built on
+<a href="https://mui.com/material-ui/">MUI Core</a> with a fully custom Penge theme —
+see <a href="../../decisions/0045-mui-core-webui-design-system/">ADR-0045</a> for the
+toolkit decision, alternatives considered, and why MUI X Data Grid was
+deliberately left out of scope. MUI is a component and interaction
+foundation only; the visual language stays Penge's own.</p>
+<ul>
+<li><strong>Tokens</strong>: <code>src/theme/tokens.ts</code> defines the deep charcoal/slate surface
+  scale, the restrained turquoise accent, semantic finance colors (gain /
+  loss / neutral), spacing, radii, and typography (tabular numerals for all
+  financial figures). <code>src/theme/muiTheme.ts</code> builds a light and a dark MUI
+  <code>Theme</code> from those tokens, wires the existing dark/light toggle, and
+  respects <code>prefers-reduced-motion</code> by disabling MUI's transition
+  durations. <code>styles.css</code> keeps a small set of CSS variables in sync with
+  the same tokens for the legacy, not-yet-MUI-ified markup.</li>
+<li><strong>Shell</strong>: <code>src/shell/AppShell.tsx</code> is a responsive <code>AppBar</code> +
+  navigation shell — a permanent side drawer on desktop, and a compact
+  <code>AppBar</code> with a bottom <code>BottomNavigation</code> on mobile (all touch targets
+  ≥44px). It renders the freshness banner and the demo-data badge as
+  before.</li>
+<li><strong>Primitives</strong>: <code>src/components/primitives.tsx</code> provides the shared
+  building blocks used by every page: <code>PageHeader</code>, <code>Panel</code> (a raised
+  surface with an eyebrow/title/actions header), <code>MetricCard</code>/<code>KpiCard</code>,
+  <code>Pill</code> (status/tone chip), <code>SegmentedControl</code> (range and view-mode
+  switches), <code>LoadingState</code>/<code>ErrorState</code>/<code>EmptyState</code>, <code>MoneyPair</code>, and
+  <code>TableScroll</code> (a horizontally scrollable wrapper that keeps dense tables
+  from overflowing the viewport on mobile).</li>
+<li><strong>Notifications</strong>: <code>src/components/Notifications.tsx</code> exposes a
+  <code>NotificationsProvider</code> / <code>useNotify()</code> pair that queues toast messages
+  (MUI <code>Snackbar</code> + <code>Alert</code>) for background actions such as import commits.</li>
+<li><strong>Pages</strong>: Overview, Performance, Imports, Connections, and Planning all
+  consume the primitives above instead of bespoke section markup. Existing
+  data contracts, TanStack Query hooks, and demo fixtures are unchanged —
+  this was a presentation-layer migration, not a data-layer one.</li>
+<li><strong>Testing</strong>: <code>apps/web/tests/*.test.tsx</code> (Vitest + Testing Library, jsdom
+  environment via a <code>@vitest-environment jsdom</code> docblock per file) cover
+  the primitives, <code>AppShell</code> responsive behaviour, and the notifications
+  queue. Existing <code>*.test.ts</code> unit tests for data/transform logic are
+  unaffected.</li>
 </ul>
 <h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
 <ul>

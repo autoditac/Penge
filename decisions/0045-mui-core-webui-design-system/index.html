@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0012-sim-goal-model/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0045-mui-core-webui-design-system/">
       
       
-        <link rel="prev" href="../0011-sim-cashflow-engine/">
+        <link rel="prev" href="../0040-in-app-enable-banking-consent-flow/">
       
       
-        <link rel="next" href="../0013-sim-tax-overlay/">
+        <link rel="next" href="../adr-template/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0012 FIRE goal evaluation model - Penge</title>
+        <title>ADR-0045 MUI Core WebUI design system - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#adr-0012-fire-goal-evaluation-model" class="md-skip">
+        <a href="#0045-mui-core-with-a-custom-penge-theme-for-the-webui-design-system" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0012 FIRE goal evaluation model
+              ADR-0045 MUI Core WebUI design system
             
           </span>
         </div>
@@ -2339,37 +2339,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0012 FIRE goal evaluation model
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2385,159 +2358,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context and Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Decision">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#goalconfig-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        GoalConfig parameters
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chosen-swr-default-325" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Chosen SWR default: 3.25 %
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pension-vesting-semantics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pension vesting semantics
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tax-exclusion" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tax exclusion
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rejected-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rejected Options
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Rejected Options">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#per-rule-cumulative-pension-tracking" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Per-rule cumulative pension tracking
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#geometric-growth-portfolio-model-inlined-in-evaluate" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Geometric-growth portfolio model inlined in evaluate
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#decumulation-model" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decumulation model
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -3219,10 +3039,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../0045-mui-core-webui-design-system/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0045 MUI Core WebUI design system
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -3238,6 +3085,181 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#context-and-problem-statement" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Context and Problem Statement
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decision" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#consequences" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Negative
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Neutral
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-in-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives in detail
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives in detail">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-mui-core-mui-x-data-grid-community" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1 — MUI Core + MUI X Data Grid Community
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-headless-ui-kit-radixariakit-hand-rolled-visuals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 3 — Headless UI kit (Radix/Ariakit) + hand-rolled visuals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-4-extend-the-hand-rolled-css-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 4 — Extend the hand-rolled CSS system
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3370,6 +3392,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#decision-drivers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decision Drivers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#considered-options" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Considered Options
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#decision" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3377,56 +3421,6 @@
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="Decision">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#goalconfig-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        GoalConfig parameters
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#chosen-swr-default-325" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Chosen SWR default: 3.25 %
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#pension-vesting-semantics" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pension vesting semantics
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tax-exclusion" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tax exclusion
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
@@ -3439,25 +3433,14 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#rejected-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Rejected Options
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Rejected Options">
+    <nav class="md-nav" aria-label="Consequences">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#per-rule-cumulative-pension-tracking" class="md-nav__link">
+  <a href="#positive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Per-rule cumulative pension tracking
+        Positive
       
     </span>
   </a>
@@ -3465,10 +3448,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#geometric-growth-portfolio-model-inlined-in-evaluate" class="md-nav__link">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Geometric-growth portfolio model inlined in evaluate
+        Negative
       
     </span>
   </a>
@@ -3476,10 +3459,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#decumulation-model" class="md-nav__link">
+  <a href="#neutral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decumulation model
+        Neutral
       
     </span>
   </a>
@@ -3488,6 +3471,67 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#alternatives-in-detail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Alternatives in detail
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Alternatives in detail">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#option-1-mui-core-mui-x-data-grid-community" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 1 — MUI Core + MUI X Data Grid Community
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-3-headless-ui-kit-radixariakit-hand-rolled-visuals" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 3 — Headless UI kit (Radix/Ariakit) + hand-rolled visuals
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#option-4-extend-the-hand-rolled-css-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Option 4 — Extend the hand-rolled CSS system
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#links" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Links
+      
+    </span>
+  </a>
   
 </li>
       
@@ -3508,7 +3552,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0012-sim-goal-model.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0045-mui-core-webui-design-system.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3516,156 +3560,68 @@
   
 
 
-<h1 id="adr-0012-fire-goal-evaluation-model">ADR-0012 — FIRE Goal Evaluation Model<a class="headerlink" href="#adr-0012-fire-goal-evaluation-model" title="Permanent link">&para;</a></h1>
-<table>
-<thead>
-<tr>
-<th>Field</th>
-<th>Value</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Status</strong></td>
-<td>Proposed</td>
-</tr>
-<tr>
-<td><strong>Date</strong></td>
-<td>2025-07-03</td>
-</tr>
-<tr>
-<td><strong>Issue</strong></td>
-<td>#30</td>
-</tr>
-<tr>
-<td><strong>Depends</strong></td>
-<td>ADR-0011 (cashflow engine)</td>
-</tr>
-</tbody>
-</table>
+<h1 id="0045-mui-core-with-a-custom-penge-theme-for-the-webui-design-system">0045 — MUI Core with a custom Penge theme for the WebUI design system<a class="headerlink" href="#0045-mui-core-with-a-custom-penge-theme-for-the-webui-design-system" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2025-06-09</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> web</li>
+</ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>The household FIRE simulation needs a way to determine whether a target
-annual income can be sustained from a given retirement year onward, and if
-so, in which year the portfolio and pension entitlements are first sufficient
-to support that income.</p>
-<p>The two available income sources at retirement year <em>T</em> are:</p>
+<p>Issue #271 asked for a Nordnet-inspired, responsive redesign of the whole WebUI (<code>apps/web</code>): a deep charcoal/slate look, subtly raised panels, a restrained turquoise accent, dense but legible financial tables, compact KPI strips, a proper responsive shell (desktop drawer, mobile app bar + bottom navigation with &gt;=44px targets), and reusable primitives for panels, metrics, statuses, segmented controls, loading/error/empty states, forms and notifications — without regressing the existing 100/100 Lighthouse accessibility/best-practices baseline in demo mode.</p>
+<p>The pre-existing UI (<code>ADR-0033</code>, <code>ADR-0036</code>) is React 19 + TypeScript + React Router + TanStack Query + ECharts + generated OpenAPI types/zod, styled with hand-written CSS custom properties and utility classes (<code>.panel</code>, <code>.kpiCard</code>, <code>.pill</code>, <code>.segmented</code>, <code>.dataTable</code>, …). That system has no accessible primitives for dialogs, drawers, snackbars, or a real responsive navigation shell, and hand-rolling all of those (plus focus-trapping, keyboard interaction and reduced-motion handling) to Nordnet-grade polish is a large amount of bespoke a11y work to get right and keep right.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Need accessible, battle-tested primitives (drawer, app bar, bottom navigation, dialogs, snackbars, form controls) rather than reinventing focus management and ARIA wiring for each one.</li>
+<li>Must preserve React 19 + TS + Router + TanStack Query + ECharts + zod/OpenAPI — this ADR is only about the presentation-layer toolkit.</li>
+<li>Must keep the existing Lighthouse 100/100 (accessibility, best practices) baseline.</li>
+<li>Must support a fully custom, non-generic-Material visual identity (flat surfaces, custom palette, tabular numerals, reduced motion) — "looks like Nordnet-inspired Penge", not "looks like MUI's default demo".</li>
+<li>Minimize bundle/complexity growth and migration risk: five pages (~3,400 lines) with live data-fetching logic that must not regress.</li>
+<li>Any new dependency must be pinned exactly and justified (repository rule: no <code>latest</code>, no unexplained new deps).</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Safe withdrawal (SWR)</strong> from the liquid portfolio (Nordnet + Growney
-   consolidated): <code>swr_rate * portfolio_value_eur</code></li>
-<li><strong>Pension entitlements</strong> that have vested by year <em>T</em>, read from the
-   cashflow projection produced by <code>penge.sim.cashflow.project()</code></li>
+<li><strong>MUI Core (<code>@mui/material</code>) + MUI X Data Grid Community</strong>, as suggested by prior investigation — full component suite including a dedicated data-grid component for all tables.</li>
+<li><strong>MUI Core only, custom theme, no MUI X Data Grid</strong> — reuse MUI's shell/layout/form/feedback primitives, keep the existing bespoke <code>&lt;table&gt;</code> markup (now wrapped by a small <code>TableScroll</code> primitive) for dense financial tables.</li>
+<li><strong>Headless UI kit</strong> (Radix UI / Ariakit) + hand-rolled Nordnet visual layer.</li>
+<li><strong>Keep the hand-rolled CSS system</strong>, just extend it with more classes/components for drawers, snackbars, etc.</li>
 </ol>
-<p>The goal model must answer three questions:</p>
-<ul>
-<li>Is the goal met within the projection horizon?</li>
-<li>In which year is it first met?</li>
-<li>What is the income surplus (or shortfall) in that year?</li>
-</ul>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>Implement <code>penge.sim.goal</code> with three public symbols:</p>
-<ul>
-<li><code>GoalConfig</code> — frozen Pydantic model parameterising the goal.</li>
-<li><code>GoalResult</code> — frozen Pydantic model carrying the evaluation result.</li>
-<li><code>evaluate(goal, projection, portfolio_by_year)</code> — pure function that
-  scans the portfolio path and returns the first year the goal is met.</li>
-</ul>
-<h3 id="goalconfig-parameters">GoalConfig parameters<a class="headerlink" href="#goalconfig-parameters" title="Permanent link">&para;</a></h3>
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Default</th>
-<th>Meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>target_annual_eur</code></td>
-<td>required</td>
-<td>Annual income to replace (EUR)</td>
-</tr>
-<tr>
-<td><code>swr_rate</code></td>
-<td>0.0325</td>
-<td>SWR fraction applied to liquid portfolio</td>
-</tr>
-<tr>
-<td><code>entities</code></td>
-<td>()</td>
-<td>Entity filter; empty = all entities</td>
-</tr>
-<tr>
-<td><code>require_all_vested</code></td>
-<td>True</td>
-<td>Only count fully-vested pension per entity</td>
-</tr>
-</tbody>
-</table>
-<h3 id="chosen-swr-default-325">Chosen SWR default: 3.25 %<a class="headerlink" href="#chosen-swr-default-325" title="Permanent link">&para;</a></h3>
-<p>The canonical 4 % rule (Bengen 1994) was derived for a 30-year US-only
-equity/bond portfolio. The household has a 40+ year horizon, a DK/DE tax
-environment, and an international portfolio. Research by Pfau, Kitces, and
-ERN (Early Retirement Now) suggests 3.0–3.5 % is more appropriate for
-long horizons. 3.25 % is the midpoint; the caller can override via config.</p>
-<h3 id="pension-vesting-semantics">Pension vesting semantics<a class="headerlink" href="#pension-vesting-semantics" title="Permanent link">&para;</a></h3>
-<p><code>cumulative_pension_eur</code> in <code>YearlyFlow</code> is the aggregate of all pension
-accrual rules for that entity through the given year. Since there is no
-per-rule breakdown in <code>YearlyFlow</code>, <code>require_all_vested=True</code> uses an
-all-or-nothing rule per entity: pension counts only if <strong>every</strong> pension
-rule for that entity has <code>vesting_year &lt;= year</code>.</p>
-<p>This is the conservative choice and aligns with how the household's
-pensions actually work: PFA is accessible at age 63+, Beamtenpension at
-statutory retirement age. Mixing partial vesting within an entity would
-require per-rule cumulative tracking (see Rejected Options).</p>
-<h3 id="tax-exclusion">Tax exclusion<a class="headerlink" href="#tax-exclusion" title="Permanent link">&para;</a></h3>
-<p>The <code>evaluate</code> function works on <strong>pre-tax</strong> income. Tax netting is the
-responsibility of <code>penge.sim.tax</code> (ADR-0013, #28). The Monte-Carlo
-runner (#31) will compose <code>project()</code> → <code>apply_tax()</code> → <code>evaluate()</code>.
-Goal evaluation on gross income is still useful for sensitivity analysis and
-FIRE runway estimation before #28 is implemented.</p>
+<p>We chose <strong>Option 2: MUI Core with a fully custom Penge theme, explicitly without MUI X Data Grid</strong>.</p>
+<p>MUI Core (<code>@mui/material</code>, <code>@mui/icons-material</code>, <code>@emotion/react</code>, <code>@emotion/styled</code>) gives us accessible <code>Drawer</code>, <code>AppBar</code>, <code>BottomNavigation</code>, <code>Dialog</code>, <code>Snackbar</code>/<code>Alert</code>, <code>ToggleButtonGroup</code>, <code>TextField</code>/<code>Select</code>, and <code>Chip</code> primitives for free, all themeable via a single <code>createTheme()</code> call. We built <code>apps/web/src/theme/tokens.ts</code> (Nordnet-inspired charcoal/slate + turquoise palette, light and dark) and <code>apps/web/src/theme/muiTheme.ts</code> (<code>buildMuiTheme</code>) to drive both the MUI theme and the existing CSS custom properties from one source of truth, disable Material's default drop shadows/backgrounds for flat surfaces, respect <code>prefers-reduced-motion</code>, and set <code>borderRadius</code>/typography to match the Nordnet aesthetic rather than default Material look-and-feel.</p>
+<p>We deliberately <strong>did not</strong> adopt MUI X Data Grid. The existing tables in Performance and Imports are not generic sortable/filterable grids: they interleave grouped rows, inline drill-down affordances, per-cell semantic coloring, and CSV-import mapping UI that would require a substantial rewrite to fit the Data Grid's row/column model, for a component whose main benefit (virtualization, column resize/reorder, filter UI) is not what issue #271 asked for. Instead, dense tables keep their existing semantic <code>&lt;table&gt;</code> markup — the actual authority for financial figures — wrapped in a new <code>TableScroll</code> primitive that provides a horizontal-scroll container with a subtle fade/scroll-shadow affordance so no table can cause page-level horizontal overflow on mobile, while progressive disclosure (card/list views below the <code>sm</code> breakpoint) is applied per-page where a full table is not legible on small screens. This keeps the migration mechanical and low-risk (swap wrapper markup, not business logic) and avoids growing the bundle or the number of "authoritative" table-rendering code paths for tax-relevant figures.</p>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<p><strong>Positive:</strong></p>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Pure function over frozen Pydantic models → trivially composable with the
-  Monte-Carlo runner without mutation risk.</li>
-<li>Caller supplies the portfolio path → <code>evaluate</code> is independent of how the
-  portfolio is grown (deterministic accumulation, bootstrap sample, or
-  user-provided historical series).</li>
-<li><code>entities</code> filter and <code>require_all_vested</code> toggle make the model usable
-  for sensitivity analyses (e.g., "what if only Frau's pension vests on time?").</li>
+<li>Accessible navigation shell (desktop permanent drawer, mobile app bar + bottom navigation, dialogs, snackbars) with correct focus/ARIA behavior out of the box.</li>
+<li>A single custom theme (<code>buildMuiTheme</code>) is the one place that encodes the Nordnet palette, typography, spacing and motion rules; CSS custom properties and MUI's palette can never drift because both are derived from <code>theme/tokens.ts</code>.</li>
+<li>No new "grid" data model to keep in sync with the OpenAPI/zod-validated API responses; existing table-rendering logic, memoized selectors, and grouped-row rendering are untouched.</li>
+<li>Smaller dependency and bundle footprint than pulling in MUI X Data Grid (and its own theming/i18n/licensing surface) for a use case it does not fit well.</li>
 </ul>
-<p><strong>Negative / limitations:</strong></p>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Pre-tax income overstates net income; goal may appear met earlier than in
-  reality. Acceptable until #28 lands.</li>
-<li><code>cumulative_pension_eur</code> is an aggregate; per-rule vesting is approximate
-  (all-or-nothing per entity, not per rule).</li>
-<li>SWR model ignores sequence-of-returns risk within the evaluation year;
-  that is handled at the Monte-Carlo level (#31).</li>
+<li>Reusable table primitive (<code>TableScroll</code>) is a thin wrapper, not a fully virtualized/sortable/filterable grid — sorting/filtering, if ever required generically, would need bespoke work or a future revisit of this ADR.</li>
+<li>Two parallel styling mechanisms exist during migration: legacy CSS custom properties/utility classes (for not-yet-migrated markup) and MUI's <code>sx</code>/theme system. This is intentionally temporary; <code>styles.css</code> is trimmed as each page migrates.</li>
+<li>Bundle size grows by MUI Core + Emotion (no MUI X). Mitigated by existing manual chunking in <code>vite.config.ts</code>.</li>
 </ul>
-<h2 id="rejected-options">Rejected Options<a class="headerlink" href="#rejected-options" title="Permanent link">&para;</a></h2>
-<h3 id="per-rule-cumulative-pension-tracking">Per-rule cumulative pension tracking<a class="headerlink" href="#per-rule-cumulative-pension-tracking" title="Permanent link">&para;</a></h3>
-<p>Track a separate running cumulative for each <code>PensionAccrualRule</code> in the
-cashflow engine, and expose a <code>pension_by_rule</code> field on <code>YearlyFlow</code>.
-<code>evaluate</code> could then sum only the vested rules' accruals.</p>
-<p><strong>Rejected</strong> because: (1) the household currently has exactly two pension
-rules per entity (one DC, one annual_eur) with the same vesting year, so
-the approximation is exact for the real use case; (2) it would require
-a schema change to <code>YearlyFlow</code> (breaking <code>CashflowProjection</code>) before #28
-is even implemented.</p>
-<h3 id="geometric-growth-portfolio-model-inlined-in-evaluate">Geometric-growth portfolio model inlined in <code>evaluate</code><a class="headerlink" href="#geometric-growth-portfolio-model-inlined-in-evaluate" title="Permanent link">&para;</a></h3>
-<p>Grow the portfolio by a fixed real rate inside <code>evaluate</code> instead of
-accepting a <code>portfolio_by_year</code> sequence.</p>
-<p><strong>Rejected</strong> because it couples the goal model to a specific return
-assumption and makes the Monte-Carlo integration harder. The caller-supplied
-path pattern is more composable.</p>
-<h3 id="decumulation-model">Decumulation model<a class="headerlink" href="#decumulation-model" title="Permanent link">&para;</a></h3>
-<p>Model SWR as actual portfolio drawdown (portfolio shrinks each year;
-goal fails when portfolio reaches zero).</p>
-<p><strong>Rejected</strong> as premature. The FIRE literature consensus is that the SWR
-rate already implicitly models decumulation risk over the chosen horizon.
-A full decumulation model would require the Monte-Carlo runner (#31) to be
-complete, which depends on #28 and #31.</p>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Pages keep their existing data-fetching (<code>TanStack Query</code>) and validation (<code>zod</code>/generated OpenAPI types) unchanged; this ADR only concerns presentation components.</li>
+</ul>
+<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
+<h3 id="option-1-mui-core-mui-x-data-grid-community">Option 1 — MUI Core + MUI X Data Grid Community<a class="headerlink" href="#option-1-mui-core-mui-x-data-grid-community" title="Permanent link">&para;</a></h3>
+<p>Rejected for the reasons above: the grid's row/column/virtualization model does not match the bespoke drill-down and CSV-mapping tables in Performance/Imports, and adopting it wholesale would mean either flattening those tables to fit the grid (losing existing behavior) or running two different table systems side by side for no net accessibility/behavioral gain over a plain semantic <code>&lt;table&gt;</code> with a horizontal-scroll wrapper.</p>
+<h3 id="option-3-headless-ui-kit-radixariakit-hand-rolled-visuals">Option 3 — Headless UI kit (Radix/Ariakit) + hand-rolled visuals<a class="headerlink" href="#option-3-headless-ui-kit-radixariakit-hand-rolled-visuals" title="Permanent link">&para;</a></h3>
+<p>Would require hand-building every layout affordance (drawer transitions, bottom-nav semantics, snackbar queuing) on top of headless primitives — more implementation and testing surface than MUI Core for the same accessibility guarantees, with no offsetting benefit since we are already writing a fully custom theme either way.</p>
+<h3 id="option-4-extend-the-hand-rolled-css-system">Option 4 — Extend the hand-rolled CSS system<a class="headerlink" href="#option-4-extend-the-hand-rolled-css-system" title="Permanent link">&para;</a></h3>
+<p>Keeps zero new dependencies, but every acceptance criterion in #271 that needs interactive/accessible chrome (responsive drawer, bottom navigation, dialogs, toasts) would need bespoke focus-trapping, ARIA, and keyboard-interaction code written and tested from scratch, which is exactly the kind of risk a mature component library is meant to remove. Rejected as disproportionate effort for a UI-only concern.</p>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Issue: <a href="https://github.com/autoditac/Penge/issues/271">#271</a></li>
+<li>Related ADRs: <a href="../0033-reporting-first-react-webui/">0033</a>, <a href="../0036-webui-frontend-stack/">0036</a></li>
+<li>Code: <code>apps/web/src/theme/</code>, <code>apps/web/src/components/primitives.tsx</code>, <code>apps/web/src/shell/AppShell.tsx</code></li>
+<li>Docs: <a href="../../web/modern-webui/"><code>docs/web/modern-webui.md</code></a></li>
+</ul>
 
 
 

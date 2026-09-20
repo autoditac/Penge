@@ -1751,10 +1751,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#release-publishing" class="md-nav__link">
+  <a href="#merge-and-release-publishing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Release publishing
+        Merge and release publishing
       
     </span>
   </a>
@@ -3243,10 +3243,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#release-publishing" class="md-nav__link">
+  <a href="#merge-and-release-publishing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Release publishing
+        Merge and release publishing
       
     </span>
   </a>
@@ -3284,7 +3284,10 @@
 apps/api/Containerfile   # FastAPI read API (uv-built virtualenv)
 </code></pre></div>
 <p>CI builds application images on pull requests without pushing them.
-Published releases push images to GHCR and attach supply-chain metadata.</p>
+Every merge to <code>main</code> publishes fresh <code>:main</code> and <code>:&lt;commit-sha&gt;</code> images to
+GHCR (see <a href="../../decisions/0044-continuous-image-publishing-and-nas-auto-deploy/">ADR-0044</a>).
+Published releases additionally push <code>&lt;release-tag&gt;</code> images to GHCR and
+attach supply-chain metadata.</p>
 <h2 id="image-names">Image names<a class="headerlink" href="#image-names" title="Permanent link">&para;</a></h2>
 <p>Release images use this naming convention:</p>
 <div class="highlight"><pre><span></span><code>ghcr.io/autoditac/penge/&lt;app&gt;
@@ -3336,8 +3339,16 @@ including:</p>
 <p>Do not pass ad-hoc alternate build contexts that bypass this file.
 Never copy real statements, reports, backups, or local databases into image
 fixtures.</p>
-<h2 id="release-publishing">Release publishing<a class="headerlink" href="#release-publishing" title="Permanent link">&para;</a></h2>
-<p>The release workflow pushes application images on:</p>
+<h2 id="merge-and-release-publishing">Merge and release publishing<a class="headerlink" href="#merge-and-release-publishing" title="Permanent link">&para;</a></h2>
+<p>On every merge to <code>main</code>, the <code>publish-images</code> job in <code>.github/workflows/ci.yml</code>
+pushes:</p>
+<ul>
+<li><code>ghcr.io/autoditac/penge/&lt;app&gt;:main</code> (moving tag — always the latest
+  <code>main</code> build);</li>
+<li><code>ghcr.io/autoditac/penge/&lt;app&gt;:&lt;commit-sha&gt;</code> (immutable, used for pinning
+  and rollback).</li>
+</ul>
+<p>The release workflow additionally pushes application images on:</p>
 <ul>
 <li><code>release: published</code></li>
 <li><code>workflow_dispatch</code></li>

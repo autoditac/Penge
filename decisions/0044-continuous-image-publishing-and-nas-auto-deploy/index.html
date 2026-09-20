@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0034-application-container-images/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0044-continuous-image-publishing-and-nas-auto-deploy/">
       
       
-        <link rel="prev" href="../0033-reporting-first-react-webui/">
-      
-      
-        <link rel="next" href="../0035-fastapi-read-api/">
       
       
         
@@ -27,7 +23,7 @@
     
     
       
-        <title>ADR-0034 Application container images - Penge</title>
+        <title>0044 — Continuous image publishing and NAS auto-deploy - Penge</title>
       
     
     
@@ -78,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0034-application-container-images-in-ci-and-releases" class="md-skip">
+        <a href="#0044-continuous-image-publishing-and-nas-auto-deploy" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0034 Application container images
+              0044 — Continuous image publishing and NAS auto-deploy
             
           </span>
         </div>
@@ -1856,8 +1852,6 @@
       
   
   
-    
-  
   
   
     
@@ -1950,11 +1944,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
         
           
           <div class="md-nav__link md-nav__container">
@@ -1982,7 +1976,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_10">
             <span class="md-nav__icon md-icon"></span>
             
@@ -2811,37 +2805,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0034 Application container images
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -2857,170 +2824,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Context and Problem Statement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision Drivers
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#ci-only-runs-docker-build" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CI only runs docker build
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#build-and-push-on-every-main-commit" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Build and push on every main commit
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -3416,10 +3219,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#ci-only-runs-docker-build" class="md-nav__link">
+  <a href="#keep-release-gated-publishing-only" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CI only runs docker build
+        Keep release-gated publishing only
       
     </span>
   </a>
@@ -3427,10 +3230,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#build-and-push-on-every-main-commit" class="md-nav__link">
+  <a href="#push-based-deploy-via-a-self-hosted-nas-runner" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Build and push on every main commit
+        Push-based deploy via a self-hosted NAS runner
       
     </span>
   </a>
@@ -3470,7 +3273,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0034-application-container-images.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0044-continuous-image-publishing-and-nas-auto-deploy.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3478,107 +3281,165 @@
   
 
 
-<h1 id="0034-application-container-images-in-ci-and-releases">0034 — Application container images in CI and releases<a class="headerlink" href="#0034-application-container-images-in-ci-and-releases" title="Permanent link">&para;</a></h1>
+<h1 id="0044-continuous-image-publishing-and-nas-auto-deploy">0044 — Continuous image publishing and NAS auto-deploy<a class="headerlink" href="#0044-continuous-image-publishing-and-nas-auto-deploy" title="Permanent link">&para;</a></h1>
 <ul>
 <li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-22</li>
+<li><strong>Date:</strong> 2026-09-20</li>
 <li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> web, infra, security</li>
+<li><strong>Tags:</strong> infra, security</li>
 </ul>
 <h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>Penge now has a modern WebUI app under <code>apps/web</code>, but CI only built the
-TypeScript artefact.
-There was no application container image, so deployment could drift from the
-tested build and the release workflow's image/SBOM/provenance placeholder stayed
-disabled.</p>
-<p>We need a repeatable container boundary that is safe for a private finance app:
-base images must be pinned, no local data may enter build contexts, CI must
-verify image builds on every PR, and releases must produce traceable images.</p>
+<p>ADR-0034 deliberately rejected publishing container images on every merge to
+<code>main</code>, to "avoid unreviewed deployment artefacts": images were only pushed to
+GHCR when a GitHub Release was published. In practice this means the
+<code>container-images</code> job in <code>.github/workflows/ci.yml</code> builds every merge with
+<code>push: false</code> and discards the result — a plain merge to <code>main</code> produces no
+deployable artifact.</p>
+<p>The NAS instance (<code>penge.eigmueller.de</code>) runs the API from a hand-built
+<code>localhost/penge/api:dev</code> image, transferred with <code>podman save | ssh | podman
+load</code> and restarted manually. <code>podman-auto-update.timer</code> is enabled on the NAS
+but is a no-op: the quadlet has no <code>AutoUpdate=registry</code> label and the image
+reference is local, not a registry pull. Every merge that changes the API
+(e.g. #227) has required a manual rebuild-and-restart on the NAS, which is
+slow, error-prone, and easy to forget.</p>
+<p>Every merge to <code>main</code> already passes the full CI suite (pytest, dbt build,
+Alembic round-trip, container image build verification, dependency review,
+and PR review including a Copilot review with all threads resolved). Given
+this pre-merge review bar, we re-evaluate ADR-0034's assumption that only
+<em>release</em> merges are "reviewed" — regular merges to <code>main</code> are equally
+reviewed, they just aren't tagged as a release.</p>
 <h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Images must be reproducible enough for home-server deployment and review.</li>
-<li>No real financial data, backups, reports, statements, or local secrets may be
-  sent into Docker build contexts.</li>
-<li>Base images and GitHub Actions must be pinned.</li>
-<li>Release images must be pushed to GHCR with SBOM and provenance support.</li>
-<li>The first image should be the WebUI; future app images should follow the same
-  <code>apps/&lt;name&gt;/Containerfile</code> convention.</li>
+<li>Reduce the operational toil and error surface of manual NAS deploys (#227).</li>
+<li>Keep every image traceable to a reviewed, CI-green commit.</li>
+<li>No registry secrets in the repository; no real financial data ever crosses
+  a build context (unchanged from ADR-0034).</li>
+<li>Reuse the existing release-time GHCR publish/SBOM/attestation pattern
+  instead of inventing a second one.</li>
+<li>Prefer the NAS's existing <code>podman-auto-update.timer</code> machinery over adding
+  a bespoke deploy runner or webhook receiver.</li>
+<li>Rollback must stay possible without re-triggering CI (pin the quadlet to
+  an immutable <code>:&lt;commit-sha&gt;</code> tag, temporarily overriding auto-update).</li>
 </ul>
 <h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>CI only runs <code>docker build</code></strong> — simple, but leaves release publishing,
-   SBOMs, and provenance as manual work.</li>
-<li><strong>Build and push on every <code>main</code> commit</strong> — fast deployment path, but creates
-   mutable images outside the release process.</li>
-<li><strong>CI build verification plus release-time GHCR publishing</strong> — test images on
-   PRs and publish only when a release is cut.</li>
+<li><strong>Keep release-gated publishing only</strong> — no CI change; deploy remains a
+   manual, release-triggered process.</li>
+<li><strong>Publish <code>:main</code> and <code>:&lt;sha&gt;</code> tags to GHCR on every merge to <code>main</code></strong>,
+   and switch the NAS quadlet to pull <code>ghcr.io/autoditac/penge/api:main</code> via
+   <code>podman-auto-update.timer</code> (<code>AutoUpdate=registry</code> label).</li>
+<li><strong>Push-based deploy</strong>: a self-hosted GitHub Actions runner on the NAS runs
+   a <code>deploy</code> job after the images job, pulls the new digest, and restarts
+   the quadlet.</li>
 </ol>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We chose <strong>CI build verification plus release-time GHCR publishing</strong>.</p>
-<p>The WebUI image is defined by <code>apps/web/Containerfile</code>.
-It uses a pinned Node build stage and a pinned unprivileged Nginx runtime stage.
-The image serves the static Vite output on port <code>8080</code>.</p>
-<p>CI runs a matrix job over application Containerfiles, currently:</p>
-<div class="highlight"><pre><span></span><code><span class="nt">app</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">web</span><span class="p p-Indicator">]</span>
-</code></pre></div>
-<p>For pull requests, CI builds the image without pushing it.
-For published releases or manual release workflow dispatch, the release workflow
-pushes images to:</p>
-<div class="highlight"><pre><span></span><code>ghcr.io/autoditac/penge/&lt;app&gt;
-</code></pre></div>
-<p>Each release image is tagged with the release tag (or a manual workflow tag) and
-the commit SHA.
-The release job also requests an image SBOM from Docker Buildx and emits GitHub
-build-provenance attestation for the pushed digest.</p>
+<p>We chose <strong>option 2</strong>: publish images on every merge to <code>main</code> (this ADR,
+implemented by #228 / the <code>publish-images</code> job in <code>ci.yml</code>), and switch the
+NAS <code>penge-api</code> quadlet to <code>podman-auto-update.timer</code>-driven pulls from
+GHCR (#229, follow-up PR).</p>
+<p><code>ci.yml</code> gains a <code>publish-images</code> job, gated with
+<code>if: github.event_name == 'push' &amp;&amp; github.ref == 'refs/heads/main'</code>, so it
+never runs for <code>pull_request</code> events (forked PRs never gain
+<code>packages: write</code>). It <code>needs</code> every other push-triggered job in <code>ci.yml</code>
+that validates the <em>content of the published images</em>: lint, secret scan,
+bootstrap smoke, the WebUI build, the Containerfile builds
+(<code>container-images</code>), the Alembic migration round-trip the API runs on
+startup, and pytest.</p>
+<p><code>dbt.yml</code>, <code>docs.yml</code>, <code>backup-roundtrip.yml</code>, and <code>mcp-evals.yml</code> also run
+on the same push, as separate workflow files -- <code>needs:</code> cannot reach jobs
+across workflow-file boundaries, and an earlier draft of this ADR/PR tried
+to work around that by adding a job that polled the GitHub API for those
+checks' status. That approach was dropped: it duplicated runner capacity
+against the same constrained self-hosted pool the checks it waited on also
+needed (risking contention or, in the worst case, deadlock), matched
+check-runs by name and commit SHA alone (risking a stale match against an
+earlier <code>pull_request</code> run of the same SHA), and required hand-maintaining
+an ever-growing list of check names and path filters in lockstep with
+unrelated workflow files. Instead, <code>publish-images</code> simply does not wait on
+those four workflows: each validates an orthogonal subsystem -- dbt
+models, the docs site, backup/restore scripts, MCP tool behaviour -- none
+of which is part of the api/web container images' content, and each
+already gates its own consequences independently (e.g. docs' GitHub Pages
+deploy job already depends on its own build job succeeding). A failure in
+any of them does not mean the just-built images are wrong.</p>
+<p><code>publish-images</code> mirrors <code>release.yml</code>'s <code>images</code> job: Buildx build,
+SBOM request, GHCR push, and a build-provenance attestation for the pushed
+digest. Tags are <code>:main</code> (moving, "latest known-good") and <code>:&lt;commit-sha&gt;</code>
+(immutable, used for rollback and for pinning the NAS quadlet).</p>
+<p>The release workflow (<code>release.yml</code>) is unchanged: tagged releases still
+additionally publish <code>&lt;release-tag&gt;</code> and <code>&lt;commit-sha&gt;</code> images with the same
+attestation, for consumers who want a stable version number rather than
+tracking <code>main</code>.</p>
+<p>Follow-up work (#229) will update the NAS <code>penge-api.container</code> quadlet to
+reference <code>ghcr.io/autoditac/penge/api:main</code> with <code>AutoUpdate=registry</code>, so
+<code>podman-auto-update.timer</code> (already enabled, currently a no-op) resolves
+<code>:main</code> to its current digest on each poll and restarts the container when
+it changes. The <code>Image=</code> line intentionally stays on the moving <code>:main</code> tag
+-- that is what gives <code>AutoUpdate=registry</code> something to compare against;
+pinning it to a digest would disable auto-update entirely. The digest podman
+actually pulled is always inspectable after the fact (<code>podman inspect
+penge-api --format '{{.Image}}'</code>), so no separate record-keeping step is
+needed for audit. Rollback (see Consequences below) uses the immutable
+<code>:&lt;commit-sha&gt;</code> tag instead: editing <code>Image=</code> to a specific <code>:&lt;sha&gt;</code> and
+restarting pins the container to that exact reviewed build until the
+quadlet is switched back to <code>:main</code>. GHCR pull credentials for the NAS will
+be a fine-grained PAT with <code>read:packages</code> only, stored in the podman system
+auth file on the NAS -- never in the repository. This PR only adds the
+publish side (<code>ci.yml</code>); no quadlet or NAS configuration changes are
+included here, and the NAS remains on its current manual/local-image deploy
+process until #229 lands. The WebUI is currently served as static files
+from <code>/var/www/penge</code> by the host's own nginx, not from the containerized
+image; bringing it onto the same registry-pull path is out of scope for that
+issue and can be a later follow-up if desired.</p>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Deployment images are now tested by the same CI surface as code changes.</li>
-<li>Release artefacts include a container image, SBOM, and provenance path.</li>
-<li><code>.dockerignore</code> prevents private local data from entering build contexts.</li>
-<li>Future apps can opt into the same pipeline by adding
-  <code>apps/&lt;name&gt;/Containerfile</code> and extending the matrix.</li>
+<li>Every merge to <code>main</code> produces a deployable, SBOM'd, attested image within
+  minutes, without waiting for a release.</li>
+<li>The NAS converges to the latest <code>main</code> image automatically via existing
+  <code>podman-auto-update</code> machinery — no new runner or webhook to maintain.</li>
+<li>Rollback is a one-line quadlet edit (pin to a prior commit-sha tag) plus
+  <code>systemctl restart</code>, with no rebuild needed.</li>
+<li>Release publishing keeps working unchanged for anyone tracking version
+  tags instead of <code>main</code>.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
-<li>CI now depends on Docker Buildx working on the self-hosted runner.</li>
-<li>Release publishing requires GHCR package permissions.</li>
-<li>The WebUI runtime is static-only; API-backed features still need a future API
-  service image.</li>
+<li><code>main</code> now always has a corresponding published image, increasing GHCR
+  storage/quota usage over time (mitigated by GHCR's default retention and
+  the option to prune old <code>:&lt;sha&gt;</code> tags later).</li>
+<li>The NAS PAT is a new secret to rotate and audit outside the repository.</li>
+<li>Auto-update means a merge to <code>main</code> reaches production without an
+  explicit human "go" — mitigated by the existing pre-merge review bar
+  (CI green + Copilot review threads resolved) being the actual gate now,
+  matching how ADR-0034's "reviewed artefact" concern is already satisfied
+  before merge.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
-<li><code>compose.yaml</code> remains the local infra compose file.
-  A production compose file with pinned GHCR digests should be added once the
-  first deployment target is ready.</li>
+<li>This supersedes ADR-0034's specific claim that "Penge currently follows a
+  release workflow with explicit review and merge gates" as the sole
+  trustworthy publish trigger; ADR-0034's Containerfile/SBOM/provenance
+  design otherwise stands unchanged.</li>
 </ul>
 <h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="ci-only-runs-docker-build">CI only runs <code>docker build</code><a class="headerlink" href="#ci-only-runs-docker-build" title="Permanent link">&para;</a></h3>
-<p>This would catch broken Containerfiles but would not create deployable artefacts
-or supply-chain metadata.
-Rejected because the release workflow already has the right permissions and
-attestation intent.</p>
-<h3 id="build-and-push-on-every-main-commit">Build and push on every <code>main</code> commit<a class="headerlink" href="#build-and-push-on-every-main-commit" title="Permanent link">&para;</a></h3>
-<p>This is useful for continuous deployment, but Penge currently follows a release
-workflow with explicit review and merge gates.
-Rejected for now to avoid unreviewed deployment artefacts.</p>
-<blockquote>
-<p><strong>Update (2026-09-20):</strong> <a href="../0044-continuous-image-publishing-and-nas-auto-deploy/">ADR-0044</a>
-revisits this rejection — every merge to <code>main</code> already passes the same
-review bar as a release (CI green, Copilot review threads resolved), so
-ADR-0044 adds a <code>main</code>-merge publish path alongside release publishing.
-The rest of this ADR's design (Containerfiles, SBOM, provenance) is
-unchanged.</p>
-</blockquote>
+<h3 id="keep-release-gated-publishing-only">Keep release-gated publishing only<a class="headerlink" href="#keep-release-gated-publishing-only" title="Permanent link">&para;</a></h3>
+<p>Simplest, matches ADR-0034 exactly, but leaves the operational gap open
+indefinitely (issues #227 and #229) — deploys stay manual and error-prone,
+which is the problem this ADR exists to fix.</p>
+<h3 id="push-based-deploy-via-a-self-hosted-nas-runner">Push-based deploy via a self-hosted NAS runner<a class="headerlink" href="#push-based-deploy-via-a-self-hosted-nas-runner" title="Permanent link">&para;</a></h3>
+<p>Most flexible (explicit deploy job, environment protection rules,
+approval gates), but adds a new self-hosted runner to provision and secure
+on the NAS, and a second CI/CD surface parallel to <code>podman-auto-update</code>.
+Rejected for now given the NAS already has working auto-update timer
+machinery that only needs a registry image to point at.</p>
 <h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../0033-reporting-first-react-webui/">ADR-0033 Reporting-first React WebUI</a></li>
-<li><a href="../0044-continuous-image-publishing-and-nas-auto-deploy/">ADR-0044 Continuous image publishing and NAS auto-deploy</a></li>
+<li><a href="../0034-application-container-images/">ADR-0034 Application container images in CI and releases</a></li>
 <li><a href="../../runbook/container-images/">Container images runbook</a></li>
-<li><code>apps/web/Containerfile</code></li>
-<li><code>.github/workflows/ci.yml</code></li>
+<li><code>.github/workflows/ci.yml</code> (<code>publish-images</code> job)</li>
 <li><code>.github/workflows/release.yml</code></li>
-<li>Issue #200</li>
+<li>Issue #227, #228, #229</li>
 </ul>
 
 

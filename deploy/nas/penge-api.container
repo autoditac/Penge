@@ -57,7 +57,7 @@ TimeoutStartSec=120
 # not the :main tag: after a digest-pinned rollback (see the runbook)
 # the container no longer runs whatever :main happens to point to
 # locally, so inspecting the tag directly would log the wrong digest.
-ExecStartPost=/bin/sh -c 'echo "penge-api deploy: $(date -Iseconds) digest=$(podman image inspect "$(podman inspect penge-api --format \"{{.Image}}\" 2>/dev/null)" --format \"{{.Digest}}\" 2>/dev/null)"'
+ExecStartPost=/bin/sh -c 'set -e; image_id=$(podman inspect penge-api --format "{{.Image}}"); [ -n "$image_id" ]; digest=$(podman image inspect "$image_id" --format "{{.Digest}}"); [ -n "$digest" ]; echo "penge-api deploy: $(date -Iseconds) digest=$digest"'
 
 [Install]
 WantedBy=multi-user.target default.target

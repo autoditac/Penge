@@ -163,6 +163,11 @@ of scope for #229 and can be a later follow-up if desired.
   (CI green + Copilot review threads resolved) being the actual gate now,
   matching how ADR-0034's "reviewed artefact" concern is already satisfied
   before merge.
+- Auto-update replaces the image only; it never runs Alembic. A PR that
+  needs its migration applied before its API changes work correctly must
+  not rely on deploy ordering -- see "Migration coordination" in the
+  [NAS deploy runbook](../runbook/nas-deploy.md) for the expand/contract
+  and manual-migration-before-merge contract this requires.
 
 ### Neutral
 

@@ -80,6 +80,38 @@ The digest is the exact, immutable manifest digest GHCR resolved `:main` to
 at that moment — it identifies the build precisely, independent of any tag
 ever being reused or repointed.
 
+## Migration coordination
+
+Auto-deploy only replaces the `penge-api` container image; it never runs
+Alembic. A merge that changes both the schema and the API in the same PR
+can therefore roll out to the NAS **before** its migration has been
+applied, because the image update and the DB migration are not gated on
+each other.
+
+**Contract:** any PR that requires a new migration to be applied before its
+API changes can run correctly must not rely on auto-deploy ordering.
+Instead:
+
+- Prefer the expand/contract pattern: land the migration (additive,
+  backward-compatible with the *currently deployed* API) in its own PR
+  first, apply it to the NAS (see below), confirm the running `:main`
+  image still works against the new schema, and only then merge the PR
+  that starts relying on it. Drop/narrow migrations (the "contract" step)
+  follow once no deployed image reads the old shape anymore.
+- If a single PR cannot reasonably be split that way, apply the migration
+  to the NAS **manually, before merging**, using the workstation-over-SSH-tunnel
+  method already documented in the
+  [Enable Banking consent runbook](enable-banking-consent.md) (`DATABASE_URL=... uv run --group db alembic upgrade head`
+  against the tunnelled NAS Postgres) -- the NAS has no repo checkout to
+  run Alembic locally.
+
+This is a manual, reviewed step by design: schema changes already require
+a working `downgrade()` and (for destructive changes) an ADR per
+`.github/instructions/migrations.instructions.md`; adding unattended
+migration execution to the auto-update path would let an unreviewed
+schema change run against production with no human in the loop, which is
+a larger change warranting its own ADR if ever pursued.
+
 ## Rollback
 
 Auto-update already rolls back automatically on a failed health check (see

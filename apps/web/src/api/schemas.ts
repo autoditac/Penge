@@ -29,6 +29,7 @@ export const accountSummarySchema = z.object({
   entity_name: z.string(),
   iban_masked: z.string(),
   kind: z.string(),
+  last_updated_at: z.string().nullable(),
   name: z.string(),
   provider: z.string(),
 });

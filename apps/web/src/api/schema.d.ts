@@ -13,7 +13,7 @@ export interface paths {
     };
     /**
      * Accounts
-     * @description Account dimension with IBAN and name suffix masked server-side.
+     * @description Account dimension with masked identifiers and per-account import freshness.
      */
     get: operations["accounts_accounts_get"];
     put?: never;
@@ -431,10 +431,12 @@ export interface components {
   schemas: {
     /**
      * AccountSummary
-     * @description Account dimension row with identifiers masked server-side.
+     * @description Account dimension row with identifiers masked server-side and import freshness.
      *
      *     ``iban_masked`` keeps only the last four characters
      *     (``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.
+     *     ``last_updated_at`` is the newest creation timestamp among transaction,
+     *     holding-snapshot, and document rows associated with the account.
      */
     AccountSummary: {
       /** Account Id */
@@ -449,6 +451,8 @@ export interface components {
       iban_masked: string;
       /** Kind */
       kind: string;
+      /** Last Updated At */
+      last_updated_at: string | null;
       /** Name */
       name: string;
       /** Provider */

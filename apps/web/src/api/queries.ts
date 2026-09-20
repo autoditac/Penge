@@ -22,10 +22,10 @@ import {
   fetchConnections,
   fetchFees,
   fetchFreshness,
+  fetchAllNetWorthByAccount,
   fetchImportSession,
   fetchImportSessions,
   fetchImportSuggestions,
-  fetchNetWorthByAccount,
   fetchNetWorthTotal,
   fetchReturnsDaily,
   fetchReturnsSummary,
@@ -130,7 +130,7 @@ export function useNetWorthByAccount(
         const fixtures = await import("../demo/fixtures");
         return fixtures.demoNetWorthByAccount;
       }
-      return fetchNetWorthByAccount(params);
+      return fetchAllNetWorthByAccount(params);
     },
   });
 }

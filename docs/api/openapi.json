@@ -3,7 +3,7 @@
     "schemas": {
       "AccountSummary": {
         "additionalProperties": false,
-        "description": "Account dimension row with identifiers masked server-side.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.",
+        "description": "Account dimension row with identifiers masked server-side and import freshness.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.\n``last_updated_at`` is the newest creation timestamp among transaction,\nholding-snapshot, and document rows associated with the account.",
         "properties": {
           "account_id": {
             "title": "Account Id",
@@ -29,6 +29,18 @@
             "title": "Kind",
             "type": "string"
           },
+          "last_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Updated At"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -46,7 +58,8 @@
           "name",
           "kind",
           "currency",
-          "iban_masked"
+          "iban_masked",
+          "last_updated_at"
         ],
         "title": "AccountSummary",
         "type": "object"
@@ -2154,7 +2167,7 @@
   "paths": {
     "/accounts": {
       "get": {
-        "description": "Account dimension with IBAN and name suffix masked server-side.",
+        "description": "Account dimension with masked identifiers and per-account import freshness.",
         "operationId": "accounts_accounts_get",
         "responses": {
           "200": {

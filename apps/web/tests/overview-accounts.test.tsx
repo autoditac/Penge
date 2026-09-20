@@ -23,6 +23,7 @@ const accounts: readonly AccountSummary[] = [
     entity_name: "Person A",
     iban_masked: "••••1234",
     kind: "checking",
+    last_updated_at: "2026-04-01T08:30:00Z",
     name: "Cash account",
     provider: "bank",
   },
@@ -33,6 +34,7 @@ const accounts: readonly AccountSummary[] = [
     entity_name: "Person B",
     iban_masked: "",
     kind: "investment",
+    last_updated_at: null,
     name: "Investment depot",
     provider: "broker",
   },
@@ -72,7 +74,8 @@ describe("AccountOverview", () => {
     expect(screen.getByRole("table", { name: "Tracked accounts" })).toBeInTheDocument();
     expect(screen.queryByRole("columnheader", { name: "Provider" })).not.toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: "Last updated" })).toBeInTheDocument();
-    expect(screen.getAllByText("2026-03-31")).toHaveLength(2);
+    expect(document.querySelector('time[datetime="2026-04-01T08:30:00Z"]')).not.toBeNull();
+    expect(screen.getByLabelText("Last data import unavailable")).toBeInTheDocument();
     expect(screen.getByText("••••1234")).toBeInTheDocument();
     expect(screen.getByLabelText("IBAN not applicable")).toBeInTheDocument();
     expect(screen.getByLabelText(/Increased by.*250.*since 2026-02-28/)).toBeInTheDocument();
@@ -87,8 +90,27 @@ describe("AccountOverview", () => {
     const articles = screen.getAllByRole("article");
     expect(articles).toHaveLength(2);
     expect(within(articles[0]!).getByText(/IBAN ••••1234/)).toBeInTheDocument();
-    expect(within(articles[0]!).getByText("Updated 2026-03-31")).toBeInTheDocument();
+    expect(within(articles[0]!).getByText(/^Updated /)).toBeInTheDocument();
     expect(within(articles[1]!).queryByText(/^IBAN /)).not.toBeInTheDocument();
     expect(within(articles[1]!).getByText(/50.000/)).toBeInTheDocument();
+  });
+
+  it("announces negative and unchanged monthly deltas", () => {
+    useMediaQueryMock.mockReturnValue(true);
+    const changedAccounts: readonly AccountSummary[] = [
+      { ...accounts[0]!, account_id: "negative" },
+      { ...accounts[1]!, account_id: "flat" },
+    ];
+    const changedPoints: readonly NetWorthPoint[] = [
+      { ...point("cash", "2026-02-28", "1000"), account_id: "negative" },
+      { ...point("cash", "2026-03-31", "750"), account_id: "negative" },
+      { ...point("depot", "2026-02-28", "50000"), account_id: "flat" },
+      { ...point("depot", "2026-03-31", "50000"), account_id: "flat" },
+    ];
+
+    renderWithTheme(<AccountOverview accounts={changedAccounts} points={changedPoints} />);
+
+    expect(screen.getByLabelText(/Decreased by.*250.*since 2026-02-28/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Unchanged by.*0.*since 2026-02-28/)).toBeInTheDocument();
   });
 });

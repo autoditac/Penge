@@ -322,6 +322,33 @@ function balanceLabel(snapshot: AccountBalanceSnapshot | undefined, currencyCode
     : formatMoney(snapshot.balance, currency);
 }
 
+const updateDateFormat = new Intl.DateTimeFormat("en-DK", {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function LastUpdated({
+  value,
+  prefix = false,
+}: {
+  readonly value: string | null;
+  readonly prefix?: boolean;
+}): React.JSX.Element {
+  if (value === null) {
+    return (
+      <Box component="span" aria-label="Last data import unavailable" color="text.secondary">
+        {prefix ? "Updated unavailable" : "—"}
+      </Box>
+    );
+  }
+  const formatted = updateDateFormat.format(new Date(value));
+  return (
+    <time dateTime={value} aria-label={`Last data import ${formatted}`}>
+      {prefix ? `Updated ${formatted}` : formatted}
+    </time>
+  );
+}
+
 function DeltaValue({
   snapshot,
   currencyCode,
@@ -411,7 +438,9 @@ export function AccountOverview({ accounts, points }: AccountOverviewProps): Rea
                       account.iban_masked
                     )}
                   </td>
-                  <td>{snapshot?.asOf ?? "—"}</td>
+                  <td>
+                    <LastUpdated value={account.last_updated_at} />
+                  </td>
                   <td
                     className="num"
                     title={snapshot ? `Balance as of ${snapshot.asOf}` : undefined}
@@ -478,7 +507,7 @@ export function AccountOverview({ accounts, points }: AccountOverviewProps): Rea
                 </Typography>
               ) : null}
               <Typography sx={{ color: "inherit", fontSize: "inherit" }}>
-                Updated {snapshot?.asOf ?? "unavailable"}
+                <LastUpdated value={account.last_updated_at} prefix />
               </Typography>
             </Stack>
           </Box>

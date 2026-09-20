@@ -7,7 +7,7 @@ validation are exercised through the real ASGI stack via TestClient.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
@@ -96,6 +96,7 @@ def synthetic_account_rows() -> list[dict[str, object]]:
             "kind": "frie_midler",
             "currency": "EUR",
             "iban": "DK5000400440116243",
+            "last_updated_at": datetime(2026, 6, 2, 8, 30, tzinfo=UTC),
         },
         {
             "account_id": "a2",
@@ -106,6 +107,7 @@ def synthetic_account_rows() -> list[dict[str, object]]:
             "kind": "cash",
             "currency": "DKK",
             "iban": None,
+            "last_updated_at": datetime(2026, 6, 1, 9, 15, tzinfo=UTC),
         },
         {
             "account_id": "a3",
@@ -116,6 +118,7 @@ def synthetic_account_rows() -> list[dict[str, object]]:
             "kind": "real_estate",
             "currency": "DKK",
             "iban": None,
+            "last_updated_at": None,
         },
     ]
 

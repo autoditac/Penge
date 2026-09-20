@@ -28,9 +28,11 @@ are recorded in ADR-0036.
 
 - **Overview** — net-worth trend (365 days, EUR + DKK), current allocation by
   kind/currency/entity with donut + table, and a tracked-account overview with
-  each account's latest native-currency balance, latest imported balance date,
-  optional masked IBAN, and absolute change from the latest available balance
-  on or before one calendar month earlier. Desktop uses a dense table; mobile
+  each account's latest native-currency balance, latest account-data import
+  timestamp, optional masked IBAN, and absolute change from the latest
+  available balance on or before one calendar month earlier. The import
+  timestamp is the newest source-row creation time across transactions,
+  holding snapshots, and account documents. Desktop uses a dense table; mobile
   switches to account cards without empty IBAN rows.
 - **Performance** — dashboard v2 (#204, #206): KPI header (net worth,
   month-over-month delta, liquid share), range-selectable net-worth trend

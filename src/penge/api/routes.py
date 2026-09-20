@@ -9,7 +9,7 @@ server-side masking. No SQL and no business logic lives here.
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Annotated
 
@@ -193,7 +193,7 @@ def allocation_current(by: AllocationDimension = AllocationDimension.KIND) -> Al
 
 @router.get("/accounts", response_model=list[AccountSummary])
 def accounts() -> list[AccountSummary]:
-    """Account dimension with IBAN and name suffix masked server-side."""
+    """Account dimension with masked identifiers and per-account import freshness."""
     return [
         AccountSummary(
             account_id=str(row["account_id"]),
@@ -204,6 +204,9 @@ def accounts() -> list[AccountSummary]:
             kind=str(row["kind"]),
             currency=str(row["currency"]),
             iban_masked=mask_iban(row["iban"] if isinstance(row["iban"], str) else None),
+            last_updated_at=row["last_updated_at"]
+            if isinstance(row["last_updated_at"], datetime)
+            else None,
         )
         for row in data.fetch_accounts()
     ]

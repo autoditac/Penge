@@ -30,7 +30,7 @@ Database resolution follows the same rules as every other component:
 | `/net-worth/daily`    | Daily net worth, per account or summed (`group=total`)           |
 | `/cashflow/daily`     | Daily inflow/outflow/net per account                             |
 | `/allocation/current` | Latest-day allocation by `entity`, `currency`, or `kind`         |
-| `/accounts`           | Account dimension with IBAN and name suffix masked               |
+| `/accounts`           | Masked account dimension with latest source-data import timestamp |
 | `/meta/freshness`     | Latest data date and row count per mart, for staleness banners   |
 
 All series endpoints accept `since`, `until`, `account_id`, `entity_id`,

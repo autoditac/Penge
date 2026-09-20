@@ -136,8 +136,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Prepare attestation credentials
+        env:
+          ATTEST_HOME: ${{ runner.temp }}/attest-home-${{ matrix.app }}
+        run: |
+          mkdir -p "$ATTEST_HOME/.docker"
+          cp "$DOCKER_CONFIG/config.json" "$ATTEST_HOME/.docker/config.json"
+
       - name: Attest image provenance
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        env:
+          # actions/attest currently reads $HOME/.docker/config.json and does
+          # not honor DOCKER_CONFIG. Keep that HOME isolated per matrix job.
+          HOME: ${{ runner.temp }}/attest-home-${{ matrix.app }}
         with:
           subject-name: ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}
           subject-digest: ${{ steps.build.outputs.digest }}

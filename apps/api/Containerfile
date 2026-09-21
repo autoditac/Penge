@@ -22,10 +22,11 @@ ENV UV_PYTHON_DOWNLOADS=never
 # staged-import commit path imports (parsers, manual). The `enablebanking`
 # group supplies pyjwt[crypto] for the in-app connections surface, whose
 # router imports the Enable Banking client at module load (issue #230).
+# The dbt group supports the scheduled net-worth refresh worker (#278).
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-install-project --no-default-groups \
       --group api --group db --group http --group parsers --group manual \
-      --group enablebanking
+      --group enablebanking --group dbt
 
 # Project layer: install penge itself (hatchling needs the README).
 # --no-editable: the venv is copied to a runtime stage without /app/src,
@@ -34,7 +35,12 @@ COPY README.md ./
 COPY src/ src/
 RUN uv sync --frozen --no-editable --no-default-groups \
       --group api --group db --group http --group parsers --group manual \
-      --group enablebanking
+      --group enablebanking --group dbt
+
+# Resolve the pinned dbt package lock at image build time. Production
+# refreshes are network-independent apart from Postgres and Enable Banking.
+COPY dbt/ dbt/
+RUN .venv/bin/dbt deps --project-dir dbt --profiles-dir dbt
 
 FROM docker.io/library/python:3.12-slim-bookworm@sha256:76d4b7b6305788c6b4c6a19d6a22a3921bf802e9af4d5e1e5bd771208dba74bf
 
@@ -50,6 +56,7 @@ RUN groupadd --gid 1000 penge \
   && chown -R penge:penge /data
 
 COPY --from=build --chown=penge:penge /app/.venv /app/.venv
+COPY --from=build --chown=penge:penge /app/dbt /app/dbt
 
 ENV PATH="/app/.venv/bin:${PATH}"
 ENV PENGE_API_HOST=0.0.0.0

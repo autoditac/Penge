@@ -11,6 +11,7 @@ def test_disabled_without_key() -> None:
     config = ConnectionsConfig.from_env({})
     assert config.enabled is False
     assert config.redirect_url == DEFAULT_REDIRECT_URL
+    assert config.refresh_state_dir == Path(".cache/penge-refresh")
 
 
 def test_enabled_when_key_present(tmp_path: Path) -> None:
@@ -49,5 +50,11 @@ def test_kill_switch_overrides_present_key(tmp_path: Path) -> None:
 
 
 def test_redirect_url_override(tmp_path: Path) -> None:
-    config = ConnectionsConfig.from_env({"PENGE_EB_REDIRECT_URL": "https://x/cb"})
+    config = ConnectionsConfig.from_env(
+        {
+            "PENGE_EB_REDIRECT_URL": "https://x/cb",
+            "PENGE_REFRESH_STATE_DIR": str(tmp_path / "state"),
+        }
+    )
     assert config.redirect_url == "https://x/cb"
+    assert config.refresh_state_dir == tmp_path / "state"

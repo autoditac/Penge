@@ -34,6 +34,11 @@ from penge.api.connections.models import (
 from penge.api.connections.provider import all_providers
 from penge.api.imports.engine import get_import_engine
 from penge.ingest.enablebanking.client import Client
+from penge.ops.net_worth_refresh import (
+    LockUnavailableError,
+    RefreshStateError,
+    sync_connection_with_intent,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -231,14 +236,26 @@ def authorize_route(
 @router.post("/{connection_id}/sync", response_model=SyncResponse)
 def sync_route(
     connection_id: uuid.UUID,
-    _: Annotated[ConnectionsConfig, Depends(require_enabled)],
+    config: Annotated[ConnectionsConfig, Depends(require_enabled)],
     engine: Annotated[Engine, Depends(get_engine)],
     client: Annotated[Client, Depends(get_client)],
     days: Annotated[int, Query(ge=_HISTORY_MIN, le=_HISTORY_MAX)] = service.DEFAULT_HISTORY_DAYS,
 ) -> SyncResponse:
     """Pull transactions + balances for one connection into Postgres."""
     try:
-        outcome = service.sync(engine, client, connection_id=connection_id, days=days)
+        outcome = sync_connection_with_intent(
+            engine,
+            client,
+            connection_id=connection_id,
+            days=days,
+            lock_file=config.refresh_state_dir / "refresh.lock",
+            pending_refresh_file=config.refresh_state_dir / "pending",
+        )
+    except (LockUnavailableError, RefreshStateError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
     except service.ConnectionError as exc:
         raise _raise_for(exc) from exc
     return SyncResponse(

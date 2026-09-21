@@ -55,6 +55,7 @@ class LoadResult:
 
     transactions: int
     holding_snapshots: int
+    writes: int
 
 
 # --------------------------------------------------------------------------- #
@@ -128,8 +129,8 @@ def _persist(
 ) -> LoadResult:
     tables = _reflect(engine)
     with engine.begin() as conn:
-        entity_id = _get_or_create_entity(conn, tables["entity"], entity_name)
-        account_id = _get_or_create_account(
+        entity_id, entity_changed = _get_or_create_entity(conn, tables["entity"], entity_name)
+        account_id, account_changed = _get_or_create_account(
             conn,
             tables["account"],
             provider=provider,
@@ -140,12 +141,12 @@ def _persist(
             iban=iban,
             dk_tax_treatment=dk_tax_treatment,
         )
-        instrument_id = _get_or_create_cash_instrument(
+        instrument_id, instrument_changed = _get_or_create_cash_instrument(
             conn,
             tables["instrument"],
             currency=currency,
         )
-        n_txn = _upsert_transactions(
+        n_txn, txn_writes = _upsert_transactions(
             conn,
             tables["transaction"],
             provider=provider,
@@ -153,7 +154,7 @@ def _persist(
             account_id=account_id,
             instrument_id=instrument_id,
         )
-        n_snap = _upsert_balance_snapshot(
+        n_snap, snapshot_writes = _upsert_balance_snapshot(
             conn,
             tables["holding_snapshot"],
             balances=balances,
@@ -168,7 +169,8 @@ def _persist(
         n_txn,
         n_snap,
     )
-    return LoadResult(transactions=n_txn, holding_snapshots=n_snap)
+    writes = txn_writes + snapshot_writes + entity_changed + account_changed + instrument_changed
+    return LoadResult(transactions=n_txn, holding_snapshots=n_snap, writes=writes)
 
 
 # --------------------------------------------------------------------------- #
@@ -189,16 +191,16 @@ def _reflect(engine: Engine) -> dict[str, Table]:
 # --------------------------------------------------------------------------- #
 
 
-def _get_or_create_entity(conn: Connection, entity: Table, name: str) -> str:
+def _get_or_create_entity(conn: Connection, entity: Table, name: str) -> tuple[str, int]:
     existing = conn.execute(
         select(entity.c.id).where(entity.c.name == name, entity.c.kind == ENTITY_KIND).limit(1)
     ).scalar_one_or_none()
     if existing is not None:
-        return str(existing)
+        return str(existing), 0
     new_id = conn.execute(
         entity.insert().values(name=name, kind=ENTITY_KIND).returning(entity.c.id)
     ).scalar_one()
-    return str(new_id)
+    return str(new_id), 1
 
 
 def _get_or_create_account(
@@ -212,7 +214,7 @@ def _get_or_create_account(
     currency: str,
     iban: str | None,
     dk_tax_treatment: str | None,
-) -> str:
+) -> tuple[str, int]:
     """Upsert the account keyed on ``(provider, external_id)``."""
     stmt = pg_insert(account).values(
         entity_id=entity_id,
@@ -236,14 +238,21 @@ def _get_or_create_account(
             "dk_tax_treatment": stmt.excluded.dk_tax_treatment,
             "updated_at": func.now(),
         },
+        where=(
+            account.c.entity_id.is_distinct_from(stmt.excluded.entity_id)
+            | account.c.name.is_distinct_from(stmt.excluded.name)
+            | account.c.currency.is_distinct_from(stmt.excluded.currency)
+            | account.c.iban.is_distinct_from(stmt.excluded.iban)
+            | account.c.dk_tax_treatment.is_distinct_from(stmt.excluded.dk_tax_treatment)
+        ),
     )
-    conn.execute(stmt)
+    changed = conn.execute(stmt.returning(account.c.id)).scalar_one_or_none() is not None
     account_id = conn.execute(
         select(account.c.id)
         .where(account.c.provider == provider, account.c.external_id == external_id)
         .limit(1)
     ).scalar_one()
-    return str(account_id)
+    return str(account_id), int(changed)
 
 
 def _get_or_create_cash_instrument(
@@ -251,7 +260,7 @@ def _get_or_create_cash_instrument(
     instrument: Table,
     *,
     currency: str,
-) -> str:
+) -> tuple[str, int]:
     """One ``CASH:<CCY>`` synthetic instrument per currency."""
     ticker = f"{CASH_TICKER_PREFIX}{currency}"
     existing = conn.execute(
@@ -263,7 +272,7 @@ def _get_or_create_cash_instrument(
         .limit(1)
     ).scalar_one_or_none()
     if existing is not None:
-        return str(existing)
+        return str(existing), 0
     new_id = conn.execute(
         instrument.insert()
         .values(
@@ -275,7 +284,7 @@ def _get_or_create_cash_instrument(
         )
         .returning(instrument.c.id)
     ).scalar_one()
-    return str(new_id)
+    return str(new_id), 1
 
 
 # --------------------------------------------------------------------------- #
@@ -291,7 +300,7 @@ def _upsert_transactions(
     transactions: list[Transaction],
     account_id: str,
     instrument_id: str,
-) -> int:
+) -> tuple[int, int]:
     payload: list[dict[str, object]] = []
     for t in transactions:
         if external_id(t) is None:
@@ -305,7 +314,7 @@ def _upsert_transactions(
             continue
         payload.append(transaction_to_row(t, account_id=account_id, instrument_id=instrument_id))
     if not payload:
-        return 0
+        return 0, 0
 
     # Collapse rows that share the conflict key. Some ASPSPs return the same
     # ``entry_reference`` on more than one booked entry within a single page;
@@ -337,9 +346,22 @@ def _upsert_transactions(
             "counterparty": stmt.excluded.counterparty,
             "description": stmt.excluded.description,
         },
+        where=(
+            transaction.c.instrument_id.is_distinct_from(stmt.excluded.instrument_id)
+            | transaction.c.ts.is_distinct_from(stmt.excluded.ts)
+            | transaction.c.value_date.is_distinct_from(stmt.excluded.value_date)
+            | transaction.c.kind.is_distinct_from(stmt.excluded.kind)
+            | transaction.c.quantity.is_distinct_from(stmt.excluded.quantity)
+            | transaction.c.price.is_distinct_from(stmt.excluded.price)
+            | transaction.c.amount.is_distinct_from(stmt.excluded.amount)
+            | transaction.c.fee.is_distinct_from(stmt.excluded.fee)
+            | transaction.c.tax.is_distinct_from(stmt.excluded.tax)
+            | transaction.c.fx_rate.is_distinct_from(stmt.excluded.fx_rate)
+            | transaction.c.counterparty.is_distinct_from(stmt.excluded.counterparty)
+            | transaction.c.description.is_distinct_from(stmt.excluded.description)
+        ),
     )
-    conn.execute(stmt)
-    return len(payload)
+    return len(payload), len(conn.execute(stmt.returning(transaction.c.id)).all())
 
 
 def _upsert_balance_snapshot(
@@ -350,10 +372,10 @@ def _upsert_balance_snapshot(
     account_id: str,
     instrument_id: str,
     fallback_date: date,
-) -> int:
+) -> tuple[int, int]:
     picked = balance_to_market_value(balances, fallback_date=fallback_date)
     if picked is None:
-        return 0
+        return 0, 0
     market_value, as_of = picked
     stmt = pg_insert(holding_snapshot).values(
         account_id=account_id,
@@ -370,6 +392,14 @@ def _upsert_balance_snapshot(
             "price": None,
             "cost_basis": None,
         },
+        where=(
+            holding_snapshot.c.quantity.is_distinct_from(stmt.excluded.quantity)
+            | holding_snapshot.c.market_value.is_distinct_from(stmt.excluded.market_value)
+            | holding_snapshot.c.price.is_not(None)
+            | holding_snapshot.c.cost_basis.is_not(None)
+        ),
     )
-    conn.execute(stmt)
-    return 1
+    changed = int(
+        conn.execute(stmt.returning(holding_snapshot.c.id)).scalar_one_or_none() is not None
+    )
+    return 1, changed

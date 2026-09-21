@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -240,6 +241,18 @@ class SyncOutcome:
     record: store.ConnectionRecord
     transactions: int
     holding_snapshots: int
+    writes: int
+
+
+@dataclass(slots=True)
+class _WriteObserver:
+    callback: Callable[[int], None] | None
+    total: int = 0
+
+    def __call__(self, write_count: int) -> None:
+        self.total += write_count
+        if self.callback is not None:
+            self.callback(write_count)
 
 
 def _history_windows(days: int) -> list[int]:
@@ -251,6 +264,21 @@ def _history_windows(days: int) -> list[int]:
     return [days, *[w for w in HISTORY_FALLBACK_DAYS if w < days]]
 
 
+def _provider_for_sync(engine: Engine, record: store.ConnectionRecord) -> Provider:
+    provider = get_provider(record.provider)
+    if provider is not None:
+        return provider
+    err = ConnectionError(step="sync", message=f"unknown provider '{record.provider}'")
+    store.record_error(
+        engine,
+        record.id,
+        error=err.as_error_payload(),
+        status=record.status,
+        is_sync=True,
+    )
+    raise err
+
+
 def _sync_accounts(
     engine: Engine,
     provider: Provider,
@@ -260,14 +288,16 @@ def _sync_accounts(
     entity_name: str,
     date_from: date,
     date_to: date,
-) -> tuple[int, int]:
-    """Sync every account for one window, returning ``(txns, snapshots)``.
+    on_write: Callable[[int], None] | None,
+) -> tuple[int, int, int]:
+    """Sync every account for one window, returning ``(txns, snapshots, writes)``.
 
     Raises :class:`EnableBankingError` unchanged so the caller can decide
     whether to retry with a narrower window or record the failure.
     """
     total_txn = 0
     total_snap = 0
+    total_writes = 0
     for acct in accounts:
         result = provider.sync_account(
             engine,
@@ -279,7 +309,10 @@ def _sync_accounts(
         )
         total_txn += result.transactions
         total_snap += result.holding_snapshots
-    return total_txn, total_snap
+        total_writes += result.writes
+        if result.writes > 0 and on_write is not None:
+            on_write(result.writes)
+    return total_txn, total_snap, total_writes
 
 
 def sync(
@@ -288,26 +321,37 @@ def sync(
     *,
     connection_id: uuid.UUID,
     days: int = DEFAULT_HISTORY_DAYS,
+    on_write: Callable[[int], None] | None = None,
 ) -> SyncOutcome:
     """Pull transactions + balances for every account on the connection."""
     record = store.get_connection(engine, connection_id)
     if record is None:
         raise ConnectionError(step="sync", message="connection not found", not_found=True)
 
-    provider = get_provider(record.provider)
-    if provider is None:
-        raise ConnectionError(step="sync", message=f"unknown provider '{record.provider}'")
+    provider = _provider_for_sync(engine, record)
 
     if not record.session_id:
         err = ConnectionError(step="sync", message="connection is not authorized yet")
-        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=record.status,
+            is_sync=True,
+        )
         raise err
 
     try:
         session = client.get_session(record.session_id)
     except EnableBankingError as exc:
         err = _from_eb_error("sync", exc)
-        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=record.status,
+            is_sync=True,
+        )
         raise err from exc
 
     if session.status != _SESSION_AUTHORIZED:
@@ -329,16 +373,24 @@ def sync(
     selected = [a for a in session.accounts_data if a.uid is not None]
     if not selected:
         err = ConnectionError(step="sync", message="no accounts to sync on this session")
-        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=record.status,
+            is_sync=True,
+        )
         raise err
 
     windows = _history_windows(days)
     total_txn = 0
     total_snap = 0
+    write_observer = _WriteObserver(on_write)
+
     for index, window in enumerate(windows):
         date_from = today - timedelta(days=window)
         try:
-            total_txn, total_snap = _sync_accounts(
+            total_txn, total_snap, _ = _sync_accounts(
                 engine,
                 provider,
                 client=client,
@@ -346,6 +398,7 @@ def sync(
                 entity_name=record.entity_name,
                 date_from=date_from,
                 date_to=date_to,
+                on_write=write_observer,
             )
         except EnableBankingError as exc:
             code, _ = _eb_message(exc.body)
@@ -359,7 +412,13 @@ def sync(
                 )
                 continue
             err = _from_eb_error("sync", exc)
-            store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+            store.record_error(
+                engine,
+                record.id,
+                error=err.as_error_payload(),
+                status=record.status,
+                is_sync=True,
+            )
             raise err from exc
         else:
             if window != days:
@@ -380,7 +439,12 @@ def sync(
         total_txn,
         total_snap,
     )
-    return SyncOutcome(record=updated, transactions=total_txn, holding_snapshots=total_snap)
+    return SyncOutcome(
+        record=updated,
+        transactions=total_txn,
+        holding_snapshots=total_snap,
+        writes=write_observer.total,
+    )
 
 
 __all__ = [

@@ -22,12 +22,14 @@ SecurityLabelDisable=true
 Network=penge
 EnvironmentFile=/etc/penge/penge-api.env
 Volume=/etc/penge/nordnet-accounts.yaml:/etc/penge/nordnet-accounts.yaml:ro
+Volume=/var/lib/penge/refresh:/var/lib/penge-refresh
 Environment=PENGE_NORDNET_ACCOUNTS_CONFIG=/etc/penge/nordnet-accounts.yaml
 PublishPort=127.0.0.1:8001:8000
 Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000
 Environment=ENABLEBANKING_APPLICATION_ID=09a4a71a-1646-41e7-97b1-b79eea6e9d8a
 Environment=ENABLEBANKING_KEY_PATH=/run/secrets/penge-eb-key
 Environment=PENGE_EB_REDIRECT_URL=https://penge.eigmueller.de/eb/callback
+Environment=PENGE_REFRESH_STATE_DIR=/var/lib/penge-refresh
 # Liveness probe backing podman-auto-update's automatic rollback: if the
 # freshly pulled image's container turns unhealthy, podman reverts to the
 # previous image on the next auto-update cycle instead of leaving a

@@ -200,6 +200,23 @@ def test_twr_data_gap_raises() -> None:
         twr_summary(points)
 
 
+def test_twr_negative_end_value_without_capital_is_dormant_not_a_gap() -> None:
+    # A negative value appearing with no capital at risk (denominator <= 0)
+    # falls under the #282 non-positive-end-value dormant contract too, not
+    # the data-gap raise, which is reserved for a *positive* value.
+    points = [
+        ReturnPoint(as_of=_D0, begin_value=Decimal("0"), end_value=Decimal("0")),
+        ReturnPoint(
+            as_of=_D0 + timedelta(days=1),
+            begin_value=Decimal("0"),
+            end_value=Decimal("-50"),
+        ),
+    ]
+    summary = twr_summary(points)
+    assert summary.dormant_days == 2
+    assert summary.cumulative_factor == Decimal("1")
+
+
 # --- xirr -------------------------------------------------------------------
 
 

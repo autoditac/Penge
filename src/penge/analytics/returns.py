@@ -177,11 +177,12 @@ def twr_summary(points: list[ReturnPoint]) -> TwrSummary:
                 raise ReturnsError(msg)
         factor = point.factor
         if factor is None:
-            # A positive value with no capital at risk to explain it is a
-            # data gap. A non-positive end value (denominator > 0) is not:
-            # it is the new #282 case (overdraft/liquidation) and is simply
-            # dormant, like a genuinely idle day.
-            if point.denominator <= 0 and point.end_value != 0:
+            # A *positive* value with no capital at risk to explain it is a
+            # data gap. Any non-positive end value (whether the
+            # denominator is positive or not) is not: it falls under the
+            # #282 dormant contract (overdraft, full liquidation, or a
+            # genuinely idle day), so it is simply skipped.
+            if point.denominator <= 0 and point.end_value > 0:
                 msg = (
                     f"value {point.end_value} on {point.as_of.isoformat()} "
                     "has no capital at risk to explain it (data gap)"

@@ -63,7 +63,7 @@ def _dbt_available() -> bool:
     if dbt_path is None:
         return False
     try:
-        subprocess.run(  # noqa: S603 — fixed argv, availability probe only
+        result = subprocess.run(  # noqa: S603 — fixed argv, availability probe only
             [dbt_path, "--version"],
             capture_output=True,
             check=False,
@@ -71,7 +71,7 @@ def _dbt_available() -> bool:
         )
     except OSError:
         return False
-    return True
+    return result.returncode == 0
 
 
 # These are also imported by test_mart_returns_daily.py, which applies its

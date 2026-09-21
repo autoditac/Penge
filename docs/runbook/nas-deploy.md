@@ -75,6 +75,8 @@ Missed runs fire after the host returns because the timer is persistent.
 The worker executes inside the running, health-gated API container and
 therefore uses its database environment, `penge-eb-key` secret, network, and
 exact deployed image digest. No credentials belong in the tracked units.
+`PENGE_REFRESH_STATE_DIR=/var/lib/penge-refresh` aligns API syncs, legacy bank
+sync CLIs, and the scheduled worker with the same lock and pending marker.
 
 ### Install and enable
 

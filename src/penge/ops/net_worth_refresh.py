@@ -148,13 +148,17 @@ class _ExclusiveLock:
         self._file: TextIO | None = None
 
     def __enter__(self) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        lock_file = self._path.open("a+", encoding="utf-8")
         try:
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            lock_file = self._path.open("a+", encoding="utf-8")
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
             lock_file.close()
             raise LockUnavailableError(f"refresh lock is already held: {self._path}") from exc
+        except OSError as exc:
+            raise RefreshStateError(
+                f"could not open refresh lock {self._path}: {type(exc).__name__}"
+            ) from exc
         self._file = lock_file
 
     def __exit__(
@@ -325,6 +329,45 @@ class _WriteTracker:
         )
 
 
+class _RefreshWriteIntent:
+    def __init__(self, *, lock_file: Path, pending_refresh_file: Path) -> None:
+        self._lock = exclusive_lock(lock_file)
+        self._tracker = _WriteTracker(pending_refresh_file)
+        self._was_pending = False
+
+    def __enter__(self) -> Callable[[int], None]:
+        self._lock.__enter__()
+        self._was_pending = self._tracker.is_refresh_pending()
+        if not self._tracker.prepare():
+            self._lock.__exit__(None, None, None)
+            raise RefreshStateError(
+                self._tracker.error or "could not persist pending refresh marker"
+            )
+        return self._tracker.observe
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        if self._tracker.writes == 0 and not self._was_pending:
+            self._tracker.clear()
+        self._lock.__exit__(exc_type, exc_value, traceback)
+
+
+def refresh_write_intent(
+    *,
+    lock_file: Path,
+    pending_refresh_file: Path,
+) -> _RefreshWriteIntent:
+    """Serialize raw writes and retain durable intent when any row changes."""
+    return _RefreshWriteIntent(
+        lock_file=lock_file,
+        pending_refresh_file=pending_refresh_file,
+    )
+
+
 def sync_connection_with_intent(
     engine: Engine,
     client: Client,
@@ -335,26 +378,17 @@ def sync_connection_with_intent(
     pending_refresh_file: Path,
 ) -> service.SyncOutcome:
     """Serialize an API sync and leave durable intent when it commits writes."""
-    with exclusive_lock(lock_file):
-        tracker = _WriteTracker(pending_refresh_file)
-        was_pending = tracker.is_refresh_pending()
-        if not tracker.prepare():
-            raise RefreshStateError(tracker.error or "could not persist pending refresh marker")
-        try:
-            outcome = service.sync(
-                engine,
-                client,
-                connection_id=connection_id,
-                days=days,
-                on_write=tracker.observe,
-            )
-        except Exception:
-            if tracker.writes == 0 and not was_pending:
-                tracker.clear()
-            raise
-        if tracker.writes == 0 and not was_pending:
-            tracker.clear()
-        return outcome
+    with refresh_write_intent(
+        lock_file=lock_file,
+        pending_refresh_file=pending_refresh_file,
+    ) as observe_write:
+        return service.sync(
+            engine,
+            client,
+            connection_id=connection_id,
+            days=days,
+            on_write=observe_write,
+        )
 
 
 def _sync_one_connection(
@@ -555,6 +589,7 @@ __all__ = [
     "RefreshSummary",
     "dbt_environment",
     "exclusive_lock",
+    "refresh_write_intent",
     "run_refresh",
     "sync_connection_with_intent",
 ]

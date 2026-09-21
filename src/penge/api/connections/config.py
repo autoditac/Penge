@@ -27,7 +27,7 @@ class ConnectionsConfig:
 
     enabled: bool
     redirect_url: str
-    refresh_state_dir: Path = Path("/var/lib/penge-refresh")
+    refresh_state_dir: Path = Path(".cache/penge-refresh")
 
     @classmethod
     def from_env(cls, env: dict[str, str] | None = None) -> ConnectionsConfig:
@@ -48,7 +48,7 @@ class ConnectionsConfig:
         enabled = key_present and override not in _FALSEY
         redirect_url = resolved.get("PENGE_EB_REDIRECT_URL", DEFAULT_REDIRECT_URL)
         refresh_state_dir = Path(
-            resolved.get("PENGE_REFRESH_STATE_DIR", "/var/lib/penge-refresh")
+            resolved.get("PENGE_REFRESH_STATE_DIR", ".cache/penge-refresh")
         ).expanduser()
         return cls(
             enabled=enabled,

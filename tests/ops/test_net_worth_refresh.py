@@ -17,8 +17,10 @@ from penge.ops.net_worth_refresh import (
     DbtRefreshError,
     DbtRunner,
     LockUnavailableError,
+    RefreshStateError,
     dbt_environment,
     exclusive_lock,
+    refresh_write_intent,
     run_refresh,
 )
 
@@ -359,6 +361,41 @@ def test_run_refresh_counts_writes_from_failed_fallback_attempt(
     assert summary.dbt_status == "succeeded"
     assert summary.ok is True
     assert dbt.calls == 1
+
+
+def test_refresh_write_intent_tracks_changes_and_clears_zero_write_runs(
+    tmp_path: Path,
+) -> None:
+    lock_file = tmp_path / "refresh.lock"
+    pending_file = tmp_path / "pending"
+
+    with refresh_write_intent(
+        lock_file=lock_file,
+        pending_refresh_file=pending_file,
+    ):
+        assert pending_file.exists()
+    assert not pending_file.exists()
+
+    with refresh_write_intent(
+        lock_file=lock_file,
+        pending_refresh_file=pending_file,
+    ) as observe_write:
+        observe_write(2)
+    assert pending_file.exists()
+
+
+def test_exclusive_lock_reports_unwritable_state_path(tmp_path: Path) -> None:
+    parent_file = tmp_path / "not-a-directory"
+    parent_file.write_text("synthetic", encoding="utf-8")
+
+    with (
+        pytest.raises(
+            RefreshStateError,
+            match="could not open refresh lock",
+        ),
+        exclusive_lock(parent_file / "refresh.lock"),
+    ):
+        pytest.fail("lock unexpectedly acquired")
 
 
 def test_dbt_runner_validates_shadow_before_live(

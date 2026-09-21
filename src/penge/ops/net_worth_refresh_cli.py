@@ -43,6 +43,7 @@ def _configure_logging(*, verbose: bool) -> None:
 
 
 def _parser() -> argparse.ArgumentParser:
+    state_dir = ConnectionsConfig.from_env().refresh_state_dir
     parser = argparse.ArgumentParser(
         description="Sync eligible Enable Banking connections and refresh household net worth."
     )
@@ -59,13 +60,13 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--lock-file",
         type=Path,
-        default=Path("/var/lib/penge-refresh/refresh.lock"),
+        default=state_dir / "refresh.lock",
         help="Shared advisory lock path.",
     )
     parser.add_argument(
         "--pending-refresh-file",
         type=Path,
-        default=Path("/var/lib/penge-refresh/pending"),
+        default=state_dir / "pending",
         help="Durable marker retained until dbt refresh succeeds.",
     )
     parser.add_argument(

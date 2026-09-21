@@ -96,6 +96,9 @@ systemd also prevents concurrent starts of the same unit, while the shared lock
 covers direct container or CLI invocations. The API's manual connection-sync
 route takes the same lock and persists the same pending intent before writing,
 so it cannot race dbt promotion or lose the retry signal.
+The legacy `penge-gls`, `penge-ebank`, and `penge-lunar` sync commands use the
+same guard. `PENGE_REFRESH_STATE_DIR` resolves the common state directory:
+`.cache/penge-refresh` locally and `/var/lib/penge-refresh` in production.
 Lock contention is an explicit nonzero result rather than a second run.
 
 The timer is not configured with automatic retries inside one schedule window.

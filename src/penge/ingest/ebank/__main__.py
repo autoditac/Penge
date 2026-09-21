@@ -25,11 +25,13 @@ import os
 import sys
 from datetime import UTC, date, datetime, timedelta
 
+from penge.api.connections.config import ConnectionsConfig
 from penge.ingest.enablebanking.client import (
     Client,
     ClientConfig,
     default_consent_until,
 )
+from penge.ops.net_worth_refresh import refresh_write_intent
 from penge.ops.sentry import init_sentry
 
 from .loader import load_account
@@ -194,28 +196,34 @@ def _cmd_sync(args: argparse.Namespace, client: Client) -> int:
 
     total_txn = 0
     total_snap = 0
-    for acct in selected:
-        if acct.uid is None:  # narrow for type-checker; filtered above
-            continue
-        result = load_account(
-            engine,
-            client=client,
-            account_uid=acct.uid,
-            entity_name=args.entity_name,
-            account_name=acct.name or acct.product or "Evangelische Bank account",
-            currency=(acct.currency or "EUR").upper(),
-            iban=acct.account_id.iban if acct.account_id else None,
-            date_from=date_from,
-            date_to=date_to,
-        )
-        total_txn += result.transactions
-        total_snap += result.holding_snapshots
-        log.info(
-            "synced uid=%s txns=%d snapshots=%d",
-            acct.uid,
-            result.transactions,
-            result.holding_snapshots,
-        )
+    state_dir = ConnectionsConfig.from_env().refresh_state_dir
+    with refresh_write_intent(
+        lock_file=state_dir / "refresh.lock",
+        pending_refresh_file=state_dir / "pending",
+    ) as observe_write:
+        for acct in selected:
+            if acct.uid is None:  # narrow for type-checker; filtered above
+                continue
+            result = load_account(
+                engine,
+                client=client,
+                account_uid=acct.uid,
+                entity_name=args.entity_name,
+                account_name=acct.name or acct.product or "Evangelische Bank account",
+                currency=(acct.currency or "EUR").upper(),
+                iban=acct.account_id.iban if acct.account_id else None,
+                date_from=date_from,
+                date_to=date_to,
+            )
+            observe_write(result.writes)
+            total_txn += result.transactions
+            total_snap += result.holding_snapshots
+            log.info(
+                "synced uid=%s txns=%d snapshots=%d",
+                acct.uid,
+                result.transactions,
+                result.holding_snapshots,
+            )
     print(
         json.dumps(
             {"transactions": total_txn, "holding_snapshots": total_snap},

@@ -11,7 +11,7 @@ def test_disabled_without_key() -> None:
     config = ConnectionsConfig.from_env({})
     assert config.enabled is False
     assert config.redirect_url == DEFAULT_REDIRECT_URL
-    assert config.refresh_state_dir == Path("/var/lib/penge-refresh")
+    assert config.refresh_state_dir == Path(".cache/penge-refresh")
 
 
 def test_enabled_when_key_present(tmp_path: Path) -> None:

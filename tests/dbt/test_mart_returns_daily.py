@@ -21,12 +21,25 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
+import pytest
 from sqlalchemy import text
 
-from tests.dbt.conftest import run_dbt
+from tests.dbt.conftest import DB_URL, DBT_AVAILABLE, run_dbt
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Engine
+
+# A ``pytestmark`` assigned in conftest.py only applies to tests defined
+# in that same file, not to sibling test modules in the package -- so the
+# real skip guard has to live here too (see tests/dbt/conftest.py).
+pytestmark = pytest.mark.skipif(
+    DB_URL is None or not DBT_AVAILABLE,
+    reason=(
+        "requires a test database (PENGE_TEST_DATABASE_URL/DATABASE_URL) and "
+        "a working `dbt` executable on PATH -- run via "
+        "`uv run --group db --group dbt --group dev pytest tests/dbt`"
+    ),
+)
 
 _ENTITY_ID = str(uuid.uuid4())
 _ACCOUNT_CASH_ID = str(uuid.uuid4())

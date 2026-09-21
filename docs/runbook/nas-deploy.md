@@ -142,7 +142,8 @@ The summary reports eligible/successful/failed connection counts,
 
 - `skipped_no_changes` is healthy: the upstream rows matched Postgres.
 - `failed_connections > 0` means inspect the connection's `last_error` in the
-  UI; other eligible connections still ran.
+  UI; other eligible connections still ran, and transient failures remain
+  eligible for the next timer run.
 - `dbt_status=failed` means raw writes committed, but the prior
   `analytics_marts.mart_net_worth_daily` remains available.
   The `/var/lib/penge/refresh/pending` marker makes every later run retry dbt

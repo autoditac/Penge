@@ -7,6 +7,7 @@ import json
 import logging
 import os
 import subprocess
+import uuid
 from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
@@ -228,7 +229,17 @@ class DbtRunner:
                 connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
 
 
-SyncFunction = Callable[..., service.SyncOutcome]
+class SyncFunction(Protocol):
+    """Connection sync boundary with per-account write notification."""
+
+    def __call__(
+        self,
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        on_write: Callable[[], None] | None = None,
+    ) -> service.SyncOutcome: ...
 
 
 def _mark_refresh_pending(path: Path) -> None:
@@ -275,7 +286,12 @@ def run_refresh(
     failed = 0
     for record in eligible:
         try:
-            outcome = sync_connection(engine, client, connection_id=record.id)
+            outcome = sync_connection(
+                engine,
+                client,
+                connection_id=record.id,
+                on_write=lambda: _mark_refresh_pending(pending_refresh_file),
+            )
         except service.ConnectionError as exc:
             failed += 1
             summaries.append(
@@ -301,7 +317,13 @@ def run_refresh(
                 code=type(exc).__name__,
             )
             try:
-                store.record_error(engine, record.id, error=error.as_error_payload(), is_sync=True)
+                store.record_error(
+                    engine,
+                    record.id,
+                    error=error.as_error_payload(),
+                    status=record.status,
+                    is_sync=True,
+                )
             except Exception as record_exc:
                 log.error(
                     "connection_error_record_failed connection_id=%s provider=%s code=%s",

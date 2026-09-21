@@ -46,8 +46,11 @@ We chose **Option 1**.
 `penge-refresh-net-worth` runs as a one-shot container at 02:17, 08:17, 14:17,
 and 20:17 local NAS time, with up to 15 minutes of randomized delay and
 `Persistent=true` catch-up after downtime.
-The worker selects only `authorized` connections that have a stored session
-and a `valid_until` later than the run start.
+The worker selects `authorized` connections that have a stored session and a
+`valid_until` later than the run start.
+Retryable sync errors keep that authorized status while recording
+`last_sync_status=error`; only an upstream expired/revoked session moves to
+`expired`, so transient failures remain eligible at the next trigger.
 It invokes the existing `penge.api.connections.service.sync` path for each
 connection independently.
 Known failures retain the connection service's sanitized `last_error`; an
@@ -59,8 +62,8 @@ Its PostgreSQL conflict updates include `IS DISTINCT FROM` predicates and
 `RETURNING`, so unchanged transactions, snapshots, accounts, entities, and
 instruments report zero writes.
 dbt is skipped unless at least one connection changed operational data.
-Before dbt starts, a durable `pending` marker is written to the host-mounted
-worker state directory.
+After each account transaction commits, a durable `pending` marker is written
+to the host-mounted worker state directory before the next account is synced.
 The marker is removed only after the live dbt run succeeds, so a dbt failure,
 container stop, or host restart causes later scheduled runs to retry even when
 the next Enable Banking upserts are idempotent.

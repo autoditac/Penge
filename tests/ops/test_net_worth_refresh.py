@@ -24,7 +24,7 @@ from penge.ops.net_worth_refresh import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping, Sequence
+    from collections.abc import Callable, Mapping, Sequence
 
     from sqlalchemy.engine import Engine
 
@@ -82,9 +82,9 @@ def test_run_refresh_isolates_connection_failures_and_runs_dbt(
         client: Client,
         *,
         connection_id: uuid.UUID,
-        days: int = service.DEFAULT_HISTORY_DAYS,
+        on_write: Callable[[], None] | None = None,
     ) -> service.SyncOutcome:
-        _ = engine, client, days
+        _ = engine, client, on_write
         if connection_id == first.id:
             raise RuntimeError("synthetic internal failure")
         return service.SyncOutcome(
@@ -123,9 +123,9 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
         client: Client,
         *,
         connection_id: uuid.UUID,
-        days: int = service.DEFAULT_HISTORY_DAYS,
+        on_write: Callable[[], None] | None = None,
     ) -> service.SyncOutcome:
-        _ = engine, client, connection_id, days
+        _ = engine, client, connection_id, on_write
         return service.SyncOutcome(
             record=record,
             transactions=0,
@@ -157,9 +157,9 @@ def test_run_refresh_reports_dbt_failure(monkeypatch: pytest.MonkeyPatch, tmp_pa
         client: Client,
         *,
         connection_id: uuid.UUID,
-        days: int = service.DEFAULT_HISTORY_DAYS,
+        on_write: Callable[[], None] | None = None,
     ) -> service.SyncOutcome:
-        _ = engine, client, connection_id, days
+        _ = engine, client, connection_id, on_write
         return service.SyncOutcome(
             record=record,
             transactions=1,
@@ -194,9 +194,9 @@ def test_run_refresh_retries_pending_dbt_after_idempotent_sync(
         client: Client,
         *,
         connection_id: uuid.UUID,
-        days: int = service.DEFAULT_HISTORY_DAYS,
+        on_write: Callable[[], None] | None = None,
     ) -> service.SyncOutcome:
-        _ = engine, client, connection_id, days
+        _ = engine, client, connection_id, on_write
         return service.SyncOutcome(
             record=record,
             transactions=0,
@@ -218,6 +218,40 @@ def test_run_refresh_retries_pending_dbt_after_idempotent_sync(
     assert summary.data_changed is False
     assert summary.dbt_status == "succeeded"
     assert summary.ok is True
+    assert dbt.calls == 1
+    assert not pending.exists()
+
+
+def test_run_refresh_marks_partial_writes_before_connection_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    record = _record()
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
+
+    def sync_connection(
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        on_write: Callable[[], None] | None = None,
+    ) -> service.SyncOutcome:
+        _ = engine, client, connection_id
+        assert on_write is not None
+        on_write()
+        raise service.ConnectionError(step="sync", message="second account failed")
+
+    pending = tmp_path / "pending"
+    dbt = _RefreshRecorder()
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        pending_refresh_file=pending,
+        sync_connection=sync_connection,
+    )
+
+    assert summary.failed_connections == 1
+    assert summary.dbt_status == "succeeded"
     assert dbt.calls == 1
     assert not pending.exists()
 

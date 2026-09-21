@@ -245,7 +245,7 @@ def test_sync_falls_back_to_narrower_history_window(
 
 
 def test_sync_reports_error_when_no_window_is_accepted(
-    client: TestClient, fake_client: FakeClient
+    client: TestClient, fake_client: FakeClient, engine: Engine
 ) -> None:
     # If even the narrowest fallback window is rejected, the sync surfaces
     # the WRONG_TRANSACTIONS_PERIOD error rather than silently reporting ok.
@@ -257,8 +257,12 @@ def test_sync_reports_error_when_no_window_is_accepted(
 
     assert synced.status_code >= 400, synced.text
     connection = client.get("/connections").json()["connections"][0]
+    assert connection["status"] == "authorized"
     assert connection["last_sync_status"] == "error"
     assert connection["last_error"]["code"] == "WRONG_TRANSACTIONS_PERIOD"
+    assert [record.id for record in store.list_eligible_connections(engine)] == [
+        uuid.UUID(str(linked["connection_id"]))
+    ]
 
 
 def test_authorize_unknown_state_does_not_consume_code(

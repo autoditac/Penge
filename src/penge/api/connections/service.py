@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from typing import TYPE_CHECKING
@@ -257,7 +258,13 @@ def _provider_for_sync(engine: Engine, record: store.ConnectionRecord) -> Provid
     if provider is not None:
         return provider
     err = ConnectionError(step="sync", message=f"unknown provider '{record.provider}'")
-    store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+    store.record_error(
+        engine,
+        record.id,
+        error=err.as_error_payload(),
+        status=record.status,
+        is_sync=True,
+    )
     raise err
 
 
@@ -270,6 +277,7 @@ def _sync_accounts(
     entity_name: str,
     date_from: date,
     date_to: date,
+    on_write: Callable[[], None] | None,
 ) -> tuple[int, int, int]:
     """Sync every account for one window, returning ``(txns, snapshots, writes)``.
 
@@ -291,6 +299,8 @@ def _sync_accounts(
         total_txn += result.transactions
         total_snap += result.holding_snapshots
         total_writes += result.writes
+        if result.writes > 0 and on_write is not None:
+            on_write()
     return total_txn, total_snap, total_writes
 
 
@@ -300,6 +310,7 @@ def sync(
     *,
     connection_id: uuid.UUID,
     days: int = DEFAULT_HISTORY_DAYS,
+    on_write: Callable[[], None] | None = None,
 ) -> SyncOutcome:
     """Pull transactions + balances for every account on the connection."""
     record = store.get_connection(engine, connection_id)
@@ -310,14 +321,26 @@ def sync(
 
     if not record.session_id:
         err = ConnectionError(step="sync", message="connection is not authorized yet")
-        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=record.status,
+            is_sync=True,
+        )
         raise err
 
     try:
         session = client.get_session(record.session_id)
     except EnableBankingError as exc:
         err = _from_eb_error("sync", exc)
-        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=record.status,
+            is_sync=True,
+        )
         raise err from exc
 
     if session.status != _SESSION_AUTHORIZED:
@@ -339,7 +362,13 @@ def sync(
     selected = [a for a in session.accounts_data if a.uid is not None]
     if not selected:
         err = ConnectionError(step="sync", message="no accounts to sync on this session")
-        store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=record.status,
+            is_sync=True,
+        )
         raise err
 
     windows = _history_windows(days)
@@ -357,6 +386,7 @@ def sync(
                 entity_name=record.entity_name,
                 date_from=date_from,
                 date_to=date_to,
+                on_write=on_write,
             )
         except EnableBankingError as exc:
             code, _ = _eb_message(exc.body)
@@ -370,7 +400,13 @@ def sync(
                 )
                 continue
             err = _from_eb_error("sync", exc)
-            store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+            store.record_error(
+                engine,
+                record.id,
+                error=err.as_error_payload(),
+                status=record.status,
+                is_sync=True,
+            )
             raise err from exc
         else:
             if window != days:

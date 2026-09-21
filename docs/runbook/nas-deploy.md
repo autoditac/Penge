@@ -110,6 +110,7 @@ sudo podman run --rm --name penge-net-worth-refresh-dry-run \
   ghcr.io/autoditac/penge/api:main \
   penge-refresh-net-worth --dry-run \
   --lock-file /var/lib/penge-refresh/refresh.lock \
+  --pending-refresh-file /var/lib/penge-refresh/pending \
   --dbt-project-dir /app/dbt --dbt-profiles-dir /app/dbt
 ```
 
@@ -144,6 +145,8 @@ The summary reports eligible/successful/failed connection counts,
   UI; other eligible connections still ran.
 - `dbt_status=failed` means raw writes committed, but the prior
   `analytics_marts.mart_net_worth_daily` remains available.
+  The `/var/lib/penge/refresh/pending` marker makes every later run retry dbt
+  until it succeeds; do not remove it manually.
 - `refresh lock is already held` means another manual or timed invocation is
   running; do not delete the lock file, wait for that process.
 - A startup error about the key or database means the worker did not receive

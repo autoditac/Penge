@@ -231,11 +231,17 @@ class DbtRunner:
 SyncFunction = Callable[..., service.SyncOutcome]
 
 
+def _mark_refresh_pending(path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.touch(exist_ok=True)
+
+
 def run_refresh(
     engine: Engine,
     client: Client,
     *,
     dbt_runner: RefreshRunner,
+    pending_refresh_file: Path,
     dry_run: bool = False,
     now: datetime | None = None,
     sync_connection: SyncFunction = service.sync,
@@ -319,6 +325,8 @@ def run_refresh(
             )
         else:
             writes += outcome.writes
+            if outcome.writes > 0:
+                _mark_refresh_pending(pending_refresh_file)
             summaries.append(
                 ConnectionSummary(
                     connection_id=str(record.id),
@@ -338,7 +346,8 @@ def run_refresh(
 
     dbt_status = "skipped_no_changes"
     refresh_error: str | None = None
-    if writes > 0:
+    refresh_required = writes > 0 or pending_refresh_file.exists()
+    if refresh_required:
         try:
             dbt_runner.refresh()
         except DbtRefreshError as exc:
@@ -351,6 +360,7 @@ def run_refresh(
             log.error("net_worth_refresh_failed code=%s", type(exc).__name__)
         else:
             dbt_status = "succeeded"
+            pending_refresh_file.unlink(missing_ok=True)
             log.info("net_worth_refresh_succeeded writes=%d", writes)
 
     completed = datetime.now(UTC)

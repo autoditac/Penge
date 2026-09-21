@@ -128,6 +128,7 @@ refresh-net-worth *FLAGS:
     uv run --group db --group http --group enablebanking --group dbt \
         penge-refresh-net-worth \
         --lock-file .cache/penge-refresh/refresh.lock \
+        --pending-refresh-file .cache/penge-refresh/pending \
         --dbt-project-dir dbt \
         --dbt-profiles-dir dbt \
         {{FLAGS}}

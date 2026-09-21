@@ -63,6 +63,12 @@ def _parser() -> argparse.ArgumentParser:
         help="Shared advisory lock path.",
     )
     parser.add_argument(
+        "--pending-refresh-file",
+        type=Path,
+        default=Path("/var/lib/penge-refresh/pending"),
+        help="Durable marker retained until dbt refresh succeeds.",
+    )
+    parser.add_argument(
         "--dbt-project-dir",
         type=Path,
         default=Path("/app/dbt"),
@@ -120,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
                 engine,
                 client,
                 dbt_runner=runner,
+                pending_refresh_file=args.pending_refresh_file,
                 dry_run=args.dry_run,
             )
     except LockUnavailableError as exc:

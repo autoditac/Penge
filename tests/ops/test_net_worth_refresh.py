@@ -65,7 +65,7 @@ class _RefreshRecorder:
 
 
 def test_run_refresh_isolates_connection_failures_and_runs_dbt(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     first = _record(provider="gls")
     second = _record(provider="lunar")
@@ -99,6 +99,7 @@ def test_run_refresh_isolates_connection_failures_and_runs_dbt(
         MagicMock(),
         MagicMock(),
         dbt_runner=dbt,
+        pending_refresh_file=tmp_path / "pending",
         sync_connection=sync_connection,
     )
 
@@ -112,7 +113,7 @@ def test_run_refresh_isolates_connection_failures_and_runs_dbt(
 
 
 def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
-    monkeypatch: pytest.MonkeyPatch,
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     record = _record()
     monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
@@ -137,6 +138,7 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
         MagicMock(),
         MagicMock(),
         dbt_runner=dbt,
+        pending_refresh_file=tmp_path / "pending",
         sync_connection=sync_connection,
     )
 
@@ -146,7 +148,7 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
     assert dbt.calls == 0
 
 
-def test_run_refresh_reports_dbt_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_run_refresh_reports_dbt_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     record = _record()
     monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
 
@@ -166,16 +168,58 @@ def test_run_refresh_reports_dbt_failure(monkeypatch: pytest.MonkeyPatch) -> Non
         )
 
     dbt = _RefreshRecorder(error=DbtRefreshError("synthetic dbt failure"))
+    pending = tmp_path / "pending"
     summary = run_refresh(
         MagicMock(),
         MagicMock(),
         dbt_runner=dbt,
+        pending_refresh_file=pending,
         sync_connection=sync_connection,
     )
 
     assert summary.ok is False
     assert summary.dbt_status == "failed"
     assert summary.error == "synthetic dbt failure"
+    assert pending.exists()
+
+
+def test_run_refresh_retries_pending_dbt_after_idempotent_sync(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    record = _record()
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
+
+    def sync_connection(
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        days: int = service.DEFAULT_HISTORY_DAYS,
+    ) -> service.SyncOutcome:
+        _ = engine, client, connection_id, days
+        return service.SyncOutcome(
+            record=record,
+            transactions=0,
+            holding_snapshots=0,
+            writes=0,
+        )
+
+    pending = tmp_path / "pending"
+    pending.touch()
+    dbt = _RefreshRecorder()
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        pending_refresh_file=pending,
+        sync_connection=sync_connection,
+    )
+
+    assert summary.data_changed is False
+    assert summary.dbt_status == "succeeded"
+    assert summary.ok is True
+    assert dbt.calls == 1
+    assert not pending.exists()
 
 
 def test_dbt_runner_validates_shadow_before_live(

@@ -59,6 +59,11 @@ Its PostgreSQL conflict updates include `IS DISTINCT FROM` predicates and
 `RETURNING`, so unchanged transactions, snapshots, accounts, entities, and
 instruments report zero writes.
 dbt is skipped unless at least one connection changed operational data.
+Before dbt starts, a durable `pending` marker is written to the host-mounted
+worker state directory.
+The marker is removed only after the live dbt run succeeds, so a dbt failure,
+container stop, or host restart causes later scheduled runs to retry even when
+the next Enable Banking upserts are idempotent.
 
 When data changed, the worker first runs:
 
@@ -97,7 +102,8 @@ This avoids an aggressive retry loop against an unavailable bank.
 
 - Net worth converges automatically after real connection writes.
 - One bank failure cannot suppress successful ingestion from another.
-- Idempotent syncs avoid unnecessary dbt work.
+- Idempotent syncs avoid unnecessary dbt work unless an earlier refresh remains
+  pending.
 - Failed shadow validation cannot modify live analytics.
 - The prior net-worth table remains readable if the live dbt build fails.
 - The worker uses the same reviewed, auto-published image as the API.
@@ -113,8 +119,8 @@ This avoids an aggressive retry loop against an unavailable bank.
 ### Neutral
 
 - Consent expiry still requires user-driven reauthorization.
-- Raw ingestion writes are committed before dbt starts; dbt failure retains
-  them for the next scheduled retry while keeping the old mart visible.
+- Raw ingestion writes are committed before dbt starts; the durable pending
+  marker retries them after a dbt failure while keeping the old mart visible.
 - The existing manual **Sync now** UI does not automatically run dbt; this ADR
   governs the production scheduled worker.
 

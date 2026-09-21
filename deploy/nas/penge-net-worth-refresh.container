@@ -19,7 +19,7 @@ Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=10
 Environment=ENABLEBANKING_APPLICATION_ID=09a4a71a-1646-41e7-97b1-b79eea6e9d8a
 Environment=ENABLEBANKING_KEY_PATH=/run/secrets/penge-eb-key
 Volume=/var/lib/penge/refresh:/var/lib/penge-refresh
-Exec=penge-refresh-net-worth --lock-file /var/lib/penge-refresh/refresh.lock --dbt-project-dir /app/dbt --dbt-profiles-dir /app/dbt
+Exec=penge-refresh-net-worth --lock-file /var/lib/penge-refresh/refresh.lock --pending-refresh-file /var/lib/penge-refresh/pending --dbt-project-dir /app/dbt --dbt-profiles-dir /app/dbt
 
 [Service]
 Type=oneshot

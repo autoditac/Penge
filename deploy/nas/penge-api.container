@@ -29,6 +29,7 @@ Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=10
 Environment=ENABLEBANKING_APPLICATION_ID=09a4a71a-1646-41e7-97b1-b79eea6e9d8a
 Environment=ENABLEBANKING_KEY_PATH=/run/secrets/penge-eb-key
 Environment=PENGE_EB_REDIRECT_URL=https://penge.eigmueller.de/eb/callback
+Environment=PENGE_REFRESH_STATE_DIR=/var/lib/penge-refresh
 # Liveness probe backing podman-auto-update's automatic rollback: if the
 # freshly pulled image's container turns unhealthy, podman reverts to the
 # previous image on the next auto-update cycle instead of leaving a

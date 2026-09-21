@@ -14,7 +14,6 @@ import pytest
 from penge.api.connections import service, store
 from penge.ops import net_worth_refresh_cli
 from penge.ops.net_worth_refresh import (
-    DBT_SELECTION,
     DbtRefreshError,
     DbtRunner,
     LockUnavailableError,
@@ -378,6 +377,8 @@ def test_dbt_runner_validates_shadow_before_live(
         return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
 
     monkeypatch.setattr(DbtRunner, "_drop_shadow_schemas", lambda self: None)
+    promote = MagicMock()
+    monkeypatch.setattr(DbtRunner, "_promote_shadow_schemas", promote)
     runner = DbtRunner(
         MagicMock(),
         project_dir=tmp_path / "dbt",
@@ -388,11 +389,10 @@ def test_dbt_runner_validates_shadow_before_live(
 
     runner.refresh()
 
-    assert [command[1] for command in commands] == ["build", "run"]
-    assert all(DBT_SELECTION in command for command in commands)
-    assert all("cautious" in command for command in commands)
+    assert [command[1] for command in commands] == ["build"]
     assert "refresh" in commands[0]
-    assert "dev" in commands[1]
+    assert "--select" not in commands[0]
+    promote.assert_called_once_with()
 
 
 def test_dbt_runner_does_not_touch_live_after_shadow_failure(
@@ -411,6 +411,8 @@ def test_dbt_runner_does_not_touch_live_after_shadow_failure(
         return subprocess.CompletedProcess(command, 1, stdout="", stderr="synthetic failure")
 
     monkeypatch.setattr(DbtRunner, "_drop_shadow_schemas", lambda self: None)
+    promote = MagicMock()
+    monkeypatch.setattr(DbtRunner, "_promote_shadow_schemas", promote)
     runner = DbtRunner(
         MagicMock(),
         project_dir=tmp_path / "dbt",
@@ -424,6 +426,35 @@ def test_dbt_runner_does_not_touch_live_after_shadow_failure(
 
     assert len(commands) == 1
     assert commands[0][1] == "build"
+    promote.assert_not_called()
+
+
+def test_dbt_runner_promotes_both_schemas_in_one_transaction(tmp_path: Path) -> None:
+    engine = MagicMock()
+    connection = engine.begin.return_value.__enter__.return_value
+    schema_result = MagicMock()
+    schema_result.scalars.return_value = [
+        "analytics_staging",
+        "analytics_marts",
+        "analytics_refresh_staging",
+        "analytics_refresh_marts",
+    ]
+    connection.execute.side_effect = [schema_result, *[MagicMock() for _ in range(8)]]
+    runner = DbtRunner(
+        engine,
+        project_dir=tmp_path / "dbt",
+        profiles_dir=tmp_path / "dbt",
+        database_url="postgresql://worker@db:5432/penge",
+    )
+
+    runner._promote_shadow_schemas()
+
+    statements = [str(call.args[0]) for call in connection.execute.call_args_list]
+    assert 'ALTER SCHEMA "analytics_staging" RENAME TO "analytics_previous_staging"' in statements
+    assert 'ALTER SCHEMA "analytics_marts" RENAME TO "analytics_previous_marts"' in statements
+    assert 'ALTER SCHEMA "analytics_refresh_staging" RENAME TO "analytics_staging"' in statements
+    assert 'ALTER SCHEMA "analytics_refresh_marts" RENAME TO "analytics_marts"' in statements
+    engine.begin.assert_called_once_with()
 
 
 def test_dbt_environment_uses_url_without_leaking_password_to_command() -> None:

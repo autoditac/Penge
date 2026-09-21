@@ -10,6 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
+from pathlib import Path
 from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qs, urlparse
 
@@ -17,6 +18,7 @@ import pytest
 from sqlalchemy import text
 
 from penge.api.connections import service, store
+from penge.ops.net_worth_refresh import exclusive_lock
 from tests.api.connections.fakes import eb_error
 
 if TYPE_CHECKING:
@@ -50,7 +52,7 @@ def test_list_empty(client: TestClient) -> None:
     assert resp.json() == {"connections": []}
 
 
-def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine) -> None:
+def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine, tmp_path: Path) -> None:
     linked = _link(client)
     consent_url = linked["consent_url"]
     assert isinstance(consent_url, str)
@@ -76,6 +78,7 @@ def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine) -> N
     assert sync_body["holding_snapshots"] >= 1
     assert sync_body["connection"]["last_sync_status"] == "ok"
     assert sync_body["connection"]["last_error"] is None
+    assert (tmp_path / "refresh-state" / "pending").exists()
 
     with engine.connect() as conn:
         accounts = conn.execute(text("select count(*) from account")).scalar_one()
@@ -140,6 +143,19 @@ def test_repeated_sync_reports_no_data_writes(
     assert second.writes == 0
     assert second.transactions == 1
     assert second.holding_snapshots == 1
+
+
+def test_sync_returns_unavailable_while_refresh_lock_is_held(
+    client: TestClient, tmp_path: Path
+) -> None:
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+
+    with exclusive_lock(tmp_path / "refresh-state" / "refresh.lock"):
+        response = client.post(f"/connections/{linked['connection_id']}/sync")
+
+    assert response.status_code == 503
+    assert "refresh lock is already held" in response.json()["detail"]
 
 
 def test_sync_reports_committed_writes_before_later_account_failure(

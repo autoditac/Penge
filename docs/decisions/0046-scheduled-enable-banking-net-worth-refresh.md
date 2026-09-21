@@ -76,27 +76,26 @@ the next Enable Banking upserts are idempotent.
 When data changed, the worker first runs:
 
 ```text
-dbt build --target refresh --select +mart_net_worth_daily \
-  --indirect-selection cautious
+dbt build --target refresh
 ```
 
-The `refresh` target writes the selected model, all ancestors, and their tests
-to isolated `analytics_refresh_*` schemas.
-The cautious indirect-selection mode excludes tests that also depend on an
-unselected sibling mart.
-Only after that build and its tests pass does the worker run the same selected
-graph against the live `dev` target.
-dbt's table materialization builds a temporary relation and swaps it into place
-transactionally; a failed live model build therefore leaves the previous
-`mart_net_worth_daily` table available.
+The `refresh` target writes and tests the complete analytics graph in isolated
+`analytics_refresh_*` schemas. After that build succeeds, one PostgreSQL
+transaction renames both live schemas to temporary previous names, promotes
+both shadow schemas to the live names, and drops the previous schemas.
+Any promotion error rolls back the whole transaction, preserving the complete
+prior graph rather than mixing old and new marts.
 Shadow schemas are dropped before and after each run.
-This deliberately refreshes only the net-worth dependency graph, not unrelated
-cash-flow, tax, or returns marts.
+Refreshing the full graph costs more than selecting only net worth and its
+ancestors, but makes schema-level atomic promotion possible and keeps all marts
+consistent.
 
 The container and manual CLI share a non-blocking `flock` advisory lock on a
 host-mounted file under `/var/lib/penge/refresh`.
 systemd also prevents concurrent starts of the same unit, while the shared lock
-covers direct container or CLI invocations.
+covers direct container or CLI invocations. The API's manual connection-sync
+route takes the same lock and persists the same pending intent before writing,
+so it cannot race dbt promotion or lose the retry signal.
 Lock contention is an explicit nonzero result rather than a second run.
 
 The timer is not configured with automatic retries inside one schedule window.
@@ -120,7 +119,7 @@ This avoids an aggressive retry loop against an unavailable bank.
 
 - The API image now includes dbt and the resolved dbt package, increasing its
   size.
-- A successful shadow validation and live build are two dbt executions.
+- Every changed run builds and tests the full analytics graph.
 - A connection failure still makes the overall unit fail even if other banks
   and the mart refresh succeed; operators must inspect the JSON summary.
 
@@ -129,8 +128,8 @@ This avoids an aggressive retry loop against an unavailable bank.
 - Consent expiry still requires user-driven reauthorization.
 - Raw ingestion writes are committed before dbt starts; the durable pending
   marker retries them after a dbt failure while keeping the old mart visible.
-- The existing manual **Sync now** UI does not automatically run dbt; this ADR
-  governs the production scheduled worker.
+- The existing manual **Sync now** UI records durable refresh intent; the next
+  scheduled worker refreshes dbt.
 
 ## Alternatives in detail
 

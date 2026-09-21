@@ -136,6 +136,8 @@ Every run writes structured JSON log lines to stderr and one concise JSON
 summary to stdout.
 The summary reports eligible/successful/failed connection counts,
 `data_changed`, `dbt_status`, and sanitized per-connection outcomes.
+Manual **Sync now** requests use the same lock and pending marker, so their
+writes are included by the next scheduled dbt refresh.
 
 - `skipped_no_changes` is healthy: the upstream rows matched Postgres.
 - `failed_connections > 0` means inspect the connection's `last_error` in the

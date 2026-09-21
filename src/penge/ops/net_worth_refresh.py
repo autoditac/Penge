@@ -8,12 +8,12 @@ import logging
 import os
 import subprocess
 import uuid
-from collections.abc import Callable, Iterator, Mapping, Sequence
-from contextlib import contextmanager
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from types import TracebackType
+from typing import TYPE_CHECKING, Protocol, TextIO
 
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
@@ -27,8 +27,9 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("penge.ops.net_worth_refresh")
 
-DBT_SELECTION = "+mart_net_worth_daily"
 REFRESH_SCHEMAS = ("analytics_refresh_staging", "analytics_refresh_marts")
+LIVE_SCHEMAS = ("analytics_staging", "analytics_marts")
+PREVIOUS_SCHEMAS = ("analytics_previous_staging", "analytics_previous_marts")
 
 
 class LockUnavailableError(RuntimeError):
@@ -37,6 +38,10 @@ class LockUnavailableError(RuntimeError):
 
 class DbtRefreshError(RuntimeError):
     """Raised when validation or live dbt refresh fails."""
+
+
+class RefreshStateError(RuntimeError):
+    """Raised when durable refresh intent cannot be managed safely."""
 
 
 class CommandRunner(Protocol):
@@ -137,19 +142,38 @@ def dbt_environment(
     return env
 
 
-@contextmanager
-def exclusive_lock(path: Path) -> Iterator[None]:
-    """Own a non-blocking advisory lock shared by host-mounted workers."""
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a+", encoding="utf-8") as lock_file:
+class _ExclusiveLock:
+    def __init__(self, path: Path) -> None:
+        self._path = path
+        self._file: TextIO | None = None
+
+    def __enter__(self) -> None:
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        lock_file = self._path.open("a+", encoding="utf-8")
         try:
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError as exc:
-            raise LockUnavailableError(f"refresh lock is already held: {path}") from exc
-        try:
-            yield
-        finally:
+            lock_file.close()
+            raise LockUnavailableError(f"refresh lock is already held: {self._path}") from exc
+        self._file = lock_file
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        _ = exc_type, exc_value, traceback
+        if self._file is not None:
+            lock_file = self._file
+            self._file = None
             fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+            lock_file.close()
+
+
+def exclusive_lock(path: Path) -> _ExclusiveLock:
+    """Return a non-blocking advisory lock shared by all sync write paths."""
+    return _ExclusiveLock(path)
 
 
 class DbtRunner:
@@ -171,29 +195,16 @@ class DbtRunner:
         self._command_runner = command_runner
 
     def refresh(self) -> None:
-        """Build/test a shadow graph, then refresh the validated live graph."""
+        """Build/test a shadow graph, then atomically promote it."""
         self._drop_shadow_schemas()
         try:
             self._run(
                 "build",
                 "--target",
                 "refresh",
-                "--select",
-                DBT_SELECTION,
-                "--indirect-selection",
-                "cautious",
                 failure="shadow dbt build/test failed; live marts were not changed",
             )
-            self._run(
-                "run",
-                "--target",
-                "dev",
-                "--select",
-                DBT_SELECTION,
-                "--indirect-selection",
-                "cautious",
-                failure="live dbt refresh failed; dbt retained the prior net-worth table",
-            )
+            self._promote_shadow_schemas()
         finally:
             self._drop_shadow_schemas()
 
@@ -227,6 +238,31 @@ class DbtRunner:
         with self._engine.begin() as connection:
             for schema in REFRESH_SCHEMAS:
                 connection.execute(text(f'DROP SCHEMA IF EXISTS "{schema}" CASCADE'))
+
+    def _promote_shadow_schemas(self) -> None:
+        with self._engine.begin() as connection:
+            available = set(
+                connection.execute(
+                    text(
+                        "SELECT schema_name FROM information_schema.schemata "
+                        "WHERE schema_name = ANY(:schemas)"
+                    ),
+                    {"schemas": [*LIVE_SCHEMAS, *REFRESH_SCHEMAS]},
+                ).scalars()
+            )
+            missing_shadow = set(REFRESH_SCHEMAS) - available
+            if missing_shadow:
+                missing = ", ".join(sorted(missing_shadow))
+                raise DbtRefreshError(f"shadow dbt build did not create schemas: {missing}")
+            for previous in PREVIOUS_SCHEMAS:
+                connection.execute(text(f'DROP SCHEMA IF EXISTS "{previous}" CASCADE'))
+            for live, previous in zip(LIVE_SCHEMAS, PREVIOUS_SCHEMAS, strict=True):
+                if live in available:
+                    connection.execute(text(f'ALTER SCHEMA "{live}" RENAME TO "{previous}"'))
+            for shadow, live in zip(REFRESH_SCHEMAS, LIVE_SCHEMAS, strict=True):
+                connection.execute(text(f'ALTER SCHEMA "{shadow}" RENAME TO "{live}"'))
+            for previous in PREVIOUS_SCHEMAS:
+                connection.execute(text(f'DROP SCHEMA IF EXISTS "{previous}" CASCADE'))
 
 
 class SyncFunction(Protocol):
@@ -287,6 +323,38 @@ class _WriteTracker:
             self.path,
             type(exc).__name__,
         )
+
+
+def sync_connection_with_intent(
+    engine: Engine,
+    client: Client,
+    *,
+    connection_id: uuid.UUID,
+    days: int,
+    lock_file: Path,
+    pending_refresh_file: Path,
+) -> service.SyncOutcome:
+    """Serialize an API sync and leave durable intent when it commits writes."""
+    with exclusive_lock(lock_file):
+        tracker = _WriteTracker(pending_refresh_file)
+        was_pending = tracker.is_refresh_pending()
+        if not tracker.prepare():
+            raise RefreshStateError(tracker.error or "could not persist pending refresh marker")
+        try:
+            outcome = service.sync(
+                engine,
+                client,
+                connection_id=connection_id,
+                days=days,
+                on_write=tracker.observe,
+            )
+        except Exception:
+            if tracker.writes == 0 and not was_pending:
+                tracker.clear()
+            raise
+        if tracker.writes == 0 and not was_pending:
+            tracker.clear()
+        return outcome
 
 
 def _sync_one_connection(
@@ -479,13 +547,14 @@ def run_refresh(
 
 
 __all__ = [
-    "DBT_SELECTION",
     "ConnectionSummary",
     "DbtRefreshError",
     "DbtRunner",
     "LockUnavailableError",
+    "RefreshStateError",
     "RefreshSummary",
     "dbt_environment",
     "exclusive_lock",
     "run_refresh",
+    "sync_connection_with_intent",
 ]

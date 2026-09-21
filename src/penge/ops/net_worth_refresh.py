@@ -255,10 +255,14 @@ class _WriteTracker:
 
     def observe(self, write_count: int) -> None:
         self.writes += write_count
+
+    def prepare(self) -> bool:
         try:
             _mark_refresh_pending(self.path)
         except OSError as exc:
             self._record_error("persist", exc)
+            return False
+        return True
 
     def is_refresh_pending(self) -> bool:
         if self.writes > 0:
@@ -294,6 +298,17 @@ def _sync_one_connection(
     tracker: _WriteTracker,
 ) -> tuple[ConnectionSummary, bool]:
     writes_before = tracker.writes
+    was_pending = tracker.is_refresh_pending()
+    if not tracker.prepare():
+        return (
+            ConnectionSummary(
+                connection_id=str(record.id),
+                provider=record.provider,
+                status="failed",
+                error=tracker.error,
+            ),
+            True,
+        )
     try:
         outcome = sync_connection(
             engine,
@@ -356,11 +371,14 @@ def _sync_one_connection(
     observed_writes = tracker.writes - writes_before
     if outcome.writes > observed_writes:
         tracker.observe(outcome.writes - observed_writes)
+    committed_writes = tracker.writes - writes_before
+    if committed_writes == 0 and not was_pending:
+        tracker.clear()
     log.info(
         "connection_sync_succeeded connection_id=%s provider=%s writes=%d",
         record.id,
         record.provider,
-        outcome.writes,
+        committed_writes,
     )
     return (
         ConnectionSummary(
@@ -369,7 +387,7 @@ def _sync_one_connection(
             status="succeeded",
             transactions=outcome.transactions,
             holding_snapshots=outcome.holding_snapshots,
-            writes=outcome.writes,
+            writes=committed_writes,
         ),
         False,
     )

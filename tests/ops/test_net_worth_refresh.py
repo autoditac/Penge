@@ -117,6 +117,7 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
 ) -> None:
     record = _record()
     monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
+    pending = tmp_path / "pending"
 
     def sync_connection(
         engine: Engine,
@@ -126,6 +127,7 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
         on_write: Callable[[int], None] | None = None,
     ) -> service.SyncOutcome:
         _ = engine, client, connection_id, on_write
+        assert pending.exists()
         return service.SyncOutcome(
             record=record,
             transactions=0,
@@ -138,7 +140,7 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
         MagicMock(),
         MagicMock(),
         dbt_runner=dbt,
-        pending_refresh_file=tmp_path / "pending",
+        pending_refresh_file=pending,
         sync_connection=sync_connection,
     )
 
@@ -146,6 +148,7 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
     assert summary.data_changed is False
     assert summary.dbt_status == "skipped_no_changes"
     assert dbt.calls == 0
+    assert not pending.exists()
 
 
 def test_run_refresh_reports_dbt_failure(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -258,7 +261,7 @@ def test_run_refresh_marks_partial_writes_before_connection_failure(
     assert not pending.exists()
 
 
-def test_run_refresh_runs_dbt_when_pending_marker_write_fails(
+def test_run_refresh_blocks_sync_when_pending_marker_write_fails(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     record = _record()
@@ -267,6 +270,31 @@ def test_run_refresh_runs_dbt_when_pending_marker_write_fails(
         "penge.ops.net_worth_refresh._mark_refresh_pending",
         MagicMock(side_effect=OSError("synthetic unwritable state directory")),
     )
+
+    sync_connection = MagicMock()
+    dbt = _RefreshRecorder()
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        pending_refresh_file=tmp_path / "pending",
+        sync_connection=sync_connection,
+    )
+
+    assert summary.failed_connections == 1
+    assert summary.data_changed is False
+    assert summary.dbt_status == "skipped_no_changes"
+    assert summary.error == "could not persist pending refresh marker: OSError"
+    assert summary.ok is False
+    assert dbt.calls == 0
+    sync_connection.assert_not_called()
+
+
+def test_run_refresh_counts_writes_from_failed_fallback_attempt(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    record = _record()
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
 
     def sync_connection(
         engine: Engine,
@@ -280,9 +308,9 @@ def test_run_refresh_runs_dbt_when_pending_marker_write_fails(
         on_write(2)
         return service.SyncOutcome(
             record=record,
-            transactions=1,
-            holding_snapshots=1,
-            writes=2,
+            transactions=0,
+            holding_snapshots=0,
+            writes=0,
         )
 
     dbt = _RefreshRecorder()
@@ -294,10 +322,10 @@ def test_run_refresh_runs_dbt_when_pending_marker_write_fails(
         sync_connection=sync_connection,
     )
 
+    assert summary.connections[0].writes == 2
     assert summary.data_changed is True
     assert summary.dbt_status == "succeeded"
-    assert summary.error == "could not persist pending refresh marker: OSError"
-    assert summary.ok is False
+    assert summary.ok is True
     assert dbt.calls == 1
 
 

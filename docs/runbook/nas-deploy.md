@@ -144,6 +144,9 @@ The summary reports eligible/successful/failed connection counts,
   `analytics_marts.mart_net_worth_daily` remains available.
   The `/var/lib/penge/refresh/pending` marker makes every later run retry dbt
   until it succeeds; do not remove it manually.
+- `could not persist pending refresh marker` means the affected connection was
+  not synced, preventing untracked raw writes. Repair ownership or free space
+  under `/var/lib/penge/refresh` before retrying.
 - `refresh lock is already held` means another manual or timed invocation is
   running; do not delete the lock file, wait for that process.
 - A startup error about the key or database means the worker did not receive

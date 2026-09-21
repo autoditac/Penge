@@ -64,11 +64,11 @@ Its PostgreSQL conflict updates include `IS DISTINCT FROM` predicates and
 `RETURNING`, so unchanged transactions, snapshots, accounts, entities, and
 instruments report zero writes.
 dbt is skipped unless at least one connection changed operational data.
-After each account transaction commits, a durable `pending` marker is written
-to the host-mounted worker state directory before the next account is synced.
-The worker also retains the write observation in memory: if marker persistence
-fails, the current run still refreshes dbt, reports the state failure, and exits
-nonzero.
+Before each connection can write raw data, a durable `pending` marker is
+written to the host-mounted worker state directory. A verified zero-write sync
+removes a newly created marker; a sync failure retains it because an earlier
+account or fallback window may already have committed. If marker persistence
+fails, that connection is not synced and the run exits nonzero.
 The marker is removed only after the live dbt run succeeds, so a dbt failure,
 container stop, or host restart causes later scheduled runs to retry even when
 the next Enable Banking upserts are idempotent.
@@ -152,5 +152,5 @@ second rollback procedure on the NAS.
 - [ADR-0044 Continuous image publishing and NAS auto-deploy](0044-continuous-image-publishing-and-nas-auto-deploy.md)
 - [NAS deploy and rollback runbook](../runbook/nas-deploy.md)
 - `src/penge/ops/net_worth_refresh.py`
-- `deploy/nas/penge-net-worth-refresh.{container,timer}`
+- `deploy/nas/penge-net-worth-refresh.{service,timer}`
 - Issue #278

@@ -44,7 +44,10 @@ models:
         description: >
           Daily growth factor measured in EUR
           (`end / (begin + flow)`); NULL when the denominator is not
-          positive. A factor of 1.01 is a +1% day.
+          positive, or when `end_mv_eur` itself is not positive (no
+          capital remained at day-end, e.g. a fully liquidated
+          position or an overdrawn cash instrument; see issue #282).
+          A factor of 1.01 is a +1% day.
       - name: begin_mv_dkk
         description: Previous day's end-of-day value in DKK.
       - name: end_mv_dkk
@@ -54,4 +57,5 @@ models:
       - name: return_factor_dkk
         description: >
           Daily growth factor measured in DKK; NULL when the
-          denominator is not positive.
+          denominator is not positive, or when `end_mv_dkk` itself is
+          not positive (see `return_factor_eur`).

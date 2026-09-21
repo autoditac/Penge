@@ -85,10 +85,15 @@ layer already owns and tests.
   `f_t = MV_t / (MV_{t-1} + F_t)` where `F_t` is the net external flow
   dated `t` (using `coalesce(value_date, ts::date)`). This stays
   defined on the very first day of a funded account
-  (`MV_0 = F_0 · f_0`). Days where `MV_{t-1} + F_t <= 0` while a flow
-  or value exists yield a NULL factor; the Python layer refuses to
-  chain across NULLs and reports the gap instead of fabricating a
-  number.
+  (`MV_0 = F_0 · f_0`). Days where `MV_{t-1} + F_t <= 0` *or*
+  `MV_t <= 0` yield a NULL factor; the Python layer refuses to chain
+  across NULLs and reports the gap instead of fabricating a number.
+  The `MV_t <= 0` guard was added by #282: cash is a synthetic
+  instrument (ADR-0008) whose value can go negative on an overdraft,
+  and a fully liquidated position/account settles at exactly zero —
+  either way there is no capital remaining at day-end to express a
+  multiplicative growth factor from, so the row is NULL rather than a
+  spurious zero or negative "return".
 - **External flows per scope:**
   - `account` and `household`: transaction kinds `deposit`,
     `withdrawal`, and (account scope only) `internal_transfer`, with

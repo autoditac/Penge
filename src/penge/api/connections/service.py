@@ -277,7 +277,7 @@ def _sync_accounts(
     entity_name: str,
     date_from: date,
     date_to: date,
-    on_write: Callable[[], None] | None,
+    on_write: Callable[[int], None] | None,
 ) -> tuple[int, int, int]:
     """Sync every account for one window, returning ``(txns, snapshots, writes)``.
 
@@ -300,7 +300,7 @@ def _sync_accounts(
         total_snap += result.holding_snapshots
         total_writes += result.writes
         if result.writes > 0 and on_write is not None:
-            on_write()
+            on_write(result.writes)
     return total_txn, total_snap, total_writes
 
 
@@ -310,7 +310,7 @@ def sync(
     *,
     connection_id: uuid.UUID,
     days: int = DEFAULT_HISTORY_DAYS,
-    on_write: Callable[[], None] | None = None,
+    on_write: Callable[[int], None] | None = None,
 ) -> SyncOutcome:
     """Pull transactions + balances for every account on the connection."""
     record = store.get_connection(engine, connection_id)

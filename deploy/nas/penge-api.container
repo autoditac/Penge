@@ -22,6 +22,7 @@ SecurityLabelDisable=true
 Network=penge
 EnvironmentFile=/etc/penge/penge-api.env
 Volume=/etc/penge/nordnet-accounts.yaml:/etc/penge/nordnet-accounts.yaml:ro
+Volume=/var/lib/penge/refresh:/var/lib/penge-refresh
 Environment=PENGE_NORDNET_ACCOUNTS_CONFIG=/etc/penge/nordnet-accounts.yaml
 PublishPort=127.0.0.1:8001:8000
 Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000

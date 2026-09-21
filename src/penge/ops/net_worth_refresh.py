@@ -238,13 +238,141 @@ class SyncFunction(Protocol):
         client: Client,
         *,
         connection_id: uuid.UUID,
-        on_write: Callable[[], None] | None = None,
+        on_write: Callable[[int], None] | None = None,
     ) -> service.SyncOutcome: ...
 
 
 def _mark_refresh_pending(path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.touch(exist_ok=True)
+
+
+@dataclass(slots=True)
+class _WriteTracker:
+    path: Path
+    writes: int = 0
+    error: str | None = None
+
+    def observe(self, write_count: int) -> None:
+        self.writes += write_count
+        try:
+            _mark_refresh_pending(self.path)
+        except OSError as exc:
+            self._record_error("persist", exc)
+
+    def is_refresh_pending(self) -> bool:
+        if self.writes > 0:
+            return True
+        try:
+            return self.path.exists()
+        except OSError as exc:
+            self._record_error("inspect", exc)
+            return False
+
+    def clear(self) -> None:
+        try:
+            self.path.unlink(missing_ok=True)
+        except OSError as exc:
+            self._record_error("clear", exc)
+
+    def _record_error(self, action: str, exc: OSError) -> None:
+        self.error = f"could not {action} pending refresh marker: {type(exc).__name__}"
+        log.error(
+            "pending_refresh_marker_%s_failed path=%s code=%s",
+            action,
+            self.path,
+            type(exc).__name__,
+        )
+
+
+def _sync_one_connection(
+    engine: Engine,
+    client: Client,
+    *,
+    record: store.ConnectionRecord,
+    sync_connection: SyncFunction,
+    tracker: _WriteTracker,
+) -> tuple[ConnectionSummary, bool]:
+    writes_before = tracker.writes
+    try:
+        outcome = sync_connection(
+            engine,
+            client,
+            connection_id=record.id,
+            on_write=tracker.observe,
+        )
+    except service.ConnectionError as exc:
+        summary = ConnectionSummary(
+            connection_id=str(record.id),
+            provider=record.provider,
+            status="failed",
+            writes=tracker.writes - writes_before,
+            error=exc.message,
+        )
+        log.error(
+            "connection_sync_failed connection_id=%s provider=%s step=%s code=%s",
+            record.id,
+            record.provider,
+            exc.step,
+            exc.code,
+        )
+        return summary, True
+    except Exception as exc:
+        error = service.ConnectionError(
+            step="sync",
+            message="unexpected internal sync failure",
+            code=type(exc).__name__,
+        )
+        try:
+            store.record_error(
+                engine,
+                record.id,
+                error=error.as_error_payload(),
+                status=record.status,
+                is_sync=True,
+            )
+        except Exception as record_exc:
+            log.error(
+                "connection_error_record_failed connection_id=%s provider=%s code=%s",
+                record.id,
+                record.provider,
+                type(record_exc).__name__,
+            )
+        log.error(
+            "connection_sync_failed connection_id=%s provider=%s code=%s",
+            record.id,
+            record.provider,
+            type(exc).__name__,
+        )
+        summary = ConnectionSummary(
+            connection_id=str(record.id),
+            provider=record.provider,
+            status="failed",
+            writes=tracker.writes - writes_before,
+            error=error.message,
+        )
+        return summary, True
+
+    observed_writes = tracker.writes - writes_before
+    if outcome.writes > observed_writes:
+        tracker.observe(outcome.writes - observed_writes)
+    log.info(
+        "connection_sync_succeeded connection_id=%s provider=%s writes=%d",
+        record.id,
+        record.provider,
+        outcome.writes,
+    )
+    return (
+        ConnectionSummary(
+            connection_id=str(record.id),
+            provider=record.provider,
+            status="succeeded",
+            transactions=outcome.transactions,
+            holding_snapshots=outcome.holding_snapshots,
+            writes=outcome.writes,
+        ),
+        False,
+    )
 
 
 def run_refresh(
@@ -282,94 +410,22 @@ def run_refresh(
         )
 
     summaries: list[ConnectionSummary] = []
-    writes = 0
     failed = 0
+    tracker = _WriteTracker(pending_refresh_file)
     for record in eligible:
-        try:
-            outcome = sync_connection(
-                engine,
-                client,
-                connection_id=record.id,
-                on_write=lambda: _mark_refresh_pending(pending_refresh_file),
-            )
-        except service.ConnectionError as exc:
-            failed += 1
-            summaries.append(
-                ConnectionSummary(
-                    connection_id=str(record.id),
-                    provider=record.provider,
-                    status="failed",
-                    error=exc.message,
-                )
-            )
-            log.error(
-                "connection_sync_failed connection_id=%s provider=%s step=%s code=%s",
-                record.id,
-                record.provider,
-                exc.step,
-                exc.code,
-            )
-        except Exception as exc:
-            failed += 1
-            error = service.ConnectionError(
-                step="sync",
-                message="unexpected internal sync failure",
-                code=type(exc).__name__,
-            )
-            try:
-                store.record_error(
-                    engine,
-                    record.id,
-                    error=error.as_error_payload(),
-                    status=record.status,
-                    is_sync=True,
-                )
-            except Exception as record_exc:
-                log.error(
-                    "connection_error_record_failed connection_id=%s provider=%s code=%s",
-                    record.id,
-                    record.provider,
-                    type(record_exc).__name__,
-                )
-            summaries.append(
-                ConnectionSummary(
-                    connection_id=str(record.id),
-                    provider=record.provider,
-                    status="failed",
-                    error=error.message,
-                )
-            )
-            log.error(
-                "connection_sync_failed connection_id=%s provider=%s code=%s",
-                record.id,
-                record.provider,
-                type(exc).__name__,
-            )
-        else:
-            writes += outcome.writes
-            if outcome.writes > 0:
-                _mark_refresh_pending(pending_refresh_file)
-            summaries.append(
-                ConnectionSummary(
-                    connection_id=str(record.id),
-                    provider=record.provider,
-                    status="succeeded",
-                    transactions=outcome.transactions,
-                    holding_snapshots=outcome.holding_snapshots,
-                    writes=outcome.writes,
-                )
-            )
-            log.info(
-                "connection_sync_succeeded connection_id=%s provider=%s writes=%d",
-                record.id,
-                record.provider,
-                outcome.writes,
-            )
+        summary, did_fail = _sync_one_connection(
+            engine,
+            client,
+            record=record,
+            sync_connection=sync_connection,
+            tracker=tracker,
+        )
+        summaries.append(summary)
+        failed += int(did_fail)
 
     dbt_status = "skipped_no_changes"
     refresh_error: str | None = None
-    refresh_required = writes > 0 or pending_refresh_file.exists()
-    if refresh_required:
+    if tracker.is_refresh_pending():
         try:
             dbt_runner.refresh()
         except DbtRefreshError as exc:
@@ -382,8 +438,8 @@ def run_refresh(
             log.error("net_worth_refresh_failed code=%s", type(exc).__name__)
         else:
             dbt_status = "succeeded"
-            pending_refresh_file.unlink(missing_ok=True)
-            log.info("net_worth_refresh_succeeded writes=%d", writes)
+            tracker.clear()
+            log.info("net_worth_refresh_succeeded writes=%d", tracker.writes)
 
     completed = datetime.now(UTC)
     return RefreshSummary(
@@ -392,11 +448,11 @@ def run_refresh(
         eligible_connections=len(eligible),
         successful_connections=len(eligible) - failed,
         failed_connections=failed,
-        data_changed=writes > 0,
+        data_changed=tracker.writes > 0,
         dbt_status=dbt_status,
         dry_run=False,
         connections=tuple(summaries),
-        error=refresh_error,
+        error=refresh_error or tracker.error,
     )
 
 

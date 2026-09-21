@@ -65,50 +65,46 @@ required today.
 [ADR-0046](../decisions/0046-scheduled-enable-banking-net-worth-refresh.md)
 adds a one-shot worker and timer:
 
-- `deploy/nas/penge-net-worth-refresh.container`
+- `deploy/nas/penge-net-worth-refresh.service`
 - `deploy/nas/penge-net-worth-refresh.timer`
 
 The timer runs at 02:17, 08:17, 14:17, and 20:17 in the NAS's local time,
 plus a randomized delay of up to 15 minutes.
 Missed runs fire after the host returns because the timer is persistent.
 
-The worker uses `/etc/penge/penge-api.env`, the `penge-eb-key` Podman secret,
-and the `penge` container network exactly like the API.
-No credentials belong in either tracked unit.
-The environment file must provide the same write-enabled `DATABASE_URL` used
-by the connections API.
+The worker executes inside the running, health-gated API container and
+therefore uses its database environment, `penge-eb-key` secret, network, and
+exact deployed image digest. No credentials belong in the tracked units.
 
 ### Install and enable
 
-After the PR is merged and `ghcr.io/autoditac/penge/api:main` contains the
-worker:
+After the PR is merged and the health-gated API update has deployed the worker:
 
 ```bash
 sudo install -d -o 1000 -g 1000 -m 0700 /var/lib/penge/refresh
+sudo rm -f /etc/containers/systemd/penge-net-worth-refresh.container
 sudo install -o root -g root -m 0644 \
-  deploy/nas/penge-net-worth-refresh.container \
+  deploy/nas/penge-api.container \
+  deploy/nas/penge-net-worth-refresh.service \
   deploy/nas/penge-net-worth-refresh.timer \
   /etc/containers/systemd/
 sudo systemctl daemon-reload
+sudo systemctl restart penge-api.service
 sudo systemctl enable --now penge-net-worth-refresh.timer
 sudo systemctl list-timers penge-net-worth-refresh.timer --no-pager
 ```
 
-The host directory owns the cross-process advisory lock and must be writable by
-the image's UID/GID 1000 runtime user.
+Reinstalling `deploy/nas/penge-api.container` mounts the state volume, and the
+API restart applies it before the timer is enabled. The host directory owns
+the cross-process advisory lock and must be writable by the image's UID/GID
+1000 runtime user.
 
 ### Controlled manual execution
 
 First verify eligibility without calling Enable Banking or dbt:
 
 ```bash
-sudo podman run --rm --name penge-net-worth-refresh-dry-run \
-  --network penge \
-  --env-file /etc/penge/penge-api.env \
-  --secret penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000 \
-  --volume /var/lib/penge/refresh:/var/lib/penge-refresh \
-  ghcr.io/autoditac/penge/api:main \
-  penge-refresh-net-worth --dry-run \
+sudo podman exec penge-api penge-refresh-net-worth --dry-run \
   --lock-file /var/lib/penge-refresh/refresh.lock \
   --pending-refresh-file /var/lib/penge-refresh/pending \
   --dbt-project-dir /app/dbt --dbt-profiles-dir /app/dbt
@@ -174,8 +170,9 @@ sudo systemctl disable --now penge-net-worth-refresh.timer
 ```
 
 If a worker image is faulty, keep the timer disabled and roll the API image
-back by digest using the existing procedure below.
-The worker uses that same image.
+back by digest using the existing procedure below. Because the worker executes
+inside `penge-api`, it automatically uses the same health-gated or rolled-back
+digest; it never pulls a mutable tag independently.
 Reinstall the previous tracked unit if its command or mounts changed, run
 `systemctl daemon-reload`, execute one manual run, and only then re-enable the
 timer.

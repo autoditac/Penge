@@ -123,8 +123,9 @@ ingest-lunar *FLAGS:
 
 # Sync every eligible connection and refresh net worth only after data writes.
 # The local lock lives under the ignored .cache directory; production uses
-# the host-mounted path configured by deploy/nas/penge-net-worth-refresh.container.
+# the host-mounted path configured by deploy/nas/penge-api.container.
 refresh-net-worth *FLAGS:
+    uv run --group dbt dbt deps --project-dir dbt --profiles-dir dbt
     uv run --group db --group http --group enablebanking --group dbt \
         penge-refresh-net-worth \
         --lock-file .cache/penge-refresh/refresh.lock \

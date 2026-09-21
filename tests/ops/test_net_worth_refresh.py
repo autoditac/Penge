@@ -82,7 +82,7 @@ def test_run_refresh_isolates_connection_failures_and_runs_dbt(
         client: Client,
         *,
         connection_id: uuid.UUID,
-        on_write: Callable[[], None] | None = None,
+        on_write: Callable[[int], None] | None = None,
     ) -> service.SyncOutcome:
         _ = engine, client, on_write
         if connection_id == first.id:
@@ -123,7 +123,7 @@ def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
         client: Client,
         *,
         connection_id: uuid.UUID,
-        on_write: Callable[[], None] | None = None,
+        on_write: Callable[[int], None] | None = None,
     ) -> service.SyncOutcome:
         _ = engine, client, connection_id, on_write
         return service.SyncOutcome(
@@ -157,7 +157,7 @@ def test_run_refresh_reports_dbt_failure(monkeypatch: pytest.MonkeyPatch, tmp_pa
         client: Client,
         *,
         connection_id: uuid.UUID,
-        on_write: Callable[[], None] | None = None,
+        on_write: Callable[[int], None] | None = None,
     ) -> service.SyncOutcome:
         _ = engine, client, connection_id, on_write
         return service.SyncOutcome(
@@ -194,7 +194,7 @@ def test_run_refresh_retries_pending_dbt_after_idempotent_sync(
         client: Client,
         *,
         connection_id: uuid.UUID,
-        on_write: Callable[[], None] | None = None,
+        on_write: Callable[[int], None] | None = None,
     ) -> service.SyncOutcome:
         _ = engine, client, connection_id, on_write
         return service.SyncOutcome(
@@ -233,11 +233,11 @@ def test_run_refresh_marks_partial_writes_before_connection_failure(
         client: Client,
         *,
         connection_id: uuid.UUID,
-        on_write: Callable[[], None] | None = None,
+        on_write: Callable[[int], None] | None = None,
     ) -> service.SyncOutcome:
         _ = engine, client, connection_id
         assert on_write is not None
-        on_write()
+        on_write(3)
         raise service.ConnectionError(step="sync", message="second account failed")
 
     pending = tmp_path / "pending"
@@ -251,9 +251,54 @@ def test_run_refresh_marks_partial_writes_before_connection_failure(
     )
 
     assert summary.failed_connections == 1
+    assert summary.data_changed is True
+    assert summary.connections[0].writes == 3
     assert summary.dbt_status == "succeeded"
     assert dbt.calls == 1
     assert not pending.exists()
+
+
+def test_run_refresh_runs_dbt_when_pending_marker_write_fails(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    record = _record()
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
+    monkeypatch.setattr(
+        "penge.ops.net_worth_refresh._mark_refresh_pending",
+        MagicMock(side_effect=OSError("synthetic unwritable state directory")),
+    )
+
+    def sync_connection(
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        on_write: Callable[[int], None] | None = None,
+    ) -> service.SyncOutcome:
+        _ = engine, client, connection_id
+        assert on_write is not None
+        on_write(2)
+        return service.SyncOutcome(
+            record=record,
+            transactions=1,
+            holding_snapshots=1,
+            writes=2,
+        )
+
+    dbt = _RefreshRecorder()
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        pending_refresh_file=tmp_path / "pending",
+        sync_connection=sync_connection,
+    )
+
+    assert summary.data_changed is True
+    assert summary.dbt_status == "succeeded"
+    assert summary.error == "could not persist pending refresh marker: OSError"
+    assert summary.ok is False
+    assert dbt.calls == 1
 
 
 def test_dbt_runner_validates_shadow_before_live(

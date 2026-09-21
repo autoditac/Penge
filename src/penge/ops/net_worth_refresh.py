@@ -317,6 +317,8 @@ def _sync_one_connection(
             on_write=tracker.observe,
         )
     except service.ConnectionError as exc:
+        if tracker.writes == writes_before and not was_pending:
+            tracker.clear()
         summary = ConnectionSummary(
             connection_id=str(record.id),
             provider=record.provider,
@@ -333,6 +335,8 @@ def _sync_one_connection(
         )
         return summary, True
     except Exception as exc:
+        if tracker.writes == writes_before and not was_pending:
+            tracker.clear()
         error = service.ConnectionError(
             step="sync",
             message="unexpected internal sync failure",

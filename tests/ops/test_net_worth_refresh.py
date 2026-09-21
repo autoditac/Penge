@@ -112,6 +112,39 @@ def test_run_refresh_isolates_connection_failures_and_runs_dbt(
     assert recorded_error_ids == [first.id]
 
 
+def test_run_refresh_clears_new_intent_after_prewrite_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    record = _record()
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
+
+    def sync_connection(
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        on_write: Callable[[int], None] | None = None,
+    ) -> service.SyncOutcome:
+        _ = engine, client, connection_id, on_write
+        raise service.ConnectionError(step="sync", message="session unavailable")
+
+    pending = tmp_path / "pending"
+    dbt = _RefreshRecorder()
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        pending_refresh_file=pending,
+        sync_connection=sync_connection,
+    )
+
+    assert summary.failed_connections == 1
+    assert summary.data_changed is False
+    assert summary.dbt_status == "skipped_no_changes"
+    assert dbt.calls == 0
+    assert not pending.exists()
+
+
 def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

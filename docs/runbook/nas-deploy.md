@@ -83,11 +83,12 @@ After the PR is merged and the health-gated API update has deployed the worker:
 ```bash
 sudo install -d -o 1000 -g 1000 -m 0700 /var/lib/penge/refresh
 sudo rm -f /etc/containers/systemd/penge-net-worth-refresh.container
+sudo install -o root -g root -m 0644 deploy/nas/penge-api.container \
+  /etc/containers/systemd/
 sudo install -o root -g root -m 0644 \
-  deploy/nas/penge-api.container \
   deploy/nas/penge-net-worth-refresh.service \
   deploy/nas/penge-net-worth-refresh.timer \
-  /etc/containers/systemd/
+  /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl restart penge-api.service
 sudo systemctl enable --now penge-net-worth-refresh.timer

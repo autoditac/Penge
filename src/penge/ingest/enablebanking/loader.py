@@ -146,7 +146,7 @@ def _persist(
             tables["instrument"],
             currency=currency,
         )
-        n_txn = _upsert_transactions(
+        n_txn, txn_writes = _upsert_transactions(
             conn,
             tables["transaction"],
             provider=provider,
@@ -154,7 +154,7 @@ def _persist(
             account_id=account_id,
             instrument_id=instrument_id,
         )
-        n_snap = _upsert_balance_snapshot(
+        n_snap, snapshot_writes = _upsert_balance_snapshot(
             conn,
             tables["holding_snapshot"],
             balances=balances,
@@ -169,7 +169,7 @@ def _persist(
         n_txn,
         n_snap,
     )
-    writes = n_txn + n_snap + entity_changed + account_changed + instrument_changed
+    writes = txn_writes + snapshot_writes + entity_changed + account_changed + instrument_changed
     return LoadResult(transactions=n_txn, holding_snapshots=n_snap, writes=writes)
 
 
@@ -300,7 +300,7 @@ def _upsert_transactions(
     transactions: list[Transaction],
     account_id: str,
     instrument_id: str,
-) -> int:
+) -> tuple[int, int]:
     payload: list[dict[str, object]] = []
     for t in transactions:
         if external_id(t) is None:
@@ -314,7 +314,7 @@ def _upsert_transactions(
             continue
         payload.append(transaction_to_row(t, account_id=account_id, instrument_id=instrument_id))
     if not payload:
-        return 0
+        return 0, 0
 
     # Collapse rows that share the conflict key. Some ASPSPs return the same
     # ``entry_reference`` on more than one booked entry within a single page;
@@ -361,7 +361,7 @@ def _upsert_transactions(
             | transaction.c.description.is_distinct_from(stmt.excluded.description)
         ),
     )
-    return len(conn.execute(stmt.returning(transaction.c.id)).all())
+    return len(payload), len(conn.execute(stmt.returning(transaction.c.id)).all())
 
 
 def _upsert_balance_snapshot(
@@ -372,10 +372,10 @@ def _upsert_balance_snapshot(
     account_id: str,
     instrument_id: str,
     fallback_date: date,
-) -> int:
+) -> tuple[int, int]:
     picked = balance_to_market_value(balances, fallback_date=fallback_date)
     if picked is None:
-        return 0
+        return 0, 0
     market_value, as_of = picked
     stmt = pg_insert(holding_snapshot).values(
         account_id=account_id,
@@ -399,4 +399,7 @@ def _upsert_balance_snapshot(
             | holding_snapshot.c.cost_basis.is_not(None)
         ),
     )
-    return int(conn.execute(stmt.returning(holding_snapshot.c.id)).scalar_one_or_none() is not None)
+    changed = int(
+        conn.execute(stmt.returning(holding_snapshot.c.id)).scalar_one_or_none() is not None
+    )
+    return 1, changed

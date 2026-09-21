@@ -244,6 +244,17 @@ class SyncOutcome:
     writes: int
 
 
+@dataclass(slots=True)
+class _WriteObserver:
+    callback: Callable[[int], None] | None
+    total: int = 0
+
+    def __call__(self, write_count: int) -> None:
+        self.total += write_count
+        if self.callback is not None:
+            self.callback(write_count)
+
+
 def _history_windows(days: int) -> list[int]:
     """The requested window plus any strictly narrower fallback windows.
 
@@ -374,11 +385,12 @@ def sync(
     windows = _history_windows(days)
     total_txn = 0
     total_snap = 0
-    total_writes = 0
+    write_observer = _WriteObserver(on_write)
+
     for index, window in enumerate(windows):
         date_from = today - timedelta(days=window)
         try:
-            total_txn, total_snap, total_writes = _sync_accounts(
+            total_txn, total_snap, _ = _sync_accounts(
                 engine,
                 provider,
                 client=client,
@@ -386,7 +398,7 @@ def sync(
                 entity_name=record.entity_name,
                 date_from=date_from,
                 date_to=date_to,
-                on_write=on_write,
+                on_write=write_observer,
             )
         except EnableBankingError as exc:
             code, _ = _eb_message(exc.body)
@@ -431,7 +443,7 @@ def sync(
         record=updated,
         transactions=total_txn,
         holding_snapshots=total_snap,
-        writes=total_writes,
+        writes=write_observer.total,
     )
 
 

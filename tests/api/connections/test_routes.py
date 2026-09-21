@@ -13,6 +13,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from sqlalchemy import text
 
 from penge.api.connections import service, store
@@ -137,6 +138,34 @@ def test_repeated_sync_reports_no_data_writes(
 
     assert first.writes > 0
     assert second.writes == 0
+    assert second.transactions == 1
+    assert second.holding_snapshots == 1
+
+
+def test_sync_reports_committed_writes_before_later_account_failure(
+    client: TestClient, engine: Engine, fake_client: FakeClient
+) -> None:
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    second = fake_client.session_accounts[0].model_copy(
+        update={"uid": "uid-2", "name": "Synthetic Savings"}
+    )
+    fake_client.session_accounts.append(second)
+    fake_client.fail_transactions_for_uid = "uid-2"
+    observed_writes: list[int] = []
+
+    with pytest.raises(service.ConnectionError) as raised:
+        service.sync(
+            engine,
+            cast("Client", fake_client),
+            connection_id=uuid.UUID(str(linked["connection_id"])),
+            on_write=observed_writes.append,
+        )
+
+    assert raised.value.message == "Synthetic second account failure"
+    assert sum(observed_writes) > 0
+    with engine.connect() as connection:
+        assert connection.execute(text('select count(*) from "transaction"')).scalar_one() == 1
 
 
 def test_eligible_connections_exclude_expired_consent(client: TestClient, engine: Engine) -> None:

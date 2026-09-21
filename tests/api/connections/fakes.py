@@ -68,6 +68,7 @@ class FakeClient:
         # via Enable Banking. The loader must still persist a snapshot, stamped
         # with today's date.
         self.balance_without_reference_date: bool = False
+        self.fail_transactions_for_uid: str | None = None
 
     # -- context manager ------------------------------------------------ #
     def __enter__(self) -> FakeClient:
@@ -136,6 +137,14 @@ class FakeClient:
         strategy: str | None = None,
     ) -> TransactionsResponse:
         self.transaction_windows.append(date_from)
+        if account_uid == self.fail_transactions_for_uid:
+            raise EnableBankingError(
+                502,
+                {
+                    "error": "SYNTHETIC_ACCOUNT_FAILURE",
+                    "message": "Synthetic second account failure",
+                },
+            )
         if self.max_history_days is not None and date_from is not None:
             oldest_allowed = datetime.now(UTC).date() - timedelta(days=self.max_history_days)
             if date.fromisoformat(date_from) < oldest_allowed:

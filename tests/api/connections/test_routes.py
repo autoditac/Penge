@@ -10,18 +10,19 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qs, urlparse
 
 from sqlalchemy import text
 
-from penge.api.connections import store
+from penge.api.connections import service, store
 from tests.api.connections.fakes import eb_error
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
     from sqlalchemy.engine import Engine
 
+    from penge.ingest.enablebanking.client import Client
     from tests.api.connections.fakes import FakeClient
 
 
@@ -115,6 +116,45 @@ def test_sync_persists_snapshot_when_aspsp_omits_reference_date(
     # Stamped with the sync date; allow the UTC day to roll over mid-test.
     assert as_of in {before, after}
     assert market_value == Decimal("100.00")
+
+
+def test_repeated_sync_reports_no_data_writes(
+    client: TestClient, engine: Engine, fake_client: FakeClient
+) -> None:
+    """An idempotent repeat must not trigger a downstream mart refresh."""
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    first = service.sync(
+        engine,
+        cast("Client", fake_client),
+        connection_id=uuid.UUID(str(linked["connection_id"])),
+    )
+    second = service.sync(
+        engine,
+        cast("Client", fake_client),
+        connection_id=uuid.UUID(str(linked["connection_id"])),
+    )
+
+    assert first.writes > 0
+    assert second.writes == 0
+
+
+def test_eligible_connections_exclude_expired_consent(client: TestClient, engine: Engine) -> None:
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+
+    assert [record.id for record in store.list_eligible_connections(engine)] == [
+        uuid.UUID(str(linked["connection_id"]))
+    ]
+
+    with engine.begin() as connection:
+        connection.execute(
+            store.bank_connection_table.update()
+            .where(store.bank_connection_table.c.id == uuid.UUID(str(linked["connection_id"])))
+            .values(valid_until=datetime(2020, 1, 1, tzinfo=UTC))
+        )
+
+    assert store.list_eligible_connections(engine) == []
 
 
 def test_authorize_failure_records_debug_info(client: TestClient, fake_client: FakeClient) -> None:

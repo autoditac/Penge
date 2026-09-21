@@ -1,0 +1,280 @@
+"""Unit tests for scheduled Enable Banking and dbt orchestration."""
+
+from __future__ import annotations
+
+import subprocess
+import uuid
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+
+import pytest
+
+from penge.api.connections import service, store
+from penge.ops import net_worth_refresh_cli
+from penge.ops.net_worth_refresh import (
+    DBT_SELECTION,
+    DbtRefreshError,
+    DbtRunner,
+    LockUnavailableError,
+    dbt_environment,
+    exclusive_lock,
+    run_refresh,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, Sequence
+
+    from sqlalchemy.engine import Engine
+
+    from penge.ingest.enablebanking.client import Client
+
+
+def _record(*, provider: str = "gls") -> store.ConnectionRecord:
+    now = datetime.now(UTC)
+    return store.ConnectionRecord(
+        id=uuid.uuid4(),
+        provider=provider,
+        aspsp_name="Synthetic Bank",
+        aspsp_country="DE",
+        entity_name="Synthetic Person",
+        status=store.STATUS_AUTHORIZED,
+        state=None,
+        authorization_id="authorization",
+        session_id="session",
+        valid_until=now + timedelta(days=30),
+        accounts=[],
+        last_sync_at=None,
+        last_sync_status=None,
+        last_error=None,
+        created_at=now,
+        updated_at=now,
+    )
+
+
+class _RefreshRecorder:
+    def __init__(self, *, error: DbtRefreshError | None = None) -> None:
+        self.calls = 0
+        self.error = error
+
+    def refresh(self) -> None:
+        self.calls += 1
+        if self.error is not None:
+            raise self.error
+
+
+def test_run_refresh_isolates_connection_failures_and_runs_dbt(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = _record(provider="gls")
+    second = _record(provider="lunar")
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [first, second])
+    recorded_error_ids: list[uuid.UUID] = []
+    monkeypatch.setattr(
+        store,
+        "record_error",
+        lambda engine, connection_id, **kwargs: recorded_error_ids.append(connection_id),
+    )
+
+    def sync_connection(
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        days: int = service.DEFAULT_HISTORY_DAYS,
+    ) -> service.SyncOutcome:
+        _ = engine, client, days
+        if connection_id == first.id:
+            raise RuntimeError("synthetic internal failure")
+        return service.SyncOutcome(
+            record=second,
+            transactions=1,
+            holding_snapshots=1,
+            writes=2,
+        )
+
+    dbt = _RefreshRecorder()
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        sync_connection=sync_connection,
+    )
+
+    assert summary.failed_connections == 1
+    assert summary.successful_connections == 1
+    assert summary.data_changed is True
+    assert summary.dbt_status == "succeeded"
+    assert summary.ok is False
+    assert dbt.calls == 1
+    assert recorded_error_ids == [first.id]
+
+
+def test_run_refresh_skips_dbt_when_upserts_are_idempotent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    record = _record()
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
+
+    def sync_connection(
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        days: int = service.DEFAULT_HISTORY_DAYS,
+    ) -> service.SyncOutcome:
+        _ = engine, client, connection_id, days
+        return service.SyncOutcome(
+            record=record,
+            transactions=0,
+            holding_snapshots=0,
+            writes=0,
+        )
+
+    dbt = _RefreshRecorder()
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        sync_connection=sync_connection,
+    )
+
+    assert summary.ok is True
+    assert summary.data_changed is False
+    assert summary.dbt_status == "skipped_no_changes"
+    assert dbt.calls == 0
+
+
+def test_run_refresh_reports_dbt_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    record = _record()
+    monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
+
+    def sync_connection(
+        engine: Engine,
+        client: Client,
+        *,
+        connection_id: uuid.UUID,
+        days: int = service.DEFAULT_HISTORY_DAYS,
+    ) -> service.SyncOutcome:
+        _ = engine, client, connection_id, days
+        return service.SyncOutcome(
+            record=record,
+            transactions=1,
+            holding_snapshots=0,
+            writes=1,
+        )
+
+    dbt = _RefreshRecorder(error=DbtRefreshError("synthetic dbt failure"))
+    summary = run_refresh(
+        MagicMock(),
+        MagicMock(),
+        dbt_runner=dbt,
+        sync_connection=sync_connection,
+    )
+
+    assert summary.ok is False
+    assert summary.dbt_status == "failed"
+    assert summary.error == "synthetic dbt failure"
+
+
+def test_dbt_runner_validates_shadow_before_live(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    commands: list[list[str]] = []
+
+    def command_runner(
+        command: Sequence[str],
+        *,
+        cwd: Path,
+        env: Mapping[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        _ = cwd, env
+        commands.append(list(command))
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    monkeypatch.setattr(DbtRunner, "_drop_shadow_schemas", lambda self: None)
+    runner = DbtRunner(
+        MagicMock(),
+        project_dir=tmp_path / "dbt",
+        profiles_dir=tmp_path / "dbt",
+        database_url="postgresql+psycopg://user:pass@db:5432/penge",
+        command_runner=command_runner,
+    )
+
+    runner.refresh()
+
+    assert [command[1] for command in commands] == ["build", "run"]
+    assert all(DBT_SELECTION in command for command in commands)
+    assert all("cautious" in command for command in commands)
+    assert "refresh" in commands[0]
+    assert "dev" in commands[1]
+
+
+def test_dbt_runner_does_not_touch_live_after_shadow_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    commands: list[list[str]] = []
+
+    def command_runner(
+        command: Sequence[str],
+        *,
+        cwd: Path,
+        env: Mapping[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        _ = cwd, env
+        commands.append(list(command))
+        return subprocess.CompletedProcess(command, 1, stdout="", stderr="synthetic failure")
+
+    monkeypatch.setattr(DbtRunner, "_drop_shadow_schemas", lambda self: None)
+    runner = DbtRunner(
+        MagicMock(),
+        project_dir=tmp_path / "dbt",
+        profiles_dir=tmp_path / "dbt",
+        database_url="postgresql+psycopg://user:pass@db:5432/penge",
+        command_runner=command_runner,
+    )
+
+    with pytest.raises(DbtRefreshError, match="live marts were not changed"):
+        runner.refresh()
+
+    assert len(commands) == 1
+    assert commands[0][1] == "build"
+
+
+def test_dbt_environment_uses_url_without_leaking_password_to_command() -> None:
+    env = dbt_environment(
+        "postgresql+psycopg://worker:secret@database:5544/finance",
+        base={"PATH": "/bin"},
+    )
+
+    assert env == {
+        "PATH": "/bin",
+        "PGHOST": "database",
+        "PGPORT": "5544",
+        "PGUSER": "worker",
+        "PGPASSWORD": "secret",
+        "PGDATABASE": "finance",
+    }
+
+
+def test_exclusive_lock_rejects_concurrent_owner(tmp_path: Path) -> None:
+    path = tmp_path / "refresh.lock"
+
+    with exclusive_lock(path), pytest.raises(LockUnavailableError), exclusive_lock(path):
+        pytest.fail("second owner unexpectedly acquired the lock")
+
+
+def test_cli_disabled_summary_is_json(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.delenv("ENABLEBANKING_APPLICATION_ID", raising=False)
+    monkeypatch.delenv("ENABLEBANKING_KEY_PATH", raising=False)
+
+    exit_code = net_worth_refresh_cli.main(["--dry-run"])
+    output = capsys.readouterr()
+
+    assert exit_code == 2
+    assert '"error":"Enable Banking connections are disabled"' in output.out
+    assert output.err == ""

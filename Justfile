@@ -121,6 +121,17 @@ ingest-ebank *FLAGS:
 ingest-lunar *FLAGS:
     uv run --group db --group http --group enablebanking penge-lunar {{FLAGS}}
 
+# Sync every eligible connection and refresh net worth only after data writes.
+# The local lock lives under the ignored .cache directory; production uses
+# the host-mounted path configured by deploy/nas/penge-net-worth-refresh.container.
+refresh-net-worth *FLAGS:
+    uv run --group db --group http --group enablebanking --group dbt \
+        penge-refresh-net-worth \
+        --lock-file .cache/penge-refresh/refresh.lock \
+        --dbt-project-dir dbt \
+        --dbt-profiles-dir dbt \
+        {{FLAGS}}
+
 # --- Growney / Sutor Bank Depotauszug --------------------------------------
 #
 # Forward all flags to the penge-growney CLI. Sutor Bank is the

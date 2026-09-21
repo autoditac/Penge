@@ -19,3 +19,14 @@ penge:
       threads: 4
       sslmode: "{{ env_var('PGSSLMODE', 'prefer') }}"
       connect_timeout: 10
+    refresh:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | as_number }}"
+      user: "{{ env_var('PGUSER', 'penge') }}"
+      password: "{{ env_var('PGPASSWORD', 'penge') }}"
+      dbname: "{{ env_var('PGDATABASE', 'penge') }}"
+      schema: analytics_refresh
+      threads: 4
+      sslmode: "{{ env_var('PGSSLMODE', 'prefer') }}"
+      connect_timeout: 10

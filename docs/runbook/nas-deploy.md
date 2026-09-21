@@ -1,6 +1,7 @@
 # NAS deploy and rollback
 
-How the `penge-api` and `penge-web` containers on the NAS
+How the `penge-api` and `penge-web` containers and the scheduled
+`penge-net-worth-refresh` worker on the NAS
 (`penge.eigmueller.de`) stay current with `main`, and how to roll them back.
 See [ADR-0044](../decisions/0044-continuous-image-publishing-and-nas-auto-deploy.md)
 for the design rationale.
@@ -58,6 +59,126 @@ required today.
    `penge-{api,web}.service` units and reload nginx.
 5. Confirm both containers report `healthy` with
    `podman inspect penge-api penge-web --format '{{.Name}} {{.State.Health.Status}}'`.
+
+## Scheduled Enable Banking and net-worth refresh
+
+[ADR-0046](../decisions/0046-scheduled-enable-banking-net-worth-refresh.md)
+adds a one-shot worker and timer:
+
+- `deploy/nas/penge-net-worth-refresh.container`
+- `deploy/nas/penge-net-worth-refresh.timer`
+
+The timer runs at 02:17, 08:17, 14:17, and 20:17 in the NAS's local time,
+plus a randomized delay of up to 15 minutes.
+Missed runs fire after the host returns because the timer is persistent.
+
+The worker uses `/etc/penge/penge-api.env`, the `penge-eb-key` Podman secret,
+and the `penge` container network exactly like the API.
+No credentials belong in either tracked unit.
+The environment file must provide the same write-enabled `DATABASE_URL` used
+by the connections API.
+
+### Install and enable
+
+After the PR is merged and `ghcr.io/autoditac/penge/api:main` contains the
+worker:
+
+```bash
+sudo install -d -o 1000 -g 1000 -m 0700 /var/lib/penge/refresh
+sudo install -o root -g root -m 0644 \
+  deploy/nas/penge-net-worth-refresh.container \
+  deploy/nas/penge-net-worth-refresh.timer \
+  /etc/containers/systemd/
+sudo systemctl daemon-reload
+sudo systemctl enable --now penge-net-worth-refresh.timer
+sudo systemctl list-timers penge-net-worth-refresh.timer --no-pager
+```
+
+The host directory owns the cross-process advisory lock and must be writable by
+the image's UID/GID 1000 runtime user.
+
+### Controlled manual execution
+
+First verify eligibility without calling Enable Banking or dbt:
+
+```bash
+sudo podman run --rm --name penge-net-worth-refresh-dry-run \
+  --network penge \
+  --env-file /etc/penge/penge-api.env \
+  --secret penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000 \
+  --volume /var/lib/penge/refresh:/var/lib/penge-refresh \
+  ghcr.io/autoditac/penge/api:main \
+  penge-refresh-net-worth --dry-run \
+  --lock-file /var/lib/penge-refresh/refresh.lock \
+  --dbt-project-dir /app/dbt --dbt-profiles-dir /app/dbt
+```
+
+Then perform one controlled sync and dbt refresh and inspect its summary:
+
+```bash
+sudo systemctl start penge-net-worth-refresh.service
+sudo journalctl -u penge-net-worth-refresh.service -n 100 --no-pager
+```
+
+Do not start it while another run is active:
+
+```bash
+sudo systemctl is-active penge-net-worth-refresh.service
+```
+
+### Logs and diagnosis
+
+```bash
+sudo journalctl -u penge-net-worth-refresh.service --since today --no-pager
+sudo systemctl status penge-net-worth-refresh.service --no-pager
+sudo systemctl list-timers penge-net-worth-refresh.timer --no-pager
+```
+
+Every run writes structured JSON log lines to stderr and one concise JSON
+summary to stdout.
+The summary reports eligible/successful/failed connection counts,
+`data_changed`, `dbt_status`, and sanitized per-connection outcomes.
+
+- `skipped_no_changes` is healthy: the upstream rows matched Postgres.
+- `failed_connections > 0` means inspect the connection's `last_error` in the
+  UI; other eligible connections still ran.
+- `dbt_status=failed` means raw writes committed, but the prior
+  `analytics_marts.mart_net_worth_daily` remains available.
+- `refresh lock is already held` means another manual or timed invocation is
+  running; do not delete the lock file, wait for that process.
+- A startup error about the key or database means the worker did not receive
+  the API environment/secret; compare the installed worker and API units.
+
+After a successful changed run, verify the API and current mart date:
+
+```bash
+curl --fail --silent http://127.0.0.1:8001/meta/freshness
+sudo podman exec penge-db \
+  psql -U penge -d penge -Atc \
+  'select max(as_of) from analytics_marts.mart_net_worth_daily'
+```
+
+The loopback endpoint bypasses the public OAuth proxy but remains reachable
+only from the trusted NAS host.
+
+### Disable and rollback
+
+Disable future runs without changing the API:
+
+```bash
+sudo systemctl disable --now penge-net-worth-refresh.timer
+```
+
+If a worker image is faulty, keep the timer disabled and roll the API image
+back by digest using the existing procedure below.
+The worker uses that same image.
+Reinstall the previous tracked unit if its command or mounts changed, run
+`systemctl daemon-reload`, execute one manual run, and only then re-enable the
+timer.
+
+Disabling or rolling back the worker does not revert raw ingestion writes.
+A failed dbt validation/build leaves the previous net-worth mart in service;
+the next successful run incorporates the already committed raw rows.
 
 ## Manual / immediate update
 

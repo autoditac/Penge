@@ -1,0 +1,26 @@
+# Tracked source of truth for the scheduled production refresh worker.
+# Install beside this file's matching .timer under
+# /etc/containers/systemd/. See ADR-0046 and docs/runbook/nas-deploy.md.
+
+[Unit]
+Description=Penge Enable Banking sync and net-worth refresh
+After=network-online.target penge-db.service penge-api.service
+Wants=network-online.target
+Requires=penge-db.service
+
+[Container]
+Image=ghcr.io/autoditac/penge/api:main
+Pull=newer
+ContainerName=penge-net-worth-refresh
+SecurityLabelDisable=true
+Network=penge
+EnvironmentFile=/etc/penge/penge-api.env
+Secret=penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000
+Environment=ENABLEBANKING_APPLICATION_ID=09a4a71a-1646-41e7-97b1-b79eea6e9d8a
+Environment=ENABLEBANKING_KEY_PATH=/run/secrets/penge-eb-key
+Volume=/var/lib/penge/refresh:/var/lib/penge-refresh
+Exec=penge-refresh-net-worth --lock-file /var/lib/penge-refresh/refresh.lock --dbt-project-dir /app/dbt --dbt-profiles-dir /app/dbt
+
+[Service]
+Type=oneshot
+TimeoutStartSec=30min

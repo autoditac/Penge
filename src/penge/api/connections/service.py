@@ -240,6 +240,7 @@ class SyncOutcome:
     record: store.ConnectionRecord
     transactions: int
     holding_snapshots: int
+    writes: int
 
 
 def _history_windows(days: int) -> list[int]:
@@ -251,6 +252,15 @@ def _history_windows(days: int) -> list[int]:
     return [days, *[w for w in HISTORY_FALLBACK_DAYS if w < days]]
 
 
+def _provider_for_sync(engine: Engine, record: store.ConnectionRecord) -> Provider:
+    provider = get_provider(record.provider)
+    if provider is not None:
+        return provider
+    err = ConnectionError(step="sync", message=f"unknown provider '{record.provider}'")
+    store.record_error(engine, record.id, error=err.as_error_payload(), is_sync=True)
+    raise err
+
+
 def _sync_accounts(
     engine: Engine,
     provider: Provider,
@@ -260,14 +270,15 @@ def _sync_accounts(
     entity_name: str,
     date_from: date,
     date_to: date,
-) -> tuple[int, int]:
-    """Sync every account for one window, returning ``(txns, snapshots)``.
+) -> tuple[int, int, int]:
+    """Sync every account for one window, returning ``(txns, snapshots, writes)``.
 
     Raises :class:`EnableBankingError` unchanged so the caller can decide
     whether to retry with a narrower window or record the failure.
     """
     total_txn = 0
     total_snap = 0
+    total_writes = 0
     for acct in accounts:
         result = provider.sync_account(
             engine,
@@ -279,7 +290,8 @@ def _sync_accounts(
         )
         total_txn += result.transactions
         total_snap += result.holding_snapshots
-    return total_txn, total_snap
+        total_writes += result.writes
+    return total_txn, total_snap, total_writes
 
 
 def sync(
@@ -294,9 +306,7 @@ def sync(
     if record is None:
         raise ConnectionError(step="sync", message="connection not found", not_found=True)
 
-    provider = get_provider(record.provider)
-    if provider is None:
-        raise ConnectionError(step="sync", message=f"unknown provider '{record.provider}'")
+    provider = _provider_for_sync(engine, record)
 
     if not record.session_id:
         err = ConnectionError(step="sync", message="connection is not authorized yet")
@@ -335,10 +345,11 @@ def sync(
     windows = _history_windows(days)
     total_txn = 0
     total_snap = 0
+    total_writes = 0
     for index, window in enumerate(windows):
         date_from = today - timedelta(days=window)
         try:
-            total_txn, total_snap = _sync_accounts(
+            total_txn, total_snap, total_writes = _sync_accounts(
                 engine,
                 provider,
                 client=client,
@@ -380,7 +391,12 @@ def sync(
         total_txn,
         total_snap,
     )
-    return SyncOutcome(record=updated, transactions=total_txn, holding_snapshots=total_snap)
+    return SyncOutcome(
+        record=updated,
+        transactions=total_txn,
+        holding_snapshots=total_snap,
+        writes=total_writes,
+    )
 
 
 __all__ = [

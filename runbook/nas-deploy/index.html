@@ -1770,6 +1770,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scheduled-enable-banking-and-net-worth-refresh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduled Enable Banking and net-worth refresh
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scheduled Enable Banking and net-worth refresh">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install-and-enable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install and enable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controlled-manual-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controlled manual execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logs-and-diagnosis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logs and diagnosis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disable-and-rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disable and rollback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#manual-immediate-update" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2019,6 +2080,8 @@
       
         
           
+        
+      
         
       
         
@@ -3194,6 +3257,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../decisions/0046-scheduled-enable-banking-net-worth-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0046 Scheduled Enable Banking net-worth refresh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
@@ -3325,6 +3416,67 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#scheduled-enable-banking-and-net-worth-refresh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scheduled Enable Banking and net-worth refresh
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Scheduled Enable Banking and net-worth refresh">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#install-and-enable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install and enable
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#controlled-manual-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Controlled manual execution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logs-and-diagnosis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logs and diagnosis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#disable-and-rollback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disable and rollback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#manual-immediate-update" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3405,7 +3557,8 @@
 
 
 <h1 id="nas-deploy-and-rollback">NAS deploy and rollback<a class="headerlink" href="#nas-deploy-and-rollback" title="Permanent link">&para;</a></h1>
-<p>How the <code>penge-api</code> and <code>penge-web</code> containers on the NAS
+<p>How the <code>penge-api</code> and <code>penge-web</code> containers and the scheduled
+<code>penge-net-worth-refresh</code> worker on the NAS
 (<code>penge.eigmueller.de</code>) stay current with <code>main</code>, and how to roll them back.
 See <a href="../../decisions/0044-continuous-image-publishing-and-nas-auto-deploy/">ADR-0044</a>
 for the design rationale.</p>
@@ -3457,6 +3610,104 @@ required today.</p>
 <li>Confirm both containers report <code>healthy</code> with
    <code>podman inspect penge-api penge-web --format '{{.Name}} {{.State.Health.Status}}'</code>.</li>
 </ol>
+<h2 id="scheduled-enable-banking-and-net-worth-refresh">Scheduled Enable Banking and net-worth refresh<a class="headerlink" href="#scheduled-enable-banking-and-net-worth-refresh" title="Permanent link">&para;</a></h2>
+<p><a href="../../decisions/0046-scheduled-enable-banking-net-worth-refresh/">ADR-0046</a>
+adds a one-shot worker and timer:</p>
+<ul>
+<li><code>deploy/nas/penge-net-worth-refresh.service</code></li>
+<li><code>deploy/nas/penge-net-worth-refresh.timer</code></li>
+</ul>
+<p>The timer runs at 02:17, 08:17, 14:17, and 20:17 in the NAS's local time,
+plus a randomized delay of up to 15 minutes.
+Missed runs fire after the host returns because the timer is persistent.</p>
+<p>The worker executes inside the running, health-gated API container and
+therefore uses its database environment, <code>penge-eb-key</code> secret, network, and
+exact deployed image digest. No credentials belong in the tracked units.
+<code>PENGE_REFRESH_STATE_DIR=/var/lib/penge-refresh</code> aligns API syncs, legacy bank
+sync CLIs, and the scheduled worker with the same lock and pending marker.</p>
+<h3 id="install-and-enable">Install and enable<a class="headerlink" href="#install-and-enable" title="Permanent link">&para;</a></h3>
+<p>After the PR is merged and the health-gated API update has deployed the worker:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>install<span class="w"> </span>-d<span class="w"> </span>-o<span class="w"> </span><span class="m">1000</span><span class="w"> </span>-g<span class="w"> </span><span class="m">1000</span><span class="w"> </span>-m<span class="w"> </span><span class="m">0700</span><span class="w"> </span>/var/lib/penge/refresh
+sudo<span class="w"> </span>rm<span class="w"> </span>-f<span class="w"> </span>/etc/containers/systemd/penge-net-worth-refresh.container
+sudo<span class="w"> </span>install<span class="w"> </span>-o<span class="w"> </span>root<span class="w"> </span>-g<span class="w"> </span>root<span class="w"> </span>-m<span class="w"> </span><span class="m">0644</span><span class="w"> </span>deploy/nas/penge-api.container<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>/etc/containers/systemd/
+sudo<span class="w"> </span>install<span class="w"> </span>-o<span class="w"> </span>root<span class="w"> </span>-g<span class="w"> </span>root<span class="w"> </span>-m<span class="w"> </span><span class="m">0644</span><span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>deploy/nas/penge-net-worth-refresh.service<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>deploy/nas/penge-net-worth-refresh.timer<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>/etc/systemd/system/
+sudo<span class="w"> </span>systemctl<span class="w"> </span>daemon-reload
+sudo<span class="w"> </span>systemctl<span class="w"> </span>restart<span class="w"> </span>penge-api.service
+sudo<span class="w"> </span>systemctl<span class="w"> </span><span class="nb">enable</span><span class="w"> </span>--now<span class="w"> </span>penge-net-worth-refresh.timer
+sudo<span class="w"> </span>systemctl<span class="w"> </span>list-timers<span class="w"> </span>penge-net-worth-refresh.timer<span class="w"> </span>--no-pager
+</code></pre></div>
+<p>Reinstalling <code>deploy/nas/penge-api.container</code> mounts the state volume, and the
+API restart applies it before the timer is enabled. The host directory owns
+the cross-process advisory lock and must be writable by the image's UID/GID
+1000 runtime user.</p>
+<h3 id="controlled-manual-execution">Controlled manual execution<a class="headerlink" href="#controlled-manual-execution" title="Permanent link">&para;</a></h3>
+<p>First verify eligibility without calling Enable Banking or dbt:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>podman<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>penge-api<span class="w"> </span>penge-refresh-net-worth<span class="w"> </span>--dry-run<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--lock-file<span class="w"> </span>/var/lib/penge-refresh/refresh.lock<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--pending-refresh-file<span class="w"> </span>/var/lib/penge-refresh/pending<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--dbt-project-dir<span class="w"> </span>/app/dbt<span class="w"> </span>--dbt-profiles-dir<span class="w"> </span>/app/dbt
+</code></pre></div>
+<p>Then perform one controlled sync and dbt refresh and inspect its summary:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>systemctl<span class="w"> </span>start<span class="w"> </span>penge-net-worth-refresh.service
+sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>penge-net-worth-refresh.service<span class="w"> </span>-n<span class="w"> </span><span class="m">100</span><span class="w"> </span>--no-pager
+</code></pre></div>
+<p>Do not start it while another run is active:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>systemctl<span class="w"> </span>is-active<span class="w"> </span>penge-net-worth-refresh.service
+</code></pre></div>
+<h3 id="logs-and-diagnosis">Logs and diagnosis<a class="headerlink" href="#logs-and-diagnosis" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>journalctl<span class="w"> </span>-u<span class="w"> </span>penge-net-worth-refresh.service<span class="w"> </span>--since<span class="w"> </span>today<span class="w"> </span>--no-pager
+sudo<span class="w"> </span>systemctl<span class="w"> </span>status<span class="w"> </span>penge-net-worth-refresh.service<span class="w"> </span>--no-pager
+sudo<span class="w"> </span>systemctl<span class="w"> </span>list-timers<span class="w"> </span>penge-net-worth-refresh.timer<span class="w"> </span>--no-pager
+</code></pre></div>
+<p>Every run writes structured JSON log lines to stderr and one concise JSON
+summary to stdout.
+The summary reports eligible/successful/failed connection counts,
+<code>data_changed</code>, <code>dbt_status</code>, and sanitized per-connection outcomes.
+Manual <strong>Sync now</strong> requests use the same lock and pending marker, so their
+writes are included by the next scheduled dbt refresh.</p>
+<ul>
+<li><code>skipped_no_changes</code> is healthy: the upstream rows matched Postgres.</li>
+<li><code>failed_connections &gt; 0</code> means inspect the connection's <code>last_error</code> in the
+  UI; other eligible connections still ran, and transient failures remain
+  eligible for the next timer run.</li>
+<li><code>dbt_status=failed</code> means raw writes committed, but the prior
+  <code>analytics_marts.mart_net_worth_daily</code> remains available.
+  The <code>/var/lib/penge/refresh/pending</code> marker makes every later run retry dbt
+  until it succeeds; do not remove it manually.</li>
+<li><code>could not persist pending refresh marker</code> means the affected connection was
+  not synced, preventing untracked raw writes. Repair ownership or free space
+  under <code>/var/lib/penge/refresh</code> before retrying.</li>
+<li><code>refresh lock is already held</code> means another manual or timed invocation is
+  running; do not delete the lock file, wait for that process.</li>
+<li>A startup error about the key or database means the worker did not receive
+  the API environment/secret; compare the installed worker and API units.</li>
+</ul>
+<p>After a successful changed run, verify the API and current mart date:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>--fail<span class="w"> </span>--silent<span class="w"> </span>http://127.0.0.1:8001/meta/freshness
+sudo<span class="w"> </span>podman<span class="w"> </span><span class="nb">exec</span><span class="w"> </span>penge-db<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>psql<span class="w"> </span>-U<span class="w"> </span>penge<span class="w"> </span>-d<span class="w"> </span>penge<span class="w"> </span>-Atc<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span><span class="s1">'select max(as_of) from analytics_marts.mart_net_worth_daily'</span>
+</code></pre></div>
+<p>The loopback endpoint bypasses the public OAuth proxy but remains reachable
+only from the trusted NAS host.</p>
+<h3 id="disable-and-rollback">Disable and rollback<a class="headerlink" href="#disable-and-rollback" title="Permanent link">&para;</a></h3>
+<p>Disable future runs without changing the API:</p>
+<div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>systemctl<span class="w"> </span>disable<span class="w"> </span>--now<span class="w"> </span>penge-net-worth-refresh.timer
+</code></pre></div>
+<p>If a worker image is faulty, keep the timer disabled and roll the API image
+back by digest using the existing procedure below. Because the worker executes
+inside <code>penge-api</code>, it automatically uses the same health-gated or rolled-back
+digest; it never pulls a mutable tag independently.
+Reinstall the previous tracked unit if its command or mounts changed, run
+<code>systemctl daemon-reload</code>, execute one manual run, and only then re-enable the
+timer.</p>
+<p>Disabling or rolling back the worker does not revert raw ingestion writes.
+A failed dbt validation/build leaves the previous net-worth mart in service;
+the next successful run incorporates the already committed raw rows.</p>
 <h2 id="manual-immediate-update">Manual / immediate update<a class="headerlink" href="#manual-immediate-update" title="Permanent link">&para;</a></h2>
 <p>To pull the current <code>:main</code> image right away instead of waiting for the
 daily timer:</p>

@@ -61,6 +61,27 @@ def test_factor_is_none_without_capital_at_risk() -> None:
     assert point.factor is None
 
 
+def test_factor_is_none_when_end_value_negative() -> None:
+    # #282: cash overdraft — denominator (30) stays positive but the
+    # end-of-day value goes negative; must not yield a negative "growth".
+    point = ReturnPoint(as_of=_D0, begin_value=Decimal("30"), end_value=Decimal("-20"))
+    assert point.denominator == Decimal("30")
+    assert point.factor is None
+
+
+def test_factor_is_none_when_end_value_zero_with_capital_at_risk() -> None:
+    # #282: full liquidation at a loss — denominator (20) stays positive
+    # but the position is fully sold off; must not yield a zero "growth".
+    point = ReturnPoint(
+        as_of=_D0,
+        begin_value=Decimal("100"),
+        end_value=Decimal("0"),
+        net_flow=Decimal("-80"),
+    )
+    assert point.denominator == Decimal("20")
+    assert point.factor is None
+
+
 # --- chain_linked_twr -------------------------------------------------------
 
 
@@ -118,6 +139,18 @@ def test_twr_dormant_days_are_skipped() -> None:
     summary = twr_summary(_series(rows))
     assert summary.dormant_days == 1
     assert summary.cumulative_factor == Decimal("1.1")
+
+
+def test_twr_non_positive_end_value_is_dormant_not_a_gap() -> None:
+    # #282: a cash overdraft (denominator 30 > 0, end -20) must be
+    # skipped like a dormant day, not raise as an unexplained data gap.
+    rows = [
+        ("30", "-20", "0"),  # overdraft: capital was at risk, but ended <= 0
+        ("-20", "50", "70"),  # recovers the next day: factor == 1
+    ]
+    summary = twr_summary(_series(rows))
+    assert summary.dormant_days == 1
+    assert summary.cumulative_factor == Decimal("1")
 
 
 def test_twr_annualized_for_long_windows() -> None:

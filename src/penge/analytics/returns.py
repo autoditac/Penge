@@ -12,10 +12,13 @@ Conventions (see ADR-0039):
 - Start-of-day flows: ``factor = end / (begin + flow)``.
 - Monetary inputs are ``Decimal``; rates are returned as ``float``
   because a rate is a measurement, not an amount of money.
-- A day with no capital at risk (``begin + flow <= 0`` and ``end ==
-  0``) is dormant and skipped. A day where value appears without a
-  flow to explain it is a data gap and raises :class:`ReturnsError`
-  instead of fabricating a return.
+- A day with no capital at risk (``begin + flow <= 0``) or with a
+  non-positive end-of-day value (``end <= 0`` — a cash overdraft or a
+  full liquidation, see #282) is dormant and skipped; no capital
+  remains at day-end to express a multiplicative growth factor from.
+  A day where a *positive* value appears with no capital at risk to
+  explain it is a data gap and raises :class:`ReturnsError` instead of
+  fabricating a return.
 """
 
 from __future__ import annotations
@@ -81,8 +84,15 @@ class ReturnPoint(pydantic.BaseModel):
 
     @property
     def factor(self) -> Decimal | None:
-        """Daily growth factor, or None when no capital was at risk."""
-        if self.denominator <= 0:
+        """Daily growth factor, or None when non-positive on either side.
+
+        NULL when there was no capital at risk to grow
+        (``denominator <= 0``) or when the end-of-day value itself is
+        non-positive (``end_value <= 0`` — a cash overdraft or a full
+        liquidation, #282): either way there is no capital remaining
+        to express a multiplicative growth factor from.
+        """
+        if self.denominator <= 0 or self.end_value <= 0:
             return None
         return self.end_value / self.denominator
 
@@ -167,7 +177,11 @@ def twr_summary(points: list[ReturnPoint]) -> TwrSummary:
                 raise ReturnsError(msg)
         factor = point.factor
         if factor is None:
-            if point.end_value != 0:
+            # A positive value with no capital at risk to explain it is a
+            # data gap. A non-positive end value (denominator > 0) is not:
+            # it is the new #282 case (overdraft/liquidation) and is simply
+            # dormant, like a genuinely idle day.
+            if point.denominator <= 0 and point.end_value != 0:
                 msg = (
                     f"value {point.end_value} on {point.as_of.isoformat()} "
                     "has no capital at risk to explain it (data gap)"

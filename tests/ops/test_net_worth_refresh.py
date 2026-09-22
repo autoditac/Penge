@@ -301,7 +301,7 @@ def test_run_refresh_blocks_sync_when_pending_marker_write_fails(
     record = _record()
     monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
     monkeypatch.setattr(
-        "penge.ops.net_worth_refresh._mark_refresh_pending",
+        "penge.ops.net_worth_refresh.mark_refresh_pending",
         MagicMock(side_effect=OSError("synthetic unwritable state directory")),
     )
 

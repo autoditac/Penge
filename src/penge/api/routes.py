@@ -56,6 +56,7 @@ from penge.ops.net_worth_refresh import (
     RefreshRunner,
     RefreshStateError,
     exclusive_lock,
+    mark_refresh_pending,
 )
 from penge.web.config import database_url
 from penge.web.mask import mask_account_name, mask_iban
@@ -302,14 +303,22 @@ def meta_refresh(
     (``DbtRunner.refresh``) and the shared advisory lock + durable
     pending marker described in ADR-0046, so this route, the manual
     connection-sync route, and the scheduled worker can never overlap.
-    The pending marker is cleared only once promotion succeeds; a lock
-    conflict or dbt failure leaves both the live marts and the marker
-    untouched, so the next scheduled run retries automatically.
+    The pending marker is created *before* ``refresh()`` runs (mirroring
+    the scheduled worker's own write-intent tracking) so that, if this
+    process is killed or dbt fails, the next scheduled run still sees
+    a pending refresh and retries automatically; it is cleared only
+    once promotion succeeds.
     """
     lock_file = refresh_state_dir / "refresh.lock"
     pending_refresh_file = refresh_state_dir / "pending"
     try:
         with exclusive_lock(lock_file):
+            try:
+                mark_refresh_pending(pending_refresh_file)
+            except OSError as exc:
+                raise RefreshStateError(
+                    f"could not persist pending refresh marker: {type(exc).__name__}"
+                ) from exc
             dbt_runner.refresh()
             try:
                 pending_refresh_file.unlink(missing_ok=True)

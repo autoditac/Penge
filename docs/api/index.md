@@ -113,18 +113,20 @@ it, so commit behavior is unchanged.
 forward without waiting for the timer and without re-syncing any bank
 connection. It calls the exact same `DbtRunner` used by
 `penge-refresh-net-worth` (ADR-0046), takes the same host-mounted `flock`
-under `PENGE_REFRESH_STATE_DIR`, and clears the same durable `pending` marker
-only after the shadow build, tests, and atomic schema promotion all succeed.
-The response is synchronous JSON (`{"status": "succeeded", "completed_at":
-"<ISO 8601 timestamp>"}`) because a full `dbt build --target refresh`
-typically finishes in tens of seconds — there is no job queue or polling
-endpoint. On failure the live marts and the pending marker are left exactly
-as they were, so a failed manual trigger has no data-safety impact and the
-next scheduled run retries.
+under `PENGE_REFRESH_STATE_DIR`, and persists the same durable `pending`
+marker *before* invoking dbt (mirroring the scheduled worker's own
+write-intent tracking), so a killed process or a dbt failure still leaves a
+pending refresh for the next scheduled run to retry. The response is
+synchronous JSON (`{"status": "succeeded", "completed_at": "<ISO 8601
+timestamp>"}`) because a full `dbt build --target refresh` typically
+finishes in tens of seconds — there is no job queue or polling endpoint. On
+failure the live marts and the pending marker are left exactly as they
+were, so a failed manual trigger has no data-safety impact and the next
+scheduled run retries.
 
 | Status | Meaning                                                              |
 | ------ | --------------------------------------------------------------------- |
-| `200`  | Shadow build, tests, and promotion succeeded; marker cleared           |
+| `200`  | Shadow build, tests, and promotion succeeded; marker cleared on a best-effort basis (a clear failure is logged but does not turn a success into an error) |
 | `503`  | The lock is held by the scheduled worker, a connection sync, or another manual trigger; retry shortly |
 | `502`  | The shadow dbt build or promotion failed; live marts and marker are unchanged |
 

@@ -115,9 +115,14 @@ thin synchronous wrapper around the exact same `DbtRunner.refresh()` path,
 shared advisory lock, and durable `pending` marker described above — it does
 **not** re-sync any bank connection, and it never runs concurrently with a
 connection sync or the scheduled worker because it acquires the identical
-`flock` under `PENGE_REFRESH_STATE_DIR`. The pending marker is cleared only
-once the shadow build, tests, and atomic promotion have all succeeded; a lock
-conflict or a dbt failure leaves the live marts and the marker untouched, so a
+`flock` under `PENGE_REFRESH_STATE_DIR`. Like the scheduled worker's own
+write-intent tracking, the route persists the `pending` marker *before*
+invoking dbt, so a process kill or a dbt failure still leaves durable retry
+intent for the next scheduled run; the marker is cleared only once the
+shadow build, tests, and atomic promotion have all succeeded (and clearing
+is itself best-effort — a filesystem error there is logged but does not turn
+an otherwise-successful refresh into an error response). A lock conflict or
+a dbt failure otherwise leaves the live marts and the marker untouched, so a
 failed manual trigger is indistinguishable (from a data-safety standpoint)
 from simply not clicking the button, and the next scheduled run still retries.
 

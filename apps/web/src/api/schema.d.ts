@@ -357,9 +357,11 @@ export interface paths {
      *     (``DbtRunner.refresh``) and the shared advisory lock + durable
      *     pending marker described in ADR-0046, so this route, the manual
      *     connection-sync route, and the scheduled worker can never overlap.
-     *     The pending marker is cleared only once promotion succeeds; a lock
-     *     conflict or dbt failure leaves both the live marts and the marker
-     *     untouched, so the next scheduled run retries automatically.
+     *     The pending marker is created *before* ``refresh()`` runs (mirroring
+     *     the scheduled worker's own write-intent tracking) so that, if this
+     *     process is killed or dbt fails, the next scheduled run still sees
+     *     a pending refresh and retries automatically; it is cleared only
+     *     once promotion succeeds.
      */
     post: operations["meta_refresh_meta_refresh_post"];
     delete?: never;

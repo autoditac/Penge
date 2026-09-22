@@ -3100,7 +3100,7 @@
     },
     "/meta/refresh": {
       "post": {
-        "description": "Trigger the guarded dbt-only refresh, without re-syncing connections.\n\nReuses the exact shadow-build/test-plus-atomic-promotion path\n(``DbtRunner.refresh``) and the shared advisory lock + durable\npending marker described in ADR-0046, so this route, the manual\nconnection-sync route, and the scheduled worker can never overlap.\nThe pending marker is cleared only once promotion succeeds; a lock\nconflict or dbt failure leaves both the live marts and the marker\nuntouched, so the next scheduled run retries automatically.",
+        "description": "Trigger the guarded dbt-only refresh, without re-syncing connections.\n\nReuses the exact shadow-build/test-plus-atomic-promotion path\n(``DbtRunner.refresh``) and the shared advisory lock + durable\npending marker described in ADR-0046, so this route, the manual\nconnection-sync route, and the scheduled worker can never overlap.\nThe pending marker is created *before* ``refresh()`` runs (mirroring\nthe scheduled worker's own write-intent tracking) so that, if this\nprocess is killed or dbt fails, the next scheduled run still sees\na pending refresh and retries automatically; it is cleared only\nonce promotion succeeds.",
         "operationId": "meta_refresh_meta_refresh_post",
         "responses": {
           "200": {

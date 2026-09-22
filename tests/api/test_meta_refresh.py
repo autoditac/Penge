@@ -79,6 +79,52 @@ def test_meta_refresh_succeeds_when_no_pending_marker_exists(
     assert runner.calls == 1
 
 
+def test_meta_refresh_creates_the_pending_marker_before_dbt_runs(
+    refresh_state_dir: Path,
+) -> None:
+    """Even when no marker existed beforehand, a dbt failure must leave a
+    durable pending marker behind (mirroring the scheduled worker's own
+    write-intent tracking), so the next scheduled run still retries instead
+    of silently skipping a failed manual refresh."""
+    app = create_app()
+    runner = _FakeRefreshRunner(error=DbtRefreshError("dbt build failed: model X"))
+    app.dependency_overrides[get_dbt_runner] = lambda: runner
+    app.dependency_overrides[get_refresh_state_dir] = lambda: refresh_state_dir
+    pending_file = refresh_state_dir / "pending"
+    assert not pending_file.exists()
+
+    with TestClient(app) as client:
+        response = client.post("/meta/refresh")
+
+    assert response.status_code == 502
+    assert pending_file.exists()
+
+
+def test_meta_refresh_maps_marker_persist_failure_to_503(
+    refresh_state_dir: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = create_app()
+    runner = _FakeRefreshRunner()
+    app.dependency_overrides[get_dbt_runner] = lambda: runner
+    app.dependency_overrides[get_refresh_state_dir] = lambda: refresh_state_dir
+
+    original_touch = Path.touch
+
+    def failing_touch(self: Path, *, exist_ok: bool = True) -> None:
+        if self == refresh_state_dir / "pending":
+            raise OSError("simulated filesystem failure")
+        original_touch(self, exist_ok=exist_ok)
+
+    monkeypatch.setattr(Path, "touch", failing_touch)
+
+    with TestClient(app) as client:
+        response = client.post("/meta/refresh")
+
+    assert response.status_code == 503
+    assert runner.calls == 0
+
+
 def test_meta_refresh_maps_dbt_failure_to_502_and_preserves_the_marker(
     refresh_state_dir: Path,
 ) -> None:

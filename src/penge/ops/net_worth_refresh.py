@@ -282,7 +282,14 @@ class SyncFunction(Protocol):
     ) -> service.SyncOutcome: ...
 
 
-def _mark_refresh_pending(path: Path) -> None:
+def mark_refresh_pending(path: Path) -> None:
+    """Create (or touch) the durable pending-refresh marker at ``path``.
+
+    Any caller that is about to invoke :class:`DbtRunner` and wants the
+    scheduled worker to retry automatically on failure must call this
+    before running dbt, so the marker survives even if the process is
+    killed mid-refresh.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.touch(exist_ok=True)
 
@@ -298,7 +305,7 @@ class _WriteTracker:
 
     def prepare(self) -> bool:
         try:
-            _mark_refresh_pending(self.path)
+            mark_refresh_pending(self.path)
         except OSError as exc:
             self._record_error("persist", exc)
             return False
@@ -589,6 +596,7 @@ __all__ = [
     "RefreshSummary",
     "dbt_environment",
     "exclusive_lock",
+    "mark_refresh_pending",
     "refresh_write_intent",
     "run_refresh",
     "sync_connection_with_intent",

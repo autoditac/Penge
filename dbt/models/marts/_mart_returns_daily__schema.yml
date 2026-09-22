@@ -7,12 +7,13 @@ models:
       `asset_class`, `household`), measured independently in EUR and
       DKK. Start-of-day external-flow convention:
       `factor = end_mv / (begin_mv + net_flow)`, NULL when no capital
-      was at risk. Account/household flows are deposits, withdrawals,
-      and (account only) internal transfers, so those returns are net
-      of fees and taxes as recorded; asset-class flows move value
-      between instrument classes and the account's attribution class.
-      Chain-linking and MWR/XIRR live in `penge.analytics.returns`.
-      See ADR-0039.
+      was at risk or when the end-of-day value itself is not positive
+      (see issue #282). Account/household flows are deposits,
+      withdrawals, and (account only) internal transfers, so those
+      returns are net of fees and taxes as recorded; asset-class flows
+      move value between instrument classes and the account's
+      attribution class. Chain-linking and MWR/XIRR live in
+      `penge.analytics.returns`. See ADR-0039.
     columns:
       - name: scope
         description: Aggregation level of the row.
@@ -44,7 +45,10 @@ models:
         description: >
           Daily growth factor measured in EUR
           (`end / (begin + flow)`); NULL when the denominator is not
-          positive. A factor of 1.01 is a +1% day.
+          positive, or when `end_mv_eur` itself is not positive (no
+          capital remained at day-end, e.g. a fully liquidated
+          position or an overdrawn cash instrument; see issue #282).
+          A factor of 1.01 is a +1% day.
       - name: begin_mv_dkk
         description: Previous day's end-of-day value in DKK.
       - name: end_mv_dkk
@@ -54,4 +58,5 @@ models:
       - name: return_factor_dkk
         description: >
           Daily growth factor measured in DKK; NULL when the
-          denominator is not positive.
+          denominator is not positive, or when `end_mv_dkk` itself is
+          not positive (see `return_factor_eur`).

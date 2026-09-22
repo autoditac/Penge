@@ -85,6 +85,11 @@ jobs:
     timeout-minutes: 30
     env:
       DOCKER_CONFIG: /tmp/penge-docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
+      # Explicit, unique, Penge-namespaced builder name: uniqueness keeps
+      # concurrent jobs from tearing down each other's BuildKit container,
+      # and the prefix makes a builder leaked by an abnormally terminated
+      # job attributable. See docs/runbook/runner-maintenance.md.
+      BUILDX_BUILDER_NAME: penge-release-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
     permissions:
       contents: read
       id-token: write
@@ -99,6 +104,17 @@ jobs:
       - name: Set up Buildx
         id: buildx
         uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+        with:
+          name: ${{ env.BUILDX_BUILDER_NAME }}
+          # Bound the builder's own cache so a builder that survives an
+          # abnormally terminated job cannot keep growing until the host
+          # sweep reclaims it.
+          buildkitd-config-inline: |
+            [worker.oci]
+              gc = true
+              [[worker.oci.gcpolicy]]
+                all = true
+                keepBytes = "2GB"
 
       - name: Login to GHCR
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0
@@ -154,5 +170,13 @@ jobs:
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
       - name: Remove Buildx builder
-        if: always() && steps.buildx.outputs.name != ''
-        run: docker buildx rm --force "${{ steps.buildx.outputs.name }}"
+        # Scoped to this job's own builder only -- never a blanket prune,
+        # which would destroy a concurrent job's cache. Keyed on the env var
+        # rather than `steps.buildx.outputs.name` so teardown still works
+        # when the setup step created the builder but failed before
+        # publishing its outputs. Closes #287.
+        if: always()
+        run: |
+          docker buildx rm --force "$BUILDX_BUILDER_NAME" || true
+          docker rm --force --volumes "buildx_buildkit_${BUILDX_BUILDER_NAME}0" 2>/dev/null || true
+          docker volume rm --force "buildx_buildkit_${BUILDX_BUILDER_NAME}0_state" 2>/dev/null || true

@@ -332,6 +332,17 @@ def meta_refresh(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=str(exc),
         ) from exc
+    except Exception as exc:
+        # `DbtRunner.refresh()` also drops/promotes shadow schemas with raw
+        # SQLAlchemy calls and shells out to dbt directly, so a database
+        # error or a missing dbt executable can escape `DbtRefreshError`.
+        # Treat any such failure the same way the scheduled worker does:
+        # a sanitized 502, live marts and the pending marker untouched.
+        log.error("meta_refresh_unexpected_failure code=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="unexpected dbt refresh failure",
+        ) from exc
     return MetaRefreshResponse(status="succeeded", completed_at=datetime.now(UTC))
 
 

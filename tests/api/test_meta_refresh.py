@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 class _FakeRefreshRunner:
     """Fake `RefreshRunner` recording calls, optionally raising on refresh."""
 
-    def __init__(self, *, error: DbtRefreshError | None = None) -> None:
+    def __init__(self, *, error: Exception | None = None) -> None:
         self.calls = 0
         self.error = error
 
@@ -97,6 +97,32 @@ def test_meta_refresh_maps_dbt_failure_to_502_and_preserves_the_marker(
     assert "dbt build failed" in response.json()["detail"]
     assert runner.calls == 1
     # Failure must never clear the marker or touch live marts.
+    assert pending_file.exists()
+
+
+def test_meta_refresh_maps_unexpected_runner_failure_to_sanitized_502(
+    refresh_state_dir: Path,
+) -> None:
+    """`DbtRunner.refresh()` can also fail outside `DbtRefreshError`, e.g. a
+    raw SQLAlchemy error while promoting shadow schemas, or an `OSError`
+    from a missing dbt executable. These must still map to a sanitized 502
+    rather than an undocumented 500, and must not leak internal details."""
+    app = create_app()
+    runner = _FakeRefreshRunner(error=RuntimeError("password=hunter2 connection refused"))
+    app.dependency_overrides[get_dbt_runner] = lambda: runner
+    app.dependency_overrides[get_refresh_state_dir] = lambda: refresh_state_dir
+    refresh_state_dir.mkdir(parents=True)
+    pending_file = refresh_state_dir / "pending"
+    pending_file.write_text("2026-06-01T09:00:00Z", encoding="utf-8")
+
+    with TestClient(app) as client:
+        response = client.post("/meta/refresh")
+
+    assert response.status_code == 502
+    detail = response.json()["detail"]
+    assert detail == "unexpected dbt refresh failure"
+    assert "hunter2" not in detail
+    assert runner.calls == 1
     assert pending_file.exists()
 
 

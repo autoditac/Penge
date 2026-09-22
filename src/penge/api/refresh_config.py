@@ -17,7 +17,24 @@ from pathlib import Path
 
 # Matches the API container's committed dbt project layout
 # (deploy/nas/penge-net-worth-refresh.service, ADR-0046).
-_DEFAULT_DBT_DIR = "/app/dbt"
+_CONTAINER_DBT_DIR = Path("/app/dbt")
+# Repo checkout layout used by `just api-dev` and local pytest runs.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+_LOCAL_DBT_DIR = _REPO_ROOT / "dbt"
+
+
+def _default_dbt_dir() -> str:
+    """Pick the dbt project layout matching how the process is running.
+
+    ``just api-dev`` sets neither ``PENGE_DBT_*`` variable, so without this
+    the API would resolve to the container-only ``/app/dbt`` path even on a
+    developer machine. Prefer the container path when it actually exists
+    (i.e. this process is the published image); otherwise fall back to the
+    checked-out repo's ``dbt/`` directory.
+    """
+    if _CONTAINER_DBT_DIR.is_dir():
+        return str(_CONTAINER_DBT_DIR)
+    return str(_LOCAL_DBT_DIR)
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,14 +49,16 @@ class MetaRefreshConfig:
         """Resolve dbt directories from the environment.
 
         ``PENGE_DBT_PROJECT_DIR`` / ``PENGE_DBT_PROFILES_DIR`` default to
-        ``/app/dbt``, the path baked into the API container image; local
-        development overrides both to the repo's ``dbt/`` directory (see
-        ``just api-dev``).
+        ``/app/dbt`` when that path exists (the published API container
+        image), and to the repo's checked-out ``dbt/`` directory otherwise
+        (e.g. under ``just api-dev`` or pytest, where nothing sets either
+        variable).
         """
         resolved = env if env is not None else dict(os.environ)
+        default_dir = _default_dbt_dir()
         return cls(
-            dbt_project_dir=Path(resolved.get("PENGE_DBT_PROJECT_DIR", _DEFAULT_DBT_DIR)),
-            dbt_profiles_dir=Path(resolved.get("PENGE_DBT_PROFILES_DIR", _DEFAULT_DBT_DIR)),
+            dbt_project_dir=Path(resolved.get("PENGE_DBT_PROJECT_DIR", default_dir)),
+            dbt_profiles_dir=Path(resolved.get("PENGE_DBT_PROFILES_DIR", default_dir)),
         )
 
 

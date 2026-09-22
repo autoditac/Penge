@@ -1913,6 +1913,20 @@ export interface operations {
           "application/json": components["schemas"]["MetaRefreshResponse"];
         };
       };
+      /** @description The shadow dbt build, tests, or schema promotion failed. Live marts and the pending marker are unchanged. */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The refresh lock is already held by the scheduled worker, a connection sync, or another manual trigger; retry shortly. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   net_worth_daily_net_worth_daily_get: {

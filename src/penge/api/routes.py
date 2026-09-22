@@ -274,7 +274,24 @@ def get_dbt_runner(
         ) from exc
 
 
-@router.post("/meta/refresh", response_model=MetaRefreshResponse)
+@router.post(
+    "/meta/refresh",
+    response_model=MetaRefreshResponse,
+    responses={
+        status.HTTP_502_BAD_GATEWAY: {
+            "description": (
+                "The shadow dbt build, tests, or schema promotion failed. "
+                "Live marts and the pending marker are unchanged."
+            ),
+        },
+        status.HTTP_503_SERVICE_UNAVAILABLE: {
+            "description": (
+                "The refresh lock is already held by the scheduled worker, a "
+                "connection sync, or another manual trigger; retry shortly."
+            ),
+        },
+    },
+)
 def meta_refresh(
     dbt_runner: Annotated[RefreshRunner, Depends(get_dbt_runner)],
     refresh_state_dir: Annotated[Path, Depends(get_refresh_state_dir)],

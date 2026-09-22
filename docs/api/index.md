@@ -115,11 +115,12 @@ connection. It calls the exact same `DbtRunner` used by
 `penge-refresh-net-worth` (ADR-0046), takes the same host-mounted `flock`
 under `PENGE_REFRESH_STATE_DIR`, and clears the same durable `pending` marker
 only after the shadow build, tests, and atomic schema promotion all succeed.
-The response is synchronous JSON (`completed_at`, and the promoted schema
-names) because a full `dbt build --target refresh` typically finishes in
-tens of seconds — there is no job queue or polling endpoint. On failure the
-live marts and the pending marker are left exactly as they were, so a failed
-manual trigger has no data-safety impact and the next scheduled run retries.
+The response is synchronous JSON (`{"status": "succeeded", "completed_at":
+"<ISO 8601 timestamp>"}`) because a full `dbt build --target refresh`
+typically finishes in tens of seconds — there is no job queue or polling
+endpoint. On failure the live marts and the pending marker are left exactly
+as they were, so a failed manual trigger has no data-safety impact and the
+next scheduled run retries.
 
 | Status | Meaning                                                              |
 | ------ | --------------------------------------------------------------------- |

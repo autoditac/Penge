@@ -128,8 +128,8 @@ retry coverage than not clicking the button at all.
 | Status | Meaning                                                              |
 | ------ | --------------------------------------------------------------------- |
 | `200`  | Shadow build, tests, and promotion succeeded; marker cleared on a best-effort basis (a clear failure is logged but does not turn a success into an error) |
-| `503`  | The lock is held by the scheduled worker, a connection sync, or another manual trigger; retry shortly |
-| `502`  | The shadow dbt build or promotion failed; live marts and marker are unchanged |
+| `503`  | The lock is held by the scheduled worker, a connection sync, or another manual trigger, or the pending marker itself could not be persisted; retry shortly |
+| `502`  | The shadow dbt build or promotion failed; live marts are unchanged and the pending marker is preserved (or created moments earlier, if none existed yet) |
 
 ## Contract
 

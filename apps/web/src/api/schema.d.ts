@@ -340,6 +340,34 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/meta/refresh": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Meta Refresh
+     * @description Trigger the guarded dbt-only refresh, without re-syncing connections.
+     *
+     *     Reuses the exact shadow-build/test-plus-atomic-promotion path
+     *     (``DbtRunner.refresh``) and the shared advisory lock + durable
+     *     pending marker described in ADR-0046, so this route, the manual
+     *     connection-sync route, and the scheduled worker can never overlap.
+     *     The pending marker is cleared only once promotion succeeds; a lock
+     *     conflict or dbt failure leaves both the live marts and the marker
+     *     untouched, so the next scheduled run retries automatically.
+     */
+    post: operations["meta_refresh_meta_refresh_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/net-worth/daily": {
     parameters: {
       query?: never;
@@ -1036,6 +1064,27 @@ export interface components {
       mart: string;
       /** Row Count */
       row_count: number;
+    };
+    /**
+     * MetaRefreshResponse
+     * @description Concise, machine-readable outcome of a WebUI-triggered dbt refresh.
+     *
+     *     Only the success path returns this model (issue #285); lock
+     *     contention and dbt failures are mapped to explicit HTTP error
+     *     responses instead, so a 200 always means the guarded shadow-build
+     *     and atomic promotion (ADR-0046) completed.
+     */
+    MetaRefreshResponse: {
+      /**
+       * Completed At
+       * Format: date-time
+       */
+      completed_at: string;
+      /**
+       * Status
+       * @constant
+       */
+      status: "succeeded";
     };
     /**
      * NetWorthPoint
@@ -1842,6 +1891,26 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["FreshnessResponse"];
+        };
+      };
+    };
+  };
+  meta_refresh_meta_refresh_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MetaRefreshResponse"];
         };
       };
     };

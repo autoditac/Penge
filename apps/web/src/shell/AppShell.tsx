@@ -28,6 +28,7 @@ import { useTheme as useMuiTheme } from "@mui/material/styles";
 
 import { demoMode } from "../api/client";
 import { useFreshness } from "../api/queries";
+import { MetaRefreshButton } from "../components/MetaRefreshButton";
 import { Pill } from "../components/primitives";
 import { useThemeMode } from "../theme";
 
@@ -69,6 +70,7 @@ export function AppShell(): React.JSX.Element {
             }}
           >
             <FreshnessBanner />
+            <MetaRefreshButton />
             {demoMode ? <Pill tone="watch">Demo data</Pill> : null}
           </Toolbar>
         ) : (
@@ -273,6 +275,7 @@ function MobileTopBar({
           Penge
         </Box>
         <FreshnessBanner compact />
+        <MetaRefreshButton compact />
         {demoMode ? <Pill tone="watch">Demo</Pill> : null}
         <ThemeToggleButton theme={theme} onToggle={onToggleTheme} />
       </Toolbar>

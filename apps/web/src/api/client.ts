@@ -24,6 +24,7 @@ import {
   importSessionSchema,
   importSessionWithRowsSchema,
   linkResponseSchema,
+  metaRefreshResponseSchema,
   netWorthSeriesResponseSchema,
   netWorthTotalSeriesResponseSchema,
   returnsSeriesResponseSchema,
@@ -49,6 +50,7 @@ import type {
   ImportSessionList,
   ImportSessionWithRows,
   LinkResponse,
+  MetaRefreshResponse,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
   ReturnsScope,
@@ -217,6 +219,17 @@ export function fetchCashflowDaily(params: SeriesParams): Promise<CashflowSeries
 
 export function fetchFreshness(): Promise<FreshnessResponse> {
   return getJson("/meta/freshness", {}, freshnessResponseSchema);
+}
+
+/**
+ * Trigger the guarded dbt-only refresh (issue #285, ADR-0046).
+ *
+ * Does not re-sync bank connections. Resolves only once the shadow build,
+ * validation, and atomic promotion have completed; a lock conflict or dbt
+ * failure surfaces as a `PengeApiError` (503/502) instead.
+ */
+export function triggerMetaRefresh(): Promise<MetaRefreshResponse> {
+  return requestJson("/meta/refresh", { method: "POST" }, metaRefreshResponseSchema);
 }
 
 /* ---- returns, benchmarks, fees (#206) ---- */

@@ -6,7 +6,11 @@ The reporting endpoints are strictly read-only and local-only; see
 [ADR-0035](../decisions/0035-fastapi-read-api.md) for the decision record.
 The one sanctioned write surface is the staged import workflow under
 `/imports` (see [ADR-0037](../decisions/0037-staged-import-sessions.md)),
-which reuses the existing connector parsers and loaders.
+which reuses the existing connector parsers and loaders, plus the guarded
+dbt-only refresh trigger under `/meta/refresh`
+(see [ADR-0046](../decisions/0046-scheduled-enable-banking-net-worth-refresh.md)),
+which reuses the scheduled worker's `DbtRunner`, lock, and pending marker
+without touching any bank connection.
 
 ## Running it
 
@@ -32,6 +36,7 @@ Database resolution follows the same rules as every other component:
 | `/allocation/current` | Latest-day allocation by `entity`, `currency`, or `kind`         |
 | `/accounts`           | Masked account dimension with latest source-data import timestamp |
 | `/meta/freshness`     | Latest data date and row count per mart, for staleness banners   |
+| `POST /meta/refresh`  | Trigger a guarded dbt-only refresh (shadow build/test + atomic promotion); does not re-sync bank connections |
 
 All series endpoints accept `since`, `until`, `account_id`, `entity_id`,
 `limit`, and `offset`; the default window is one year.
@@ -101,6 +106,26 @@ plus `suggested_by`; the server stamps `accepted_at` when
 empty `mappings` object is a manual clear: it removes all mappings and
 any AI provenance. Mappings live next to the payload and never modify
 it, so commit behavior is unchanged.
+
+## Guarded dbt-only refresh (#285)
+
+`POST /meta/refresh` lets the WebUI pull the next scheduled net-worth refresh
+forward without waiting for the timer and without re-syncing any bank
+connection. It calls the exact same `DbtRunner` used by
+`penge-refresh-net-worth` (ADR-0046), takes the same host-mounted `flock`
+under `PENGE_REFRESH_STATE_DIR`, and clears the same durable `pending` marker
+only after the shadow build, tests, and atomic schema promotion all succeed.
+The response is synchronous JSON (`completed_at`, and the promoted schema
+names) because a full `dbt build --target refresh` typically finishes in
+tens of seconds — there is no job queue or polling endpoint. On failure the
+live marts and the pending marker are left exactly as they were, so a failed
+manual trigger has no data-safety impact and the next scheduled run retries.
+
+| Status | Meaning                                                              |
+| ------ | --------------------------------------------------------------------- |
+| `200`  | Shadow build, tests, and promotion succeeded; marker cleared           |
+| `503`  | The lock is held by the scheduled worker, a connection sync, or another manual trigger; retry shortly |
+| `502`  | The shadow dbt build or promotion failed; live marts and marker are unchanged |
 
 ## Contract
 

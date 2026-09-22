@@ -126,6 +126,13 @@ export const freshnessResponseSchema = z.object({
 });
 export type FreshnessResponse = z.infer<typeof freshnessResponseSchema>;
 
+/** Outcome of a WebUI-triggered dbt-only refresh (issue #285, ADR-0046). */
+export const metaRefreshResponseSchema = z.object({
+  completed_at: z.string(),
+  status: z.literal("succeeded"),
+});
+export type MetaRefreshResponse = z.infer<typeof metaRefreshResponseSchema>;
+
 /* ---- returns, benchmarks, fees (#206) ---- */
 
 export const returnsScopeSchema = z.enum(["account", "asset_class", "household"]);
@@ -433,6 +440,9 @@ type _CheckCashflowSeries = Assert<
 type _CheckMartFreshness = Assert<MutuallyAssignable<MartFreshness, Generated["MartFreshness"]>>;
 type _CheckFreshnessResponse = Assert<
   MutuallyAssignable<FreshnessResponse, Generated["FreshnessResponse"]>
+>;
+type _CheckMetaRefreshResponse = Assert<
+  MutuallyAssignable<MetaRefreshResponse, Generated["MetaRefreshResponse"]>
 >;
 type _CheckRowIssue = Assert<MutuallyAssignable<RowIssue, Generated["RowIssue"]>>;
 type _CheckRowCounts = Assert<MutuallyAssignable<RowCounts, Generated["RowCounts"]>>;

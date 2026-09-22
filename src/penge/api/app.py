@@ -35,7 +35,10 @@ def create_app() -> FastAPI:
             "The /imports endpoints are the one write surface: staged "
             "import sessions per ADR-0037. The /connections endpoints add "
             "the in-app Enable Banking consent flow per ADR-0040 and are "
-            "only active where the EB signing key is configured."
+            "only active where the EB signing key is configured. "
+            "POST /meta/refresh triggers the guarded dbt-only shadow-build "
+            "and atomic-promotion refresh from ADR-0046 without re-syncing "
+            "any bank connection."
         ),
     )
     app.add_middleware(

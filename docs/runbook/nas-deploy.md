@@ -140,6 +140,10 @@ The summary reports eligible/successful/failed connection counts,
 `data_changed`, `dbt_status`, and sanitized per-connection outcomes.
 Manual **Sync now** requests use the same lock and pending marker, so their
 writes are included by the next scheduled dbt refresh.
+The WebUI's **Refresh analytics** button (`POST /meta/refresh`) takes the same
+lock and marker but skips Enable Banking entirely — it only rebuilds and
+promotes dbt, so use it to pull a scheduled refresh forward after a manual
+import or connection sync without waiting up to six hours for the timer.
 
 - `skipped_no_changes` is healthy: the upstream rows matched Postgres.
 - `failed_connections > 0` means inspect the connection's `last_error` in the
@@ -154,6 +158,11 @@ writes are included by the next scheduled dbt refresh.
   under `/var/lib/penge/refresh` before retrying.
 - `refresh lock is already held` means another manual or timed invocation is
   running; do not delete the lock file, wait for that process.
+- `POST /meta/refresh` returning `503` means the same lock is already held by
+  the scheduled worker, a connection sync, or another manual trigger; the
+  WebUI surfaces this as a notification and the caller should retry shortly.
+  A `502` means the shadow dbt build or promotion failed; the live marts and
+  pending marker are untouched, so the next scheduled run retries normally.
 - A startup error about the key or database means the worker did not receive
   the API environment/secret; compare the installed worker and API units.
 

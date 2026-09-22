@@ -9,14 +9,18 @@ server-side masking. No SQL and no business logic lives here.
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
+from pathlib import Path
 from typing import Annotated
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.engine import Engine
 
 from penge.analytics import ReturnPoint, ReturnsError, mwr_from_series, twr_summary
 from penge.api import data
+from penge.api.connections.config import ConnectionsConfig
+from penge.api.imports.engine import get_import_engine
 from penge.api.models import (
     AccountSummary,
     AllocationDimension,
@@ -33,6 +37,7 @@ from penge.api.models import (
     FreshnessResponse,
     GroupBy,
     MartFreshness,
+    MetaRefreshResponse,
     NetWorthPoint,
     NetWorthSeriesResponse,
     NetWorthTotalPoint,
@@ -43,6 +48,16 @@ from penge.api.models import (
     ReturnsSummaryEntry,
     ReturnsSummaryResponse,
 )
+from penge.api.refresh_config import MetaRefreshConfig
+from penge.ops.net_worth_refresh import (
+    DbtRefreshError,
+    DbtRunner,
+    LockUnavailableError,
+    RefreshRunner,
+    RefreshStateError,
+    exclusive_lock,
+)
+from penge.web.config import database_url
 from penge.web.mask import mask_account_name, mask_iban
 
 log = logging.getLogger("penge.api")
@@ -218,6 +233,89 @@ def meta_freshness() -> FreshnessResponse:
     return FreshnessResponse(
         marts=[MartFreshness.model_validate(row) for row in data.fetch_freshness()]
     )
+
+
+# ---------------------------------------------------------------------------
+# WebUI-triggered dbt-only refresh (issue #285, ADR-0046)
+# ---------------------------------------------------------------------------
+
+
+def get_refresh_engine() -> Engine:
+    """Return the write-enabled engine dbt schema promotion runs through."""
+    return get_import_engine()
+
+
+def get_refresh_state_dir() -> Path:
+    """Resolve the shared refresh-state directory (lock + pending marker).
+
+    Reuses :class:`ConnectionsConfig` so the WebUI refresh route, the
+    manual connection-sync route, and the scheduled worker all resolve
+    ``PENGE_REFRESH_STATE_DIR`` from one place.
+    """
+    return ConnectionsConfig.from_env().refresh_state_dir
+
+
+def get_dbt_runner(
+    engine: Annotated[Engine, Depends(get_refresh_engine)],
+) -> RefreshRunner:
+    """Build the same :class:`DbtRunner` the scheduled worker uses."""
+    config = MetaRefreshConfig.from_env()
+    try:
+        return DbtRunner(
+            engine,
+            project_dir=config.dbt_project_dir,
+            profiles_dir=config.dbt_profiles_dir,
+            database_url=database_url(),
+        )
+    except DbtRefreshError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post("/meta/refresh", response_model=MetaRefreshResponse)
+def meta_refresh(
+    dbt_runner: Annotated[RefreshRunner, Depends(get_dbt_runner)],
+    refresh_state_dir: Annotated[Path, Depends(get_refresh_state_dir)],
+) -> MetaRefreshResponse:
+    """Trigger the guarded dbt-only refresh, without re-syncing connections.
+
+    Reuses the exact shadow-build/test-plus-atomic-promotion path
+    (``DbtRunner.refresh``) and the shared advisory lock + durable
+    pending marker described in ADR-0046, so this route, the manual
+    connection-sync route, and the scheduled worker can never overlap.
+    The pending marker is cleared only once promotion succeeds; a lock
+    conflict or dbt failure leaves both the live marts and the marker
+    untouched, so the next scheduled run retries automatically.
+    """
+    lock_file = refresh_state_dir / "refresh.lock"
+    pending_refresh_file = refresh_state_dir / "pending"
+    try:
+        with exclusive_lock(lock_file):
+            dbt_runner.refresh()
+            try:
+                pending_refresh_file.unlink(missing_ok=True)
+            except OSError as exc:
+                # The dbt build/promotion already succeeded; a leftover
+                # marker only costs the next scheduled run a redundant
+                # (idempotent) rebuild, so this is logged, not raised.
+                log.error(
+                    "meta_refresh_pending_marker_clear_failed path=%s code=%s",
+                    pending_refresh_file,
+                    type(exc).__name__,
+                )
+    except (LockUnavailableError, RefreshStateError) as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(exc),
+        ) from exc
+    except DbtRefreshError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(exc),
+        ) from exc
+    return MetaRefreshResponse(status="succeeded", completed_at=datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------

@@ -1494,6 +1494,28 @@
         "title": "MartFreshness",
         "type": "object"
       },
+      "MetaRefreshResponse": {
+        "additionalProperties": false,
+        "description": "Concise, machine-readable outcome of a WebUI-triggered dbt refresh.\n\nOnly the success path returns this model (issue #285); lock\ncontention and dbt failures are mapped to explicit HTTP error\nresponses instead, so a 200 always means the guarded shadow-build\nand atomic promotion (ADR-0046) completed.",
+        "properties": {
+          "completed_at": {
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "status": {
+            "const": "succeeded",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "completed_at"
+        ],
+        "title": "MetaRefreshResponse",
+        "type": "object"
+      },
       "NetWorthPoint": {
         "additionalProperties": false,
         "description": "One account-day row of ``mart_net_worth_daily``.",
@@ -2159,7 +2181,7 @@
     }
   },
   "info": {
-    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. The /imports endpoints are the one write surface: staged import sessions per ADR-0037. The /connections endpoints add the in-app Enable Banking consent flow per ADR-0040 and are only active where the EB signing key is configured.",
+    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. The /imports endpoints are the one write surface: staged import sessions per ADR-0037. The /connections endpoints add the in-app Enable Banking consent flow per ADR-0040 and are only active where the EB signing key is configured. POST /meta/refresh triggers the guarded dbt-only shadow-build and atomic-promotion refresh from ADR-0046 without re-syncing any bank connection.",
     "title": "Penge read API",
     "version": "1.0.0"
   },
@@ -3074,6 +3096,25 @@
           }
         },
         "summary": "Meta Freshness"
+      }
+    },
+    "/meta/refresh": {
+      "post": {
+        "description": "Trigger the guarded dbt-only refresh, without re-syncing connections.\n\nReuses the exact shadow-build/test-plus-atomic-promotion path\n(``DbtRunner.refresh``) and the shared advisory lock + durable\npending marker described in ADR-0046, so this route, the manual\nconnection-sync route, and the scheduled worker can never overlap.\nThe pending marker is cleared only once promotion succeeds; a lock\nconflict or dbt failure leaves both the live marts and the marker\nuntouched, so the next scheduled run retries automatically.",
+        "operationId": "meta_refresh_meta_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaRefreshResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Meta Refresh"
       }
     },
     "/net-worth/daily": {

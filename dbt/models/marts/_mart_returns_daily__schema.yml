@@ -7,12 +7,13 @@ models:
       `asset_class`, `household`), measured independently in EUR and
       DKK. Start-of-day external-flow convention:
       `factor = end_mv / (begin_mv + net_flow)`, NULL when no capital
-      was at risk. Account/household flows are deposits, withdrawals,
-      and (account only) internal transfers, so those returns are net
-      of fees and taxes as recorded; asset-class flows move value
-      between instrument classes and the account's attribution class.
-      Chain-linking and MWR/XIRR live in `penge.analytics.returns`.
-      See ADR-0039.
+      was at risk or when the end-of-day value itself is not positive
+      (see issue #282). Account/household flows are deposits,
+      withdrawals, and (account only) internal transfers, so those
+      returns are net of fees and taxes as recorded; asset-class flows
+      move value between instrument classes and the account's
+      attribution class. Chain-linking and MWR/XIRR live in
+      `penge.analytics.returns`. See ADR-0039.
     columns:
       - name: scope
         description: Aggregation level of the row.

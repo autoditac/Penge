@@ -92,6 +92,14 @@ _RAW_TABLES = (
     "entity",
 )
 
+# dbt's default schema naming (no ``generate_schema_name`` override, see
+# dbt/dbt_project.yml) materializes staging/marts models under
+# ``<profile schema>_<custom schema>``: the committed profile's ``dev``
+# target schema is ``analytics``, so a ``dbt build`` run here creates
+# ``analytics_staging`` and ``analytics_marts``. Truncating only the raw
+# tables would leave those derived schemas behind after the test.
+_DERIVED_SCHEMAS = ("analytics_staging", "analytics_marts")
+
 
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
@@ -113,13 +121,26 @@ def engine() -> Iterator[Engine]:
 
 @pytest.fixture
 def _truncate(engine: Engine) -> Iterator[None]:
-    """Wipe raw tables before and after each test, leaving the DB clean."""
-    statement = text(f"TRUNCATE TABLE {', '.join(_RAW_TABLES)} RESTART IDENTITY CASCADE")
-    with engine.begin() as conn:
-        conn.execute(statement)
+    """Wipe raw tables and derived dbt schemas, leaving the DB clean.
+
+    Runs before and after each test: before, in case a previous failed
+    run left derived schemas behind; after, so a synthetic mart never
+    leaks into a later test or another tool sharing the same database.
+    """
+    raw_statement = text(f"TRUNCATE TABLE {', '.join(_RAW_TABLES)} RESTART IDENTITY CASCADE")
+    drop_statements = [
+        text(f"DROP SCHEMA IF EXISTS {schema} CASCADE") for schema in _DERIVED_SCHEMAS
+    ]
+
+    def _clean() -> None:
+        with engine.begin() as conn:
+            conn.execute(raw_statement)
+            for drop_statement in drop_statements:
+                conn.execute(drop_statement)
+
+    _clean()
     yield
-    with engine.begin() as conn:
-        conn.execute(statement)
+    _clean()
 
 
 def run_dbt(*args: str) -> subprocess.CompletedProcess[str]:

@@ -189,6 +189,20 @@ def test_missing_option_value_exits_two(fake_docker: tuple[Path, Path], flag: st
     assert _calls(log) == []
 
 
+@pytest.mark.parametrize("flag", ["--max-age-hours", "--prefix"])
+def test_option_value_that_looks_like_a_flag_is_rejected(
+    fake_docker: tuple[Path, Path], flag: str
+) -> None:
+    """Swallowing `--dry-run` as an operand would turn a rehearsal destructive."""
+    bin_dir, log = fake_docker
+
+    result = _run_gc(bin_dir, flag, "--dry-run")
+
+    assert result.returncode == 2
+    assert f"{flag} requires a value" in result.stderr
+    assert _calls(log) == []
+
+
 @pytest.mark.parametrize("age", ["0", "-1", "two", ""])
 def test_rejects_non_positive_age(fake_docker: tuple[Path, Path], age: str) -> None:
     bin_dir, log = fake_docker

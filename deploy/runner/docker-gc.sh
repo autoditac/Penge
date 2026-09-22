@@ -48,8 +48,10 @@ usage() {
 
 require_value() {
     # `set -u` would abort with status 1 on a missing operand, hiding the
-    # documented "invalid arguments" exit status 2.
-    if [[ $# -lt 2 ]]; then
+    # documented "invalid arguments" exit status 2. A value that looks like
+    # an option is also rejected: silently swallowing `--dry-run` as the
+    # operand of `--prefix` would turn a rehearsal into a destructive sweep.
+    if [[ $# -lt 2 ]] || [[ "$2" == -* ]]; then
         echo "$1 requires a value" >&2
         exit 2
     fi

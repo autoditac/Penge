@@ -121,8 +121,12 @@ invoking dbt, so a process kill or a dbt failure still leaves durable retry
 intent for the next scheduled run; the marker is cleared only once the
 shadow build, tests, and atomic promotion have all succeeded (and clearing
 is itself best-effort — a filesystem error there is logged but does not turn
-an otherwise-successful refresh into an error response). A lock conflict or
-a dbt failure otherwise leaves the live marts and the marker untouched, so a
+an otherwise-successful refresh into an error response). `DbtRunner.refresh()`
+similarly treats its own post-promotion shadow-schema cleanup as best-effort,
+so a transient error while dropping the now-renamed-away shadow names cannot
+misreport an already-committed promotion as a failure. A lock conflict or a
+genuine dbt failure otherwise leaves the live marts unchanged and the marker
+preserved — or freshly created, if none existed before this trigger — so a
 failed manual trigger is indistinguishable (from a data-safety standpoint)
 from simply not clicking the button, and the next scheduled run still retries.
 

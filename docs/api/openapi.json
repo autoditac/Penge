@@ -3114,7 +3114,7 @@
             "description": "Successful Response"
           },
           "502": {
-            "description": "The shadow dbt build, tests, or schema promotion failed. Live marts and the pending marker are unchanged."
+            "description": "The shadow dbt build, tests, or schema promotion failed. Live marts are unchanged; the pending marker is preserved (or created, if none existed yet) so the next scheduled run retries."
           },
           "503": {
             "description": "The refresh lock is already held by the scheduled worker, a connection sync, or another manual trigger; retry shortly."

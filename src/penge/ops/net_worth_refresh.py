@@ -210,7 +210,28 @@ class DbtRunner:
             )
             self._promote_shadow_schemas()
         finally:
+            self._drop_shadow_schemas_best_effort()
+
+    def _drop_shadow_schemas_best_effort(self) -> None:
+        """Best-effort post-run cleanup of the now-unused shadow schema names.
+
+        By the time this runs, ``refresh()`` has already determined its
+        outcome: either a build/promotion failure already raised above, or
+        ``_promote_shadow_schemas`` already committed the rename. A
+        transient failure while dropping the leftover shadow schema names
+        (which ``_promote_shadow_schemas`` renamed away on success, so
+        ``DROP SCHEMA IF EXISTS`` is normally a no-op here) must not
+        override that already-determined outcome with a false failure --
+        doing so would misreport correctly promoted live marts as failed
+        and leave the pending marker set for a redundant rebuild.
+        """
+        try:
             self._drop_shadow_schemas()
+        except Exception as exc:
+            log.error(
+                "dbt_shadow_schema_cleanup_failed code=%s",
+                type(exc).__name__,
+            )
 
     def _run(self, *arguments: str, failure: str) -> None:
         command = [

@@ -120,9 +120,10 @@ pending refresh for the next scheduled run to retry. The response is
 synchronous JSON (`{"status": "succeeded", "completed_at": "<ISO 8601
 timestamp>"}`) because a full `dbt build --target refresh` typically
 finishes in tens of seconds — there is no job queue or polling endpoint. On
-failure the live marts and the pending marker are left exactly as they
-were, so a failed manual trigger has no data-safety impact and the next
-scheduled run retries.
+failure the live marts are unchanged and the pending marker is preserved
+(or created moments earlier, if none existed) so the next scheduled run
+retries — a failed manual trigger never leaves the household with less
+retry coverage than not clicking the button at all.
 
 | Status | Meaning                                                              |
 | ------ | --------------------------------------------------------------------- |

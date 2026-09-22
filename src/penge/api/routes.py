@@ -282,7 +282,9 @@ def get_dbt_runner(
         status.HTTP_502_BAD_GATEWAY: {
             "description": (
                 "The shadow dbt build, tests, or schema promotion failed. "
-                "Live marts and the pending marker are unchanged."
+                "Live marts are unchanged; the pending marker is preserved "
+                "(or created, if none existed yet) so the next scheduled "
+                "run retries."
             ),
         },
         status.HTTP_503_SERVICE_UNAVAILABLE: {
@@ -345,8 +347,11 @@ def meta_refresh(
         # `DbtRunner.refresh()` also drops/promotes shadow schemas with raw
         # SQLAlchemy calls and shells out to dbt directly, so a database
         # error or a missing dbt executable can escape `DbtRefreshError`.
-        # Treat any such failure the same way the scheduled worker does:
-        # a sanitized 502, live marts and the pending marker untouched.
+        # Post-promotion cleanup failures are handled as best-effort inside
+        # `DbtRunner.refresh()` itself, so any exception reaching here means
+        # promotion genuinely did not complete: live marts are unchanged, and
+        # the pending marker (preserved, or created moments ago if none
+        # existed) stays in place for the next scheduled run to retry.
         log.error("meta_refresh_unexpected_failure code=%s", type(exc).__name__)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

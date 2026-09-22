@@ -1915,7 +1915,7 @@ export interface operations {
           "application/json": components["schemas"]["MetaRefreshResponse"];
         };
       };
-      /** @description The shadow dbt build, tests, or schema promotion failed. Live marts and the pending marker are unchanged. */
+      /** @description The shadow dbt build, tests, or schema promotion failed. Live marts are unchanged; the pending marker is preserved (or created, if none existed yet) so the next scheduled run retries. */
       502: {
         headers: {
           [name: string]: unknown;

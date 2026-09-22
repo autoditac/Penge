@@ -161,8 +161,10 @@ import or connection sync without waiting up to six hours for the timer.
 - `POST /meta/refresh` returning `503` means the same lock is already held by
   the scheduled worker, a connection sync, or another manual trigger; the
   WebUI surfaces this as a notification and the caller should retry shortly.
-  A `502` means the shadow dbt build or promotion failed; the live marts and
-  pending marker are untouched, so the next scheduled run retries normally.
+  A `502` means the shadow dbt build or promotion failed; the live marts are
+  unchanged and the pending marker is preserved — or created moments before
+  the failure, if none existed yet — so the state directory is not expected
+  to stay empty after a `502`, and the next scheduled run retries normally.
 - A startup error about the key or database means the worker did not receive
   the API environment/secret; compare the installed worker and API units.
 

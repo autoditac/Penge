@@ -34,17 +34,30 @@ recovered only 1.58 GB until the containers themselves were removed.
 | --- | --- | --- |
 | Unique builder names | `ci.yml`, `release.yml` | `penge-<job>-<run_id>-<attempt>-<app>`, so a leak is attributable to a job and teardown never needs a step output. |
 | Per-job teardown | `ci.yml`, `release.yml` | `if: always()` removal of that one builder, its container, its state volume, and the run-scoped `penge/<app>:ci-<run>` image. Scoped by name — never a blanket prune, which would destroy a concurrent matrix job's cache. |
-| BuildKit GC | `buildkitd-config-inline` | Caps a single builder's cache at 2 GB, so even a leaked builder stops growing. |
+| BuildKit GC | `buildkitd-config-inline` | Caps a single builder's cache at 2 GB via `maxUsedSpace` (the `keepBytes`/`reservedSpace` field is a *floor*, not a ceiling, and bounds nothing). |
 | Host sweep | `penge-docker-gc.timer` | Hourly, **independent of GitHub Actions**, reclaims anything older than 2 h. This is the layer that still works when the runner is wedged. |
 | Manual sweep | `runner-maintenance.yml` | Daily belt-and-braces run plus a dry-runnable `workflow_dispatch` lever. |
 
 ### Why age-bounding makes it concurrency-safe
 
-Every removal in `deploy/runner/docker-gc.sh` is gated on a 2 h age threshold,
-and the prunes use Docker's `until=` filter. The longest job timeout in the
-repository is 30 minutes (`release.yml`), so a resource older than the
-threshold provably cannot belong to a running job. There is no unconditional
-`docker system prune` anywhere, and non-BuildKit containers are never matched.
+Every removal in `deploy/runner/docker-gc.sh` is gated on a 2 h age
+threshold, and the prunes that support it use Docker's `until=` filter. The
+longest job timeout in the repository is 30 minutes (`release.yml`), so a
+resource older than the threshold provably cannot belong to a running job.
+
+Two cases need explicit enumeration rather than a prune:
+
+- **CI images are tagged** (`penge/<app>:ci-<run>-<attempt>`), so
+  `docker image prune` — which only removes *dangling* images — would never
+  reclaim the image of a job killed before its teardown ran. The sweep matches
+  the `penge/*:ci-*` reference and filters by age.
+- **`docker volume prune` accepts no `until` filter.** A blanket volume prune
+  would be unbounded in age and could take an anonymous volume that a
+  concurrent job has created but not yet attached, so the sweep enumerates
+  dangling `buildx_buildkit_*` volumes and age-checks each one.
+
+There is no unconditional `docker system prune` anywhere, and non-BuildKit
+containers are never matched.
 
 ## Installing the host units
 

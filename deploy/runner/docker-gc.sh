@@ -46,13 +46,24 @@ usage() {
     sed -n '2,40p' "$0"
 }
 
+require_value() {
+    # `set -u` would abort with status 1 on a missing operand, hiding the
+    # documented "invalid arguments" exit status 2.
+    if [[ $# -lt 2 ]]; then
+        echo "$1 requires a value" >&2
+        exit 2
+    fi
+}
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --max-age-hours)
+            require_value "$@"
             MAX_AGE_HOURS="$2"
             shift 2
             ;;
         --prefix)
+            require_value "$@"
             PREFIX="$2"
             shift 2
             ;;
@@ -101,6 +112,46 @@ run() {
 now_epoch="$(date -u +%s)"
 cutoff_epoch="$((now_epoch - MAX_AGE_HOURS * 3600))"
 
+# `docker ps`/`docker images --format '{{.CreatedAt}}'` render e.g.
+# "2026-09-22 09:03:25 +0200 CEST"; GNU date rejects the trailing zone
+# abbreviation, so feed it only date/time/offset. `docker volume inspect`
+# renders RFC 3339, which date parses as-is. Echoes 0 when unparseable.
+created_epoch_of() {
+    local created="$1"
+    # RFC 3339 (docker volume inspect): parse as-is. Anchor on the date+`T`
+    # shape -- a naive `*T*` match also hits the "... +0000 UTC" suffix of
+    # `docker ps` timestamps.
+    if [[ "${created}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T ]]; then
+        date -u -d "${created}" +%s 2>/dev/null || echo 0
+        return 0
+    fi
+    local c_date c_time c_offset _rest
+    read -r c_date c_time c_offset _rest <<<"${created}"
+    date -u -d "${c_date} ${c_time} ${c_offset}" +%s 2>/dev/null || echo 0
+}
+
+# Echoes the names (one per line) of resources older than the cutoff, given
+# `name<TAB>timestamp` lines on stdin. Keeping the age gate in one place is
+# what makes "never touch a concurrent job's resources" auditable.
+select_stale() {
+    local kind="$1" name created created_epoch age_hours
+    while IFS=$'\t' read -r name created; do
+        [[ -n "${name}" ]] || continue
+        created_epoch="$(created_epoch_of "${created}")"
+        if [[ "${created_epoch}" -eq 0 ]]; then
+            log "WARNING: cannot parse creation time of ${kind} ${name} ('${created}'); skipping" >&2
+            continue
+        fi
+        age_hours="$(((now_epoch - created_epoch) / 3600))"
+        if [[ "${created_epoch}" -lt "${cutoff_epoch}" ]]; then
+            log "stale ${kind} ${name} (age ~${age_hours}h) -> remove" >&2
+            printf '%s\n' "${name}"
+        else
+            log "keeping ${kind} ${name} (age ~${age_hours}h, below threshold)" >&2
+        fi
+    done
+}
+
 log "max age ${MAX_AGE_HOURS}h, container prefix '${PREFIX}', dry-run=${DRY_RUN}"
 log "disk usage before:"
 "${DOCKER}" system df || true
@@ -108,27 +159,11 @@ log "disk usage before:"
 # 1. Stale BuildKit builder containers (running or not) and their state
 #    volumes. This is the only step that can reclaim a *pinned* named volume,
 #    because the volume stays in use until its container is gone.
-stale_containers=()
-while IFS=$'\t' read -r name created; do
-    [[ -n "${name}" ]] || continue
-    # `docker ps --format '{{.CreatedAt}}'` renders e.g.
-    # "2026-09-22 09:03:25 +0200 CEST". GNU date rejects the trailing zone
-    # abbreviation, so feed it only date/time/offset.
-    read -r c_date c_time c_offset _ <<<"${created}"
-    created_epoch="$(date -u -d "${c_date} ${c_time} ${c_offset}" +%s 2>/dev/null || echo 0)"
-    if [[ "${created_epoch}" -eq 0 ]]; then
-        log "WARNING: cannot parse creation time of ${name} ('${created}'); skipping"
-        continue
-    fi
-    age_hours="$(((now_epoch - created_epoch) / 3600))"
-    if [[ "${created_epoch}" -lt "${cutoff_epoch}" ]]; then
-        log "stale builder ${name} (age ~${age_hours}h) -> remove"
-        stale_containers+=("${name}")
-    else
-        log "keeping builder ${name} (age ~${age_hours}h, below threshold)"
-    fi
-done < <("${DOCKER}" ps --all --no-trunc --filter "name=^/${PREFIX}" \
-    --format '{{.Names}}	{{.CreatedAt}}' || true)
+mapfile -t stale_containers < <(
+    "${DOCKER}" ps --all --no-trunc --filter "name=^/${PREFIX}" \
+        --format '{{.Names}}	{{.CreatedAt}}' 2>/dev/null |
+        select_stale builder
+)
 
 for name in "${stale_containers[@]:-}"; do
     [[ -n "${name}" ]] || continue
@@ -138,17 +173,47 @@ for name in "${stale_containers[@]:-}"; do
     run "${DOCKER}" volume rm --force "${name}_state"
 done
 
-# 2. Dangling images older than the threshold. Each CI run re-tags
-#    `penge/<app>:ci-<run>`, so superseded layers accumulate here.
+# 2. Stale CI images. These are *tagged* (`penge/<app>:ci-<run>-<attempt>`),
+#    so `docker image prune` -- which only removes dangling images -- would
+#    never reclaim the image of a job killed before its teardown ran. Match
+#    the tag pattern explicitly and gate on age, rather than reaching for
+#    `--all`, which would also delete images that nothing in CI produced.
+mapfile -t stale_images < <(
+    "${DOCKER}" images --filter 'reference=penge/*:ci-*' \
+        --format '{{.Repository}}:{{.Tag}}	{{.CreatedAt}}' 2>/dev/null |
+        select_stale image
+)
+
+for image in "${stale_images[@]:-}"; do
+    [[ -n "${image}" ]] || continue
+    run "${DOCKER}" image rm --force "${image}"
+done
+
+# 3. Dangling images older than the threshold (superseded intermediate and
+#    untagged layers).
 run "${DOCKER}" image prune --force --filter "until=${MAX_AGE_HOURS}h"
 
-# 3. Build cache of the default (docker driver) builder, same age bound.
+# 4. Build cache of the default (docker driver) builder, same age bound.
 run "${DOCKER}" builder prune --force --filter "until=${MAX_AGE_HOURS}h"
 
-# 4. Named/anonymous volumes left unused once their container is gone. Safe
-#    now that step 1 removed the containers that were pinning them; volumes
-#    still attached to a running container are never touched by prune.
-run "${DOCKER}" volume prune --force
+# 5. BuildKit state volumes orphaned by a container removed elsewhere.
+#    `docker volume prune` supports no `until` filter, and a blanket prune
+#    would be unbounded in age -- it could take an anonymous volume a
+#    concurrent job has created but not yet attached. Enumerate instead, so
+#    the age gate still holds.
+mapfile -t dangling_volumes < <(
+    "${DOCKER}" volume ls --quiet --filter dangling=true \
+        --filter "name=${PREFIX}" 2>/dev/null | while read -r volume; do
+        [[ -n "${volume}" ]] || continue
+        created="$("${DOCKER}" volume inspect --format '{{.CreatedAt}}' "${volume}" 2>/dev/null || true)"
+        [[ -n "${created}" ]] && printf '%s\t%s\n' "${volume}" "${created}"
+    done | select_stale volume
+)
+
+for volume in "${dangling_volumes[@]:-}"; do
+    [[ -n "${volume}" ]] || continue
+    run "${DOCKER}" volume rm --force "${volume}"
+done
 
 # 5. Per-job `DOCKER_CONFIG` scratch directories from the image jobs.
 if [[ "${DRY_RUN}" -eq 1 ]]; then

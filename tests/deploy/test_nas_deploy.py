@@ -87,6 +87,17 @@ def test_ci_images_are_run_scoped_and_removed() -> None:
     assert ci.count('docker image rm --force "$CI_IMAGE_TAG"') == 1
 
 
+def test_buildkit_cache_cap_uses_a_real_ceiling() -> None:
+    """`keepBytes`/`reservedSpace` is a floor, not a cap: it bounds nothing."""
+    for workflow in (".github/workflows/ci.yml", ".github/workflows/release.yml"):
+        content = (ROOT / workflow).read_text()
+        assert content.count('                maxUsedSpace = "2GB"') == content.count(
+            "docker/setup-buildx-action@"
+        )
+        assert "keepBytes =" not in content
+        assert "reservedSpace =" not in content
+
+
 def test_runner_maintenance_is_concurrency_safe() -> None:
     workflow = (ROOT / ".github/workflows/runner-maintenance.yml").read_text()
 

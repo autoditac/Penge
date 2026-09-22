@@ -114,7 +114,10 @@ jobs:
               gc = true
               [[worker.oci.gcpolicy]]
                 all = true
-                keepBytes = "2GB"
+                # `maxUsedSpace` is the actual ceiling; `keepBytes`/
+                # `reservedSpace` is a floor (space kept from pruning) and
+                # would not bound anything.
+                maxUsedSpace = "2GB"
 
       - name: Login to GHCR
         uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3.5.0

@@ -122,6 +122,7 @@ def test_meta_refresh_maps_marker_persist_failure_to_503(
         response = client.post("/meta/refresh")
 
     assert response.status_code == 503
+    assert response.json()["detail"] == "refresh state is unavailable"
     assert runner.calls == 0
 
 
@@ -194,6 +195,7 @@ def test_meta_refresh_maps_lock_contention_to_503_without_calling_dbt(
             response = client.post("/meta/refresh")
 
         assert response.status_code == 503
+        assert response.json()["detail"] == "refresh lock is already held"
         assert runner.calls == 0
         assert pending_file.exists()
     finally:

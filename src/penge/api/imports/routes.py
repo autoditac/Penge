@@ -436,8 +436,17 @@ def commit_import(
                 )
             except commit_mod.ImportCommitError as exc:
                 raise HTTPException(status_code=409, detail=str(exc)) from exc
-    except (LockUnavailableError, RefreshStateError) as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except LockUnavailableError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="refresh lock is already held",
+        ) from exc
+    except RefreshStateError as exc:
+        log.error("import_refresh_state_unavailable code=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=503,
+            detail="refresh state is unavailable",
+        ) from exc
 
     committed = store.set_session_status(
         engine, session.id, store.SESSION_STATUS_COMMITTED, committed=True

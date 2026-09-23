@@ -335,10 +335,16 @@ def meta_refresh(
                     pending_refresh_file,
                     type(exc).__name__,
                 )
-    except (LockUnavailableError, RefreshStateError) as exc:
+    except LockUnavailableError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=str(exc),
+            detail="refresh lock is already held",
+        ) from exc
+    except RefreshStateError as exc:
+        log.error("meta_refresh_state_unavailable code=%s", type(exc).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="refresh state is unavailable",
         ) from exc
     except DbtRefreshError as exc:
         raise HTTPException(

@@ -105,9 +105,12 @@ run() {
         return 0
     fi
     # A single stubborn resource must not abort the whole sweep: the
-    # remaining reclaims are what keep the disk bounded.
+    # remaining reclaims are what keep the disk bounded. The status is
+    # still returned, so a caller whose next step is only safe after this
+    # one succeeded can branch on it.
     if ! "$@"; then
         log "WARNING: command failed (continuing): $*"
+        return 1
     fi
 }
 
@@ -169,10 +172,17 @@ mapfile -t stale_containers < <(
 
 for name in "${stale_containers[@]:-}"; do
     [[ -n "${name}" ]] || continue
-    run "${DOCKER}" rm --force --volumes "${name}"
-    # `docker rm --volumes` only drops anonymous volumes; the BuildKit state
-    # volume is named after the container and must go explicitly.
-    run "${DOCKER}" volume rm --force "${name}_state"
+    if run "${DOCKER}" rm --force --volumes "${name}"; then
+        # `docker rm --volumes` only drops anonymous volumes; the BuildKit
+        # state volume is named after the container and must go explicitly.
+        run "${DOCKER}" volume rm --force "${name}_state" || true
+    else
+        # The container survived a removal attempt, so it may still be
+        # attached to its state volume. Deleting that volume underneath a
+        # live BuildKit process would corrupt it; leave both for the next
+        # sweep, which runs hourly.
+        log "WARNING: keeping ${name}_state, its container could not be removed"
+    fi
 done
 
 # 2. Stale CI images. These are *tagged* (`penge/<app>:ci-<run>-<attempt>`),
@@ -188,15 +198,15 @@ mapfile -t stale_images < <(
 
 for image in "${stale_images[@]:-}"; do
     [[ -n "${image}" ]] || continue
-    run "${DOCKER}" image rm --force "${image}"
+    run "${DOCKER}" image rm --force "${image}" || true
 done
 
 # 3. Dangling images older than the threshold (superseded intermediate and
 #    untagged layers).
-run "${DOCKER}" image prune --force --filter "until=${MAX_AGE_HOURS}h"
+run "${DOCKER}" image prune --force --filter "until=${MAX_AGE_HOURS}h" || true
 
 # 4. Build cache of the default (docker driver) builder, same age bound.
-run "${DOCKER}" builder prune --force --filter "until=${MAX_AGE_HOURS}h"
+run "${DOCKER}" builder prune --force --filter "until=${MAX_AGE_HOURS}h" || true
 
 # 5. BuildKit state volumes orphaned by a container removed elsewhere.
 #    `docker volume prune` supports no `until` filter, and a blanket prune
@@ -214,7 +224,7 @@ mapfile -t dangling_volumes < <(
 
 for volume in "${dangling_volumes[@]:-}"; do
     [[ -n "${volume}" ]] || continue
-    run "${DOCKER}" volume rm --force "${volume}"
+    run "${DOCKER}" volume rm --force "${volume}" || true
 done
 
 # 5. Per-job `DOCKER_CONFIG` scratch directories from the image jobs.

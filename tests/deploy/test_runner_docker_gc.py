@@ -244,3 +244,27 @@ def test_survives_a_failing_docker_command(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert "WARNING: command failed (continuing)" in result.stdout
     assert "image prune --force --filter until=2h" in _calls(calls)
+
+
+def test_keeps_the_state_volume_when_its_container_survives(tmp_path: Path) -> None:
+    """A live BuildKit process would be corrupted by losing its state volume."""
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    calls = tmp_path / "calls.log"
+    docker = bin_dir / "docker"
+    docker.write_text(
+        "#!/usr/bin/env bash\n"
+        f'printf "%s\\n" "$*" >> {calls}\n'
+        'if [[ "$1" == "ps" ]]; then\n'
+        f'  printf "{OLD_BUILDER}\\t{_docker_created_at(timedelta(hours=9))}\\n"\n'
+        "fi\n"
+        'if [[ "$1" == "rm" ]]; then exit 1; fi\n'
+        "exit 0\n"
+    )
+    docker.chmod(0o755)
+
+    result = _run_gc(bin_dir, "--max-age-hours", "2")
+
+    assert result.returncode == 0, result.stderr
+    assert f"volume rm --force {OLD_BUILDER}_state" not in _calls(calls)
+    assert f"keeping {OLD_BUILDER}_state" in result.stdout

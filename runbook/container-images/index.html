@@ -16,7 +16,7 @@
         <link rel="prev" href="../web/">
       
       
-        <link rel="next" href="../nas-deploy/">
+        <link rel="next" href="../runner-maintenance/">
       
       
         
@@ -1496,6 +1496,8 @@
       
         
       
+        
+      
     
     
     
@@ -1767,6 +1769,34 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runner-maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runner maintenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -3452,6 +3482,9 @@ pushes:</p>
 </ul>
 <p>After a release, copy the immutable image digest into the deployment compose
 file before updating the home server.</p>
+<p>CI builds run on the self-hosted runner <code>gh-runner-ubuntu</code>, whose Docker
+disk usage is bounded by the procedures in
+<a href="../runner-maintenance/">Runner maintenance</a>.</p>
 
 
 

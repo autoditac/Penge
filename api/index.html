@@ -3300,6 +3300,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#guarded-dbt-only-refresh-285" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Guarded dbt-only refresh (#285)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#contract" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3340,9 +3351,16 @@
 to the <a href="../web/modern-webui/">modern WebUI</a> as typed JSON.
 The reporting endpoints are strictly read-only and local-only; see
 <a href="../decisions/0035-fastapi-read-api/">ADR-0035</a> for the decision record.
-The one sanctioned write surface is the staged import workflow under
-<code>/imports</code> (see <a href="../decisions/0037-staged-import-sessions/">ADR-0037</a>),
-which reuses the existing connector parsers and loaders.</p>
+The sanctioned write surfaces are the staged import workflow under <code>/imports</code>
+(see <a href="../decisions/0037-staged-import-sessions/">ADR-0037</a>), Enable Banking
+consent and sync under <code>/connections</code> (see
+<a href="../decisions/0040-in-app-enable-banking-consent-flow/">ADR-0040</a>), and the guarded
+dbt-only refresh trigger under <code>/meta/refresh</code>
+(see <a href="../decisions/0046-scheduled-enable-banking-net-worth-refresh/">ADR-0046</a>),
+which reuses the scheduled worker's <code>DbtRunner</code>, lock, and pending marker
+without touching any bank connection.
+Import commits use that same lock and durable marker, so raw-table writes
+cannot overlap a shadow dbt build.</p>
 <h2 id="running-it">Running it<a class="headerlink" href="#running-it" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>just<span class="w"> </span>api-dev<span class="w">        </span><span class="c1"># uvicorn on 127.0.0.1:8000 with auto-reload</span>
 just<span class="w"> </span>api-test<span class="w">       </span><span class="c1"># pytest tests/api</span>
@@ -3382,6 +3400,10 @@ Database resolution follows the same rules as every other component:
 <tr>
 <td><code>/meta/freshness</code></td>
 <td>Latest data date and row count per mart, for staleness banners</td>
+</tr>
+<tr>
+<td><code>POST /meta/refresh</code></td>
+<td>Trigger a guarded dbt-only refresh (shadow build/test + atomic promotion); does not re-sync bank connections</td>
 </tr>
 </tbody>
 </table>
@@ -3493,6 +3515,44 @@ plus <code>suggested_by</code>; the server stamps <code>accepted_at</code> when
 empty <code>mappings</code> object is a manual clear: it removes all mappings and
 any AI provenance. Mappings live next to the payload and never modify
 it, so commit behavior is unchanged.</p>
+<h2 id="guarded-dbt-only-refresh-285">Guarded dbt-only refresh (#285)<a class="headerlink" href="#guarded-dbt-only-refresh-285" title="Permanent link">&para;</a></h2>
+<p><code>POST /meta/refresh</code> lets the WebUI pull the next scheduled net-worth refresh
+forward without waiting for the timer and without re-syncing any bank
+connection. It calls the exact same <code>DbtRunner</code> used by
+<code>penge-refresh-net-worth</code> (ADR-0046), takes the same host-mounted <code>flock</code>
+under <code>PENGE_REFRESH_STATE_DIR</code>, and persists the same durable <code>pending</code>
+marker <em>before</em> invoking dbt (mirroring the scheduled worker's own
+write-intent tracking), so a killed process or a dbt failure still leaves a
+pending refresh for the next scheduled run to retry. The response is
+synchronous JSON (<code>{"status": "succeeded", "completed_at": "&lt;ISO 8601
+timestamp&gt;"}</code>) because a full <code>dbt build --target refresh</code> typically
+finishes in tens of seconds — there is no job queue or polling endpoint. On
+failure the live marts are unchanged and the pending marker is preserved
+(or created moments earlier, if none existed) so the next scheduled run
+retries — a failed manual trigger never leaves the household with less
+retry coverage than not clicking the button at all.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code></td>
+<td>Shadow build, tests, and promotion succeeded; marker cleared on a best-effort basis (a clear failure is logged but does not turn a success into an error)</td>
+</tr>
+<tr>
+<td><code>503</code></td>
+<td>The lock is held by the scheduled worker, a connection sync, or another manual trigger, or the pending marker itself could not be persisted; retry shortly</td>
+</tr>
+<tr>
+<td><code>502</code></td>
+<td>The shadow dbt build or promotion failed; live marts are unchanged and the pending marker is preserved (or created moments earlier, if none existed yet)</td>
+</tr>
+</tbody>
+</table>
 <h2 id="contract">Contract<a class="headerlink" href="#contract" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Amounts are JSON <strong>strings</strong> (<code>"1000.0000"</code>), never floats — they are

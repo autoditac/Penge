@@ -3698,7 +3698,13 @@ summary to stdout.
 The summary reports eligible/successful/failed connection counts,
 <code>data_changed</code>, <code>dbt_status</code>, and sanitized per-connection outcomes.
 Manual <strong>Sync now</strong> requests use the same lock and pending marker, so their
-writes are included by the next scheduled dbt refresh.</p>
+writes are included by the next scheduled dbt refresh.
+Staged import commits also use this guard, preventing a dbt build from reading
+a partially committed multi-row import.
+The WebUI's <strong>Refresh analytics</strong> button (<code>POST /meta/refresh</code>) takes the same
+lock and marker but skips Enable Banking entirely — it only rebuilds and
+promotes dbt, so use it to pull a scheduled refresh forward after a manual
+import or connection sync without waiting up to six hours for the timer.</p>
 <ul>
 <li><code>skipped_no_changes</code> is healthy: the upstream rows matched Postgres.</li>
 <li><code>failed_connections &gt; 0</code> means inspect the connection's <code>last_error</code> in the
@@ -3713,6 +3719,15 @@ writes are included by the next scheduled dbt refresh.</p>
   under <code>/var/lib/penge/refresh</code> before retrying.</li>
 <li><code>refresh lock is already held</code> means another manual or timed invocation is
   running; do not delete the lock file, wait for that process.</li>
+<li><code>POST /meta/refresh</code> returning <code>503</code> means the same lock is already held by
+  the scheduled worker, a connection sync, an import commit, or another
+  manual trigger, or that the durable pending marker could not be persisted.
+  The WebUI surfaces this as a notification; retry lock contention shortly,
+  but repair ownership or free space for a marker-persistence failure.
+  A <code>502</code> means the shadow dbt build or promotion failed; the live marts are
+  unchanged and the pending marker is preserved — or created moments before
+  the failure, if none existed yet — so the state directory is not expected
+  to stay empty after a <code>502</code>, and the next scheduled run retries normally.</li>
 <li>A startup error about the key or database means the worker did not receive
   the API environment/secret; compare the installed worker and API units.</li>
 </ul>

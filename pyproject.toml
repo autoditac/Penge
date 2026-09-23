@@ -167,6 +167,9 @@ ignore = ["PLR0913"]
 # test, not a code-injection risk. The synthetic `DROP/CREATE SCHEMA`
 # strings are likewise hand-built test scaffolding (S608).
 "tests/scripts/**" = ["S101", "PLR2004", "S603", "S607", "S608"]
+# Same rationale for the runner GC test: it executes the repo-local
+# `deploy/runner/docker-gc.sh` under test against a fake `docker` shim.
+"tests/deploy/test_runner_docker_gc.py" = ["S101", "PLR2004", "S603"]
 # Migrations are autogenerate-friendly scripts; don't penalise them for
 # size, magic numbers, or the boilerplate alembic emits.
 "migrations/**" = ["PLR0913", "PLR0915", "PLR2004", "S608"]

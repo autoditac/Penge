@@ -114,3 +114,7 @@ Each pushed image gets:
 
 After a release, copy the immutable image digest into the deployment compose
 file before updating the home server.
+
+CI builds run on the self-hosted runner `gh-runner-ubuntu`, whose Docker
+disk usage is bounded by the procedures in
+[Runner maintenance](runner-maintenance.md).

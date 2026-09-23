@@ -301,7 +301,7 @@ def test_run_refresh_blocks_sync_when_pending_marker_write_fails(
     record = _record()
     monkeypatch.setattr(store, "list_eligible_connections", lambda engine, as_of: [record])
     monkeypatch.setattr(
-        "penge.ops.net_worth_refresh._mark_refresh_pending",
+        "penge.ops.net_worth_refresh.mark_refresh_pending",
         MagicMock(side_effect=OSError("synthetic unwritable state directory")),
     )
 
@@ -464,6 +464,51 @@ def test_dbt_runner_does_not_touch_live_after_shadow_failure(
     assert len(commands) == 1
     assert commands[0][1] == "build"
     promote.assert_not_called()
+
+
+def test_dbt_runner_post_promotion_cleanup_failure_does_not_raise(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A transient failure while dropping the now-renamed-away shadow
+    schema names *after* a successful promotion must not be reported as a
+    refresh failure: the live marts were already correctly promoted, so
+    treating this as a 502 would misreport success as failure and leave
+    the pending marker set for a redundant rebuild."""
+    commands: list[list[str]] = []
+
+    def command_runner(
+        command: Sequence[str],
+        *,
+        cwd: Path,
+        env: Mapping[str, str],
+    ) -> subprocess.CompletedProcess[str]:
+        _ = cwd, env
+        commands.append(list(command))
+        return subprocess.CompletedProcess(command, 0, stdout="ok", stderr="")
+
+    drop_calls = 0
+
+    def flaky_drop(self: DbtRunner) -> None:
+        nonlocal drop_calls
+        drop_calls += 1
+        if drop_calls > 1:
+            raise OSError("simulated connection reset")
+
+    monkeypatch.setattr(DbtRunner, "_drop_shadow_schemas", flaky_drop)
+    promote = MagicMock()
+    monkeypatch.setattr(DbtRunner, "_promote_shadow_schemas", promote)
+    runner = DbtRunner(
+        MagicMock(),
+        project_dir=tmp_path / "dbt",
+        profiles_dir=tmp_path / "dbt",
+        database_url="postgresql+psycopg://user:pass@db:5432/penge",
+        command_runner=command_runner,
+    )
+
+    runner.refresh()  # must not raise despite the post-promotion cleanup failure
+
+    promote.assert_called_once_with()
+    assert drop_calls == 2
 
 
 def test_dbt_runner_promotes_both_schemas_in_one_transaction(tmp_path: Path) -> None:

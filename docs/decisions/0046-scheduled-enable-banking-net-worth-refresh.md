@@ -106,6 +106,46 @@ Enable Banking and dbt failures are visible in the journal and connection
 status, and the next six-hour trigger retries naturally.
 This avoids an aggressive retry loop against an unavailable bank.
 
+### WebUI-triggered manual refresh (issue #285)
+
+Waiting up to six hours for the next scheduled trigger is sometimes too slow
+after a manual import or an ad-hoc bank sync, so the WebUI also exposes a
+**Refresh analytics** button that calls `POST /meta/refresh`. This route is a
+thin synchronous wrapper around the exact same `DbtRunner.refresh()` path,
+shared advisory lock, and durable `pending` marker described above — it does
+**not** re-sync any bank connection, and it never runs concurrently with a
+connection sync or the scheduled worker because it acquires the identical
+`flock` under `PENGE_REFRESH_STATE_DIR`. Like the scheduled worker's own
+write-intent tracking, the route persists the `pending` marker *before*
+invoking dbt, so a process kill or a dbt failure still leaves durable retry
+intent for the next scheduled run; the marker is cleared only once the
+shadow build, tests, and atomic promotion have all succeeded (and clearing
+is itself best-effort — a filesystem error there is logged but does not turn
+an otherwise-successful refresh into an error response). `DbtRunner.refresh()`
+similarly treats its own post-promotion shadow-schema cleanup as best-effort,
+so a transient error while dropping the now-renamed-away shadow names cannot
+misreport an already-committed promotion as a failure. A lock conflict or a
+genuine dbt failure otherwise leaves the live marts unchanged and the marker
+preserved — or freshly created, if none existed before this trigger — so a
+failed manual trigger is indistinguishable (from a data-safety standpoint)
+from simply not clicking the button, and the next scheduled run still retries.
+
+Because a dbt build typically takes tens of seconds, the endpoint responds
+synchronously rather than returning a job ID to poll — there is no persistent
+job queue. Errors are mapped to sanitized, explicit HTTP statuses instead of
+leaking subprocess output: `LockUnavailableError`/`RefreshStateError` become
+`503 Service Unavailable` (someone else is already refreshing), and
+`DbtRefreshError` becomes `502 Bad Gateway` (the shadow build or promotion
+failed). The WebUI button disables itself for the duration of the request to
+prevent duplicate submissions, and shows an **indeterminate** MUI
+`LinearProgress` plus a short status line ("Building and validating
+marts…") — a real percentage can't be computed from a `dbt build` run, so a
+fake one was rejected as misleading. On success the button's mutation
+invalidates the freshness banner and every mart-derived dashboard query so
+the refreshed data appears without a manual page reload; the deterministic
+demo build resolves immediately with a fixed timestamp instead of touching a
+real database.
+
 ## Consequences
 
 ### Positive
@@ -133,6 +173,9 @@ This avoids an aggressive retry loop against an unavailable bank.
   marker retries them after a dbt failure while keeping the old mart visible.
 - The existing manual **Sync now** UI records durable refresh intent; the next
   scheduled worker refreshes dbt.
+- The manual **Refresh analytics** WebUI button shares the same lock, marker,
+  and `DbtRunner` as the scheduled worker, so it adds no new failure mode; it
+  simply lets an operator pull the next scheduled refresh earlier on demand.
 
 ## Alternatives in detail
 
@@ -156,3 +199,4 @@ second rollback procedure on the NAS.
 - `src/penge/ops/net_worth_refresh.py`
 - `deploy/nas/penge-net-worth-refresh.{service,timer}`
 - Issue #278
+- Issue #285

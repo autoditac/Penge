@@ -14,6 +14,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -169,6 +170,19 @@ class FreshnessResponse(_FrozenModel):
     """Freshness metadata for every mart the API serves."""
 
     marts: list[MartFreshness]
+
+
+class MetaRefreshResponse(_FrozenModel):
+    """Concise, machine-readable outcome of a WebUI-triggered dbt refresh.
+
+    Only the success path returns this model (issue #285); lock
+    contention and dbt failures are mapped to explicit HTTP error
+    responses instead, so a 200 always means the guarded shadow-build
+    and atomic promotion (ADR-0046) completed.
+    """
+
+    status: Literal["succeeded"]
+    completed_at: datetime
 
 
 class ReturnsPoint(_FrozenModel):

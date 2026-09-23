@@ -4,9 +4,16 @@ The read API is a small FastAPI application that exposes the analytics marts
 to the [modern WebUI](../web/modern-webui.md) as typed JSON.
 The reporting endpoints are strictly read-only and local-only; see
 [ADR-0035](../decisions/0035-fastapi-read-api.md) for the decision record.
-The one sanctioned write surface is the staged import workflow under
-`/imports` (see [ADR-0037](../decisions/0037-staged-import-sessions.md)),
-which reuses the existing connector parsers and loaders.
+The sanctioned write surfaces are the staged import workflow under `/imports`
+(see [ADR-0037](../decisions/0037-staged-import-sessions.md)), Enable Banking
+consent and sync under `/connections` (see
+[ADR-0040](../decisions/0040-in-app-enable-banking-consent-flow.md)), and the guarded
+dbt-only refresh trigger under `/meta/refresh`
+(see [ADR-0046](../decisions/0046-scheduled-enable-banking-net-worth-refresh.md)),
+which reuses the scheduled worker's `DbtRunner`, lock, and pending marker
+without touching any bank connection.
+Import commits use that same lock and durable marker, so raw-table writes
+cannot overlap a shadow dbt build.
 
 ## Running it
 
@@ -32,6 +39,7 @@ Database resolution follows the same rules as every other component:
 | `/allocation/current` | Latest-day allocation by `entity`, `currency`, or `kind`         |
 | `/accounts`           | Masked account dimension with latest source-data import timestamp |
 | `/meta/freshness`     | Latest data date and row count per mart, for staleness banners   |
+| `POST /meta/refresh`  | Trigger a guarded dbt-only refresh (shadow build/test + atomic promotion); does not re-sync bank connections |
 
 All series endpoints accept `since`, `until`, `account_id`, `entity_id`,
 `limit`, and `offset`; the default window is one year.
@@ -101,6 +109,30 @@ plus `suggested_by`; the server stamps `accepted_at` when
 empty `mappings` object is a manual clear: it removes all mappings and
 any AI provenance. Mappings live next to the payload and never modify
 it, so commit behavior is unchanged.
+
+## Guarded dbt-only refresh (#285)
+
+`POST /meta/refresh` lets the WebUI pull the next scheduled net-worth refresh
+forward without waiting for the timer and without re-syncing any bank
+connection. It calls the exact same `DbtRunner` used by
+`penge-refresh-net-worth` (ADR-0046), takes the same host-mounted `flock`
+under `PENGE_REFRESH_STATE_DIR`, and persists the same durable `pending`
+marker *before* invoking dbt (mirroring the scheduled worker's own
+write-intent tracking), so a killed process or a dbt failure still leaves a
+pending refresh for the next scheduled run to retry. The response is
+synchronous JSON (`{"status": "succeeded", "completed_at": "<ISO 8601
+timestamp>"}`) because a full `dbt build --target refresh` typically
+finishes in tens of seconds — there is no job queue or polling endpoint. On
+failure the live marts are unchanged and the pending marker is preserved
+(or created moments earlier, if none existed) so the next scheduled run
+retries — a failed manual trigger never leaves the household with less
+retry coverage than not clicking the button at all.
+
+| Status | Meaning                                                              |
+| ------ | --------------------------------------------------------------------- |
+| `200`  | Shadow build, tests, and promotion succeeded; marker cleared on a best-effort basis (a clear failure is logged but does not turn a success into an error) |
+| `503`  | The lock is held by the scheduled worker, a connection sync, or another manual trigger, or the pending marker itself could not be persisted; retry shortly |
+| `502`  | The shadow dbt build or promotion failed; live marts are unchanged and the pending marker is preserved (or created moments earlier, if none existed yet) |
 
 ## Contract
 

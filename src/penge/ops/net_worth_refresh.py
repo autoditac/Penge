@@ -210,7 +210,28 @@ class DbtRunner:
             )
             self._promote_shadow_schemas()
         finally:
+            self._drop_shadow_schemas_best_effort()
+
+    def _drop_shadow_schemas_best_effort(self) -> None:
+        """Best-effort post-run cleanup of the now-unused shadow schema names.
+
+        By the time this runs, ``refresh()`` has already determined its
+        outcome: either a build/promotion failure already raised above, or
+        ``_promote_shadow_schemas`` already committed the rename. A
+        transient failure while dropping the leftover shadow schema names
+        (which ``_promote_shadow_schemas`` renamed away on success, so
+        ``DROP SCHEMA IF EXISTS`` is normally a no-op here) must not
+        override that already-determined outcome with a false failure --
+        doing so would misreport correctly promoted live marts as failed
+        and leave the pending marker set for a redundant rebuild.
+        """
+        try:
             self._drop_shadow_schemas()
+        except Exception as exc:
+            log.error(
+                "dbt_shadow_schema_cleanup_failed code=%s",
+                type(exc).__name__,
+            )
 
     def _run(self, *arguments: str, failure: str) -> None:
         command = [
@@ -282,7 +303,14 @@ class SyncFunction(Protocol):
     ) -> service.SyncOutcome: ...
 
 
-def _mark_refresh_pending(path: Path) -> None:
+def mark_refresh_pending(path: Path) -> None:
+    """Create (or touch) the durable pending-refresh marker at ``path``.
+
+    Any caller that is about to invoke :class:`DbtRunner` and wants the
+    scheduled worker to retry automatically on failure must call this
+    before running dbt, so the marker survives even if the process is
+    killed mid-refresh.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     path.touch(exist_ok=True)
 
@@ -298,7 +326,7 @@ class _WriteTracker:
 
     def prepare(self) -> bool:
         try:
-            _mark_refresh_pending(self.path)
+            mark_refresh_pending(self.path)
         except OSError as exc:
             self._record_error("persist", exc)
             return False
@@ -589,6 +617,7 @@ __all__ = [
     "RefreshSummary",
     "dbt_environment",
     "exclusive_lock",
+    "mark_refresh_pending",
     "refresh_write_intent",
     "run_refresh",
     "sync_connection_with_intent",

@@ -10,9 +10,16 @@ import { ThemeModeContext } from "../src/theme";
 import { buildMuiTheme } from "../src/theme/muiTheme";
 
 const useFreshnessMock = vi.fn();
+const useTriggerMetaRefreshMock = vi.fn();
+const notifyMock = vi.fn();
 
 vi.mock("../src/api/queries", () => ({
   useFreshness: () => useFreshnessMock(),
+  useTriggerMetaRefresh: () => useTriggerMetaRefreshMock(),
+}));
+
+vi.mock("../src/components/Notifications", () => ({
+  useNotify: () => notifyMock,
 }));
 
 const useMediaQueryMock = vi.fn();
@@ -45,10 +52,18 @@ describe("AppShell", () => {
       isError: false,
       data: { marts: [{ latest_as_of: "2024-01-01" }] },
     });
+    useTriggerMetaRefreshMock.mockReturnValue({
+      isPending: false,
+      isSuccess: false,
+      isError: false,
+      mutate: vi.fn(),
+    });
   });
 
   afterEach(() => {
     useFreshnessMock.mockReset();
+    useTriggerMetaRefreshMock.mockReset();
+    notifyMock.mockReset();
     useMediaQueryMock.mockReset();
   });
 

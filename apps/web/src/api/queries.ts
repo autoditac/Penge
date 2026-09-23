@@ -33,6 +33,7 @@ import {
   patchImportRow,
   startConnectionLink,
   syncConnection,
+  triggerMetaRefresh,
   uploadImport,
 } from "./client";
 import type {
@@ -61,6 +62,7 @@ import type {
   ImportSessionList,
   ImportSessionWithRows,
   LinkResponse,
+  MetaRefreshResponse,
   NetWorthSeriesResponse,
   NetWorthTotalSeriesResponse,
   ReturnsSeriesResponse,
@@ -520,6 +522,55 @@ export function useSyncConnection(): UseMutationResult<
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["connections"] });
+    },
+  });
+}
+
+/** Query key prefixes rebuilt by the guarded dbt refresh (issue #285).
+ *
+ * Every mart-backed dashboard view plus `["freshness"]` itself is
+ * invalidated on success so a promoted refresh is reflected immediately,
+ * without needing a manual page reload.
+ */
+const dashboardQueryKeyPrefixes: readonly string[] = [
+  "freshness",
+  "accounts",
+  "allocation",
+  "net-worth-total",
+  "net-worth-by-account",
+  "all-net-worth-by-account",
+  "cashflow-daily",
+  "returns-daily",
+  "returns-summary",
+  "benchmarks",
+  "benchmark-daily",
+  "fees",
+];
+
+/**
+ * Trigger the guarded dbt-only refresh (issue #285, ADR-0046).
+ *
+ * Does not re-sync bank connections and never runs concurrently with a
+ * connection sync or the scheduled worker (shared lock). On success every
+ * mart-derived dashboard query is invalidated so the refreshed data shows up
+ * without a manual reload; a lock conflict or dbt failure rejects instead,
+ * leaving the previously displayed data and the durable pending marker
+ * untouched.
+ */
+export function useTriggerMetaRefresh(): UseMutationResult<MetaRefreshResponse, Error, void> {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      if (demoMode) {
+        const store = await import("../demo/metaRefreshStore");
+        return store.demoMetaRefresh();
+      }
+      return triggerMetaRefresh();
+    },
+    onSuccess: () => {
+      for (const queryKey of dashboardQueryKeyPrefixes) {
+        void queryClient.invalidateQueries({ queryKey: [queryKey] });
+      }
     },
   });
 }

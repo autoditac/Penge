@@ -16,12 +16,18 @@ from typing import TYPE_CHECKING
 import pytest
 from sqlalchemy import text
 
+from penge.api.imports import commit as commit_mod
+from penge.ops.net_worth_refresh import exclusive_lock
 from tests.api.imports.conftest import DB_URL, REPO_ROOT, manual_json, upload
 from tests.ingest.nordnet._fixture_builders import TXN_HEADER, txn_row, write_nordnet_csv
 
 if TYPE_CHECKING:
+    from collections.abc import Callable, Sequence
+
     from fastapi.testclient import TestClient
     from sqlalchemy.engine import Engine
+
+    from penge.api.imports import store
 
 pytestmark = pytest.mark.skipif(
     DB_URL is None,
@@ -98,6 +104,7 @@ def test_nordnet_upload_commit_roundtrip(
     engine: Engine,
     nordnet_csv: Path,
     nordnet_accounts_yaml: Path,
+    tmp_path: Path,
 ) -> None:
     _ = nordnet_accounts_yaml
     created = upload(client, nordnet_csv)
@@ -116,10 +123,67 @@ def test_nordnet_upload_commit_roundtrip(
     assert counts["transactions"] == 2
     assert committed.json()["session"]["status"] == "committed"
     assert committed.json()["session"]["committed_at"] is not None
+    assert (tmp_path / "refresh-state" / "pending").exists()
 
     with engine.connect() as conn:
         n_txns = conn.execute(text('select count(*) from "transaction"')).scalar_one()
     assert n_txns == 2
+
+
+def test_import_commit_returns_503_while_refresh_lock_is_held(
+    client: TestClient,
+    engine: Engine,
+    nordnet_csv: Path,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+) -> None:
+    _ = nordnet_accounts_yaml
+    created = upload(client, nordnet_csv)
+    assert created.status_code == 201
+
+    state_dir = tmp_path / "refresh-state"
+    with exclusive_lock(state_dir / "refresh.lock"):
+        response = client.post(f"/imports/{created.json()['id']}/commit")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "refresh lock is already held"
+    assert not (state_dir / "pending").exists()
+    with engine.connect() as conn:
+        assert conn.execute(text('select count(*) from "transaction"')).scalar_one() == 0
+
+
+def test_import_commit_retains_pending_marker_after_partial_write(
+    client: TestClient,
+    nordnet_csv: Path,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ = nordnet_accounts_yaml
+    created = upload(client, nordnet_csv)
+    assert created.status_code == 201
+
+    def fail_after_write(
+        engine: Engine,
+        session: store.SessionRecord,
+        rows: Sequence[store.RowRecord],
+        *,
+        entity_name: str | None = None,
+        account_name: str | None = None,
+        on_write: Callable[[int], None] | None = None,
+    ) -> commit_mod.CommitCounts:
+        _ = (engine, session, rows, entity_name, account_name)
+        assert on_write is not None
+        on_write(1)
+        raise commit_mod.ImportCommitError("synthetic partial failure")
+
+    monkeypatch.setattr(commit_mod, "commit_session", fail_after_write)
+
+    response = client.post(f"/imports/{created.json()['id']}/commit")
+
+    assert response.status_code == 409
+    assert response.json()["detail"] == "synthetic partial failure"
+    assert (tmp_path / "refresh-state" / "pending").exists()
 
 
 def test_nordnet_reupload_flags_duplicates(
@@ -147,6 +211,7 @@ def test_nordnet_reupload_flags_duplicates(
 def test_nordnet_commit_without_accounts_config_conflicts(
     client: TestClient,
     nordnet_csv: Path,
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("PENGE_NORDNET_ACCOUNTS_CONFIG", raising=False)
@@ -155,6 +220,7 @@ def test_nordnet_commit_without_accounts_config_conflicts(
     response = client.post(f"/imports/{created.json()['id']}/commit")
     assert response.status_code == 409
     assert "PENGE_NORDNET_ACCOUNTS_CONFIG" in response.json()["detail"]
+    assert not (tmp_path / "refresh-state" / "pending").exists()
 
 
 # --------------------------------------------------------------------------- #

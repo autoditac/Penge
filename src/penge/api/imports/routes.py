@@ -1,9 +1,8 @@
 """Route handlers for staged import sessions (issue #207, ADR-0037).
 
-The only write surface in the API. Uploads stream to the gitignored
-import directory with a hard size cap, get parsed into staged rows,
-and nothing touches the raw tables until an explicit commit. Logs
-carry ids and counts — never file contents.
+Uploads stream to the gitignored import directory with a hard size cap,
+get parsed into staged rows, and nothing touches the raw tables until an
+explicit commit. Logs carry ids and counts — never file contents.
 """
 
 from __future__ import annotations
@@ -19,6 +18,7 @@ from typing import TYPE_CHECKING, Annotated, BinaryIO
 from fastapi import APIRouter, Form, HTTPException, Query, UploadFile
 from pydantic import ValidationError
 
+from penge.api.connections.config import ConnectionsConfig
 from penge.api.imports import commit as commit_mod
 from penge.api.imports import config, mcp_bridge, staging, store
 from penge.api.imports.detect import KNOWN_SOURCES, UnsupportedSourceError, detect_source
@@ -37,6 +37,11 @@ from penge.api.imports.models import (
     RowIssue,
     RowPatchRequest,
     SuggestionsResponse,
+)
+from penge.ops.net_worth_refresh import (
+    LockUnavailableError,
+    RefreshStateError,
+    refresh_write_intent,
 )
 
 if TYPE_CHECKING:
@@ -391,7 +396,18 @@ def patch_import_row(
     return _row_out(row)
 
 
-@router.post("/{session_id}/commit", response_model=CommitResponse)
+@router.post(
+    "/{session_id}/commit",
+    response_model=CommitResponse,
+    responses={
+        503: {
+            "description": (
+                "The shared refresh lock is held or durable refresh intent "
+                "cannot be persisted; no untracked import writes are allowed."
+            ),
+        },
+    },
+)
 def commit_import(
     session_id: uuid.UUID,
     request: CommitRequest | None = None,
@@ -403,16 +419,25 @@ def commit_import(
     rows, _ = store.get_rows(engine, session.id)
 
     body = request or CommitRequest()
+    state_dir = ConnectionsConfig.from_env().refresh_state_dir
     try:
-        counts = commit_mod.commit_session(
-            engine,
-            session,
-            rows,
-            entity_name=body.entity_name,
-            account_name=body.account_name,
-        )
-    except commit_mod.ImportCommitError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+        with refresh_write_intent(
+            lock_file=state_dir / "refresh.lock",
+            pending_refresh_file=state_dir / "pending",
+        ) as observe_write:
+            try:
+                counts = commit_mod.commit_session(
+                    engine,
+                    session,
+                    rows,
+                    entity_name=body.entity_name,
+                    account_name=body.account_name,
+                    on_write=observe_write,
+                )
+            except commit_mod.ImportCommitError as exc:
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (LockUnavailableError, RefreshStateError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     committed = store.set_session_status(
         engine, session.id, store.SESSION_STATUS_COMMITTED, committed=True

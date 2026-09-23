@@ -140,6 +140,8 @@ The summary reports eligible/successful/failed connection counts,
 `data_changed`, `dbt_status`, and sanitized per-connection outcomes.
 Manual **Sync now** requests use the same lock and pending marker, so their
 writes are included by the next scheduled dbt refresh.
+Staged import commits also use this guard, preventing a dbt build from reading
+a partially committed multi-row import.
 The WebUI's **Refresh analytics** button (`POST /meta/refresh`) takes the same
 lock and marker but skips Enable Banking entirely — it only rebuilds and
 promotes dbt, so use it to pull a scheduled refresh forward after a manual
@@ -159,8 +161,10 @@ import or connection sync without waiting up to six hours for the timer.
 - `refresh lock is already held` means another manual or timed invocation is
   running; do not delete the lock file, wait for that process.
 - `POST /meta/refresh` returning `503` means the same lock is already held by
-  the scheduled worker, a connection sync, or another manual trigger; the
-  WebUI surfaces this as a notification and the caller should retry shortly.
+  the scheduled worker, a connection sync, an import commit, or another
+  manual trigger, or that the durable pending marker could not be persisted.
+  The WebUI surfaces this as a notification; retry lock contention shortly,
+  but repair ownership or free space for a marker-persistence failure.
   A `502` means the shadow dbt build or promotion failed; the live marts are
   unchanged and the pending marker is preserved — or created moments before
   the failure, if none existed yet — so the state directory is not expected

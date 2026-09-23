@@ -32,9 +32,11 @@ def create_app() -> FastAPI:
             "Read-only JSON API over the Penge analytics marts. "
             "All amounts are reported in EUR and DKK in parallel; "
             "account identifiers are masked server-side. "
-            "The /imports endpoints are the one write surface: staged "
-            "import sessions per ADR-0037. The /connections endpoints add "
-            "the in-app Enable Banking consent flow per ADR-0040 and are "
+            "Write-capable surfaces are limited to staged imports under "
+            "/imports per ADR-0037, Enable Banking consent and sync under "
+            "/connections per ADR-0040, and the guarded dbt-only refresh "
+            "under POST /meta/refresh per ADR-0046. The /connections endpoints "
+            "provide the in-app Enable Banking consent flow and are "
             "only active where the EB signing key is configured. "
             "POST /meta/refresh triggers the guarded dbt-only shadow-build "
             "and atomic-promotion refresh from ADR-0046 without re-syncing "
@@ -44,8 +46,8 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=cors_origins(),
-        # GET for the read surface; POST/PATCH/DELETE only exist under
-        # /imports (staged import sessions, ADR-0037).
+        # GET for the read surface; write methods are limited to the
+        # documented imports, connections, and guarded refresh workflows.
         allow_methods=["GET", "POST", "PATCH", "DELETE"],
         allow_headers=["*"],
     )

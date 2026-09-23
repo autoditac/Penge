@@ -4,13 +4,16 @@ The read API is a small FastAPI application that exposes the analytics marts
 to the [modern WebUI](../web/modern-webui.md) as typed JSON.
 The reporting endpoints are strictly read-only and local-only; see
 [ADR-0035](../decisions/0035-fastapi-read-api.md) for the decision record.
-The one sanctioned write surface is the staged import workflow under
-`/imports` (see [ADR-0037](../decisions/0037-staged-import-sessions.md)),
-which reuses the existing connector parsers and loaders, plus the guarded
+The sanctioned write surfaces are the staged import workflow under `/imports`
+(see [ADR-0037](../decisions/0037-staged-import-sessions.md)), Enable Banking
+consent and sync under `/connections` (see
+[ADR-0040](../decisions/0040-in-app-enable-banking-consent-flow.md)), and the guarded
 dbt-only refresh trigger under `/meta/refresh`
 (see [ADR-0046](../decisions/0046-scheduled-enable-banking-net-worth-refresh.md)),
 which reuses the scheduled worker's `DbtRunner`, lock, and pending marker
 without touching any bank connection.
+Import commits use that same lock and durable marker, so raw-table writes
+cannot overlap a shadow dbt build.
 
 ## Running it
 

@@ -2181,7 +2181,7 @@
     }
   },
   "info": {
-    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. The /imports endpoints are the one write surface: staged import sessions per ADR-0037. The /connections endpoints add the in-app Enable Banking consent flow per ADR-0040 and are only active where the EB signing key is configured. POST /meta/refresh triggers the guarded dbt-only shadow-build and atomic-promotion refresh from ADR-0046 without re-syncing any bank connection.",
+    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. Write-capable surfaces are limited to staged imports under /imports per ADR-0037, Enable Banking consent and sync under /connections per ADR-0040, and the guarded dbt-only refresh under POST /meta/refresh per ADR-0046. The /connections endpoints provide the in-app Enable Banking consent flow and are only active where the EB signing key is configured. POST /meta/refresh triggers the guarded dbt-only shadow-build and atomic-promotion refresh from ADR-0046 without re-syncing any bank connection.",
     "title": "Penge read API",
     "version": "1.0.0"
   },
@@ -2963,6 +2963,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "The shared refresh lock is held or durable refresh intent cannot be persisted; no untracked import writes are allowed."
           }
         },
         "summary": "Commit Import",
@@ -3100,7 +3103,7 @@
     },
     "/meta/refresh": {
       "post": {
-        "description": "Trigger the guarded dbt-only refresh, without re-syncing connections.\n\nReuses the exact shadow-build/test-plus-atomic-promotion path\n(``DbtRunner.refresh``) and the shared advisory lock + durable\npending marker described in ADR-0046, so this route, the manual\nconnection-sync route, and the scheduled worker can never overlap.\nThe pending marker is created *before* ``refresh()`` runs (mirroring\nthe scheduled worker's own write-intent tracking) so that, if this\nprocess is killed or dbt fails, the next scheduled run still sees\na pending refresh and retries automatically; it is cleared only\nonce promotion succeeds.",
+        "description": "Trigger the guarded dbt-only refresh, without re-syncing connections.\n\nReuses the exact shadow-build/test-plus-atomic-promotion path\n(``DbtRunner.refresh``) and the shared advisory lock + durable\npending marker described in ADR-0046, so this route, the manual\nconnection-sync route, import commits, and the scheduled worker can\nnever overlap.\nThe pending marker is created *before* ``refresh()`` runs (mirroring\nthe scheduled worker's own write-intent tracking) so that, if this\nprocess is killed or dbt fails, the next scheduled run still sees\na pending refresh and retries automatically; it is cleared only\nonce promotion succeeds.",
         "operationId": "meta_refresh_meta_refresh_post",
         "responses": {
           "200": {
@@ -3117,7 +3120,7 @@
             "description": "The shadow dbt build, tests, or schema promotion failed. Live marts are unchanged; the pending marker is preserved (or created, if none existed yet) so the next scheduled run retries."
           },
           "503": {
-            "description": "The refresh lock is already held by the scheduled worker, a connection sync, or another manual trigger; retry shortly."
+            "description": "The refresh lock is already held by the scheduled worker, a connection sync, import commit, or another manual trigger, or durable refresh intent could not be persisted."
           }
         },
         "summary": "Meta Refresh"

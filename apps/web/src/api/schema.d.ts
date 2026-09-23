@@ -356,7 +356,8 @@ export interface paths {
      *     Reuses the exact shadow-build/test-plus-atomic-promotion path
      *     (``DbtRunner.refresh``) and the shared advisory lock + durable
      *     pending marker described in ADR-0046, so this route, the manual
-     *     connection-sync route, and the scheduled worker can never overlap.
+     *     connection-sync route, import commits, and the scheduled worker can
+     *     never overlap.
      *     The pending marker is created *before* ``refresh()`` runs (mirroring
      *     the scheduled worker's own write-intent tracking) so that, if this
      *     process is killed or dbt fails, the next scheduled run still sees
@@ -1808,6 +1809,13 @@ export interface operations {
           "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
+      /** @description The shared refresh lock is held or durable refresh intent cannot be persisted; no untracked import writes are allowed. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   patch_import_row_imports__session_id__rows__row_id__patch: {
@@ -1922,7 +1930,7 @@ export interface operations {
         };
         content?: never;
       };
-      /** @description The refresh lock is already held by the scheduled worker, a connection sync, or another manual trigger; retry shortly. */
+      /** @description The refresh lock is already held by the scheduled worker, a connection sync, import commit, or another manual trigger, or durable refresh intent could not be persisted. */
       503: {
         headers: {
           [name: string]: unknown;

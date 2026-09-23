@@ -1,0 +1,53 @@
+# Runner maintenance
+#
+# Operator-facing entry point for the Docker garbage collection described in
+# docs/runbook/runner-maintenance.md. The authoritative schedule is the
+# `penge-docker-gc.timer` systemd unit on the runner host, which keeps working
+# when the runner itself is wedged (a full disk is exactly when Actions jobs
+# stop running). This workflow adds a daily belt-and-braces sweep plus a
+# manual, dry-runnable lever for operators without shell access to the host.
+#
+# All third-party actions are pinned to a full commit SHA, with the
+# human-readable version on a trailing comment.
+
+name: runner-maintenance
+
+on:
+  schedule:
+    # 03:40 UTC, outside the nightly dbt/backup windows.
+    - cron: "40 3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: "Report what would be removed without removing it"
+        type: boolean
+        default: false
+      max-age-hours:
+        description: "Only reclaim resources older than this many hours"
+        type: string
+        default: "2"
+
+permissions:
+  contents: read
+
+# Never cancel an in-flight sweep and never run two at once: concurrent
+# `docker prune` calls race each other into spurious "no such image" errors.
+concurrency:
+  group: runner-maintenance
+  cancel-in-progress: false
+
+jobs:
+  docker-gc:
+    name: Docker garbage collection
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Reclaim stale Buildx builders, images and caches
+        env:
+          MAX_AGE_HOURS: ${{ inputs.max-age-hours || '2' }}
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+        # Every removal in the script is age-bounded well beyond the longest
+        # job timeout (30 min), so this is safe to run while other jobs build.
+        run: |
+          ./deploy/runner/docker-gc.sh --max-age-hours "$MAX_AGE_HOURS" $DRY_RUN

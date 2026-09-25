@@ -2,16 +2,10 @@
  * @vitest-environment jsdom
  */
 import { screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import type { AccountSummary, NetWorthPoint } from "../src/api/schemas";
 import { renderWithTheme } from "./test-utils";
-
-const useMediaQueryMock = vi.fn();
-
-vi.mock("@mui/material/useMediaQuery", () => ({
-  default: () => useMediaQueryMock(),
-}));
 
 const { AccountOverview } = await import("../src/pages/Overview");
 
@@ -63,17 +57,14 @@ const points: readonly NetWorthPoint[] = [
 ];
 
 describe("AccountOverview", () => {
-  afterEach(() => {
-    useMediaQueryMock.mockReset();
-  });
-
-  it("renders balances, optional IBANs, and monthly deltas in the desktop table", () => {
-    useMediaQueryMock.mockReturnValue(true);
+  it("renders balances, optional IBANs, and monthly deltas in a responsive account grid", () => {
     renderWithTheme(<AccountOverview accounts={accounts} points={points} />);
 
-    expect(screen.getByRole("table", { name: "Tracked accounts" })).toBeInTheDocument();
-    expect(screen.queryByRole("columnheader", { name: "Provider" })).not.toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Last updated" })).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Tracked accounts" })).toBeInTheDocument();
+    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.getByText("bank")).toBeInTheDocument();
+    expect(screen.getByText("EUR")).toBeInTheDocument();
     expect(document.querySelector('time[datetime="2026-04-01T08:30:00Z"]')).not.toBeNull();
     expect(screen.getByLabelText("Last data import unavailable")).toBeInTheDocument();
     expect(screen.getByText("••••1234")).toBeInTheDocument();
@@ -82,21 +73,43 @@ describe("AccountOverview", () => {
     expect(screen.getByLabelText("Monthly change unavailable")).toBeInTheDocument();
   });
 
-  it("uses account cards on mobile and omits an inapplicable IBAN row", () => {
-    useMediaQueryMock.mockReturnValue(false);
+  it("keeps compact metadata visible in each account card", () => {
     renderWithTheme(<AccountOverview accounts={accounts} points={points} />);
 
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
-    const articles = screen.getAllByRole("article");
-    expect(articles).toHaveLength(2);
-    expect(within(articles[0]!).getByText(/IBAN ••••1234/)).toBeInTheDocument();
-    expect(within(articles[0]!).getByText(/^Updated /)).toBeInTheDocument();
-    expect(within(articles[1]!).queryByText(/^IBAN /)).not.toBeInTheDocument();
-    expect(within(articles[1]!).getByText(/50.000/)).toBeInTheDocument();
+    const cards = screen.getAllByRole("listitem");
+    expect(cards).toHaveLength(2);
+    expect(within(cards[0]!).getByText("IBAN")).toBeInTheDocument();
+    expect(within(cards[0]!).getByText("••••1234")).toBeInTheDocument();
+    expect(within(cards[0]!).getByText("Freshness")).toBeInTheDocument();
+    expect(within(cards[0]!).getByText(/^Updated /)).toBeInTheDocument();
+    expect(within(cards[1]!).getByLabelText("IBAN not applicable")).toBeInTheDocument();
+    expect(within(cards[1]!).getByText(/50.000/)).toBeInTheDocument();
+  });
+
+  it("emits one-, two-, and three-column responsive grid rules with overflow-safe tracks", () => {
+    // jsdom does not evaluate CSS media queries, so we can't assert the
+    // rendered column count directly. Instead assert on the CSS Emotion/MUI
+    // actually generated: it must contain the three breakpoint rules (xs, sm,
+    // xl) with `minmax(0, 1fr)` tracks so a regression collapsing the grid to
+    // a single fixed-width column (which caused the original horizontal
+    // scroll) or dropping a breakpoint would fail this test.
+    renderWithTheme(<AccountOverview accounts={accounts} points={points} />);
+
+    const css = Array.from(document.querySelectorAll("style"))
+      .map((style) => style.textContent ?? "")
+      .join("\n");
+
+    expect(css).toMatch(/grid-template-columns:1fr/);
+    expect(css).toMatch(
+      /@media \(min-width:600px\)[^{]*\{[^}]*grid-template-columns:repeat\(2, minmax\(0, 1fr\)\)/,
+    );
+    expect(css).toMatch(
+      /@media \(min-width:1536px\)[^{]*\{[^}]*grid-template-columns:repeat\(3, minmax\(0, 1fr\)\)/,
+    );
   });
 
   it("announces negative and unchanged monthly deltas", () => {
-    useMediaQueryMock.mockReturnValue(true);
     const changedAccounts: readonly AccountSummary[] = [
       { ...accounts[0]!, account_id: "negative" },
       { ...accounts[1]!, account_id: "flat" },

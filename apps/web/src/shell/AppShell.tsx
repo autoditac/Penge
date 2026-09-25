@@ -84,7 +84,7 @@ export function AppShell(): React.JSX.Element {
             gap: 2,
             p: { xs: 1.5, sm: 2, md: 3 },
             pb: { xs: 3, md: 6 },
-            maxWidth: "1200px",
+            maxWidth: "1480px",
             width: "100%",
             mx: "auto",
           }}

@@ -87,6 +87,28 @@ describe("AccountOverview", () => {
     expect(within(cards[1]!).getByText(/50.000/)).toBeInTheDocument();
   });
 
+  it("emits one-, two-, and three-column responsive grid rules with overflow-safe tracks", () => {
+    // jsdom does not evaluate CSS media queries, so we can't assert the
+    // rendered column count directly. Instead assert on the CSS Emotion/MUI
+    // actually generated: it must contain the three breakpoint rules (xs, sm,
+    // xl) with `minmax(0, 1fr)` tracks so a regression collapsing the grid to
+    // a single fixed-width column (which caused the original horizontal
+    // scroll) or dropping a breakpoint would fail this test.
+    renderWithTheme(<AccountOverview accounts={accounts} points={points} />);
+
+    const css = Array.from(document.querySelectorAll("style"))
+      .map((style) => style.textContent ?? "")
+      .join("\n");
+
+    expect(css).toMatch(/grid-template-columns:1fr/);
+    expect(css).toMatch(
+      /@media \(min-width:600px\)[^{]*\{[^}]*grid-template-columns:repeat\(2, minmax\(0, 1fr\)\)/,
+    );
+    expect(css).toMatch(
+      /@media \(min-width:1536px\)[^{]*\{[^}]*grid-template-columns:repeat\(3, minmax\(0, 1fr\)\)/,
+    );
+  });
+
   it("announces negative and unchanged monthly deltas", () => {
     const changedAccounts: readonly AccountSummary[] = [
       { ...accounts[0]!, account_id: "negative" },

@@ -517,7 +517,10 @@ function AccountCard({
           m: 0,
           mt: "auto",
           "& dt": {
-            color: "text.disabled",
+            // Informative labels, not disabled controls — use the same
+            // secondary-text token as the surrounding <dl> so they stay
+            // readable in the light theme too (review finding, #292).
+            color: "text.secondary",
             fontWeight: 700,
             letterSpacing: "0.04em",
             textTransform: "uppercase",

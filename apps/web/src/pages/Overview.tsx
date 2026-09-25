@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import useMediaQuery from "@mui/material/useMediaQuery";
-import { useTheme } from "@mui/material/styles";
 
 import {
   useAccounts,
@@ -70,12 +70,16 @@ export function OverviewPage(): React.JSX.Element {
         sx={{
           display: "grid",
           gap: 2,
-          gridTemplateColumns: { xs: "1fr", lg: "1.2fr 1fr" },
+          gridTemplateColumns: { xs: "1fr", lg: "repeat(12, minmax(0, 1fr))" },
           alignItems: "start",
         }}
       >
-        <AllocationSection />
-        <AccountsSection />
+        <Box sx={{ gridColumn: { lg: "span 5" }, minWidth: 0 }}>
+          <AllocationSection />
+        </Box>
+        <Box sx={{ gridColumn: { lg: "span 7" }, minWidth: 0 }}>
+          <AccountsSection />
+        </Box>
       </Box>
     </>
   );
@@ -403,121 +407,145 @@ function DeltaValue({
 }
 
 export function AccountOverview({ accounts, points }: AccountOverviewProps): React.JSX.Element {
-  const theme = useTheme();
-  const desktop = useMediaQuery(theme.breakpoints.up("md"));
   const snapshots = useMemo(() => accountBalanceSnapshots(points), [points]);
 
-  if (desktop) {
-    return (
-      <TableScroll>
-        <table className="dataTable" aria-label="Tracked accounts">
-          <thead>
-            <tr>
-              <th scope="col">Account</th>
-              <th scope="col">Owner</th>
-              <th scope="col">Kind</th>
-              <th scope="col">IBAN</th>
-              <th scope="col">Last updated</th>
-              <th scope="col" className="num">
-                Balance
-              </th>
-              <th scope="col" className="num">
-                1M delta
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {accounts.map((account) => {
-              const snapshot = snapshots.get(account.account_id);
-              return (
-                <tr key={account.account_id}>
-                  <td>{account.name}</td>
-                  <td>{account.entity_name}</td>
-                  <td>{account.kind}</td>
-                  <td className="mono">
-                    {account.iban_masked === "" ? (
-                      <Box component="span" aria-label="IBAN not applicable" color="text.secondary">
-                        —
-                      </Box>
-                    ) : (
-                      account.iban_masked
-                    )}
-                  </td>
-                  <td>
-                    <LastUpdated value={account.last_updated_at} />
-                  </td>
-                  <td
-                    className="num"
-                    title={snapshot ? `Balance as of ${snapshot.asOf}` : undefined}
-                  >
-                    {balanceLabel(snapshot, account.currency)}
-                  </td>
-                  <td className="num">
-                    <DeltaValue snapshot={snapshot} currencyCode={account.currency} />
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </TableScroll>
-    );
-  }
-
   return (
-    <Stack spacing={1.25} sx={{ mt: 1.5 }}>
+    <Box
+      component="section"
+      role="list"
+      aria-label="Tracked accounts"
+      sx={{
+        display: "grid",
+        gap: 1.25,
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "repeat(2, minmax(0, 1fr))",
+          xl: "repeat(3, minmax(0, 1fr))",
+        },
+        mt: 1.5,
+      }}
+    >
       {accounts.map((account) => {
         const snapshot = snapshots.get(account.account_id);
-        return (
-          <Box
-            component="article"
-            key={account.account_id}
+        return <AccountCard key={account.account_id} account={account} snapshot={snapshot} />;
+      })}
+    </Box>
+  );
+}
+
+function AccountCard({
+  account,
+  snapshot,
+}: {
+  readonly account: AccountSummary;
+  readonly snapshot: AccountBalanceSnapshot | undefined;
+}): React.JSX.Element {
+  return (
+    <Paper
+      component="article"
+      role="listitem"
+      variant="outlined"
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.25,
+        minWidth: 0,
+        p: 1.5,
+        borderRadius: 3,
+        bgcolor: "background.default",
+        backgroundImage: (theme) =>
+          `linear-gradient(135deg, color-mix(in srgb, ${theme.palette.primary.main} 7%, transparent), transparent 52%)`,
+        boxShadow: "none",
+      }}
+    >
+      <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between", minWidth: 0 }}>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            component="h3"
+            title={account.name}
             sx={{
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 2.5,
-              bgcolor: "background.default",
-              p: 1.5,
+              fontSize: "0.95rem",
+              fontWeight: 700,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
-            <Stack direction="row" spacing={1.5} sx={{ justifyContent: "space-between" }}>
-              <Box>
-                <Typography component="h3" sx={{ fontSize: "0.95rem", fontWeight: 700 }}>
-                  {account.name}
-                </Typography>
-                <Typography sx={{ color: "text.secondary", fontSize: "0.8rem" }}>
-                  {account.entity_name} · {account.provider} · {account.kind}
-                </Typography>
-              </Box>
-              <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-                <Typography
-                  title={snapshot ? `Balance as of ${snapshot.asOf}` : undefined}
-                  sx={{ fontWeight: 700, fontVariantNumeric: "tabular-nums" }}
-                >
-                  {balanceLabel(snapshot, account.currency)}
-                </Typography>
-                <Typography component="div" sx={{ fontSize: "0.82rem" }}>
-                  <DeltaValue snapshot={snapshot} currencyCode={account.currency} />
-                </Typography>
-              </Box>
-            </Stack>
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{ color: "text.secondary", fontSize: "0.75rem", mt: 1 }}
-            >
-              {account.iban_masked !== "" ? (
-                <Typography className="mono" sx={{ color: "inherit", fontSize: "inherit" }}>
-                  IBAN {account.iban_masked}
-                </Typography>
-              ) : null}
-              <Typography sx={{ color: "inherit", fontSize: "inherit" }}>
-                <LastUpdated value={account.last_updated_at} prefix />
-              </Typography>
-            </Stack>
-          </Box>
-        );
-      })}
-    </Stack>
+            {account.name}
+          </Typography>
+          <Typography
+            title={account.provider}
+            sx={{
+              color: "text.secondary",
+              fontSize: "0.78rem",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {account.provider}
+          </Typography>
+        </Box>
+        <Box sx={{ flexShrink: 0, textAlign: "right" }}>
+          <Typography
+            title={snapshot ? `Balance as of ${snapshot.asOf}` : undefined}
+            sx={{ fontWeight: 800, fontVariantNumeric: "tabular-nums", lineHeight: 1.25 }}
+          >
+            {balanceLabel(snapshot, account.currency)}
+          </Typography>
+          <Typography component="div" sx={{ fontSize: "0.82rem", lineHeight: 1.25 }}>
+            <DeltaValue snapshot={snapshot} currencyCode={account.currency} />
+          </Typography>
+        </Box>
+      </Stack>
+
+      <Stack direction="row" spacing={0.75} useFlexGap sx={{ flexWrap: "wrap" }}>
+        <Chip size="small" label={account.entity_name} variant="outlined" />
+        <Chip size="small" label={account.kind} variant="outlined" />
+        <Chip size="small" label={account.currency} variant="outlined" />
+      </Stack>
+
+      <Box
+        component="dl"
+        sx={{
+          display: "grid",
+          gridTemplateColumns: "auto minmax(0, 1fr)",
+          columnGap: 1,
+          rowGap: 0.45,
+          color: "text.secondary",
+          fontSize: "0.76rem",
+          m: 0,
+          mt: "auto",
+          "& dt": {
+            color: "text.disabled",
+            fontWeight: 700,
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          },
+          "& dd": {
+            m: 0,
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          },
+        }}
+      >
+        <Box component="dt">IBAN</Box>
+        <Box component="dd" className="mono">
+          {account.iban_masked === "" ? (
+            <Box component="span" aria-label="IBAN not applicable">
+              —
+            </Box>
+          ) : (
+            account.iban_masked
+          )}
+        </Box>
+        <Box component="dt">Freshness</Box>
+        <Box component="dd">
+          <LastUpdated value={account.last_updated_at} prefix />
+        </Box>
+      </Box>
+    </Paper>
   );
 }

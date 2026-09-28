@@ -32,8 +32,11 @@ are recorded in ADR-0036.
   timestamp, optional masked IBAN, and absolute change from the latest
   available balance on or before one calendar month earlier. The import
   timestamp is the newest source-row creation time across transactions,
-  holding snapshots, and account documents. Desktop uses a dense table; mobile
-  switches to account cards without empty IBAN rows.
+  holding snapshots, and account documents; re-importing rows that already
+  exist does not advance it. Each account also shows the date its balance
+  last changed (`balance_changed_on`: the latest `mart_net_worth_daily` day
+  whose account-currency balance differs from the previous day). Accounts
+  render as a responsive card grid (one, two, or three columns).
 - **Performance** — dashboard v2 (#204, #206): KPI header (net worth,
   month-over-month delta, liquid share), range-selectable net-worth trend
   (1M/3M/1Y/5Y/all) with drawdown shading and max-drawdown KPI, TWR index

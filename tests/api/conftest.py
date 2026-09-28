@@ -97,6 +97,7 @@ def synthetic_account_rows() -> list[dict[str, object]]:
             "currency": "EUR",
             "iban": "DK5000400440116243",
             "last_updated_at": datetime(2026, 6, 2, 8, 30, tzinfo=UTC),
+            "balance_changed_on": date(2026, 5, 29),
         },
         {
             "account_id": "a2",
@@ -108,6 +109,7 @@ def synthetic_account_rows() -> list[dict[str, object]]:
             "currency": "DKK",
             "iban": None,
             "last_updated_at": datetime(2026, 6, 1, 9, 15, tzinfo=UTC),
+            "balance_changed_on": date(2026, 6, 1),
         },
         {
             "account_id": "a3",
@@ -119,6 +121,7 @@ def synthetic_account_rows() -> list[dict[str, object]]:
             "currency": "DKK",
             "iban": None,
             "last_updated_at": None,
+            "balance_changed_on": None,
         },
     ]
 

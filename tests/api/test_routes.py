@@ -139,6 +139,14 @@ class TestAccounts:
         assert depot["last_updated_at"] == "2026-06-02T08:30:00Z"
         assert manual["last_updated_at"] is None
 
+    def test_balance_changed_on_is_independent_of_import_time(self, client: TestClient) -> None:
+        body = client.get("/accounts").json()
+        depot = next(entry for entry in body if entry["account_id"] == "a1")
+        manual = next(entry for entry in body if entry["account_id"] == "a3")
+        # Imported on 2 June, but the balance last moved on 29 May.
+        assert depot["balance_changed_on"] == "2026-05-29"
+        assert manual["balance_changed_on"] is None
+
 
 class TestFreshness:
     def test_reports_every_served_mart(self, client: TestClient) -> None:

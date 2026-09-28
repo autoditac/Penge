@@ -24,7 +24,7 @@ const isoDateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const accountSummarySchema = z.object({
   account_id: z.string(),
-  balance_changed_on: z.string().nullable(),
+  balance_changed_on: isoDateString.nullable(),
   currency: z.string(),
   entity_id: z.string(),
   entity_name: z.string(),

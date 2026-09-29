@@ -45,7 +45,7 @@ threshold, and the prunes that support it use Docker's `until=` filter. The
 longest job timeout in the repository is 30 minutes (`release.yml`), so a
 resource older than the threshold provably cannot belong to a running job.
 
-Two cases need explicit enumeration rather than a prune:
+Three cases need explicit enumeration rather than a prune:
 
 - **CI images are tagged** (`penge/<app>:ci-<run>-<attempt>`), so
   `docker image prune` — which only removes *dangling* images — would never
@@ -55,6 +55,14 @@ Two cases need explicit enumeration rather than a prune:
   would be unbounded in age and could take an anonymous volume that a
   concurrent job has created but not yet attached, so the sweep enumerates
   dangling `buildx_buildkit_*` volumes and age-checks each one.
+- **Service containers leak one anonymous volume per job.** Every job with a
+  `services:` block starts a fresh `postgres`, which declares
+  `VOLUME /var/lib/postgresql/data`; the volume outlives the container the
+  runner removes. They never expire on their own — 80 of them held ~5 GB on
+  `penge-1`. The sweep enumerates dangling volumes whose name is 64 hex
+  characters, which is Docker's format for an *anonymous* volume. A **named**
+  volume — the only kind that can hold data anyone cares about — is therefore
+  structurally unreachable, regardless of age.
 
 There is no unconditional `docker system prune` anywhere, and non-BuildKit
 containers are never matched.

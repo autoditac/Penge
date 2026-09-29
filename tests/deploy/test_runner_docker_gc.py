@@ -30,6 +30,11 @@ YOUNG_BUILDER = "buildx_buildkit_penge-ci-build-2-1-web0"
 OLD_IMAGE = "penge/api:ci-1-1"
 YOUNG_IMAGE = "penge/web:ci-2-1"
 OLD_VOLUME = "buildx_buildkit_penge-release-9-1-api0_state"
+# Docker names anonymous volumes with 64 hex chars; these are the postgres
+# service-container leftovers from #289.
+OLD_ANON_VOLUME = "a" * 64
+YOUNG_ANON_VOLUME = "b" * 64
+NAMED_VOLUME = "penge-db-data"
 
 
 def _docker_created_at(age: timedelta) -> str:
@@ -64,11 +69,21 @@ def fake_docker(tmp_path: Path) -> tuple[Path, Path]:
         'if [[ "$1" == "images" ]]; then\n'
         f"  cat {images_output}\n"
         "fi\n"
+        # `volume ls` is called twice with different filters: once scoped to
+        # the BuildKit prefix, once for every dangling volume.
         'if [[ "$1" == "volume" && "$2" == "ls" ]]; then\n'
-        f'  printf "{OLD_VOLUME}\\n"\n'
+        '  if [[ "$*" == *"name=buildx_buildkit_"* ]]; then\n'
+        f'    printf "{OLD_VOLUME}\\n"\n'
+        "  else\n"
+        f'    printf "{OLD_ANON_VOLUME}\\n{YOUNG_ANON_VOLUME}\\n{NAMED_VOLUME}\\n"\n'
+        "  fi\n"
         "fi\n"
         'if [[ "$1" == "volume" && "$2" == "inspect" ]]; then\n'
-        f'  printf "{_docker_created_at(timedelta(hours=40))}\\n"\n'
+        f'  if [[ "$*" == *"{YOUNG_ANON_VOLUME}"* ]]; then\n'
+        f'    printf "{_docker_created_at(timedelta(minutes=10))}\\n"\n'
+        "  else\n"
+        f'    printf "{_docker_created_at(timedelta(hours=40))}\\n"\n'
+        "  fi\n"
         "fi\n"
         "exit 0\n"
     )
@@ -268,3 +283,39 @@ def test_keeps_the_state_volume_when_its_container_survives(tmp_path: Path) -> N
     assert result.returncode == 0, result.stderr
     assert f"volume rm --force {OLD_BUILDER}_state" not in _calls(calls)
     assert f"keeping {OLD_BUILDER}_state" in result.stdout
+
+
+def test_removes_orphaned_anonymous_service_container_volumes(
+    fake_docker: tuple[Path, Path],
+) -> None:
+    """Postgres service containers leave an anonymous volume per job (#289)."""
+    bin_dir, log = fake_docker
+
+    result = _run_gc(bin_dir, "--max-age-hours", "2")
+
+    assert result.returncode == 0, result.stderr
+    assert f"volume rm --force {OLD_ANON_VOLUME}" in _calls(log)
+
+
+def test_leaves_recent_anonymous_volumes_alone(
+    fake_docker: tuple[Path, Path],
+) -> None:
+    """A concurrent job may have just created a volume it has not attached."""
+    bin_dir, log = fake_docker
+
+    result = _run_gc(bin_dir, "--max-age-hours", "2")
+
+    assert result.returncode == 0, result.stderr
+    assert f"volume rm --force {YOUNG_ANON_VOLUME}" not in _calls(log)
+
+
+def test_never_removes_named_volumes_however_old(
+    fake_docker: tuple[Path, Path],
+) -> None:
+    """Named volumes can hold real data, so only 64-hex names are eligible."""
+    bin_dir, log = fake_docker
+
+    result = _run_gc(bin_dir, "--max-age-hours", "2")
+
+    assert result.returncode == 0, result.stderr
+    assert NAMED_VOLUME not in log.read_text()

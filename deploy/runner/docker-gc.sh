@@ -227,7 +227,31 @@ for volume in "${dangling_volumes[@]:-}"; do
     run "${DOCKER}" volume rm --force "${volume}" || true
 done
 
-# 5. Per-job `DOCKER_CONFIG` scratch directories from the image jobs.
+# 6. Anonymous volumes orphaned by GitHub Actions *service containers*.
+#    Every job with a `services:` block gets a fresh postgres container, and
+#    `postgres` declares `VOLUME /var/lib/postgresql/data`, so each run leaves
+#    an anonymous volume behind once the runner removes the container. They
+#    accumulate unbounded: ~5 GB across 80 volumes on `penge-1`.
+#
+#    Only 64-hex names are considered. That is Docker's format for an
+#    anonymous volume, so a *named* volume -- the only kind that can hold
+#    data someone cares about, such as a local `penge-db` -- is structurally
+#    unreachable here, no matter its age. The age gate still applies, so a
+#    volume a concurrent job has created but not yet attached is safe.
+mapfile -t stale_anon_volumes < <(
+    "${DOCKER}" volume ls --quiet --filter dangling=true 2>/dev/null | while read -r volume; do
+        [[ "${volume}" =~ ^[0-9a-f]{64}$ ]] || continue
+        created="$("${DOCKER}" volume inspect --format '{{.CreatedAt}}' "${volume}" 2>/dev/null || true)"
+        [[ -n "${created}" ]] && printf '%s\t%s\n' "${volume}" "${created}"
+    done | select_stale volume
+)
+
+for volume in "${stale_anon_volumes[@]:-}"; do
+    [[ -n "${volume}" ]] || continue
+    run "${DOCKER}" volume rm --force "${volume}" || true
+done
+
+# 7. Per-job `DOCKER_CONFIG` scratch directories from the image jobs.
 if [[ "${DRY_RUN}" -eq 1 ]]; then
     log "DRY-RUN would remove /tmp/penge-docker-* older than ${MAX_AGE_HOURS}h"
 else

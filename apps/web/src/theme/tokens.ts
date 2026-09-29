@@ -21,7 +21,9 @@ export type ColorTokens = {
   readonly good: string;
   readonly watch: string;
   readonly critical: string;
-  readonly chart: readonly [string, string, string, string, string];
+  /** Eight distinct categorical hues; the last one is a neutral slate that
+   * doubles as the "Other" bucket colour for grouped chart tails. */
+  readonly chart: readonly [string, string, string, string, string, string, string, string];
 };
 
 /**
@@ -41,7 +43,7 @@ const dark: ColorTokens = {
   good: "#34d399",
   watch: "#f2b155",
   critical: "#f36a80",
-  chart: ["#2dd4bf", "#5b8def", "#f2b155", "#b083f0", "#f36a80"],
+  chart: ["#2dd4bf", "#5b8def", "#f2b155", "#b083f0", "#f36a80", "#9bd46a", "#f08c4a", "#94a3b8"],
 };
 
 const light: ColorTokens = {
@@ -56,7 +58,7 @@ const light: ColorTokens = {
   good: "#0f8f63",
   watch: "#b06a10",
   critical: "#c23b5e",
-  chart: ["#0f9c8d", "#2f6bdb", "#b06a10", "#7c4fd0", "#c23b5e"],
+  chart: ["#0f9c8d", "#2f6bdb", "#b06a10", "#7c4fd0", "#c23b5e", "#4d8a1f", "#c4541a", "#64748b"],
 };
 
 export const paletteTokens: Record<ThemeMode, ColorTokens> = { dark, light };

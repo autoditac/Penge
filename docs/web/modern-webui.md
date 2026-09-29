@@ -27,7 +27,10 @@ are recorded in ADR-0036.
 ## Surfaces
 
 - **Overview** — net-worth trend (365 days, EUR + DKK), current allocation by
-  kind/currency/entity with donut + table, and a tracked-account overview with
+  kind/currency/entity with a slim donut (EUR total in the centre) and a
+  table that doubles as its legend: each category gets its own colour from
+  the 8-colour theme palette, and any categories beyond that are grouped as
+  "Other". The overview also has a tracked-account section with
   each account's latest native-currency balance, latest account-data import
   timestamp, optional masked IBAN, and absolute change from the latest
   available balance on or before one calendar month earlier. The import

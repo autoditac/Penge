@@ -108,6 +108,43 @@ export function allocationData(slices: readonly AllocationSlice[]): AllocationDa
   return data.sort((a, b) => b.value - a.value);
 }
 
+export type ColoredAllocationDatum = AllocationDatum & { readonly color: string };
+
+export const OTHER_ALLOCATION_LABEL = "Other";
+
+/**
+ * Assign each allocation datum a distinct palette colour. When there are
+ * more categories than colours, the smallest ones are summed into a single
+ * "Other" slice that takes the palette's last (neutral) colour, so no two
+ * visible slices ever share a colour. Expects ``data`` sorted descending.
+ */
+export function allocationSlices(
+  data: readonly AllocationDatum[],
+  palette: readonly string[],
+): ColoredAllocationDatum[] {
+  if (palette.length === 0) {
+    throw new Error("allocationSlices needs at least one palette colour.");
+  }
+  const fallback = palette.at(-1) ?? "";
+  const colorAt = (index: number): string => palette[index] ?? fallback;
+  if (data.length <= palette.length) {
+    return data.map((datum, index) => ({ ...datum, color: colorAt(index) }));
+  }
+  const keep = palette.length - 1;
+  const head = data.slice(0, keep).map((datum, index) => ({ ...datum, color: colorAt(index) }));
+  const tail = data.slice(keep);
+  const shares = tail.map((datum) => datum.share);
+  const other: ColoredAllocationDatum = {
+    name: OTHER_ALLOCATION_LABEL,
+    value: tail.reduce((sum, datum) => sum + datum.value, 0),
+    share: shares.every((share) => share !== null)
+      ? shares.reduce<number>((sum, share) => sum + share, 0)
+      : null,
+    color: colorAt(palette.length - 1),
+  };
+  return [...head, other];
+}
+
 export type MonthlyCashflow = {
   readonly month: string;
   readonly inflowEur: number;

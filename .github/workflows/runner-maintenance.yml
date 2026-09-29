@@ -26,6 +26,18 @@ on:
         description: "Only reclaim resources older than this many hours"
         type: string
         default: "2"
+      update-age-hours:
+        description: "Only remove a runner self-update payload idle this long"
+        type: string
+        default: "24"
+      diag-retention-days:
+        description: "Keep runner _diag logs for this many days"
+        type: string
+        default: "7"
+      include-anonymous-volumes:
+        description: "Also sweep leaked anonymous volumes (heuristic, see runbook)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -47,7 +59,21 @@ jobs:
         env:
           MAX_AGE_HOURS: ${{ inputs.max-age-hours || '2' }}
           DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+          ANON_VOLUMES: ${{ inputs.include-anonymous-volumes && '--include-anonymous-volumes' || '' }}
         # Every removal in the script is age-bounded well beyond the longest
         # job timeout (30 min), so this is safe to run while other jobs build.
         run: |
-          ./deploy/runner/docker-gc.sh --max-age-hours "$MAX_AGE_HOURS" $DRY_RUN
+          ./deploy/runner/docker-gc.sh --max-age-hours "$MAX_AGE_HOURS" $DRY_RUN $ANON_VOLUMES
+      - name: Reclaim stale runner workspace leftovers
+        env:
+          UPDATE_AGE_HOURS: ${{ inputs.update-age-hours || '24' }}
+          DIAG_DAYS: ${{ inputs.diag-retention-days || '7' }}
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+        # Docker was only half of the disk exhaustion: the runner's own
+        # `_work/_update` and `_diag` leftovers are the larger half.
+        # Deliberately not `sudo` -- these files belong to the runner user,
+        # and root would let a symlink redirect a removal out of the root.
+        run: |
+          ./deploy/runner/workspace-gc.sh \
+            --update-age-hours "$UPDATE_AGE_HOURS" \
+            --diag-retention-days "$DIAG_DAYS" $DRY_RUN

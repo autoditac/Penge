@@ -35,8 +35,52 @@ recovered only 1.58 GB until the containers themselves were removed.
 | Unique builder names | `ci.yml`, `release.yml` | `penge-<job>-<run_id>-<attempt>-<app>`, so a leak is attributable to a job and teardown never needs a step output. |
 | Per-job teardown | `ci.yml`, `release.yml` | `if: always()` removal of that one builder, its container, its state volume, and the run-scoped `penge/<app>:ci-<run>` image. Scoped by name — never a blanket prune, which would destroy a concurrent matrix job's cache. |
 | BuildKit GC | `buildkitd-config-inline` | Caps a single builder's cache at 2 GB via `maxUsedSpace` (the `keepBytes`/`reservedSpace` field is a *floor*, not a ceiling, and bounds nothing). |
+| Runner workspace sweep | `penge-workspace-gc.timer` | Daily, **unprivileged** (`User=ghrunner`). Reclaims the runner's *own* leftovers: the `_work/_update` self-upgrade payload and `_diag` logs past retention. Docker was only half the problem. |
 | Host sweep | `penge-docker-gc.timer` | Hourly, **independent of GitHub Actions**, reclaims anything older than 2 h. This is the layer that still works when the runner is wedged. |
 | Manual sweep | `runner-maintenance.yml` | Daily belt-and-braces run plus a dry-runnable `workflow_dispatch` lever. |
+
+### Docker is only half of it
+
+A survey taken while CI was failing at **92 % full** found the split below. It
+is worth re-reading before assuming a disk alert is a Docker problem: the root
+filesystem is **19 GB, shared by three runner instances**, and Docker was the
+smaller half.
+
+| Path | Size | Reclaimed by |
+| --- | --- | --- |
+| `/var/lib/ghrunner` | 7.4 GB | `workspace-gc.sh` (partly — see below) |
+| ├ `_work/_update` ×3 | ~2.0 GB | ✅ stale self-upgrade payload, never read again |
+| ├ `_diag` ×3 | ~394 MB | ✅ past the retention window |
+| ├ `_work/_tool` ×3 | ~2.2 GB | ❌ hosted tool cache; deleting it only forces re-downloads |
+| ├ `_work/_temp` ×3 | ~40 KB | ❌ see below |
+| └ `externals.<version>` ×3 | ~1.8 GB | ❌ the live runner runtime |
+| `/var/lib/docker` | 3.7 GB | `docker-gc.sh` |
+| `/var/lib/containerd` | 1.6 GB | ❌ not touched |
+| `/usr` | 2.5 GB | ❌ the OS |
+
+The structural problem is three runners on a 19 GB disk: ~4 GB of the tool
+cache and runner runtime is triplicated by design and cannot be swept. The
+sweeps buy headroom; they do not change that arithmetic. If the host starts
+alerting again with both timers healthy, the answer is a bigger disk, not a
+more aggressive sweep.
+
+#### Why the workspace sweep is narrower than it could be
+
+- **`_update` is gated on the newest mtime anywhere in its tree**, not the
+  directory's own. The runner creates `_update` once and then writes beneath
+  it, so the parent mtime would go stale while an upgrade was still
+  extracting. The threshold is **24 h**, not the job-scale 2 h: an upgrade
+  takes seconds, so nothing is gained by acting sooner.
+- **It runs as `ghrunner`, never root**, and refuses to start as root. It only
+  removes files the runner owns, and as root a symlink planted in the runner
+  tree could redirect a removal outside `--root`. Symlinked runner directories
+  are skipped outright.
+- **`_work/_temp` is not swept.** Not every job on this runner sets
+  `timeout-minutes`, so no age threshold can prove a temp file is orphaned
+  rather than in use by a long job. It holds tens of kilobytes — not worth it.
+- **Retention is converted to minutes.** GNU `find -mtime +7` only matches
+  after *eight* full days, because it rounds age down to whole days; the sweep
+  uses `-mmin` so `--diag-retention-days 7` means seven days.
 
 ### Why age-bounding makes it concurrency-safe
 
@@ -45,7 +89,7 @@ threshold, and the prunes that support it use Docker's `until=` filter. The
 longest job timeout in the repository is 30 minutes (`release.yml`), so a
 resource older than the threshold provably cannot belong to a running job.
 
-Two cases need explicit enumeration rather than a prune:
+Three cases need explicit enumeration rather than a prune:
 
 - **CI images are tagged** (`penge/<app>:ci-<run>-<attempt>`), so
   `docker image prune` — which only removes *dangling* images — would never
@@ -55,6 +99,25 @@ Two cases need explicit enumeration rather than a prune:
   would be unbounded in age and could take an anonymous volume that a
   concurrent job has created but not yet attached, so the sweep enumerates
   dangling `buildx_buildkit_*` volumes and age-checks each one.
+- **Service containers used to leak one anonymous volume per job.** Every job
+  with a `services:` block starts a fresh `postgres`, which declares
+  `VOLUME /var/lib/postgresql/data`; the volume outlived the container the
+  runner removed and never expired on its own — 80 of them held ~5 GB on
+  `gh-runner-ubuntu`.
+
+  This is fixed **at the source**: every `postgres` service now runs with
+  `--tmpfs /var/lib/postgresql/data`, so no volume is created at all (and the
+  test database stays in RAM). Nothing new accumulates.
+
+  For what leaked before that landed, `docker-gc.sh` has an **opt-in**
+  `--include-anonymous-volumes` sweep. It is off by default and the systemd
+  timer never passes it, because unlike every other step it identifies targets
+  by a **heuristic, not by ownership**: a 64-hex name is Docker's *default* for
+  an anonymous volume, not proof that Docker generated it, and any dangling
+  anonymous volume on the host matches — not only a CI one. On a dedicated
+  runner that is a reasonable trade for an operator to make deliberately, after
+  checking `docker volume ls --filter dangling=true`; it is not one to make
+  hourly and unattended. Rehearse with `--dry-run` first.
 
 There is no unconditional `docker system prune` anywhere, and non-BuildKit
 containers are never matched.
@@ -67,17 +130,24 @@ Requires root on the runner VM. Run from a checkout of `main`:
 sudo install -m 0755 deploy/runner/docker-gc.sh /usr/local/bin/penge-docker-gc
 sudo install -m 0644 deploy/runner/penge-docker-gc.service /etc/systemd/system/
 sudo install -m 0644 deploy/runner/penge-docker-gc.timer /etc/systemd/system/
+
+sudo install -m 0755 deploy/runner/workspace-gc.sh /usr/local/bin/penge-workspace-gc
+sudo install -m 0644 deploy/runner/penge-workspace-gc.service /etc/systemd/system/
+sudo install -m 0644 deploy/runner/penge-workspace-gc.timer /etc/systemd/system/
+
 sudo systemctl daemon-reload
-sudo systemctl enable --now penge-docker-gc.timer
+sudo systemctl enable --now penge-docker-gc.timer penge-workspace-gc.timer
 ```
 
 Verify:
 
 ```bash
-systemctl list-timers penge-docker-gc.timer
-sudo /usr/local/bin/penge-docker-gc --dry-run   # report only, removes nothing
-sudo systemctl start penge-docker-gc.service    # one sweep now
-journalctl -u penge-docker-gc.service -n 50
+systemctl list-timers 'penge-*-gc.timer'
+sudo /usr/local/bin/penge-docker-gc --dry-run      # report only, removes nothing
+sudo /usr/local/bin/penge-workspace-gc --dry-run
+sudo systemctl start penge-docker-gc.service       # one sweep now
+sudo systemctl start penge-workspace-gc.service
+journalctl -u penge-docker-gc.service -u penge-workspace-gc.service -n 50
 ```
 
 Re-run the `install` commands after changing the script or units in the repo;
@@ -90,6 +160,7 @@ they are tracked here, not edited in place on the host.
 
    ```bash
    df -h /
+   sudo du -xh --max-depth=2 /var/lib | sort -rh | head -10   # Docker is often not the culprit
    docker ps -a --filter name=buildx_buildkit_ --format '{{.Names}}\t{{.Status}}\t{{.CreatedAt}}'
    docker system df -v | head -40
    ```
@@ -106,6 +177,8 @@ they are tracked here, not edited in place on the host.
    ```bash
    sudo /usr/local/bin/penge-docker-gc --dry-run
    sudo /usr/local/bin/penge-docker-gc
+   sudo /usr/local/bin/penge-workspace-gc --dry-run
+   sudo /usr/local/bin/penge-workspace-gc
    ```
 
    If the disk is so full that Docker itself misbehaves, lower the threshold

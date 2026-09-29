@@ -142,6 +142,30 @@ jobs:
       - name: Lint WebUI
         run: pnpm --filter @penge/web lint
 
+  mcp:
+    name: MCP build, lint, test
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22"
+      - name: Enable corepack & pnpm
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@11.0.9 --activate
+          pnpm --version
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+      - name: Build MCP server
+        run: pnpm --filter @penge/mcp build
+      - name: Test MCP server
+        run: pnpm --filter @penge/mcp test
+      - name: Lint MCP server
+        run: pnpm --filter @penge/mcp lint
+
   container-images:
     name: Container image build (${{ matrix.app }})
     runs-on: [self-hosted, linux, x64, penge]
@@ -371,11 +395,15 @@ jobs:
           POSTGRES_DB: penge
         ports:
           - 5432/tcp
+        # `--tmpfs` over the data dir stops postgres' `VOLUME` directive from
+        # creating an anonymous volume that outlives the job (#289), and keeps
+        # the test database in RAM.
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
@@ -410,11 +438,15 @@ jobs:
           POSTGRES_DB: penge
         ports:
           - 5432/tcp
+        # `--tmpfs` over the data dir stops postgres' `VOLUME` directive from
+        # creating an anonymous volume that outlives the job (#289), and keeps
+        # the test database in RAM.
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0

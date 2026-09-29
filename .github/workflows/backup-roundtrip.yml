@@ -46,8 +46,11 @@ jobs:
           POSTGRES_USER: penge
           POSTGRES_PASSWORD: penge
           POSTGRES_DB: penge
+        # Ephemeral host port, not a fixed `5432:5432`. Three runners share
+        # this host, so a fixed mapping makes two concurrent jobs collide and
+        # the loser fails with "Docker start fail with exit code 1" (#304).
         ports:
-          - 5432:5432
+          - 5432/tcp
         # `--tmpfs` over the data dir stops postgres' `VOLUME` directive from
         # creating an anonymous volume that outlives the job (#289), and keeps
         # the test database in RAM.
@@ -58,7 +61,7 @@ jobs:
           --health-retries 10
           --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     env:
-      DATABASE_URL: postgresql://penge:penge@localhost:5432/penge
+      DATABASE_URL: postgresql://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge
       PENGE_BACKUP_ROOT: ${{ github.workspace }}/_backups
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

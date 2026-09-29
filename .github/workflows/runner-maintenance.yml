@@ -26,6 +26,10 @@ on:
         description: "Only reclaim resources older than this many hours"
         type: string
         default: "2"
+      include-anonymous-volumes:
+        description: "Also sweep leaked anonymous volumes (heuristic, see runbook)"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -47,7 +51,8 @@ jobs:
         env:
           MAX_AGE_HOURS: ${{ inputs.max-age-hours || '2' }}
           DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+          ANON_VOLUMES: ${{ inputs.include-anonymous-volumes && '--include-anonymous-volumes' || '' }}
         # Every removal in the script is age-bounded well beyond the longest
         # job timeout (30 min), so this is safe to run while other jobs build.
         run: |
-          ./deploy/runner/docker-gc.sh --max-age-hours "$MAX_AGE_HOURS" $DRY_RUN
+          ./deploy/runner/docker-gc.sh --max-age-hours "$MAX_AGE_HOURS" $DRY_RUN $ANON_VOLUMES

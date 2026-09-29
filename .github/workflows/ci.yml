@@ -3,6 +3,15 @@
 # All third-party actions are pinned to a full commit SHA, with the human-readable
 # version on a trailing comment. Dependabot keeps both in sync (see
 # `.github/dependabot.yml`).
+#
+# `container-images` builds every Containerfile on every PR and push, but
+# never pushes (`push: false`) -- verification only, safe for forked PRs.
+# `publish-images` re-builds and pushes to GHCR, but only runs on pushes to
+# `main` (never on `pull_request`), so it never runs with a fork's
+# credentials. It waits only on jobs that validate the images' own
+# content (app code, web bundle, migrations, Containerfiles, lint/secret
+# scan) -- not on the separate dbt/docs/backup-roundtrip/mcp-evals
+# workflows, which validate orthogonal subsystems. See ADR-0044.
 
 name: ci
 
@@ -47,8 +56,8 @@ jobs:
     name: Markdown lint
     runs-on: [self-hosted, linux, x64, penge]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: DavidAnson/markdownlint-cli2-action@ded1f9488f68a970bc66ea5619e13e9b52e601cd # v23.2.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: DavidAnson/markdownlint-cli2-action@21c1be1b93ad9ed58fa840aacc3f279cde2a72ff # v24.2.0
         with:
           globs: |
             **/*.md
@@ -59,8 +68,8 @@ jobs:
     name: YAML lint
     runs-on: [self-hosted, linux, x64, penge]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: astral-sh/setup-uv@bd01e18f51369d5a26f1651c3cb451d3417e3bba # v6.3.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version: "0.7.3"
       - name: Run YAML lint
@@ -70,7 +79,7 @@ jobs:
     name: Secret scan (gitleaks)
     runs-on: [self-hosted, linux, x64, penge]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: Install gitleaks
@@ -88,7 +97,7 @@ jobs:
     name: Bootstrap smoke
     runs-on: [self-hosted, linux, x64, penge]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Verify required files
         run: |
           set -euo pipefail
@@ -109,8 +118,8 @@ jobs:
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
       - name: Enable corepack & pnpm
@@ -133,19 +142,70 @@ jobs:
       - name: Lint WebUI
         run: pnpm --filter @penge/web lint
 
+  mcp:
+    name: MCP build, lint, test
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: "22"
+      - name: Enable corepack & pnpm
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@11.0.9 --activate
+          pnpm --version
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+      - name: Build MCP server
+        run: pnpm --filter @penge/mcp build
+      - name: Test MCP server
+        run: pnpm --filter @penge/mcp test
+      - name: Lint MCP server
+        run: pnpm --filter @penge/mcp lint
+
   container-images:
     name: Container image build (${{ matrix.app }})
     runs-on: [self-hosted, linux, x64, penge]
     timeout-minutes: 15
+    env:
+      DOCKER_CONFIG: /tmp/penge-docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
+      # Explicit, unique, Penge-namespaced builder name. Uniqueness keeps
+      # concurrent jobs from sharing (and tearing down) each other's
+      # BuildKit container; the `penge-` prefix makes a builder leaked by an
+      # abnormally terminated job attributable, so the scheduled sweep in
+      # `runner-maintenance.yml` can remove it. See docs/runbook/runner-maintenance.md.
+      BUILDX_BUILDER_NAME: penge-ci-build-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
+      # Run-scoped tag. A shared `:ci` tag is re-pointed by every concurrent
+      # run, so the old image silently becomes an unreferenced layer stack
+      # that nothing ever deletes, and teardown could yank the tag out from
+      # under another run's smoke-test. Scoping the tag per run makes the
+      # image this job's own property, safe to delete unconditionally.
+      CI_IMAGE_TAG: penge/${{ matrix.app }}:ci-${{ github.run_id }}-${{ github.run_attempt }}
     strategy:
       fail-fast: false
       matrix:
         app: [web, api]
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          name: ${{ env.BUILDX_BUILDER_NAME }}
+          buildkitd-config-inline: |
+            [worker.oci]
+              gc = true
+              [[worker.oci.gcpolicy]]
+                all = true
+                # `maxUsedSpace` is the actual ceiling; `keepBytes`/
+                # `reservedSpace` is a floor (space kept from pruning) and
+                # would not bound anything.
+                maxUsedSpace = "2GB"
       - name: Build application image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v6.18.0
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: apps/${{ matrix.app }}/Containerfile
@@ -157,7 +217,7 @@ jobs:
           # Build-only verification: BuildKit's default provenance
           # attestation is wasted work here (nothing is published).
           provenance: false
-          tags: penge/${{ matrix.app }}:ci
+          tags: ${{ env.CI_IMAGE_TAG }}
       - name: Boot smoke-test (api)
         if: matrix.app == 'api'
         # A successful `docker build` does not prove the app can import:
@@ -167,8 +227,159 @@ jobs:
         # without needing a database, so a missing runtime dep fails CI
         # instead of crash-looping in production. Guards #232.
         run: |
-          docker run --rm penge/api:ci \
+          docker run --rm "$CI_IMAGE_TAG" \
             python -c "import penge.api.app; print('api import OK')"
+      - name: Remove Buildx builder and build artefacts
+        # Scoped to this job's own builder and image only -- never a blanket
+        # prune, which would destroy a concurrent job's cache. Keyed on the
+        # env var rather than `steps.buildx.outputs.name` so teardown still
+        # works when the setup step created the builder but failed before
+        # publishing its outputs. Closes #287.
+        if: always()
+        run: |
+          docker buildx rm --force "$BUILDX_BUILDER_NAME" || true
+          # The state volume outlives the container if `buildx rm` could not
+          # reach the builder (e.g. its docker context is already gone).
+          docker rm --force --volumes "buildx_buildkit_${BUILDX_BUILDER_NAME}0" 2>/dev/null || true
+          docker volume rm --force "buildx_buildkit_${BUILDX_BUILDER_NAME}0_state" 2>/dev/null || true
+          docker image rm --force "$CI_IMAGE_TAG" 2>/dev/null || true
+
+  publish-images:
+    name: Publish image (${{ matrix.app }})
+    # Only merges to `main` produce a deployable artifact; PR builds stay
+    # verification-only (see the `container-images` job above), so forked
+    # PRs never gain package-write credentials. See ADR-0044.
+    #
+    # `needs` covers every push-triggered job in this workflow that
+    # validates the *content of the published images*: app/API code
+    # (pytest), the web bundle (web-ui), the migration chain the API
+    # runs on startup (alembic-roundtrip), the Containerfiles themselves
+    # (container-images), plus lint/secret-scan hygiene. `pr-title` is
+    # excluded -- it's PR-only and would report "skipped" (not
+    # "success") on a push, permanently blocking this job.
+    #
+    # dbt.yml, docs.yml, backup-roundtrip.yml, and mcp-evals.yml also run
+    # on this push, as separate workflow files that `needs:` cannot
+    # reference. They are deliberately NOT gated on here: each validates
+    # an orthogonal subsystem (dbt models, the docs site, backup/restore
+    # scripts, MCP tool behaviour) that does not affect whether the
+    # api/web container images are correct, and each already fails its
+    # own workflow (docs' GitHub Pages deploy is itself gated on its
+    # build job) independently of image publishing. See ADR-0044.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - lint-markdown
+      - yaml-lint
+      - gitleaks
+      - bootstrap-smoke
+      - web-ui
+      - container-images
+      - alembic-roundtrip
+      - pytest
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 20
+    # Matrix jobs run concurrently under the same OS user on the runner VM.
+    # Isolate Docker credentials so one job's post-action logout cannot remove
+    # another job's GHCR credentials during provenance upload.
+    env:
+      DOCKER_CONFIG: /tmp/penge-docker-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
+      # See the `container-images` job for why the builder is named
+      # explicitly; `publish` distinguishes it from that job's builder in
+      # the same workflow run.
+      BUILDX_BUILDER_NAME: penge-ci-publish-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.app }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [web, api]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          name: ${{ env.BUILDX_BUILDER_NAME }}
+          # Bound the builder's own cache so a builder that survives an
+          # abnormally terminated job cannot keep growing until the host
+          # sweep reclaims it.
+          buildkitd-config-inline: |
+            [worker.oci]
+              gc = true
+              [[worker.oci.gcpolicy]]
+                all = true
+                # `maxUsedSpace` is the actual ceiling; `keepBytes`/
+                # `reservedSpace` is a floor (space kept from pruning) and
+                # would not bound anything.
+                maxUsedSpace = "2GB"
+
+      - name: Login to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Containerfile
+          push: true
+          sbom: true
+          # Provenance is recorded once, via the explicit
+          # actions/attest-build-provenance step below; BuildKit's
+          # built-in attestation would be a second, divergent record.
+          provenance: false
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:main
+            ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}:${{ github.sha }}
+
+      - name: Re-login to GHCR (attestation push)
+        # actions/attest-build-provenance pushes the attestation as a
+        # separate OCI artifact and does its own registry-credential
+        # lookup; on self-hosted runners the config.json written by the
+        # login step above is not always still readable by the time this
+        # step runs (docker/login-action#822). Logging in again
+        # immediately before the attest step is the documented workaround.
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Prepare attestation credentials
+        env:
+          ATTEST_HOME: ${{ runner.temp }}/attest-home-${{ matrix.app }}
+        run: |
+          mkdir -p "$ATTEST_HOME/.docker"
+          cp "$DOCKER_CONFIG/config.json" "$ATTEST_HOME/.docker/config.json"
+
+      - name: Attest image provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        env:
+          # actions/attest currently reads $HOME/.docker/config.json and does
+          # not honor DOCKER_CONFIG. Keep that HOME isolated per matrix job.
+          HOME: ${{ runner.temp }}/attest-home-${{ matrix.app }}
+        with:
+          subject-name: ghcr.io/${{ github.repository_owner }}/penge/${{ matrix.app }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - name: Remove Buildx builder
+        # Scoped to this job's own builder only -- never a blanket prune,
+        # which would destroy a concurrent job's cache. Keyed on the env var
+        # rather than `steps.buildx.outputs.name` so teardown still works
+        # when the setup step created the builder but failed before
+        # publishing its outputs. Closes #287.
+        if: always()
+        run: |
+          docker buildx rm --force "$BUILDX_BUILDER_NAME" || true
+          docker rm --force --volumes "buildx_buildkit_${BUILDX_BUILDER_NAME}0" 2>/dev/null || true
+          docker volume rm --force "buildx_buildkit_${BUILDX_BUILDER_NAME}0_state" 2>/dev/null || true
 
   alembic-roundtrip:
     name: Alembic round-trip
@@ -184,14 +395,18 @@ jobs:
           POSTGRES_DB: penge
         ports:
           - 5432/tcp
+        # `--tmpfs` over the data dir stops postgres' `VOLUME` directive from
+        # creating an anonymous volume that outlives the job (#289), and keeps
+        # the test database in RAM.
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
       - name: Install db deps
@@ -223,14 +438,18 @@ jobs:
           POSTGRES_DB: penge
         ports:
           - 5432/tcp
+        # `--tmpfs` over the data dir stops postgres' `VOLUME` directive from
+        # creating an anonymous volume that outlives the job (#289), and keeps
+        # the test database in RAM.
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
       - name: Install OCR system deps (tesseract + poppler)

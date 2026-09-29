@@ -9,9 +9,19 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // Keep the charting engine and framework in cacheable vendor chunks.
-        manualChunks: {
-          echarts: ["echarts/core", "echarts/charts", "echarts/components", "echarts/renderers"],
-          react: ["react", "react-dom", "react-router", "@tanstack/react-query"],
+        manualChunks(id) {
+          if (id.includes("node_modules/echarts")) {
+            return "echarts";
+          }
+          if (
+            id.includes("node_modules/react") ||
+            id.includes("node_modules/react-dom") ||
+            id.includes("node_modules/react-router") ||
+            id.includes("node_modules/@tanstack/react-query")
+          ) {
+            return "react";
+          }
+          return undefined;
         },
       },
     },

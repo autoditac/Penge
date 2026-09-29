@@ -19,6 +19,7 @@ from penge.ingest.nordnet.constants import (
     NORDNET_CSV_DELIMITER,
     NORDNET_CSV_ENCODING,
     NORDNET_TXN_TYPE_MAP,
+    TXN_KIND_CASH_INTEREST,
     TXN_KIND_DEPOSIT,
     TXN_KIND_INTERNAL_TRANSFER,
     TXN_KIND_WITHDRAWAL,
@@ -350,6 +351,11 @@ def _resolve_canonical_kind(
         if amount is not None and amount < 0:
             return TXN_KIND_WITHDRAWAL
         return TXN_KIND_DEPOSIT
+    # Any unmapped Nordnet interest type (Danish suffix "RENTE", e.g.
+    # DEPOTRENTE, OVERBELÅNINGSRENTE) is cash interest. The sign of the
+    # amount carries the income/expense direction. See ADR-0042.
+    if nordnet_type.endswith("RENTE"):
+        return TXN_KIND_CASH_INTEREST
     raise ValueError(f"unknown Nordnet Transaktionstype {nordnet_type!r}")
 
 

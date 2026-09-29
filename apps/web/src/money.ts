@@ -29,12 +29,32 @@ const moneyFormats: Record<Currency, Intl.NumberFormat> = {
   }),
 };
 
+const signedMoneyFormats: Record<Currency, Intl.NumberFormat> = {
+  EUR: new Intl.NumberFormat("en-DK", {
+    style: "currency",
+    currency: "EUR",
+    maximumFractionDigits: 0,
+    signDisplay: "always",
+  }),
+  DKK: new Intl.NumberFormat("en-DK", {
+    style: "currency",
+    currency: "DKK",
+    maximumFractionDigits: 0,
+    signDisplay: "always",
+  }),
+};
+
 /** Format a numeric amount with its currency symbol, no fraction digits. */
 export function formatMoney(value: number | null, currency: Currency): string {
   if (value === null) {
     return "—";
   }
   return moneyFormats[currency].format(value);
+}
+
+/** Format a signed change with its currency symbol and an explicit plus sign. */
+export function formatSignedMoney(value: number, currency: Currency): string {
+  return signedMoneyFormats[currency].format(value);
 }
 
 /** Compact axis-label form, e.g. 1234567 → "1.2M". */

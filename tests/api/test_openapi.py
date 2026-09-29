@@ -17,6 +17,7 @@ class TestOpenApiSchema:
             "/allocation/current",
             "/accounts",
             "/meta/freshness",
+            "/meta/refresh",
             "/returns/daily",
             "/returns/summary",
             "/returns/fees",

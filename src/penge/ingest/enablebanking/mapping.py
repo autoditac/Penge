@@ -108,11 +108,30 @@ def transaction_to_row(
 
 def balance_to_market_value(
     balances: BalancesResponse,
+    *,
+    fallback_date: date | None = None,
 ) -> tuple[Decimal, date] | None:
     """Pick the most authoritative booked balance, if any.
 
-    Returns ``(amount, reference_date)`` or ``None`` when no usable
+    Returns ``(amount, valuation_date)`` or ``None`` when no usable
     booked balance is present.
+
+    The valuation date is the balance's ``reference_date`` (or the date
+    part of ``last_change_date_time`` when only that is present). Several
+    ASPSPs reachable through Enable Banking — GLS, Evangelische Bank and
+    Lunar among them — return booked balances with *neither* field set.
+    The ``/balances`` endpoint always reports the account's *current*
+    balance, so when ``fallback_date`` is supplied it is used as the
+    valuation date for such dateless balances (callers pass today's date;
+    see the loader). When ``fallback_date`` is ``None`` the historical
+    behaviour is preserved and a dateless balance yields ``None`` rather
+    than a synthesised date.
+
+    Args:
+        balances: The parsed ``/balances`` response.
+        fallback_date: Valuation date to stamp on a booked balance that
+            carries no reference date of its own. ``None`` disables the
+            fallback (dateless balances are dropped).
     """
     by_type: dict[str, tuple[Decimal, date | None]] = {}
     for b in balances.balances:
@@ -127,9 +146,12 @@ def balance_to_market_value(
         if preferred in by_type:
             amount, ref = by_type[preferred]
             if ref is None:
-                # No stable valuation date in the payload — refuse to
-                # synthesise one from wall-clock time, since that would
-                # break idempotency across days.
-                return None
+                # No stable valuation date in the payload. The balances
+                # endpoint returns the current balance, so fall back to
+                # the caller-supplied valuation date (today) when given;
+                # otherwise refuse to synthesise one.
+                if fallback_date is None:
+                    return None
+                return amount, fallback_date
             return amount, ref
     return None

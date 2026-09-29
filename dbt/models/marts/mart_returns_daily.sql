@@ -14,7 +14,14 @@
 --      rate, forward-filled, account currency -> EUR -> DKK.
 --   3. Daily factor with start-of-day flows:
 --      factor = end_mv / (begin_mv + net_flow), NULL when the
---      denominator is <= 0 (no capital at risk that day).
+--      denominator is <= 0 (no capital at risk that day) OR when
+--      end_mv is <= 0 (no capital remained at day-end -- e.g. a fully
+--      liquidated position, or a cash account's synthetic instrument
+--      going negative on an overdraft; see issue #282). Guarding only
+--      the denominator let a positive-denominator, non-positive-end_mv
+--      day produce a zero or negative "growth factor", which is not a
+--      meaningful multiplicative return and tripped
+--      `mart_returns_daily__factor_positive`.
 --
 -- External flows per scope:
 --   - account:   deposit, withdrawal, internal_transfer (as recorded).
@@ -258,13 +265,13 @@ select
     end_mv_dkk::numeric(20, 4) as end_mv_dkk,
     net_flow_dkk::numeric(20, 4) as net_flow_dkk,
     case
-        when (begin_mv_eur + net_flow_eur) > 0
+        when (begin_mv_eur + net_flow_eur) > 0 and end_mv_eur > 0
             then
                 (end_mv_eur / (begin_mv_eur + net_flow_eur))
                 ::numeric(20, 10)
     end as return_factor_eur,
     case
-        when (begin_mv_dkk + net_flow_dkk) > 0
+        when (begin_mv_dkk + net_flow_dkk) > 0 and end_mv_dkk > 0
             then
                 (end_mv_dkk / (begin_mv_dkk + net_flow_dkk))
                 ::numeric(20, 10)

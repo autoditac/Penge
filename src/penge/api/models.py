@@ -11,9 +11,10 @@ the generated TypeScript client converts explicitly at the edge.
 
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -138,10 +139,15 @@ class AllocationResponse(_FrozenModel):
 
 
 class AccountSummary(_FrozenModel):
-    """Account dimension row with identifiers masked server-side.
+    """Account dimension row with identifiers masked server-side and import freshness.
 
     ``iban_masked`` keeps only the last four characters
     (``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.
+    ``last_updated_at`` is the newest creation timestamp among transaction,
+    holding-snapshot, and document rows associated with the account.
+    ``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``
+    on which the account-currency balance differed from the previous day
+    (or its first observed day); ``None`` when the account has no balances.
     """
 
     account_id: str
@@ -152,6 +158,8 @@ class AccountSummary(_FrozenModel):
     kind: str
     currency: str
     iban_masked: str
+    last_updated_at: datetime | None
+    balance_changed_on: date | None
 
 
 class MartFreshness(_FrozenModel):
@@ -166,6 +174,19 @@ class FreshnessResponse(_FrozenModel):
     """Freshness metadata for every mart the API serves."""
 
     marts: list[MartFreshness]
+
+
+class MetaRefreshResponse(_FrozenModel):
+    """Concise, machine-readable outcome of a WebUI-triggered dbt refresh.
+
+    Only the success path returns this model (issue #285); lock
+    contention and dbt failures are mapped to explicit HTTP error
+    responses instead, so a 200 always means the guarded shadow-build
+    and atomic promotion (ADR-0046) completed.
+    """
+
+    status: Literal["succeeded"]
+    completed_at: datetime
 
 
 class ReturnsPoint(_FrozenModel):

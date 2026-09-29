@@ -1,0 +1,13 @@
+# Run four times daily, spread slightly to avoid synchronized host work.
+
+[Unit]
+Description=Schedule Penge Enable Banking and net-worth refresh
+
+[Timer]
+OnCalendar=*-*-* 02,08,14,20:17:00
+RandomizedDelaySec=15min
+Persistent=true
+Unit=penge-net-worth-refresh.service
+
+[Install]
+WantedBy=timers.target

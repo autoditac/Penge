@@ -1,0 +1,13 @@
+# Runs the scheduled worker inside the health-gated API container so it always
+# uses the exact image digest approved by penge-api.service auto-update.
+
+[Unit]
+Description=Penge Enable Banking sync and net-worth refresh
+After=network-online.target penge-db.service penge-api.service
+Wants=network-online.target
+Requires=penge-db.service penge-api.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec penge-api penge-refresh-net-worth --lock-file /var/lib/penge-refresh/refresh.lock --pending-refresh-file /var/lib/penge-refresh/pending --dbt-project-dir /app/dbt --dbt-profiles-dir /app/dbt
+TimeoutStartSec=30min

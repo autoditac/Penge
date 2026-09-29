@@ -74,6 +74,7 @@ def client(
     assert DB_URL is not None
     monkeypatch.setenv("DATABASE_URL", DB_URL)
     monkeypatch.setenv("PENGE_IMPORT_DIR", str(tmp_path / "imports"))
+    monkeypatch.setenv("PENGE_REFRESH_STATE_DIR", str(tmp_path / "refresh-state"))
     get_import_engine.cache_clear()
     with TestClient(create_app()) as test_client:
         yield test_client

@@ -4,6 +4,7 @@ import {
   formatCompact,
   formatMoney,
   formatShare,
+  formatSignedMoney,
   isoDate,
   isoDaysAgo,
   parseDecimal,
@@ -33,6 +34,21 @@ describe("formatMoney", () => {
     expect(formatMoney(1_234_567, "DKK")).toContain("kr");
     expect(formatMoney(1_234_567, "EUR")).toMatch(/1.234.567/);
     expect(formatMoney(1_234_567, "EUR")).toContain("€");
+  });
+
+  describe("formatSignedMoney", () => {
+    it("shows explicit signs for positive, negative, and zero changes", () => {
+      const positive = formatSignedMoney(1250, "EUR");
+      const negative = formatSignedMoney(-1250, "DKK");
+      const zero = formatSignedMoney(0, "EUR");
+
+      expect(positive).toMatch(/^\+/);
+      expect(positive.replace(/\D/g, "")).toBe("1250");
+      expect(negative).toMatch(/^-/);
+      expect(negative.replace(/\D/g, "")).toBe("1250");
+      expect(zero).toMatch(/^\+/);
+      expect(zero.replace(/\D/g, "")).toBe("0");
+    });
   });
 
   it("renders a placeholder for null", () => {

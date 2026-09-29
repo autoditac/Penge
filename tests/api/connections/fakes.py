@@ -56,6 +56,19 @@ class FakeClient:
         # share the same entry_reference, to exercise the upsert dedup path.
         self.duplicate_entry_reference: bool = False
         self.authorize_calls: int = 0
+        # When set, get_account_transactions raises WRONG_TRANSACTIONS_PERIOD
+        # for any date_from older than this many days, mimicking an ASPSP that
+        # only serves a limited history on unattended repeat access.
+        self.max_history_days: int | None = None
+        # Records the date_from (ISO string) of each transactions call so
+        # tests can assert which windows were attempted.
+        self.transaction_windows: list[str | None] = []
+        # When True, get_account_balances returns a booked balance with no
+        # reference_date (and no last_change_date_time), mimicking GLS/EB/Lunar
+        # via Enable Banking. The loader must still persist a snapshot, stamped
+        # with today's date.
+        self.balance_without_reference_date: bool = False
+        self.fail_transactions_for_uid: str | None = None
 
     # -- context manager ------------------------------------------------ #
     def __enter__(self) -> FakeClient:
@@ -123,6 +136,25 @@ class FakeClient:
         transaction_status: str = "BOOK",
         strategy: str | None = None,
     ) -> TransactionsResponse:
+        self.transaction_windows.append(date_from)
+        if account_uid == self.fail_transactions_for_uid:
+            raise EnableBankingError(
+                502,
+                {
+                    "error": "SYNTHETIC_ACCOUNT_FAILURE",
+                    "message": "Synthetic second account failure",
+                },
+            )
+        if self.max_history_days is not None and date_from is not None:
+            oldest_allowed = datetime.now(UTC).date() - timedelta(days=self.max_history_days)
+            if date.fromisoformat(date_from) < oldest_allowed:
+                raise EnableBankingError(
+                    400,
+                    {
+                        "error": "WRONG_TRANSACTIONS_PERIOD",
+                        "message": "Wrong transactions period requested",
+                    },
+                )
         txns = [
             Transaction(
                 entry_reference=f"{account_uid}-tx-1",
@@ -158,7 +190,9 @@ class FakeClient:
                     name="closing",
                     balance_amount=Amount(amount=Decimal("100.00"), currency="EUR"),
                     balance_type="CLBD",
-                    reference_date=date(2026, 1, 2),
+                    reference_date=None
+                    if self.balance_without_reference_date
+                    else date(2026, 1, 2),
                 )
             ]
         )

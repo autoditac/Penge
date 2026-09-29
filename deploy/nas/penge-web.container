@@ -1,0 +1,28 @@
+# Tracked source of truth for /etc/containers/systemd/penge-web.container
+# on the NAS (penge.eigmueller.de). See docs/decisions/0044 and
+# docs/runbook/nas-deploy.md.
+
+[Unit]
+Description=Penge WebUI
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=ghcr.io/autoditac/penge/web:main
+AutoUpdate=registry
+ContainerName=penge-web
+SecurityLabelDisable=true
+PublishPort=127.0.0.1:8082:8080
+HealthCmd=wget -q --spider http://127.0.0.1:8080/
+HealthInterval=30s
+HealthRetries=3
+HealthStartPeriod=10s
+Notify=healthy
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+ExecStartPost=/bin/sh -c 'set -e; image_id=$(podman inspect penge-web --format "{{.Image}}"); [ -n "$image_id" ]; digest=$(podman image inspect "$image_id" --format "{{.Digest}}"); [ -n "$digest" ]; echo "penge-web deploy: $(date -Iseconds) digest=$digest"'
+
+[Install]
+WantedBy=multi-user.target default.target

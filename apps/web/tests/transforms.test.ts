@@ -7,7 +7,9 @@ import type {
   NetWorthTotalPoint,
 } from "../src/api/schemas";
 import {
+  accountBalanceSnapshots,
   allocationData,
+  allocationSlices,
   allocationDrift,
   drawdownSeries,
   kindWeightHistory,
@@ -62,6 +64,43 @@ describe("allocationData", () => {
     ]);
     expect(data.map((datum) => datum.name)).toEqual(["pension", "checking"]);
     expect(data[0]?.share).toBeCloseTo(0.8);
+  });
+});
+
+describe("allocationSlices", () => {
+  const palette = ["c1", "c2", "c3", "c4"];
+  const datum = (name: string, value: number, share: number | null = value / 100) => ({
+    name,
+    value,
+    share,
+  });
+
+  it("gives every category a distinct colour when they fit the palette", () => {
+    const slices = allocationSlices([datum("a", 50), datum("b", 30), datum("c", 20)], palette);
+    expect(slices.map((slice) => slice.color)).toEqual(["c1", "c2", "c3"]);
+  });
+
+  it("groups the tail into Other with the last palette colour", () => {
+    const slices = allocationSlices(
+      [datum("a", 40), datum("b", 30), datum("c", 15), datum("d", 10), datum("e", 5)],
+      palette,
+    );
+    expect(slices.map((slice) => slice.name)).toEqual(["a", "b", "c", "Other"]);
+    expect(slices.map((slice) => slice.color)).toEqual(["c1", "c2", "c3", "c4"]);
+    expect(slices[3]?.value).toBe(15);
+    expect(slices[3]?.share).toBeCloseTo(0.15);
+  });
+
+  it("reports an unknown Other share when any grouped share is missing", () => {
+    const slices = allocationSlices(
+      [datum("a", 40), datum("b", 30), datum("c", 15), datum("d", 10), datum("e", 5, null)],
+      palette,
+    );
+    expect(slices[3]?.share).toBeNull();
+  });
+
+  it("rejects an empty palette", () => {
+    expect(() => allocationSlices([datum("a", 1)], [])).toThrow();
   });
 });
 
@@ -138,6 +177,8 @@ const drillAccounts: AccountSummary[] = [
     entity_name: "Person A",
     iban_masked: "****1",
     kind: "checking",
+    last_updated_at: "2026-01-03T08:00:00Z",
+    balance_changed_on: "2026-01-02",
     name: "Giro",
     provider: "gls",
   },
@@ -148,6 +189,8 @@ const drillAccounts: AccountSummary[] = [
     entity_name: "Person B",
     iban_masked: "****2",
     kind: "investment",
+    last_updated_at: "2026-01-03T09:00:00Z",
+    balance_changed_on: "2026-01-02",
     name: "Depot",
     provider: "nordnet",
   },
@@ -172,6 +215,43 @@ const drillPoints: NetWorthPoint[] = [
   netWorthPoint("a2", "2026-01-02", "290.0"),
   netWorthPoint("a2", "2026-01-03", null),
 ];
+
+describe("accountBalanceSnapshots", () => {
+  it("uses the latest observation and the last balance on or before one month earlier", () => {
+    const snapshots = accountBalanceSnapshots([
+      netWorthPoint("a1", "2026-02-26", "95.0"),
+      netWorthPoint("a1", "2026-02-27", "100.0"),
+      { ...netWorthPoint("a1", "2026-02-28", null), balance_acct_ccy: "" },
+      netWorthPoint("a1", "2026-03-01", "110.0"),
+      netWorthPoint("a1", "2026-03-31", "150.0"),
+      { ...netWorthPoint("a1", "2026-04-01", null), balance_acct_ccy: "" },
+    ]);
+
+    expect(snapshots.get("a1")).toEqual({
+      accountId: "a1",
+      asOf: "2026-03-31",
+      balance: 150,
+      comparisonAsOf: "2026-02-27",
+      monthDelta: 50,
+    });
+  });
+
+  it("clamps month-end dates and returns null when no baseline exists", () => {
+    const clamped = accountBalanceSnapshots([
+      netWorthPoint("a1", "2026-02-28", "90.0"),
+      netWorthPoint("a1", "2026-03-31", "100.0"),
+    ]);
+    expect(clamped.get("a1")?.monthDelta).toBe(10);
+    expect(clamped.get("a1")?.comparisonAsOf).toBe("2026-02-28");
+
+    const unavailable = accountBalanceSnapshots([
+      netWorthPoint("a2", "2026-03-15", "200.0"),
+      netWorthPoint("a2", "2026-03-31", "220.0"),
+    ]);
+    expect(unavailable.get("a2")?.monthDelta).toBeNull();
+    expect(unavailable.get("a2")?.comparisonAsOf).toBeNull();
+  });
+});
 
 describe("perAccountSeries / perKindSeries", () => {
   it("builds one labelled EUR series per account, sorted by label", () => {

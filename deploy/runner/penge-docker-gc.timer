@@ -1,0 +1,16 @@
+# Hourly sweep with a 2h age threshold: a leaked builder is reclaimed within
+# ~1h of crossing the threshold, while anything a running job could own (max
+# job timeout: 30min) stays well inside it.
+
+[Unit]
+Description=Schedule Penge self-hosted runner Docker garbage collection
+
+[Timer]
+OnCalendar=hourly
+RandomizedDelaySec=5min
+# Catch up after a host reboot -- reboots are one of the ways builders leak.
+Persistent=true
+Unit=penge-docker-gc.service
+
+[Install]
+WantedBy=timers.target

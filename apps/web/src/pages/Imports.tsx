@@ -8,6 +8,8 @@
 
 import { useReducer, useState } from "react";
 import { Link } from "react-router";
+import Button from "@mui/material/Button";
+import Box from "@mui/material/Box";
 
 import {
   useCommitImport,
@@ -19,7 +21,16 @@ import {
   useUploadImport,
 } from "../api/queries";
 import type { ImportRow, ImportSessionWithRows, MappingSuggestion } from "../api/schemas";
-import { ErrorState, LoadingState } from "../components/primitives";
+import { useNotify } from "../components/Notifications";
+import {
+  ErrorState,
+  LoadingState,
+  PageHeader,
+  Panel,
+  Pill,
+  TableScroll,
+} from "../components/primitives";
+import type { Tone } from "../components/primitives";
 import { PengeApiError } from "../errors";
 import { initialWizardState, wizardReducer } from "../imports/machine";
 import type { WizardEvent, WizardState } from "../imports/machine";
@@ -49,13 +60,10 @@ export function ImportsPage(): React.JSX.Element {
 
   return (
     <>
-      <section className="pageIntro">
-        <h1>Imports</h1>
-        <p>
-          Upload a statement export, review every staged row, fix or exclude what does not belong,
-          and only then commit. Nothing is written to the warehouse before the confirm step.
-        </p>
-      </section>
+      <PageHeader
+        title="Imports"
+        description="Upload a statement export, review every staged row, fix or exclude what does not belong, and only then commit. Nothing is written to the warehouse before the confirm step."
+      />
       <WizardSteps state={wizard} />
       {wizard.step === "upload" && <UploadPanel state={wizard} dispatch={dispatch} />}
       {wizard.step === "review" && (
@@ -149,14 +157,11 @@ function UploadPanel({ state, dispatch }: StepProps): React.JSX.Element {
   };
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Step 1</p>
-          <h2>Upload a statement export</h2>
-        </div>
-        <span className="pill">staged, not written</span>
-      </div>
+    <Panel
+      eyebrow="Step 1"
+      title="Upload a statement export"
+      actions={<Pill>staged, not written</Pill>}
+    >
       <div className="wizardControls">
         <label className="fieldLabel" htmlFor="import-source">
           Source (auto-detected when left blank)
@@ -218,7 +223,7 @@ function UploadPanel({ state, dispatch }: StepProps): React.JSX.Element {
           <p className="stateDetail">{state.error}</p>
         </div>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -234,22 +239,23 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
   const discard = useDiscardImport();
   const suggest = useImportSuggestions();
   const bulkPatch = usePatchImportRow();
+  const notify = useNotify();
   const [entityName, setEntityName] = useState("");
   const [dismissed, setDismissed] = useState<ReadonlySet<string>>(new Set());
   const [threshold, setThreshold] = useState(0.8);
 
   if (sessionQuery.isPending) {
     return (
-      <section className="panel">
+      <Panel title="Staged session">
         <LoadingState label="staged session" />
-      </section>
+      </Panel>
     );
   }
   if (sessionQuery.isError) {
     return (
-      <section className="panel">
+      <Panel title="Staged session">
         <ErrorState label="staged session" error={sessionQuery.error} />
-      </section>
+      </Panel>
     );
   }
 
@@ -305,9 +311,14 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
       {
         onSuccess: (response) => {
           dispatch({ type: "COMMIT_SUCCEEDED", counts: response.counts });
+          notify(
+            `Committed ${String(response.counts.transactions)} transactions and ${String(response.counts.holding_snapshots)} holding snapshots.`,
+            "success",
+          );
         },
         onError: (error) => {
           dispatch({ type: "COMMIT_FAILED", message: error.message });
+          notify(error.message, "error");
         },
       },
     );
@@ -317,24 +328,27 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
     discard.mutate(sessionId, {
       onSuccess: () => {
         dispatch({ type: "DISCARD_SUCCEEDED" });
+        notify("Import session discarded.", "info");
       },
       onError: (error) => {
         dispatch({ type: "COMMIT_FAILED", message: error.message });
+        notify(error.message, "error");
       },
     });
   };
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Step 2 · {sourceLabel(session.source)}</p>
-          <h2>{session.original_filename}</h2>
-        </div>
-        <span className="pill mono" title={session.content_sha256}>
-          sha256 {shortSha(session.content_sha256)}
-        </span>
-      </div>
+    <Panel
+      eyebrow={`Step 2 · ${sourceLabel(session.source)}`}
+      title={session.original_filename}
+      actions={
+        <Pill>
+          <span className="mono" title={session.content_sha256}>
+            sha256 {shortSha(session.content_sha256)}
+          </span>
+        </Pill>
+      }
+    >
       <RowCountsBar session={session} />
       {session.status === "staged" && (
         <div className="suggestionControls">
@@ -404,7 +418,7 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
           <p className="stateDetail">{state.error}</p>
         </div>
       )}
-      <div className="wizardActions">
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.25, alignItems: "flex-end", mt: 2 }}>
         {needsEntityName && (
           <label className="fieldLabel" htmlFor="commit-entity">
             Entity name
@@ -419,34 +433,34 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
             />
           </label>
         )}
-        <button
-          type="button"
-          className="buttonPrimary"
+        <Button
+          variant="contained"
           onClick={onCommit}
           disabled={busy || !committable}
+          sx={{ minHeight: 44 }}
         >
           {committing
             ? "Committing…"
             : `Commit ${String(session.row_counts.total - session.row_counts.excluded)} rows`}
-        </button>
-        <button type="button" className="buttonGhost" onClick={onDiscard} disabled={busy}>
+        </Button>
+        <Button variant="outlined" onClick={onDiscard} disabled={busy} sx={{ minHeight: 44 }}>
           {discarding ? "Discarding…" : "Discard session"}
-        </button>
-        <button
-          type="button"
-          className="buttonGhost"
+        </Button>
+        <Button
+          variant="text"
           onClick={() => {
             dispatch({ type: "RESET" });
           }}
           disabled={busy}
+          sx={{ minHeight: 44 }}
         >
           Back to upload
-        </button>
-      </div>
+        </Button>
+      </Box>
       {!canCommit(session.rows) && (
         <p className="supporting">Fix or exclude the error rows before committing.</p>
       )}
-    </section>
+    </Panel>
   );
 }
 
@@ -478,34 +492,36 @@ function RowsTable({
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
 
   return (
-    <table className="dataTable">
-      <thead>
-        <tr>
-          <th scope="col">#</th>
-          <th scope="col">Kind</th>
-          <th scope="col">Status</th>
-          <th scope="col">Summary</th>
-          <th scope="col">Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {session.rows.map((row) => (
-          <RowEntry
-            key={row.id}
-            sessionId={session.id}
-            row={row}
-            sessionStaged={session.status === "staged"}
-            editing={editingRowId === row.id}
-            onEditToggle={(open) => {
-              setEditingRowId(open ? row.id : null);
-            }}
-            suggestions={suggestionsByRow.get(row.id) ?? []}
-            onAcceptSuggestions={onAcceptSuggestions}
-            onRejectSuggestion={onRejectSuggestion}
-          />
-        ))}
-      </tbody>
-    </table>
+    <TableScroll>
+      <table className="dataTable">
+        <thead>
+          <tr>
+            <th scope="col">#</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Status</th>
+            <th scope="col">Summary</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {session.rows.map((row) => (
+            <RowEntry
+              key={row.id}
+              sessionId={session.id}
+              row={row}
+              sessionStaged={session.status === "staged"}
+              editing={editingRowId === row.id}
+              onEditToggle={(open) => {
+                setEditingRowId(open ? row.id : null);
+              }}
+              suggestions={suggestionsByRow.get(row.id) ?? []}
+              onAcceptSuggestions={onAcceptSuggestions}
+              onRejectSuggestion={onRejectSuggestion}
+            />
+          ))}
+        </tbody>
+      </table>
+    </TableScroll>
   );
 }
 
@@ -712,14 +728,11 @@ function DonePanel({ state, dispatch }: StepProps): React.JSX.Element {
   }
   const counts = state.counts;
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">Step 3</p>
-          <h2>Import committed</h2>
-        </div>
-        <span className="pill">written via connector loaders</span>
-      </div>
+    <Panel
+      eyebrow="Step 3"
+      title="Import committed"
+      actions={<Pill>written via connector loaders</Pill>}
+    >
       <div className="rowCounts">
         <span className="badge tone-good">{counts.transactions} transactions</span>
         <span className="badge tone-good">{counts.holding_snapshots} holding snapshots</span>
@@ -731,18 +744,18 @@ function DonePanel({ state, dispatch }: StepProps): React.JSX.Element {
         Rebuild the marts (<code>dbt build</code>) to refresh the dashboards, then check the
         affected accounts on the <Link to="/">overview</Link>.
       </p>
-      <div className="wizardActions">
-        <button
-          type="button"
-          className="buttonPrimary"
+      <Box sx={{ mt: 2 }}>
+        <Button
+          variant="contained"
           onClick={() => {
             dispatch({ type: "RESET" });
           }}
+          sx={{ minHeight: 44 }}
         >
           Import another file
-        </button>
-      </div>
-    </section>
+        </Button>
+      </Box>
+    </Panel>
   );
 }
 
@@ -757,69 +770,69 @@ function HistoryPanel({ dispatch, activeSessionId }: HistoryPanelProps): React.J
   const sessions = useImportSessions();
 
   return (
-    <section className="panel">
-      <div className="panelHeader">
-        <div>
-          <p className="eyebrow">History</p>
-          <h2>Past import sessions</h2>
-        </div>
-        <span className="pill">{sessions.data?.total ?? 0} sessions</span>
-      </div>
+    <Panel
+      eyebrow="History"
+      title="Past import sessions"
+      actions={<Pill>{sessions.data?.total ?? 0} sessions</Pill>}
+    >
       {sessions.isPending && <LoadingState label="import history" />}
       {sessions.isError && <ErrorState label="import history" error={sessions.error} />}
       {sessions.data !== undefined && sessions.data.sessions.length === 0 && (
         <p className="supporting">No imports yet — upload the first statement above.</p>
       )}
       {sessions.data !== undefined && sessions.data.sessions.length > 0 && (
-        <table className="dataTable">
-          <thead>
-            <tr>
-              <th scope="col">File</th>
-              <th scope="col">Source</th>
-              <th scope="col">Status</th>
-              <th scope="col">Rows</th>
-              <th scope="col">Created</th>
-              <th scope="col">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sessions.data.sessions.map((session) => (
-              <tr key={session.id}>
-                <td className="rowSummary">{session.original_filename}</td>
-                <td>{sourceLabel(session.source)}</td>
-                <td>
-                  <span className={`badge tone-${statusTone(session.status)}`}>
-                    {session.status}
-                  </span>
-                </td>
-                <td className="num">
-                  {session.row_counts.ok}/{session.row_counts.total} ok
-                  {session.row_counts.error > 0 && ` · ${String(session.row_counts.error)} errors`}
-                </td>
-                <td>{formatTimestamp(session.created_at)}</td>
-                <td className="rowActions">
-                  {session.status === "staged" && session.id !== activeSessionId && (
-                    <button
-                      type="button"
-                      className="buttonGhost"
-                      onClick={() => {
-                        dispatch({ type: "RESUME_SESSION", sessionId: session.id });
-                      }}
-                    >
-                      Resume
-                    </button>
-                  )}
-                </td>
+        <TableScroll>
+          <table className="dataTable">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Source</th>
+                <th scope="col">Status</th>
+                <th scope="col">Rows</th>
+                <th scope="col">Created</th>
+                <th scope="col">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {sessions.data.sessions.map((session) => (
+                <tr key={session.id}>
+                  <td className="rowSummary">{session.original_filename}</td>
+                  <td>{sourceLabel(session.source)}</td>
+                  <td>
+                    <span className={`badge tone-${statusTone(session.status)}`}>
+                      {session.status}
+                    </span>
+                  </td>
+                  <td className="num">
+                    {session.row_counts.ok}/{session.row_counts.total} ok
+                    {session.row_counts.error > 0 &&
+                      ` · ${String(session.row_counts.error)} errors`}
+                  </td>
+                  <td>{formatTimestamp(session.created_at)}</td>
+                  <td className="rowActions">
+                    {session.status === "staged" && session.id !== activeSessionId && (
+                      <button
+                        type="button"
+                        className="buttonGhost"
+                        onClick={() => {
+                          dispatch({ type: "RESUME_SESSION", sessionId: session.id });
+                        }}
+                      >
+                        Resume
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableScroll>
       )}
-    </section>
+    </Panel>
   );
 }
 
-function statusTone(status: string): string {
+function statusTone(status: string): Tone {
   switch (status) {
     case "staged":
       return "watch";

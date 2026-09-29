@@ -3,11 +3,23 @@
     "schemas": {
       "AccountSummary": {
         "additionalProperties": false,
-        "description": "Account dimension row with identifiers masked server-side.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.",
+        "description": "Account dimension row with identifiers masked server-side and import freshness.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.\n``last_updated_at`` is the newest creation timestamp among transaction,\nholding-snapshot, and document rows associated with the account.\n``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``\non which the account-currency balance differed from the previous day\n(or its first observed day); ``None`` when the account has no balances.",
         "properties": {
           "account_id": {
             "title": "Account Id",
             "type": "string"
+          },
+          "balance_changed_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Changed On"
           },
           "currency": {
             "title": "Currency",
@@ -29,6 +41,18 @@
             "title": "Kind",
             "type": "string"
           },
+          "last_updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Updated At"
+          },
           "name": {
             "title": "Name",
             "type": "string"
@@ -46,7 +70,9 @@
           "name",
           "kind",
           "currency",
-          "iban_masked"
+          "iban_masked",
+          "last_updated_at",
+          "balance_changed_on"
         ],
         "title": "AccountSummary",
         "type": "object"
@@ -1481,6 +1507,28 @@
         "title": "MartFreshness",
         "type": "object"
       },
+      "MetaRefreshResponse": {
+        "additionalProperties": false,
+        "description": "Concise, machine-readable outcome of a WebUI-triggered dbt refresh.\n\nOnly the success path returns this model (issue #285); lock\ncontention and dbt failures are mapped to explicit HTTP error\nresponses instead, so a 200 always means the guarded shadow-build\nand atomic promotion (ADR-0046) completed.",
+        "properties": {
+          "completed_at": {
+            "format": "date-time",
+            "title": "Completed At",
+            "type": "string"
+          },
+          "status": {
+            "const": "succeeded",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "completed_at"
+        ],
+        "title": "MetaRefreshResponse",
+        "type": "object"
+      },
       "NetWorthPoint": {
         "additionalProperties": false,
         "description": "One account-day row of ``mart_net_worth_daily``.",
@@ -2146,7 +2194,7 @@
     }
   },
   "info": {
-    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. The /imports endpoints are the one write surface: staged import sessions per ADR-0037. The /connections endpoints add the in-app Enable Banking consent flow per ADR-0040 and are only active where the EB signing key is configured.",
+    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. Write-capable surfaces are limited to staged imports under /imports per ADR-0037, Enable Banking consent and sync under /connections per ADR-0040, and the guarded dbt-only refresh under POST /meta/refresh per ADR-0046. The /connections endpoints provide the in-app Enable Banking consent flow and are only active where the EB signing key is configured. POST /meta/refresh triggers the guarded dbt-only shadow-build and atomic-promotion refresh from ADR-0046 without re-syncing any bank connection.",
     "title": "Penge read API",
     "version": "1.0.0"
   },
@@ -2154,7 +2202,7 @@
   "paths": {
     "/accounts": {
       "get": {
-        "description": "Account dimension with IBAN and name suffix masked server-side.",
+        "description": "Account dimension with masked identifiers and per-account import freshness.",
         "operationId": "accounts_accounts_get",
         "responses": {
           "200": {
@@ -2928,6 +2976,9 @@
               }
             },
             "description": "Validation Error"
+          },
+          "503": {
+            "description": "The shared refresh lock is held or durable refresh intent cannot be persisted; no untracked import writes are allowed."
           }
         },
         "summary": "Commit Import",
@@ -3061,6 +3112,31 @@
           }
         },
         "summary": "Meta Freshness"
+      }
+    },
+    "/meta/refresh": {
+      "post": {
+        "description": "Trigger the guarded dbt-only refresh, without re-syncing connections.\n\nReuses the exact shadow-build/test-plus-atomic-promotion path\n(``DbtRunner.refresh``) and the shared advisory lock + durable\npending marker described in ADR-0046, so this route, the manual\nconnection-sync route, import commits, and the scheduled worker can\nnever overlap.\nThe pending marker is created *before* ``refresh()`` runs (mirroring\nthe scheduled worker's own write-intent tracking) so that, if this\nprocess is killed or dbt fails, the next scheduled run still sees\na pending refresh and retries automatically; it is cleared only\nonce promotion succeeds.",
+        "operationId": "meta_refresh_meta_refresh_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetaRefreshResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "502": {
+            "description": "The shadow dbt build, tests, or schema promotion failed. Live marts are unchanged; the pending marker is preserved (or created, if none existed yet) so the next scheduled run retries."
+          },
+          "503": {
+            "description": "The refresh lock is already held by the scheduled worker, a connection sync, import commit, or another manual trigger, or durable refresh intent could not be persisted."
+          }
+        },
+        "summary": "Meta Refresh"
       }
     },
     "/net-worth/daily": {

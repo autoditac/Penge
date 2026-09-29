@@ -1,0 +1,19 @@
+# Host-level backstop for CI Docker disk growth on `gh-runner-ubuntu`.
+#
+# Runs independently of GitHub Actions on purpose: the leaks this reclaims are
+# precisely the ones left behind when a job (or the whole runner) dies without
+# executing its teardown. See docs/runbook/runner-maintenance.md.
+
+[Unit]
+Description=Penge self-hosted runner Docker garbage collection
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/penge-docker-gc --max-age-hours 2
+# Long enough for a large `docker image prune`, short enough that a wedged
+# Docker daemon does not leave the unit hanging until the next tick.
+TimeoutStartSec=20min
+Nice=10
+IOSchedulingClass=idle

@@ -24,7 +24,7 @@ from penge.api.imports.detect import (
 )
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Callable, Sequence
 
     from sqlalchemy.engine import Engine
 
@@ -46,6 +46,20 @@ class CommitCounts:
     holding_snapshots: int
 
 
+def _report_writes(
+    counts: CommitCounts,
+    on_write: Callable[[int], None] | None,
+) -> None:
+    if on_write is not None:
+        on_write(
+            counts.entities
+            + counts.accounts
+            + counts.instruments
+            + counts.transactions
+            + counts.holding_snapshots
+        )
+
+
 def _included(rows: Sequence[RowRecord]) -> list[RowRecord]:
     return [r for r in rows if not r.excluded]
 
@@ -60,7 +74,12 @@ def _require_entity_name(session: SessionRecord, entity_name: str | None) -> str
     return resolved
 
 
-def _commit_nordnet(engine: Engine, rows: Sequence[RowRecord]) -> CommitCounts:
+def _commit_nordnet(
+    engine: Engine,
+    rows: Sequence[RowRecord],
+    *,
+    on_write: Callable[[int], None] | None,
+) -> CommitCounts:
     from penge.ingest.nordnet.config import load_accounts_config
     from penge.ingest.nordnet.loader import UnknownAccountError, load_records
     from penge.ingest.nordnet.models import ParsedTransaction
@@ -86,13 +105,15 @@ def _commit_nordnet(engine: Engine, rows: Sequence[RowRecord]) -> CommitCounts:
         )
     except UnknownAccountError as exc:
         raise ImportCommitError(str(exc)) from exc
-    return CommitCounts(
+    counts = CommitCounts(
         entities=result.entities,
         accounts=result.accounts,
         instruments=result.instruments,
         transactions=result.transactions,
         holding_snapshots=result.holding_snapshots,
     )
+    _report_writes(counts, on_write)
+    return counts
 
 
 def _commit_growney(
@@ -102,6 +123,7 @@ def _commit_growney(
     *,
     entity_name: str | None,
     account_name: str | None,
+    on_write: Callable[[int], None] | None,
 ) -> CommitCounts:
     from penge.ingest.growney.loader import load_records
     from penge.ingest.growney.models import ParsedDepotauszug
@@ -122,13 +144,15 @@ def _commit_growney(
         entity_name=resolved_entity,
         account_name=resolved_account,
     )
-    return CommitCounts(
+    counts = CommitCounts(
         entities=result.entities,
         accounts=result.accounts,
         instruments=result.instruments,
         transactions=result.transactions,
         holding_snapshots=result.holding_snapshots,
     )
+    _report_writes(counts, on_write)
+    return counts
 
 
 def _commit_pfa(
@@ -137,6 +161,7 @@ def _commit_pfa(
     rows: Sequence[RowRecord],
     *,
     entity_name: str | None,
+    on_write: Callable[[int], None] | None,
 ) -> CommitCounts:
     from penge.ingest.pfa.loader import load_records
     from penge.ingest.pfa.models import ParsedPensionsoversigt
@@ -149,16 +174,23 @@ def _commit_pfa(
         }
     )
     result = load_records(engine, statements=[statement], entity_name=resolved_entity)
-    return CommitCounts(
+    counts = CommitCounts(
         entities=result.entities,
         accounts=result.accounts,
         instruments=result.instruments,
         transactions=result.transactions,
         holding_snapshots=result.holding_snapshots,
     )
+    _report_writes(counts, on_write)
+    return counts
 
 
-def _commit_manual(engine: Engine, rows: Sequence[RowRecord]) -> CommitCounts:
+def _commit_manual(
+    engine: Engine,
+    rows: Sequence[RowRecord],
+    *,
+    on_write: Callable[[int], None] | None,
+) -> CommitCounts:
     from penge.manual.entries import BalanceEntry
     from penge.manual.service import record_cash_balance
 
@@ -180,6 +212,8 @@ def _commit_manual(engine: Engine, rows: Sequence[RowRecord]) -> CommitCounts:
     # a mid-list failure converges instead of double-counting.
     for entry in entries:
         record_cash_balance(engine, entry)
+        if on_write is not None:
+            on_write(1)
     return CommitCounts(
         entities=0,
         accounts=0,
@@ -196,6 +230,7 @@ def commit_session(
     *,
     entity_name: str | None = None,
     account_name: str | None = None,
+    on_write: Callable[[int], None] | None = None,
 ) -> CommitCounts:
     """Write all included rows of one staged session to the raw tables."""
     included = _included(rows)
@@ -211,7 +246,7 @@ def commit_session(
 
     try:
         if session.source == SOURCE_NORDNET_TRANSACTIONS:
-            return _commit_nordnet(engine, included)
+            return _commit_nordnet(engine, included, on_write=on_write)
         if session.source == SOURCE_GROWNEY:
             return _commit_growney(
                 engine,
@@ -219,11 +254,18 @@ def commit_session(
                 included,
                 entity_name=entity_name,
                 account_name=account_name,
+                on_write=on_write,
             )
         if session.source == SOURCE_PFA:
-            return _commit_pfa(engine, session, included, entity_name=entity_name)
+            return _commit_pfa(
+                engine,
+                session,
+                included,
+                entity_name=entity_name,
+                on_write=on_write,
+            )
         if session.source == SOURCE_MANUAL_BALANCES:
-            return _commit_manual(engine, included)
+            return _commit_manual(engine, included, on_write=on_write)
     except ValidationError as exc:
         raise ImportCommitError(f"staged rows failed re-validation: {exc}") from exc
     except ValueError as exc:

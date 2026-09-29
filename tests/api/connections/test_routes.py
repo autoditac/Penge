@@ -8,19 +8,24 @@ guard the loader write path the CLI sync shares.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
 from urllib.parse import parse_qs, urlparse
 
+import pytest
 from sqlalchemy import text
 
-from penge.api.connections import store
+from penge.api.connections import service, store
+from penge.ops.net_worth_refresh import exclusive_lock
 from tests.api.connections.fakes import eb_error
 
 if TYPE_CHECKING:
     from fastapi.testclient import TestClient
     from sqlalchemy.engine import Engine
 
+    from penge.ingest.enablebanking.client import Client
     from tests.api.connections.fakes import FakeClient
 
 
@@ -47,7 +52,7 @@ def test_list_empty(client: TestClient) -> None:
     assert resp.json() == {"connections": []}
 
 
-def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine) -> None:
+def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine, tmp_path: Path) -> None:
     linked = _link(client)
     consent_url = linked["consent_url"]
     assert isinstance(consent_url, str)
@@ -73,12 +78,128 @@ def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine) -> N
     assert sync_body["holding_snapshots"] >= 1
     assert sync_body["connection"]["last_sync_status"] == "ok"
     assert sync_body["connection"]["last_error"] is None
+    assert (tmp_path / "refresh-state" / "pending").exists()
 
     with engine.connect() as conn:
         accounts = conn.execute(text("select count(*) from account")).scalar_one()
         txns = conn.execute(text('select count(*) from "transaction"')).scalar_one()
     assert accounts == 1
     assert txns == 1
+
+
+def test_sync_persists_snapshot_when_aspsp_omits_reference_date(
+    client: TestClient, engine: Engine, fake_client: FakeClient
+) -> None:
+    """GLS/EB/Lunar return balances with no reference_date.
+
+    The loader must still write a holding snapshot, stamped with today's
+    date, so these accounts contribute to net worth instead of showing €0.
+    """
+    fake_client.balance_without_reference_date = True
+
+    linked = _link(client)
+    state = linked["state"]
+    connection_id = linked["connection_id"]
+
+    authorized = client.post(
+        "/connections/authorize",
+        json={"code": "code-abc", "state": state},
+    )
+    assert authorized.status_code == 200, authorized.text
+
+    before = datetime.now(UTC).date()
+    synced = client.post(f"/connections/{connection_id}/sync")
+    after = datetime.now(UTC).date()
+    assert synced.status_code == 200, synced.text
+    assert synced.json()["holding_snapshots"] >= 1
+
+    with engine.connect() as conn:
+        rows = conn.execute(text("select as_of, market_value from holding_snapshot")).all()
+    assert len(rows) == 1
+    as_of, market_value = rows[0]
+    # Stamped with the sync date; allow the UTC day to roll over mid-test.
+    assert as_of in {before, after}
+    assert market_value == Decimal("100.00")
+
+
+def test_repeated_sync_reports_no_data_writes(
+    client: TestClient, engine: Engine, fake_client: FakeClient
+) -> None:
+    """An idempotent repeat must not trigger a downstream mart refresh."""
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    first = service.sync(
+        engine,
+        cast("Client", fake_client),
+        connection_id=uuid.UUID(str(linked["connection_id"])),
+    )
+    second = service.sync(
+        engine,
+        cast("Client", fake_client),
+        connection_id=uuid.UUID(str(linked["connection_id"])),
+    )
+
+    assert first.writes > 0
+    assert second.writes == 0
+    assert second.transactions == 1
+    assert second.holding_snapshots == 1
+
+
+def test_sync_returns_unavailable_while_refresh_lock_is_held(
+    client: TestClient, tmp_path: Path
+) -> None:
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+
+    with exclusive_lock(tmp_path / "refresh-state" / "refresh.lock"):
+        response = client.post(f"/connections/{linked['connection_id']}/sync")
+
+    assert response.status_code == 503
+    assert "refresh lock is already held" in response.json()["detail"]
+
+
+def test_sync_reports_committed_writes_before_later_account_failure(
+    client: TestClient, engine: Engine, fake_client: FakeClient
+) -> None:
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    second = fake_client.session_accounts[0].model_copy(
+        update={"uid": "uid-2", "name": "Synthetic Savings"}
+    )
+    fake_client.session_accounts.append(second)
+    fake_client.fail_transactions_for_uid = "uid-2"
+    observed_writes: list[int] = []
+
+    with pytest.raises(service.ConnectionError) as raised:
+        service.sync(
+            engine,
+            cast("Client", fake_client),
+            connection_id=uuid.UUID(str(linked["connection_id"])),
+            on_write=observed_writes.append,
+        )
+
+    assert raised.value.message == "Synthetic second account failure"
+    assert sum(observed_writes) > 0
+    with engine.connect() as connection:
+        assert connection.execute(text('select count(*) from "transaction"')).scalar_one() == 1
+
+
+def test_eligible_connections_exclude_expired_consent(client: TestClient, engine: Engine) -> None:
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+
+    assert [record.id for record in store.list_eligible_connections(engine)] == [
+        uuid.UUID(str(linked["connection_id"]))
+    ]
+
+    with engine.begin() as connection:
+        connection.execute(
+            store.bank_connection_table.update()
+            .where(store.bank_connection_table.c.id == uuid.UUID(str(linked["connection_id"])))
+            .values(valid_until=datetime(2020, 1, 1, tzinfo=UTC))
+        )
+
+    assert store.list_eligible_connections(engine) == []
 
 
 def test_authorize_failure_records_debug_info(client: TestClient, fake_client: FakeClient) -> None:
@@ -141,6 +262,52 @@ def test_sync_dedupes_duplicate_entry_references(
     amount, description = rows[0]
     assert amount == Decimal("-56.78")
     assert description == "synthetic-dup"
+
+
+def test_sync_falls_back_to_narrower_history_window(
+    client: TestClient, fake_client: FakeClient, engine: Engine
+) -> None:
+    # PSD2: an ASPSP may reject the default 365-day window on unattended
+    # repeat access with WRONG_TRANSACTIONS_PERIOD but still serve a
+    # shorter window. Sync must retry with a narrower window and succeed
+    # instead of failing the whole run. Regression guard for #242.
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    fake_client.max_history_days = 90
+
+    synced = client.post(f"/connections/{linked['connection_id']}/sync")
+
+    assert synced.status_code == 200, synced.text
+    body = synced.json()
+    assert body["connection"]["last_sync_status"] == "ok"
+    assert body["transactions"] >= 1
+    # First attempt uses 365 days (rejected), retry uses 90 days (accepted).
+    attempted = [w for w in fake_client.transaction_windows if w is not None]
+    assert len(attempted) >= 2
+    oldest_first = date.fromisoformat(attempted[0])
+    oldest_retry = date.fromisoformat(attempted[1])
+    assert oldest_retry > oldest_first
+
+
+def test_sync_reports_error_when_no_window_is_accepted(
+    client: TestClient, fake_client: FakeClient, engine: Engine
+) -> None:
+    # If even the narrowest fallback window is rejected, the sync surfaces
+    # the WRONG_TRANSACTIONS_PERIOD error rather than silently reporting ok.
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    fake_client.max_history_days = 0
+
+    synced = client.post(f"/connections/{linked['connection_id']}/sync")
+
+    assert synced.status_code >= 400, synced.text
+    connection = client.get("/connections").json()["connections"][0]
+    assert connection["status"] == "authorized"
+    assert connection["last_sync_status"] == "error"
+    assert connection["last_error"]["code"] == "WRONG_TRANSACTIONS_PERIOD"
+    assert [record.id for record in store.list_eligible_connections(engine)] == [
+        uuid.UUID(str(linked["connection_id"]))
+    ]
 
 
 def test_authorize_unknown_state_does_not_consume_code(

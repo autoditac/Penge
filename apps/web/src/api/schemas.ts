@@ -24,11 +24,13 @@ const isoDateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 export const accountSummarySchema = z.object({
   account_id: z.string(),
+  balance_changed_on: isoDateString.nullable(),
   currency: z.string(),
   entity_id: z.string(),
   entity_name: z.string(),
   iban_masked: z.string(),
   kind: z.string(),
+  last_updated_at: z.string().nullable(),
   name: z.string(),
   provider: z.string(),
 });
@@ -124,6 +126,13 @@ export const freshnessResponseSchema = z.object({
   marts: z.array(martFreshnessSchema),
 });
 export type FreshnessResponse = z.infer<typeof freshnessResponseSchema>;
+
+/** Outcome of a WebUI-triggered dbt-only refresh (issue #285, ADR-0046). */
+export const metaRefreshResponseSchema = z.object({
+  completed_at: z.string(),
+  status: z.literal("succeeded"),
+});
+export type MetaRefreshResponse = z.infer<typeof metaRefreshResponseSchema>;
 
 /* ---- returns, benchmarks, fees (#206) ---- */
 
@@ -432,6 +441,9 @@ type _CheckCashflowSeries = Assert<
 type _CheckMartFreshness = Assert<MutuallyAssignable<MartFreshness, Generated["MartFreshness"]>>;
 type _CheckFreshnessResponse = Assert<
   MutuallyAssignable<FreshnessResponse, Generated["FreshnessResponse"]>
+>;
+type _CheckMetaRefreshResponse = Assert<
+  MutuallyAssignable<MetaRefreshResponse, Generated["MetaRefreshResponse"]>
 >;
 type _CheckRowIssue = Assert<MutuallyAssignable<RowIssue, Generated["RowIssue"]>>;
 type _CheckRowCounts = Assert<MutuallyAssignable<RowCounts, Generated["RowCounts"]>>;

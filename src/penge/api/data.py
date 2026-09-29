@@ -36,7 +36,7 @@ def get_engine() -> Engine:
     """Return the process-wide SQLAlchemy engine (lazily created)."""
     # Lazy so importing this module never requires the DB driver
     # (mirrors penge.web.data.get_engine).
-    from sqlalchemy import create_engine
+    from sqlalchemy import create_engine  # Deliberately lazy; see above.
 
     return create_engine(
         database_url(),
@@ -247,6 +247,41 @@ def fetch_allocation_rows() -> list[dict[str, object]]:
 # ---------------------------------------------------------------------------
 
 _ACCOUNTS_SQL = """
+    with account_updates as (
+        select account_id, max(created_at) as updated_at
+        from "transaction"
+        group by account_id
+        union all
+        select account_id, max(created_at) as updated_at
+        from holding_snapshot
+        group by account_id
+        union all
+        select account_id, max(created_at) as updated_at
+        from document
+        where account_id is not null
+        group by account_id
+    ),
+    latest_account_updates as (
+        select account_id, max(updated_at) as last_updated_at
+        from account_updates
+        group by account_id
+    ),
+    daily_balances as (
+        select
+            account_id::text as account_id,
+            as_of,
+            balance_acct_ccy,
+            lag(balance_acct_ccy) over (partition by account_id order by as_of) as prev_balance
+        from analytics_marts.mart_net_worth_daily
+    ),
+    balance_changes as (
+        -- The first observed balance counts as a change, so an account
+        -- whose balance never moved reports the date it first appeared.
+        select account_id, max(as_of) as balance_changed_on
+        from daily_balances
+        where prev_balance is null or balance_acct_ccy is distinct from prev_balance
+        group by account_id
+    )
     select
         a.id::text as account_id,
         a.entity_id::text as entity_id,
@@ -255,15 +290,19 @@ _ACCOUNTS_SQL = """
         a.name,
         a.kind,
         a.currency,
-        a.iban
+        a.iban,
+        updates.last_updated_at,
+        changes.balance_changed_on
     from account as a
     inner join entity as e on e.id = a.entity_id
+    left join latest_account_updates as updates on updates.account_id = a.id
+    left join balance_changes as changes on changes.account_id = a.id::text
     order by e.name, a.name
 """
 
 
 def fetch_accounts() -> list[dict[str, object]]:
-    """Return the account dimension with the raw IBAN.
+    """Return the account dimension with the raw IBAN, import freshness, and last balance change.
 
     Callers (the route layer) must mask the IBAN before serialising;
     see :func:`penge.web.mask.mask_iban`.

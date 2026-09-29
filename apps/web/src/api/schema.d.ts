@@ -13,7 +13,7 @@ export interface paths {
     };
     /**
      * Accounts
-     * @description Account dimension with IBAN and name suffix masked server-side.
+     * @description Account dimension with masked identifiers and per-account import freshness.
      */
     get: operations["accounts_accounts_get"];
     put?: never;
@@ -340,6 +340,37 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/meta/refresh": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Meta Refresh
+     * @description Trigger the guarded dbt-only refresh, without re-syncing connections.
+     *
+     *     Reuses the exact shadow-build/test-plus-atomic-promotion path
+     *     (``DbtRunner.refresh``) and the shared advisory lock + durable
+     *     pending marker described in ADR-0046, so this route, the manual
+     *     connection-sync route, import commits, and the scheduled worker can
+     *     never overlap.
+     *     The pending marker is created *before* ``refresh()`` runs (mirroring
+     *     the scheduled worker's own write-intent tracking) so that, if this
+     *     process is killed or dbt fails, the next scheduled run still sees
+     *     a pending refresh and retries automatically; it is cleared only
+     *     once promotion succeeds.
+     */
+    post: operations["meta_refresh_meta_refresh_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/net-worth/daily": {
     parameters: {
       query?: never;
@@ -431,14 +462,21 @@ export interface components {
   schemas: {
     /**
      * AccountSummary
-     * @description Account dimension row with identifiers masked server-side.
+     * @description Account dimension row with identifiers masked server-side and import freshness.
      *
      *     ``iban_masked`` keeps only the last four characters
      *     (``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.
+     *     ``last_updated_at`` is the newest creation timestamp among transaction,
+     *     holding-snapshot, and document rows associated with the account.
+     *     ``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``
+     *     on which the account-currency balance differed from the previous day
+     *     (or its first observed day); ``None`` when the account has no balances.
      */
     AccountSummary: {
       /** Account Id */
       account_id: string;
+      /** Balance Changed On */
+      balance_changed_on: string | null;
       /** Currency */
       currency: string;
       /** Entity Id */
@@ -449,6 +487,8 @@ export interface components {
       iban_masked: string;
       /** Kind */
       kind: string;
+      /** Last Updated At */
+      last_updated_at: string | null;
       /** Name */
       name: string;
       /** Provider */
@@ -1032,6 +1072,27 @@ export interface components {
       mart: string;
       /** Row Count */
       row_count: number;
+    };
+    /**
+     * MetaRefreshResponse
+     * @description Concise, machine-readable outcome of a WebUI-triggered dbt refresh.
+     *
+     *     Only the success path returns this model (issue #285); lock
+     *     contention and dbt failures are mapped to explicit HTTP error
+     *     responses instead, so a 200 always means the guarded shadow-build
+     *     and atomic promotion (ADR-0046) completed.
+     */
+    MetaRefreshResponse: {
+      /**
+       * Completed At
+       * Format: date-time
+       */
+      completed_at: string;
+      /**
+       * Status
+       * @constant
+       */
+      status: "succeeded";
     };
     /**
      * NetWorthPoint
@@ -1753,6 +1814,13 @@ export interface operations {
           "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
+      /** @description The shared refresh lock is held or durable refresh intent cannot be persisted; no untracked import writes are allowed. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
     };
   };
   patch_import_row_imports__session_id__rows__row_id__patch: {
@@ -1839,6 +1907,40 @@ export interface operations {
         content: {
           "application/json": components["schemas"]["FreshnessResponse"];
         };
+      };
+    };
+  };
+  meta_refresh_meta_refresh_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MetaRefreshResponse"];
+        };
+      };
+      /** @description The shadow dbt build, tests, or schema promotion failed. Live marts are unchanged; the pending marker is preserved (or created, if none existed yet) so the next scheduled run retries. */
+      502: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description The refresh lock is already held by the scheduled worker, a connection sync, import commit, or another manual trigger, or durable refresh intent could not be persisted. */
+      503: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
       };
     };
   };

@@ -150,6 +150,27 @@ def list_connections(engine: Engine) -> list[ConnectionRecord]:
         return [_record(row) for row in conn.execute(stmt)]
 
 
+def list_eligible_connections(
+    engine: Engine,
+    *,
+    as_of: datetime | None = None,
+) -> list[ConnectionRecord]:
+    """Return authorized, non-expired connections in deterministic order."""
+    cutoff = as_of or datetime.now(UTC)
+    stmt = (
+        sa.select(bank_connection_table)
+        .where(
+            bank_connection_table.c.status == STATUS_AUTHORIZED,
+            bank_connection_table.c.session_id.is_not(None),
+            bank_connection_table.c.valid_until.is_not(None),
+            bank_connection_table.c.valid_until > cutoff,
+        )
+        .order_by(bank_connection_table.c.created_at, bank_connection_table.c.id)
+    )
+    with engine.connect() as conn:
+        return [_record(row) for row in conn.execute(stmt)]
+
+
 def get_connection(engine: Engine, connection_id: uuid.UUID) -> ConnectionRecord | None:
     """Return one connection by id, or ``None``."""
     stmt = sa.select(bank_connection_table).where(bank_connection_table.c.id == connection_id)
@@ -261,6 +282,7 @@ __all__ = [
     "get_by_state",
     "get_connection",
     "list_connections",
+    "list_eligible_connections",
     "mark_authorized",
     "record_error",
     "record_sync_ok",

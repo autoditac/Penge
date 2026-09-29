@@ -78,10 +78,13 @@ def _apply_overrides(
     engine: Engine,
     enabled: bool,
     fake: FakeClient,
+    refresh_state_dir: Path,
 ) -> None:
     app = cast("FastAPI", app_client.app)
     app.dependency_overrides[connections_routes.get_config] = lambda: ConnectionsConfig(
-        enabled=enabled, redirect_url="https://penge.example/eb/callback"
+        enabled=enabled,
+        redirect_url="https://penge.example/eb/callback",
+        refresh_state_dir=refresh_state_dir,
     )
     app.dependency_overrides[connections_routes.get_engine] = lambda: engine
     app.dependency_overrides[connections_routes.get_client] = lambda: fake
@@ -93,13 +96,20 @@ def client(
     _truncate: None,
     fake_client: FakeClient,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> Iterator[TestClient]:
     """TestClient with the feature enabled and the EB client faked."""
     assert DB_URL is not None
     monkeypatch.setenv("DATABASE_URL", DB_URL)
     get_import_engine.cache_clear()
     with TestClient(create_app()) as test_client:
-        _apply_overrides(test_client, engine=engine, enabled=True, fake=fake_client)
+        _apply_overrides(
+            test_client,
+            engine=engine,
+            enabled=True,
+            fake=fake_client,
+            refresh_state_dir=tmp_path / "refresh-state",
+        )
         yield test_client
     get_import_engine.cache_clear()
 
@@ -110,12 +120,19 @@ def disabled_client(
     _truncate: None,
     fake_client: FakeClient,
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> Iterator[TestClient]:
     """TestClient with the feature force-disabled (no signing key)."""
     assert DB_URL is not None
     monkeypatch.setenv("DATABASE_URL", DB_URL)
     get_import_engine.cache_clear()
     with TestClient(create_app()) as test_client:
-        _apply_overrides(test_client, engine=engine, enabled=False, fake=fake_client)
+        _apply_overrides(
+            test_client,
+            engine=engine,
+            enabled=False,
+            fake=fake_client,
+            refresh_state_dir=tmp_path / "refresh-state",
+        )
         yield test_client
     get_import_engine.cache_clear()

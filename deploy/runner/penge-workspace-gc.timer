@@ -1,0 +1,17 @@
+# Daily rather than hourly: unlike a leaked BuildKit builder, none of these
+# leftovers appear mid-day -- `_work/_update` only after a runner self-upgrade,
+# `_diag` logs only once they age past the retention window.
+
+[Unit]
+Description=Schedule Penge self-hosted runner workspace garbage collection
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=30min
+# Catch up after a host reboot; a reboot often follows a runner upgrade, which
+# is exactly what leaves `_work/_update` behind.
+Persistent=true
+Unit=penge-workspace-gc.service
+
+[Install]
+WantedBy=timers.target

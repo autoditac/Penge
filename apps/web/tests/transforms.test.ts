@@ -9,6 +9,7 @@ import type {
 import {
   accountBalanceSnapshots,
   allocationData,
+  allocationSlices,
   allocationDrift,
   drawdownSeries,
   kindWeightHistory,
@@ -63,6 +64,43 @@ describe("allocationData", () => {
     ]);
     expect(data.map((datum) => datum.name)).toEqual(["pension", "checking"]);
     expect(data[0]?.share).toBeCloseTo(0.8);
+  });
+});
+
+describe("allocationSlices", () => {
+  const palette = ["c1", "c2", "c3", "c4"];
+  const datum = (name: string, value: number, share: number | null = value / 100) => ({
+    name,
+    value,
+    share,
+  });
+
+  it("gives every category a distinct colour when they fit the palette", () => {
+    const slices = allocationSlices([datum("a", 50), datum("b", 30), datum("c", 20)], palette);
+    expect(slices.map((slice) => slice.color)).toEqual(["c1", "c2", "c3"]);
+  });
+
+  it("groups the tail into Other with the last palette colour", () => {
+    const slices = allocationSlices(
+      [datum("a", 40), datum("b", 30), datum("c", 15), datum("d", 10), datum("e", 5)],
+      palette,
+    );
+    expect(slices.map((slice) => slice.name)).toEqual(["a", "b", "c", "Other"]);
+    expect(slices.map((slice) => slice.color)).toEqual(["c1", "c2", "c3", "c4"]);
+    expect(slices[3]?.value).toBe(15);
+    expect(slices[3]?.share).toBeCloseTo(0.15);
+  });
+
+  it("reports an unknown Other share when any grouped share is missing", () => {
+    const slices = allocationSlices(
+      [datum("a", 40), datum("b", 30), datum("c", 15), datum("d", 10), datum("e", 5, null)],
+      palette,
+    );
+    expect(slices[3]?.share).toBeNull();
+  });
+
+  it("rejects an empty palette", () => {
+    expect(() => allocationSlices([datum("a", 1)], [])).toThrow();
   });
 });
 
@@ -140,6 +178,7 @@ const drillAccounts: AccountSummary[] = [
     iban_masked: "****1",
     kind: "checking",
     last_updated_at: "2026-01-03T08:00:00Z",
+    balance_changed_on: "2026-01-02",
     name: "Giro",
     provider: "gls",
   },
@@ -151,6 +190,7 @@ const drillAccounts: AccountSummary[] = [
     iban_masked: "****2",
     kind: "investment",
     last_updated_at: "2026-01-03T09:00:00Z",
+    balance_changed_on: "2026-01-02",
     name: "Depot",
     provider: "nordnet",
   },

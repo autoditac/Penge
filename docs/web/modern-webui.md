@@ -27,13 +27,19 @@ are recorded in ADR-0036.
 ## Surfaces
 
 - **Overview** — net-worth trend (365 days, EUR + DKK), current allocation by
-  kind/currency/entity with donut + table, and a tracked-account overview with
+  kind/currency/entity with a slim donut (EUR total in the centre) and a
+  table that doubles as its legend: each category gets its own colour from
+  the 8-colour theme palette, and any categories beyond that are grouped as
+  "Other". The overview also has a tracked-account section with
   each account's latest native-currency balance, latest account-data import
   timestamp, optional masked IBAN, and absolute change from the latest
   available balance on or before one calendar month earlier. The import
   timestamp is the newest source-row creation time across transactions,
-  holding snapshots, and account documents. Desktop uses a dense table; mobile
-  switches to account cards without empty IBAN rows.
+  holding snapshots, and account documents; re-importing rows that already
+  exist does not advance it. Each account also shows the date its balance
+  last changed (`balance_changed_on`: the latest `mart_net_worth_daily` day
+  whose account-currency balance differs from the previous day). Accounts
+  render as a responsive card grid (one, two, or three columns).
 - **Performance** — dashboard v2 (#204, #206): KPI header (net worth,
   month-over-month delta, liquid share), range-selectable net-worth trend
   (1M/3M/1Y/5Y/all) with drawdown shading and max-drawdown KPI, TWR index

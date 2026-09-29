@@ -38,15 +38,17 @@ import {
   parseDecimal,
 } from "../money";
 import type { Currency } from "../money";
-import { chartPalette, chartTextColor } from "../theme";
+import { chartPalette, chartTextColor, useThemeMode } from "../theme";
+import { paletteTokens } from "../theme/tokens";
 import {
   accountBalanceSnapshots,
   allocationData,
+  allocationSlices,
   latestNetWorth,
   netWorthSeries,
   periodChange,
 } from "../transforms";
-import type { AccountBalanceSnapshot } from "../transforms";
+import type { AccountBalanceSnapshot, ColoredAllocationDatum } from "../transforms";
 
 const dimensionLabels: Record<AllocationDimension, string> = {
   kind: "Asset kind",
@@ -172,7 +174,7 @@ function NetWorthSection(): React.JSX.Element {
   );
 }
 
-function AllocationSection(): React.JSX.Element {
+export function AllocationSection(): React.JSX.Element {
   const [dimension, setDimension] = useState<AllocationDimension>("kind");
   const allocation = useAllocation(dimension);
 
@@ -201,6 +203,9 @@ function AllocationBody({
   readonly dimension: AllocationDimension;
   readonly state: ReturnType<typeof useAllocation>;
 }): React.JSX.Element {
+  // Subscribing to the theme mode re-renders swatches and slices on toggle;
+  // reading CSS variables during render would leave them one toggle behind.
+  const { theme } = useThemeMode();
   if (state.isPending) {
     return <LoadingState label="allocation" />;
   }
@@ -221,32 +226,95 @@ function AllocationBody({
     return <EmptyState label="allocation" />;
   }
 
+  return (
+    <AllocationDonut
+      dimension={dimension}
+      slices={allocationSlices(data, paletteTokens[theme].chart)}
+    />
+  );
+}
+
+export function AllocationDonut({
+  dimension,
+  slices,
+}: {
+  readonly dimension: AllocationDimension;
+  readonly slices: readonly ColoredAllocationDatum[];
+}): React.JSX.Element {
+  const total = slices.reduce((sum, slice) => sum + slice.value, 0);
   const option: EChartOption = {
-    color: [...chartPalette()],
     tooltip: { trigger: "item" },
-    legend: { bottom: 0, textStyle: { color: chartTextColor() } },
     series: [
       {
         name: dimensionLabels[dimension],
         type: "pie",
-        radius: ["52%", "78%"],
-        center: ["50%", "44%"],
-        itemStyle: { borderRadius: 6, borderWidth: 2 },
+        radius: ["66%", "86%"],
+        center: ["50%", "50%"],
+        // Gaps come from padAngle rather than a thick border, and minAngle
+        // keeps sub-2 % slices visible without rounding them into blobs.
+        padAngle: 1.5,
+        minAngle: 3,
+        itemStyle: { borderRadius: 2, borderWidth: 0 },
         label: { show: false },
-        data: data.map((datum) => ({ name: datum.name, value: datum.value })),
+        labelLine: { show: false },
+        emphasis: { scale: true, scaleSize: 4 },
+        data: slices.map((slice) => ({
+          name: slice.name,
+          value: slice.value,
+          itemStyle: { color: slice.color },
+        })),
       },
     ],
   };
 
   return (
-    <>
-      <EChart
-        option={option}
-        height={260}
-        ariaLabel={`Allocation by ${dimensionLabels[dimension]} (EUR leg)`}
-      />
+    <Box
+      sx={{
+        display: "grid",
+        gap: { xs: 1.5, sm: 2.5 },
+        alignItems: "center",
+        // Side-by-side only where the panel is wide: full-width below lg,
+        // and the 5/12 column from xl. At lg the column is too narrow for
+        // donut + table, so they stack instead of scrolling the table.
+        gridTemplateColumns: {
+          xs: "1fr",
+          sm: "200px minmax(0, 1fr)",
+          lg: "1fr",
+          xl: "200px minmax(0, 1fr)",
+        },
+        mt: 1,
+      }}
+    >
+      <Box sx={{ position: "relative", width: 200, height: 200, mx: "auto" }}>
+        <EChart
+          option={option}
+          height={200}
+          ariaLabel={`Allocation by ${dimensionLabels[dimension]} (EUR leg)`}
+        />
+        <Box
+          aria-hidden="true"
+          sx={{
+            position: "absolute",
+            inset: 0,
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <Typography sx={{ fontWeight: 800, fontSize: "1.2rem", lineHeight: 1.1 }}>
+            {formatCompact(total)}
+          </Typography>
+          <Typography
+            sx={{ color: "text.secondary", fontSize: "0.72rem", letterSpacing: "0.06em" }}
+          >
+            EUR TOTAL
+          </Typography>
+        </Box>
+      </Box>
       <TableScroll>
-        <table className="dataTable">
+        <table className="dataTable" style={{ marginTop: 0 }}>
           <thead>
             <tr>
               <th scope="col">{dimensionLabels[dimension]}</th>
@@ -259,17 +327,37 @@ function AllocationBody({
             </tr>
           </thead>
           <tbody>
-            {data.map((datum) => (
-              <tr key={datum.name}>
-                <td>{datum.name}</td>
-                <td className="num">{formatCompact(datum.value)}</td>
-                <td className="num">{formatShare(datum.share)}</td>
+            {slices.map((slice) => (
+              <tr key={slice.name}>
+                <td>
+                  <Box
+                    component="span"
+                    sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}
+                  >
+                    <Box
+                      component="span"
+                      aria-hidden="true"
+                      data-testid="allocation-swatch"
+                      data-color={slice.color}
+                      sx={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: "3px",
+                        flexShrink: 0,
+                        backgroundColor: slice.color,
+                      }}
+                    />
+                    {slice.name}
+                  </Box>
+                </td>
+                <td className="num">{formatCompact(slice.value)}</td>
+                <td className="num">{formatShare(slice.share)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </TableScroll>
-    </>
+    </Box>
   );
 }
 
@@ -354,6 +442,29 @@ function LastUpdated({
   return (
     <time dateTime={value} aria-label={`Last data import ${formatted}`}>
       {prefix ? `Updated ${formatted}` : formatted}
+    </time>
+  );
+}
+
+// ``balance_changed_on`` is a calendar date (YYYY-MM-DD); format in UTC so the
+// day never shifts with the viewer's timezone.
+const balanceChangedFormat = new Intl.DateTimeFormat("en-DK", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
+
+function BalanceChanged({ value }: { readonly value: string | null }): React.JSX.Element {
+  if (value === null) {
+    return (
+      <Box component="span" aria-label="Last balance change unavailable" color="text.secondary">
+        —
+      </Box>
+    );
+  }
+  const formatted = balanceChangedFormat.format(new Date(`${value}T00:00:00Z`));
+  return (
+    <time dateTime={value} aria-label={`Balance last changed ${formatted}`}>
+      {formatted}
     </time>
   );
 }
@@ -547,6 +658,10 @@ function AccountCard({
         <Box component="dt">Freshness</Box>
         <Box component="dd">
           <LastUpdated value={account.last_updated_at} prefix />
+        </Box>
+        <Box component="dt">Changed</Box>
+        <Box component="dd">
+          <BalanceChanged value={account.balance_changed_on} />
         </Box>
       </Box>
     </Paper>

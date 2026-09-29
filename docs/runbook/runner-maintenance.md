@@ -45,7 +45,7 @@ threshold, and the prunes that support it use Docker's `until=` filter. The
 longest job timeout in the repository is 30 minutes (`release.yml`), so a
 resource older than the threshold provably cannot belong to a running job.
 
-Two cases need explicit enumeration rather than a prune:
+Three cases need explicit enumeration rather than a prune:
 
 - **CI images are tagged** (`penge/<app>:ci-<run>-<attempt>`), so
   `docker image prune` — which only removes *dangling* images — would never
@@ -55,6 +55,25 @@ Two cases need explicit enumeration rather than a prune:
   would be unbounded in age and could take an anonymous volume that a
   concurrent job has created but not yet attached, so the sweep enumerates
   dangling `buildx_buildkit_*` volumes and age-checks each one.
+- **Service containers used to leak one anonymous volume per job.** Every job
+  with a `services:` block starts a fresh `postgres`, which declares
+  `VOLUME /var/lib/postgresql/data`; the volume outlived the container the
+  runner removed and never expired on its own — 80 of them held ~5 GB on
+  `gh-runner-ubuntu`.
+
+  This is fixed **at the source**: every `postgres` service now runs with
+  `--tmpfs /var/lib/postgresql/data`, so no volume is created at all (and the
+  test database stays in RAM). Nothing new accumulates.
+
+  For what leaked before that landed, `docker-gc.sh` has an **opt-in**
+  `--include-anonymous-volumes` sweep. It is off by default and the systemd
+  timer never passes it, because unlike every other step it identifies targets
+  by a **heuristic, not by ownership**: a 64-hex name is Docker's *default* for
+  an anonymous volume, not proof that Docker generated it, and any dangling
+  anonymous volume on the host matches — not only a CI one. On a dedicated
+  runner that is a reasonable trade for an operator to make deliberately, after
+  checking `docker volume ls --filter dangling=true`; it is not one to make
+  hourly and unattended. Rehearse with `--dry-run` first.
 
 There is no unconditional `docker system prune` anywhere, and non-BuildKit
 containers are never matched.

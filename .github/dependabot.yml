@@ -1,3 +1,9 @@
+# Dependabot policy (see docs/runbook/dependency-updates.md):
+# - minor + patch updates are grouped into one PR per ecosystem;
+# - major updates arrive as individual PRs so each can be reviewed and tested;
+# - language-runtime versions of container base images (Node, Python) are
+#   deliberate, project-wide decisions and are never bumped by Dependabot.
+#   Digest refreshes of the pinned tags still arrive.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
@@ -8,33 +14,30 @@ updates:
       prefix: "chore(ci)"
     labels: ["type:chore", "component:infra"]
     open-pull-requests-limit: 5
+    groups:
+      actions-minor-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "docker"
-    directory: "/"
+    directories: ["/", "/apps/web", "/apps/api"]
     schedule:
       interval: "weekly"
     commit-message:
       prefix: "chore(deps)"
     labels: ["type:chore", "component:infra"]
     open-pull-requests-limit: 5
-
-  - package-ecosystem: "docker"
-    directory: "/apps/web"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps)"
-    labels: ["type:chore", "component:infra"]
-    open-pull-requests-limit: 5
-
-  - package-ecosystem: "docker"
-    directory: "/apps/api"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "chore(deps)"
-    labels: ["type:chore", "component:infra"]
-    open-pull-requests-limit: 5
+    ignore:
+      # Node: only move between LTS lines deliberately (odd majors are never LTS).
+      - dependency-name: "library/node"
+        update-types: ["version-update:semver-major"]
+      # Python: interpreter upgrades must also move pyproject, ruff, mypy and CI.
+      - dependency-name: "library/python"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "astral-sh/uv"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      docker-minor-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "pip"
     directory: "/"
@@ -44,6 +47,9 @@ updates:
       prefix: "chore(deps)"
     labels: ["type:chore"]
     open-pull-requests-limit: 5
+    groups:
+      python-minor-patch:
+        update-types: ["minor", "patch"]
 
   - package-ecosystem: "npm"
     directory: "/"
@@ -53,3 +59,6 @@ updates:
       prefix: "chore(deps)"
     labels: ["type:chore"]
     open-pull-requests-limit: 5
+    groups:
+      npm-minor-patch:
+        update-types: ["minor", "patch"]

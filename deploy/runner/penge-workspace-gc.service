@@ -1,0 +1,23 @@
+# Host-level cleanup of the runner's own working directories on
+# `gh-runner-ubuntu`.
+#
+# Complements penge-docker-gc.service: that unit bounds Docker's growth, this
+# one bounds the runner's. On a 19 GB root filesystem shared by three runner
+# instances, `_work/_update` leftovers and `_diag` logs are the larger half of
+# the problem. See docs/runbook/runner-maintenance.md.
+
+[Unit]
+Description=Penge self-hosted runner workspace garbage collection
+
+[Service]
+Type=oneshot
+# Unprivileged on purpose: the script only removes files the runner owns, and
+# running as root would let a symlink planted in the runner tree redirect a
+# removal outside the root. The script refuses to run as root.
+User=ghrunner
+Group=ghrunner
+ExecStart=/usr/local/bin/penge-workspace-gc --update-age-hours 24 --diag-retention-days 7
+# Generous enough for `rm -rf` of a ~700 MB payload on a busy disk.
+TimeoutStartSec=20min
+Nice=10
+IOSchedulingClass=idle

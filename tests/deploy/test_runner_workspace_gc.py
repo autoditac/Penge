@@ -7,7 +7,11 @@ running next to live CI jobs:
 * the leftovers that actually fill the disk -- the ``_work/_update`` payload a
   runner self-upgrade abandons, and aged ``_diag`` logs -- are removed, and
 * nothing a running job could own is, in particular the ``_work/<owner>/<repo>``
-  checkout and anything younger than the age threshold.
+  checkout, ``_work/_temp``, and any ``_update`` tree still being written to.
+
+The ``_update`` age check reads the newest mtime *anywhere in the tree*: the
+runner creates that directory once and then writes beneath it, so the parent's
+own mtime says nothing about an upgrade still in progress.
 
 Guards #289 follow-up: Docker was only half of the runner disk exhaustion.
 """
@@ -54,17 +58,19 @@ def runner_root(tmp_path: Path) -> Path:
 
     temp = runner / "_work" / "_temp"
     temp.mkdir(parents=True)
-    (temp / "stale-job-file").write_text("orphaned")
-    (temp / "live-job-file").write_text("in use")
+    (temp / "job-file").write_text("may still be in use")
 
     # A sibling directory that is *not* a runner: no `_work`, so it must be
     # skipped entirely rather than probed.
     (root / "backup").mkdir()
     (root / "backup" / "keep-me").write_text("not a runner")
 
+    # Backdate the whole `_update` tree: the sweep reads its newest file.
+    _age(update / "node24", 26)
+    _age(update, 26)
     _age(runner / "_work" / "_update", 26)
     _age(diag / "Runner_old.log", 30 * 24)
-    _age(temp / "stale-job-file", 26)
+    _age(temp / "job-file", 26)
 
     return root
 
@@ -99,6 +105,20 @@ def test_keeps_recent_self_update_payload(tmp_path: Path) -> None:
     assert "keeping actions-runner/_work/_update" in result.stderr
 
 
+def test_keeps_update_tree_written_to_beneath_an_old_parent(
+    runner_root: Path,
+) -> None:
+    """A slow upgrade writes *beneath* `_update` without touching the parent."""
+    update = runner_root / "actions-runner" / "_work" / "_update"
+    (update / "externals" / "node24").write_text("still extracting")
+
+    result = _run_gc(runner_root)
+
+    assert result.returncode == 0, result.stderr
+    assert update.exists()
+    assert "keeping actions-runner/_work/_update" in result.stderr
+
+
 def test_removes_diag_logs_past_retention(runner_root: Path) -> None:
     diag = runner_root / "actions-runner" / "_diag"
 
@@ -107,6 +127,19 @@ def test_removes_diag_logs_past_retention(runner_root: Path) -> None:
     assert result.returncode == 0, result.stderr
     assert not (diag / "Runner_old.log").exists()
     assert (diag / "Runner_recent.log").exists()
+
+
+def test_diag_retention_is_not_rounded_up_to_whole_days(runner_root: Path) -> None:
+    """`find -mtime +7` would keep this for another half day; `-mmin` does not."""
+    diag = runner_root / "actions-runner" / "_diag"
+    seven_and_a_half_days = diag / "Worker_borderline.log"
+    seven_and_a_half_days.write_text("older than the stated retention")
+    _age(seven_and_a_half_days, 7.5 * 24)
+
+    result = _run_gc(runner_root, "--diag-retention-days", "7")
+
+    assert result.returncode == 0, result.stderr
+    assert not seven_and_a_half_days.exists()
 
 
 def test_never_touches_the_job_checkout(runner_root: Path) -> None:
@@ -120,14 +153,39 @@ def test_never_touches_the_job_checkout(runner_root: Path) -> None:
     assert (checkout / "README.md").read_text() == "live checkout"
 
 
-def test_removes_only_stale_temp_entries(runner_root: Path) -> None:
+def test_never_touches_temp(runner_root: Path) -> None:
+    """Not every job sets `timeout-minutes`, so age cannot prove `_temp` idle."""
     temp = runner_root / "actions-runner" / "_work" / "_temp"
 
     result = _run_gc(runner_root)
 
     assert result.returncode == 0, result.stderr
-    assert not (temp / "stale-job-file").exists()
-    assert (temp / "live-job-file").exists()
+    assert (temp / "job-file").exists()
+
+
+def test_refuses_to_follow_a_symlinked_runner_directory(tmp_path: Path) -> None:
+    """A symlink in the runner tree must not redirect a removal out of --root."""
+    root = tmp_path / "ghrunner"
+    root.mkdir()
+    outside = tmp_path / "outside"
+    (outside / "_work" / "_update").mkdir(parents=True)
+    _age(outside / "_work" / "_update", 30 * 24)
+    (root / "evil").symlink_to(outside)
+
+    result = _run_gc(root)
+
+    assert result.returncode == 0, result.stderr
+    assert (outside / "_work" / "_update").exists()
+    assert "skipping evil, it is a symlink" in result.stderr
+
+
+def test_refuses_to_run_as_root() -> None:
+    """Root is what would make a planted symlink dangerous."""
+    if os.geteuid() == 0:
+        pytest.skip("test suite is running as root")
+    # The guard itself is asserted by reading the script: running the suite as
+    # root is not something we can arrange here.
+    assert 'if [[ "$(id -u)" -eq 0 ]]; then' in GC_SCRIPT.read_text()
 
 
 def test_ignores_directories_that_are_not_runners(runner_root: Path) -> None:
@@ -150,8 +208,8 @@ def test_dry_run_removes_nothing(runner_root: Path) -> None:
 @pytest.mark.parametrize(
     "args",
     [
-        ("--max-age-hours", "0"),
-        ("--max-age-hours", "nope"),
+        ("--update-age-hours", "0"),
+        ("--update-age-hours", "nope"),
         ("--diag-retention-days", "0"),
         ("--root",),
         ("--unknown-flag",),

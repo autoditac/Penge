@@ -18,33 +18,48 @@
 #
 # Concurrency safety
 # ------------------
-# Same contract as `docker-gc.sh`: every removal is gated on modification time,
-# with a default threshold (2 h) well beyond the longest CI job timeout
-# (30 min, `release.yml`). A self-update takes seconds, so an `_update`
-# directory untouched for hours provably belongs to a finished upgrade.
+# Every removal is gated on age, but the top-level mtime of `_update` is *not*
+# a sufficient signal: the runner creates that directory once and then writes
+# beneath it, which never refreshes the parent. The gate is therefore the
+# newest mtime found **anywhere in the tree**, so an upgrade that is still
+# extracting -- however slowly -- always looks fresh.
 #
-# `_work/<owner>/<repo>` checkouts are deliberately **not** touched. A runner
-# reuses them across jobs, so deleting one only forces a fresh clone -- and an
-# age check cannot prove a long-running job is not about to write there.
+# The threshold for it is a day by default, not the job-scale two hours used
+# elsewhere: a self-update takes seconds, so a staging tree with no write for
+# 24 h is unambiguously abandoned, and nothing is gained by acting sooner.
+#
+# This script does **not** run as root. It only ever removes files the runner
+# itself owns, and running unprivileged means a symlink planted in the runner
+# tree cannot redirect a removal outside `--root`. Symlinked runner
+# directories are refused outright for the same reason.
+#
+# Deliberately left alone:
+#
+# * `_work/<owner>/<repo>` checkouts and `_work/_tool` -- removing them only
+#   forces a re-clone or re-download, and an age check cannot prove a
+#   long-running job is not about to write there.
+# * `_work/_temp` -- not every job on this runner sets `timeout-minutes`, so
+#   no age threshold can prove a temp file is orphaned rather than in use.
+#   It holds tens of kilobytes; it is not worth the risk.
 #
 # Usage:
-#   ./workspace-gc.sh [--root DIR] [--max-age-hours N]
+#   ./workspace-gc.sh [--root DIR] [--update-age-hours N]
 #                     [--diag-retention-days N] [--dry-run]
 #
 # Environment overrides:
-#   PENGE_GC_RUNNER_ROOT     same as --root (default /var/lib/ghrunner)
-#   PENGE_GC_MAX_AGE_HOURS   same as --max-age-hours (default 2)
-#   PENGE_GC_DIAG_DAYS       same as --diag-retention-days (default 7)
+#   PENGE_GC_RUNNER_ROOT      same as --root (default /var/lib/ghrunner)
+#   PENGE_GC_UPDATE_AGE_HOURS same as --update-age-hours (default 24)
+#   PENGE_GC_DIAG_DAYS        same as --diag-retention-days (default 7)
 
 set -euo pipefail
 
 RUNNER_ROOT="${PENGE_GC_RUNNER_ROOT:-/var/lib/ghrunner}"
-MAX_AGE_HOURS="${PENGE_GC_MAX_AGE_HOURS:-2}"
+UPDATE_AGE_HOURS="${PENGE_GC_UPDATE_AGE_HOURS:-24}"
 DIAG_DAYS="${PENGE_GC_DIAG_DAYS:-7}"
 DRY_RUN=0
 
 usage() {
-    sed -n '2,38p' "$0"
+    sed -n '2,50p' "$0"
 }
 
 require_value() {
@@ -65,9 +80,9 @@ while [[ $# -gt 0 ]]; do
             RUNNER_ROOT="$2"
             shift 2
             ;;
-        --max-age-hours)
+        --update-age-hours)
             require_value "$@"
-            MAX_AGE_HOURS="$2"
+            UPDATE_AGE_HOURS="$2"
             shift 2
             ;;
         --diag-retention-days)
@@ -91,8 +106,13 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-if ! [[ "${MAX_AGE_HOURS}" =~ ^[0-9]+$ ]] || [[ "${MAX_AGE_HOURS}" -lt 1 ]]; then
-    echo "--max-age-hours must be a positive integer (got '${MAX_AGE_HOURS}')" >&2
+if ! [[ "${UPDATE_AGE_HOURS}" =~ ^[0-9]+$ ]] || [[ "${UPDATE_AGE_HOURS}" -lt 1 ]]; then
+    echo "--update-age-hours must be a positive integer (got '${UPDATE_AGE_HOURS}')" >&2
+    exit 2
+fi
+
+if [[ "$(id -u)" -eq 0 ]]; then
+    echo "refusing to run as root: see the comment at the top of this script" >&2
     exit 2
 fi
 
@@ -123,31 +143,53 @@ disk_usage() {
     df -h "${RUNNER_ROOT}" | tail -n 1
 }
 
-max_age_minutes="$((MAX_AGE_HOURS * 60))"
+update_age_minutes="$((UPDATE_AGE_HOURS * 60))"
+# GNU `find -mtime +N` rounds age down to whole days, so `+7` only starts
+# matching after eight full days. Convert to minutes so the flag means what
+# it says.
+diag_age_minutes="$((DIAG_DAYS * 24 * 60))"
 
-log "root ${RUNNER_ROOT}, max age ${MAX_AGE_HOURS}h, diag retention ${DIAG_DAYS}d, dry-run=${DRY_RUN}"
+log "root ${RUNNER_ROOT}, update age ${UPDATE_AGE_HOURS}h, diag retention ${DIAG_DAYS}d, dry-run=${DRY_RUN}"
 log "disk before: $(disk_usage)"
+
+# Newest mtime anywhere in a tree, in epoch seconds. The parent directory's
+# own mtime says nothing about writes happening beneath it.
+newest_mtime() {
+    local tree="$1"
+    find "${tree}" -mount -printf '%T@\n' 2>/dev/null |
+        sort -rn | head -n 1 | cut -d. -f1
+}
 
 shopt -s nullglob
 
 for runner_dir in "${RUNNER_ROOT}"/*/; do
     runner="$(basename "${runner_dir}")"
 
+    # A symlinked runner directory could point anywhere; refuse rather than
+    # follow it. Same for the subdirectories acted on below.
+    if [[ -L "${runner_dir%/}" ]]; then
+        log "WARNING: skipping ${runner}, it is a symlink"
+        continue
+    fi
+
     # A directory is only a runner if it has the layout we expect. Anything
     # else under the root -- a backup, someone's scratch dir -- is left alone.
-    [[ -d "${runner_dir}_work" ]] || continue
+    [[ -d "${runner_dir}_work" ]] && [[ ! -L "${runner_dir}_work" ]] || continue
+
+    now_epoch="$(date -u +%s)"
 
     # 1. Self-update staging payload. Present only after an upgrade, never
     #    read again, and a byte-for-byte duplicate of `externals.<version>/`.
     update_dir="${runner_dir}_work/_update"
-    if [[ -d "${update_dir}" ]]; then
-        # `-mmin +N` on the directory itself: the runner touches it while
-        # unpacking, so an untouched one cannot be an upgrade in flight.
-        if [[ -n "$(find "${update_dir}" -maxdepth 0 -mmin "+${max_age_minutes}" 2>/dev/null)" ]]; then
-            log "stale self-update payload ${runner}/_work/_update -> remove"
+    if [[ -d "${update_dir}" ]] && [[ ! -L "${update_dir}" ]]; then
+        newest="$(newest_mtime "${update_dir}")"
+        if [[ -z "${newest}" ]]; then
+            log "WARNING: cannot determine age of ${runner}/_work/_update; skipping"
+        elif [[ "$(((now_epoch - newest) / 60))" -gt "${update_age_minutes}" ]]; then
+            log "stale self-update payload ${runner}/_work/_update (idle ~$(((now_epoch - newest) / 3600))h) -> remove"
             remove "${update_dir}"
         else
-            log "keeping ${runner}/_work/_update (below age threshold)"
+            log "keeping ${runner}/_work/_update (written to recently)"
         fi
     fi
 
@@ -155,22 +197,11 @@ for runner_dir in "${RUNNER_ROOT}"/*/; do
     #    once the Actions-side logs expire, so they get a retention window in
     #    days rather than the job-scale threshold used everywhere else.
     diag_dir="${runner_dir}_diag"
-    if [[ -d "${diag_dir}" ]]; then
+    if [[ -d "${diag_dir}" ]] && [[ ! -L "${diag_dir}" ]]; then
         while IFS= read -r -d '' logfile; do
             log "stale diag log ${logfile#"${RUNNER_ROOT}"/} -> remove"
             remove "${logfile}"
-        done < <(find "${diag_dir}" -type f -name '*.log' -mtime "+${DIAG_DAYS}" -print0 2>/dev/null)
-    fi
-
-    # 3. Per-job temp files. The runner clears `_work/_temp` at the start of a
-    #    job, so anything older than the threshold belongs to a job that died
-    #    before cleanup.
-    temp_dir="${runner_dir}_work/_temp"
-    if [[ -d "${temp_dir}" ]]; then
-        while IFS= read -r -d '' leftover; do
-            log "stale temp entry ${leftover#"${RUNNER_ROOT}"/} -> remove"
-            remove "${leftover}"
-        done < <(find "${temp_dir}" -mindepth 1 -maxdepth 1 -mmin "+${max_age_minutes}" -print0 2>/dev/null)
+        done < <(find "${diag_dir}" -mount -type f -name '*.log' -mmin "+${diag_age_minutes}" -print0 2>/dev/null)
     fi
 done
 

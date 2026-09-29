@@ -11,7 +11,12 @@ Description=Penge self-hosted runner workspace garbage collection
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/penge-workspace-gc --max-age-hours 2 --diag-retention-days 7
+# Unprivileged on purpose: the script only removes files the runner owns, and
+# running as root would let a symlink planted in the runner tree redirect a
+# removal outside the root. The script refuses to run as root.
+User=ghrunner
+Group=ghrunner
+ExecStart=/usr/local/bin/penge-workspace-gc --update-age-hours 24 --diag-retention-days 7
 # Generous enough for `rm -rf` of a ~700 MB payload on a busy disk.
 TimeoutStartSec=20min
 Nice=10

@@ -223,6 +223,9 @@ def accounts() -> list[AccountSummary]:
             last_updated_at=row["last_updated_at"]
             if isinstance(row["last_updated_at"], datetime)
             else None,
+            balance_changed_on=row["balance_changed_on"]
+            if isinstance(row["balance_changed_on"], date)
+            else None,
         )
         for row in data.fetch_accounts()
     ]

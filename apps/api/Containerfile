@@ -15,6 +15,7 @@ WORKDIR /app
 ENV UV_COMPILE_BYTECODE=1
 ENV UV_LINK_MODE=copy
 ENV UV_PYTHON_DOWNLOADS=never
+ENV UV_NO_CACHE=1
 
 # Dependency layer: only the lockfile inputs, so code edits do not bust
 # the dependency cache. Runtime groups mirror `just api-dev`: the API

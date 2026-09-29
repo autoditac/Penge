@@ -79,8 +79,8 @@ export function useThemeMode(): ThemeModeValue {
 /** Chart palette resolved from the active CSS custom properties. */
 export function chartPalette(): readonly string[] {
   const styles = getComputedStyle(document.documentElement);
-  const palette = [1, 2, 3, 4, 5]
-    .map((index) => styles.getPropertyValue(`--chart-${index}`).trim())
+  const palette = paletteTokens.dark.chart
+    .map((_, index) => styles.getPropertyValue(`--chart-${index + 1}`).trim())
     .filter((color) => color.length > 0);
   return palette.length > 0 ? palette : paletteTokens.dark.chart;
 }

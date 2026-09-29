@@ -24,6 +24,9 @@
     --chart-3: #f2b155;
     --chart-4: #b083f0;
     --chart-5: #f36a80;
+    --chart-6: #9bd46a;
+    --chart-7: #f08c4a;
+    --chart-8: #94a3b8;
     color-scheme: dark;
 }
 
@@ -44,6 +47,9 @@
     --chart-3: #b06a10;
     --chart-4: #7c4fd0;
     --chart-5: #c23b5e;
+    --chart-6: #4d8a1f;
+    --chart-7: #c4541a;
+    --chart-8: #64748b;
     color-scheme: light;
 }
 

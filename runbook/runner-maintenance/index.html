@@ -3572,7 +3572,7 @@ recovered only 1.58 GB until the containers themselves were removed.</p>
 threshold, and the prunes that support it use Docker's <code>until=</code> filter. The
 longest job timeout in the repository is 30 minutes (<code>release.yml</code>), so a
 resource older than the threshold provably cannot belong to a running job.</p>
-<p>Two cases need explicit enumeration rather than a prune:</p>
+<p>Three cases need explicit enumeration rather than a prune:</p>
 <ul>
 <li><strong>CI images are tagged</strong> (<code>penge/&lt;app&gt;:ci-&lt;run&gt;-&lt;attempt&gt;</code>), so
   <code>docker image prune</code> — which only removes <em>dangling</em> images — would never
@@ -3582,7 +3582,24 @@ resource older than the threshold provably cannot belong to a running job.</p>
   would be unbounded in age and could take an anonymous volume that a
   concurrent job has created but not yet attached, so the sweep enumerates
   dangling <code>buildx_buildkit_*</code> volumes and age-checks each one.</li>
+<li><strong>Service containers used to leak one anonymous volume per job.</strong> Every job
+  with a <code>services:</code> block starts a fresh <code>postgres</code>, which declares
+  <code>VOLUME /var/lib/postgresql/data</code>; the volume outlived the container the
+  runner removed and never expired on its own — 80 of them held ~5 GB on
+  <code>gh-runner-ubuntu</code>.</li>
 </ul>
+<p>This is fixed <strong>at the source</strong>: every <code>postgres</code> service now runs with
+  <code>--tmpfs /var/lib/postgresql/data</code>, so no volume is created at all (and the
+  test database stays in RAM). Nothing new accumulates.</p>
+<p>For what leaked before that landed, <code>docker-gc.sh</code> has an <strong>opt-in</strong>
+  <code>--include-anonymous-volumes</code> sweep. It is off by default and the systemd
+  timer never passes it, because unlike every other step it identifies targets
+  by a <strong>heuristic, not by ownership</strong>: a 64-hex name is Docker's <em>default</em> for
+  an anonymous volume, not proof that Docker generated it, and any dangling
+  anonymous volume on the host matches — not only a CI one. On a dedicated
+  runner that is a reasonable trade for an operator to make deliberately, after
+  checking <code>docker volume ls --filter dangling=true</code>; it is not one to make
+  hourly and unattended. Rehearse with <code>--dry-run</code> first.</p>
 <p>There is no unconditional <code>docker system prune</code> anywhere, and non-BuildKit
 containers are never matched.</p>
 <h2 id="installing-the-host-units">Installing the host units<a class="headerlink" href="#installing-the-host-units" title="Permanent link">&para;</a></h2>

@@ -26,6 +26,10 @@ on:
         description: "Only reclaim resources older than this many hours"
         type: string
         default: "2"
+      diag-retention-days:
+        description: "Keep runner _diag logs for this many days"
+        type: string
+        default: "7"
       include-anonymous-volumes:
         description: "Also sweep leaked anonymous volumes (heuristic, see runbook)"
         type: boolean
@@ -56,3 +60,15 @@ jobs:
         # job timeout (30 min), so this is safe to run while other jobs build.
         run: |
           ./deploy/runner/docker-gc.sh --max-age-hours "$MAX_AGE_HOURS" $DRY_RUN $ANON_VOLUMES
+      - name: Reclaim stale runner workspace leftovers
+        env:
+          MAX_AGE_HOURS: ${{ inputs.max-age-hours || '2' }}
+          DIAG_DAYS: ${{ inputs.diag-retention-days || '7' }}
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+        # Docker was only half of the disk exhaustion: the runner's own
+        # `_work/_update` and `_diag` leftovers are the larger half.
+        run: |
+          sudo --preserve-env=MAX_AGE_HOURS,DIAG_DAYS \
+            ./deploy/runner/workspace-gc.sh \
+            --max-age-hours "$MAX_AGE_HOURS" \
+            --diag-retention-days "$DIAG_DAYS" $DRY_RUN

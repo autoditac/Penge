@@ -10,13 +10,13 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0025-encrypted-backups/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/runbook/dependency-updates/">
       
       
-        <link rel="prev" href="../0024-vault-layout/">
+        <link rel="prev" href="../container-images/">
       
       
-        <link rel="next" href="../0026-retire-gocardless-for-enable-banking/">
+        <link rel="next" href="../runner-maintenance/">
       
       
         
@@ -27,7 +27,7 @@
     
     
       
-        <title>ADR-0025 Encrypted backups: age + Parquet snapshots - Penge</title>
+        <title>Dependency updates - Penge</title>
       
     
     
@@ -78,7 +78,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#0025-encrypted-backups-age-parquet-snapshots" class="md-skip">
+        <a href="#dependency-updates-dependabot" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ADR-0025 Encrypted backups: age + Parquet snapshots
+              Dependency updates
             
           </span>
         </div>
@@ -1465,547 +1465,12 @@
       
   
   
-  
-  
-    
-    
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" >
-        
-          
-          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Runbook
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_9">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Runbook
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix>
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/monthly-ritual/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Monthly ritual (1-hour close)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/monthly-report/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Monthly automated report
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/enable-banking-consent/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Enable Banking consent (production)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/web/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Web dashboard
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/container-images/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Container images
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/dependency-updates/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Dependency updates
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/runner-maintenance/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Runner maintenance
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/nas-deploy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    NAS deploy and rollback
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/abis-yearly-refresh/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ABIS yearly refresh
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/branch-protection/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Branch protection
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/vault-watcher/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Vault watcher
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/healthchecks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Healthchecks (Uptime Kuma + Sentry)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/backup-restore/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Encrypted backups
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../runbook/restore-log/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Restore drill log
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
     
   
   
   
     
     
-      
-        
-          
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
-      
-        
       
         
       
@@ -2048,18 +1513,17 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_9" checked>
         
           
-          <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
-              
+          <label class="md-nav__link" for="__nav_9" id="__nav_9_label" tabindex="">
+            
   
   
   <span class="md-ellipsis">
     
   
-    Decisions
+    Runbook
   
 
     
@@ -2067,43 +1531,35 @@
   
   
 
-            </a>
-            
-              
-              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="">
-                <span class="md-nav__icon md-icon"></span>
-              </label>
-            
-          </div>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_10">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_9_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_9">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Decisions
+    Runbook
   
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
               
-            
-              
                 
   
   
   
   
     <li class="md-nav__item">
-      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../monthly-ritual/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ADR-0001 Self-hosted Postgres + DuckDB stack
+    Monthly ritual (1-hour close)
   
 
     
@@ -2124,14 +1580,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../monthly-report/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ADR-0002 Custom monorepo over off-the-shelf PFM
+    Monthly automated report
   
 
     
@@ -2152,14 +1608,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../enable-banking-consent/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)
+    Enable Banking consent (production)
   
 
     
@@ -2180,14 +1636,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../web/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ADR-0004 EUR and DKK shown in parallel
+    Web dashboard
   
 
     
@@ -2208,546 +1664,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../container-images/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    ADR-0005 LLM access via MCP only
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0006 Trunk-based + Conventional Commits + ADRs
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0007 Initial relational data model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0008 Nordnet account modelling
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0009 ABIS list & instrument tax treatment
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0010-sim-return-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0010 Simulation return model: historical block-bootstrap
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0011 Simulation cashflow engine: deterministic projection
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0012-sim-goal-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0012 FIRE goal evaluation model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0013 Simulation tax overlay
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0014 Monte-Carlo FIRE runner
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0015 Scenario engine
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0016 Tax-lot tracker (gennemsnitsmetoden)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0017 Lagerbeskatning calculator
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0018 Aktiesparekonto handling
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0019 PAL-skat tracking
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0020-skat-report-generator/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0020 SKAT report generator
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0021 DE Vorabpauschale calculator
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0022 Streamlit projection dashboard tab
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0023 MCP server architecture (TypeScript skeleton)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../0024-vault-layout/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    ADR-0024 Vault layout
+    Container images
   
 
     
@@ -2784,7 +1708,7 @@
   <span class="md-ellipsis">
     
   
-    ADR-0025 Encrypted backups: age + Parquet snapshots
+    Dependency updates
   
 
     
@@ -2802,7 +1726,7 @@
   <span class="md-ellipsis">
     
   
-    ADR-0025 Encrypted backups: age + Parquet snapshots
+    Dependency updates
   
 
     
@@ -2828,10 +1752,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#policy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context and Problem Statement
+        Policy
       
     </span>
   </a>
@@ -2839,10 +1763,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
+  <a href="#reviewing-a-dependabot-pr" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision Drivers
+        Reviewing a Dependabot PR
       
     </span>
   </a>
@@ -2850,182 +1774,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
+  <a href="#runtime-upgrades-node-python" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Decision">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#retention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retention
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#restore-drill-cadence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Restore drill cadence
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#key-rotation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key rotation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-2-gnupg" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — GnuPG
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-cloud-kms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — Cloud KMS
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-4-pgbackrest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 4 — pgBackRest
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
+        Runtime upgrades (Node, Python)
       
     </span>
   </a>
@@ -3048,7 +1800,1083 @@
   
   
     <li class="md-nav__item">
-      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../runner-maintenance/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Runner maintenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../nas-deploy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NAS deploy and rollback
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../abis-yearly-refresh/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ABIS yearly refresh
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../branch-protection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Branch protection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vault-watcher/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vault watcher
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../healthchecks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Healthchecks (Uptime Kuma + Sentry)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../backup-restore/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Encrypted backups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../restore-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Restore drill log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+      
+        
+          
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+        
+      
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_10" >
+        
+          
+          <div class="md-nav__link md-nav__container">
+            <a href="../../decisions/" class="md-nav__link ">
+              
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Decisions
+  
+
+    
+  </span>
+  
+  
+
+            </a>
+            
+              
+              <label class="md-nav__link " for="__nav_10" id="__nav_10_label" tabindex="">
+                <span class="md-nav__icon md-icon"></span>
+              </label>
+            
+          </div>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Decisions
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0001 Self-hosted Postgres + DuckDB stack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0002 Custom monorepo over off-the-shelf PFM
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0003 Hybrid ingestion (PSD2 + CSV/PDF)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0004 EUR and DKK shown in parallel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0005 LLM access via MCP only
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0006 Trunk-based + Conventional Commits + ADRs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0007 Initial relational data model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0008 Nordnet account modelling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0009 ABIS list & instrument tax treatment
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0010 Simulation return model: historical block-bootstrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0011 Simulation cashflow engine: deterministic projection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0012 FIRE goal evaluation model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0013 Simulation tax overlay
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0014 Monte-Carlo FIRE runner
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0015 Scenario engine
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0016 Tax-lot tracker (gennemsnitsmetoden)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0017 Lagerbeskatning calculator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0018 Aktiesparekonto handling
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0019 PAL-skat tracking
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0020 SKAT report generator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0021 DE Vorabpauschale calculator
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0022 Streamlit projection dashboard tab
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0023 MCP server architecture (TypeScript skeleton)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0024 Vault layout
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0025 Encrypted backups: age + Parquet snapshots
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -3076,7 +2904,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -3104,7 +2932,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -3132,7 +2960,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -3160,7 +2988,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0034-application-container-images/" class="md-nav__link">
+      <a href="../../decisions/0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -3188,7 +3016,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0035-fastapi-read-api/" class="md-nav__link">
+      <a href="../../decisions/0035-fastapi-read-api/" class="md-nav__link">
         
   
   
@@ -3216,7 +3044,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0036-webui-frontend-stack/" class="md-nav__link">
+      <a href="../../decisions/0036-webui-frontend-stack/" class="md-nav__link">
         
   
   
@@ -3244,7 +3072,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0037-staged-import-sessions/" class="md-nav__link">
+      <a href="../../decisions/0037-staged-import-sessions/" class="md-nav__link">
         
   
   
@@ -3272,7 +3100,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+      <a href="../../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
         
   
   
@@ -3300,7 +3128,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0039-returns-engine-twr-mwr/" class="md-nav__link">
+      <a href="../../decisions/0039-returns-engine-twr-mwr/" class="md-nav__link">
         
   
   
@@ -3328,7 +3156,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
+      <a href="../../decisions/0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
         
   
   
@@ -3356,7 +3184,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0045-mui-core-webui-design-system/" class="md-nav__link">
+      <a href="../../decisions/0045-mui-core-webui-design-system/" class="md-nav__link">
         
   
   
@@ -3384,7 +3212,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../0046-scheduled-enable-banking-net-worth-refresh/" class="md-nav__link">
+      <a href="../../decisions/0046-scheduled-enable-banking-net-worth-refresh/" class="md-nav__link">
         
   
   
@@ -3412,7 +3240,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../adr-template/" class="md-nav__link">
+      <a href="../../decisions/adr-template/" class="md-nav__link">
         
   
   
@@ -3521,10 +3349,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#context-and-problem-statement" class="md-nav__link">
+  <a href="#policy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Context and Problem Statement
+        Policy
       
     </span>
   </a>
@@ -3532,10 +3360,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#decision-drivers" class="md-nav__link">
+  <a href="#reviewing-a-dependabot-pr" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Decision Drivers
+        Reviewing a Dependabot PR
       
     </span>
   </a>
@@ -3543,182 +3371,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#considered-options" class="md-nav__link">
+  <a href="#runtime-upgrades-node-python" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Considered Options
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decision" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decision
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Decision">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#retention" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retention
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#restore-drill-cadence" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Restore drill cadence
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#key-rotation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Key rotation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#consequences" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Consequences
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Consequences">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#positive" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Positive
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#negative" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Negative
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#neutral" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Neutral
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#alternatives-in-detail" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Alternatives in detail
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Alternatives in detail">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#option-2-gnupg" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 2 — GnuPG
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-3-cloud-kms" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 3 — Cloud KMS
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#option-4-pgbackrest" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Option 4 — pgBackRest
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#links" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Links
+        Runtime upgrades (Node, Python)
       
     </span>
   </a>
@@ -3742,7 +3398,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0025-encrypted-backups.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/runbook/dependency-updates.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3750,209 +3406,59 @@
   
 
 
-<h1 id="0025-encrypted-backups-age-parquet-snapshots">0025 — Encrypted backups: age + Parquet snapshots<a class="headerlink" href="#0025-encrypted-backups-age-parquet-snapshots" title="Permanent link">&para;</a></h1>
-<ul>
-<li><strong>Status:</strong> Proposed</li>
-<li><strong>Date:</strong> 2026-05-08</li>
-<li><strong>Deciders:</strong> @autoditac</li>
-<li><strong>Tags:</strong> infra, security</li>
-</ul>
-<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
-<p>Penge holds DK and DE financial data: balances, transactions, holdings,
-tax lots, and PDF statements stored under the vault tree (ADR-0024).
-Loss of the Postgres database (disk failure on the home server,
-mistaken <code>DROP TABLE</code>, ransomware, hardware theft) would either erase
-years of reconciled history or — worse — leak it if the backup
-pipeline puts plaintext on a disk we don't fully control.</p>
-<p>We need a backup pipeline that is:</p>
+<h1 id="dependency-updates-dependabot">Dependency updates (Dependabot)<a class="headerlink" href="#dependency-updates-dependabot" title="Permanent link">&para;</a></h1>
+<p>Dependabot keeps GitHub Actions, container base images, Python and npm dependencies current.
+The policy lives in <a href="https://github.com/autoditac/Penge/blob/main/.github/dependabot.yml"><code>.github/dependabot.yml</code></a>.</p>
+<h2 id="policy">Policy<a class="headerlink" href="#policy" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Update type</th>
+<th>How it arrives</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Minor and patch</td>
+<td>One grouped PR per ecosystem per week</td>
+</tr>
+<tr>
+<td>Major</td>
+<td>One PR per dependency, reviewed and tested on its own</td>
+</tr>
+<tr>
+<td>Node / Python runtime version of a base image</td>
+<td>Never; upgrade deliberately (see below)</td>
+</tr>
+<tr>
+<td>Digest refresh of a pinned base-image tag</td>
+<td>Grouped with the minor/patch PR of the <code>docker</code> ecosystem</td>
+</tr>
+</tbody>
+</table>
+<p>Grouping keeps the backlog small.
+Without it, the per-ecosystem limit of five open PRs fills up with individual bumps that go stale as soon as <code>main</code> moves.</p>
+<h2 id="reviewing-a-dependabot-pr">Reviewing a Dependabot PR<a class="headerlink" href="#reviewing-a-dependabot-pr" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Encrypted at rest, end-to-end.</strong> A backup file on a USB drive in
-   the safe, an off-site Hetzner Storage Box, or an old laptop must
-   be useless to a finder without the matching private key.</li>
-<li><strong>Restorable in a fire drill.</strong> The operator must be able to
-   reproduce a working database from nothing more than the encrypted
-   artefact and an offline private key.</li>
-<li><strong>Auditable.</strong> Every artefact carries a timestamp, an integrity
-   hash, and a deterministic filename so retention pruning is safe.</li>
-<li><strong>Boring.</strong> No bespoke crypto, no key servers, no dependency on a
-   cloud KMS we don't already pay for.</li>
+<li>Check that the PR is still relevant.
+   If <code>main</code> already carries the same or a newer version, close it with a comment naming the commit that superseded it.</li>
+<li>For GitHub Actions, verify that the pinned SHA matches the upstream tag
+   (<code>gh api repos/&lt;owner&gt;/&lt;repo&gt;/git/ref/tags/&lt;tag&gt;</code>) and read the release notes for removed inputs or runtime changes.
+   Self-hosted runners must meet the minimum runner version the action requires.</li>
+<li>For container images, confirm the digest is the multi-arch <strong>index</strong> digest of the tag and build the image locally
+   (see <a href="../container-images/">Container images</a>).</li>
+<li>Merge only after CI is green and the Copilot review threads are resolved.</li>
 </ol>
-<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<h2 id="runtime-upgrades-node-python">Runtime upgrades (Node, Python)<a class="headerlink" href="#runtime-upgrades-node-python" title="Permanent link">&para;</a></h2>
+<p>Language runtimes of the container base images are ignored by Dependabot on purpose:</p>
 <ul>
-<li><strong>Threat model.</strong> Adversaries we plan for: a thief who steals the
-  home server or its USB backup drive; a misbehaving cloud provider
-  that reads our object-store contents; a future Penge developer who
-  pulls the wrong tarball onto a shared workstation. Adversaries we
-  do <strong>not</strong> plan for in v1: a state-level attacker with persistent
-  on-host access; a coerced custodian.</li>
-<li><strong>Key custody.</strong> We want the private key offline (printed paper +
-  encrypted USB stick in a safe) plus on each operator device that
-  needs to decrypt. No cloud copies.</li>
-<li><strong>Operator ergonomics.</strong> The operator runs Linux + macOS at home
-  and wants a <code>just backup</code> / <code>just restore-test</code> flow, not a five-
-  step GnuPG ritual.</li>
-<li><strong>Reproducibility.</strong> Backups must be exactly reproducible from the
-  encrypted artefact alone — no out-of-band metadata required to
-  decrypt.</li>
+<li><strong>Node</strong> only moves between LTS lines.
+  Odd majors are never LTS and are not used.</li>
+<li><strong>Python</strong> upgrades must move <code>requires-python</code>, ruff <code>target-version</code>, mypy <code>python_version</code>,
+  CI and <em>both</em> stages of <code>apps/api/Containerfile</code> (the <code>uv</code> build image and the slim runtime image) together.
+  A runtime-only bump would ship a virtualenv built for a different interpreter.</li>
 </ul>
-<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
-<ol>
-<li><strong><code>age</code> (pinentry-free, modern).</strong> Curve25519 + ChaCha20-Poly1305,
-   one tiny binary, X25519 recipients, simple <code>-r &lt;pubkey&gt;</code> CLI, no
-   keyrings.</li>
-<li><strong>GnuPG.</strong> Battle-tested, ubiquitous on Linux. Heavyweight
-   (keyrings, agents, web-of-trust), legendary configuration foot-
-   guns, awkward to script for non-interactive backups.</li>
-<li><strong>Cloud KMS-wrapped envelopes (AWS KMS, GCP KMS, Hashicorp Vault).</strong>
-   Strong access control on paper. Adds a hard dependency on a
-   third-party service to decrypt — exactly the property that ruins
-   day-7 disaster recovery.</li>
-<li><strong>Postgres native pgBackRest with TDE.</strong> Excellent for managed
-   fleets; overkill for a single-host home server, and pulls in a
-   stateful backup repository service we'd then need to back up too.</li>
-</ol>
-<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
-<p>We use <strong><code>age</code></strong> (Option 1) with one or more X25519 recipient public
-keys configured via <code>PENGE_BACKUP_RECIPIENTS</code>. Postgres backups are
-plain <code>pg_dump</code> output piped through <code>age</code>; DuckDB snapshots are
-per-table Parquet files packed in a tar stream and piped through
-<code>age</code>. The <code>age</code> private key (<code>age-keygen</code> output) lives in two places:</p>
-<ul>
-<li>A printed copy in the safe (page is small enough to fit on A4).</li>
-<li>An encrypted USB stick in the same safe.</li>
-</ul>
-<p>For routine restores the operator copies the identity file onto the
-machine that needs it (<code>PENGE_BACKUP_IDENTITY_FILE</code>) and removes it
-afterwards. Operator workstations may keep the identity file under
-<code>~/.config/penge/</code> with mode <code>0600</code> for convenience.</p>
-<h3 id="pipeline">Pipeline<a class="headerlink" href="#pipeline" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code>pg_dump --format=plain --no-owner --no-privileges
-   │
-   ▼
-age -r &lt;pubkey&gt; [-r &lt;pubkey&gt;...]
-   │
-   ▼
-backups/postgres/pg-YYYYMMDDTHHMMSSZ.sql.age   (+ .sha256 sidecar)
-</code></pre></div>
-<p>The DuckDB path is symmetric:</p>
-<div class="highlight"><pre><span></span><code>duckdb COPY ... TO 'tbl.parquet' (FORMAT PARQUET)   (per table, in a scratch dir)
-   │
-   ▼  (tar stream of {manifest.tsv, *.parquet})
-   │
-   ▼
-age -r &lt;pubkey&gt; [-r &lt;pubkey&gt;...]
-   │
-   ▼
-backups/duckdb/duckdb-YYYYMMDDTHHMMSSZ.tar.age   (+ .sha256 sidecar)
-</code></pre></div>
-<p>The unencrypted dump never lands on disk: pg_dump writes to the pipe,
-age writes the ciphertext directly to the destination file. The
-DuckDB scratch directory lives under the backup root (never <code>/tmp</code>)
-and is deleted on every exit path via a <code>trap</code>.</p>
-<h3 id="retention">Retention<a class="headerlink" href="#retention" title="Permanent link">&para;</a></h3>
-<p><code>scripts/prune.sh</code> keeps <strong>14 daily</strong> + <strong>8 weekly</strong> + <strong>12 monthly</strong>
-artefacts by default. The defaults are configurable per invocation
-(<code>--daily</code>, <code>--weekly</code>, <code>--monthly</code>) and via env
-(<code>PENGE_BACKUP_RETENTION_*</code>). Buckets are derived from the timestamp
-embedded in the filename, not file mtime, so syncing artefacts across
-hosts doesn't reshuffle the policy.</p>
-<h3 id="restore-drill-cadence">Restore drill cadence<a class="headerlink" href="#restore-drill-cadence" title="Permanent link">&para;</a></h3>
-<p>We exercise restore quarterly (Q1 / Q2 / Q3 / Q4 — first weekend of
-the quarter):</p>
-<ol>
-<li>Decrypt the most recent <code>pg-*.sql.age</code> into a throwaway database.</li>
-<li>Run a <code>pg_dump --schema-only</code> diff against the live database.</li>
-<li>Compare row counts on the headline tables (<code>account</code>,
-   <code>transaction</code>, <code>instrument</code>, <code>holding</code>).</li>
-</ol>
-<p>CI runs the same round-trip (<code>.github/workflows/backup-roundtrip.yml</code>)
-on every PR that touches <code>scripts/**</code>, so the script-level invariant
-is continuously tested.</p>
-<h3 id="key-rotation">Key rotation<a class="headerlink" href="#key-rotation" title="Permanent link">&para;</a></h3>
-<p>Rotation is straightforward because <code>age</code> recipients are independent
-public keys, not a keyring with a web of trust:</p>
-<ol>
-<li><code>age-keygen -o new-identity.txt</code> → publish the new public key.</li>
-<li>Add the new public key to <code>PENGE_BACKUP_RECIPIENTS</code> next to the
-   existing one (comma-separated). New artefacts are now decryptable
-   by <strong>either</strong> key.</li>
-<li>Run a manual <code>just backup</code> and verify a restore drill against the
-   new key.</li>
-<li>After 90 days, remove the old public key from
-   <code>PENGE_BACKUP_RECIPIENTS</code>. The old key still decrypts artefacts
-   from before the rotation; new artefacts cannot.</li>
-<li>Securely destroy the old private-key paper and wipe the old USB
-   stick (single overwrite + physical destruction is sufficient
-   given the threat model).</li>
-</ol>
-<p>We <strong>never</strong> re-encrypt historical artefacts. If an old key is
-compromised, that breach exposes whatever data is in the artefacts
-that key encrypted — and the appropriate response is to assume that
-window of history is leaked, not to attempt to scrub the artefacts.</p>
-<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
-<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
-<ul>
-<li>One small binary (<code>age</code>) on every host that takes or restores
-  backups; no keyrings, no agents, no daemons.</li>
-<li>Multiple recipients are first-class: rotation and shared access
-  (e.g. spouse) just work.</li>
-<li>Encrypted artefacts are self-contained — restorable on a fresh
-  laptop with nothing but <code>age</code>, <code>psql</code>/<code>duckdb</code>, and the identity
-  file from the safe.</li>
-<li>The <code>.sha256</code> sidecar lets the operator detect bit-rot before
-  attempting a restore on cold storage.</li>
-</ul>
-<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
-<ul>
-<li><code>age</code> is younger than GnuPG and has a smaller pool of public
-  cryptographic review. We mitigate by pinning the package version
-  and tracking <a href="https://github.com/FiloSottile/age/security/advisories">the <code>age</code> advisory feed</a>.</li>
-<li>Plain SQL dumps are larger than custom-format dumps. Restore is
-  also single-threaded (<code>psql -f -</code>) compared to <code>pg_restore --jobs</code>.
-  At Penge's data volume (10⁵–10⁶ rows) this is a non-issue; if it
-  becomes one we switch to <code>--format=custom</code>, which is a one-line
-  change in <code>scripts/backup.sh</code>.</li>
-<li>Compromise of the on-device identity file exposes all artefacts
-  that recipient could decrypt. Mitigated by file mode <code>0600</code>,
-  full-disk encryption on the host, and the rotation procedure above.</li>
-</ul>
-<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Postgres backups are logical (<code>pg_dump</code>) rather than physical
-  (PITR). Penge has no SLO for sub-day RPO, and logical backups are
-  trivially portable across major Postgres versions, which fits the
-  home-server upgrade cadence.</li>
-</ul>
-<h2 id="alternatives-in-detail">Alternatives in detail<a class="headerlink" href="#alternatives-in-detail" title="Permanent link">&para;</a></h2>
-<h3 id="option-2-gnupg">Option 2 — GnuPG<a class="headerlink" href="#option-2-gnupg" title="Permanent link">&para;</a></h3>
-<p>GnuPG would also work, but the operational surface is hostile:
-keyrings carry per-host state, <code>gpg-agent</code> interferes with
-non-interactive cron jobs, and the Web-of-Trust UX is irrelevant
-to a single-operator threat model. The
-<a href="https://age-encryption.org/"><em>age</em> design notes</a> explicitly target
-this gap.</p>
-<h3 id="option-3-cloud-kms">Option 3 — Cloud KMS<a class="headerlink" href="#option-3-cloud-kms" title="Permanent link">&para;</a></h3>
-<p>A KMS-wrapped envelope ties our disaster-recovery path to a vendor
-account. The first thing we'd want during an actual disaster (a
-fresh laptop on a flaky hotel Wi-Fi) is to <strong>not</strong> depend on cloud
-auth.</p>
-<h3 id="option-4-pgbackrest">Option 4 — pgBackRest<a class="headerlink" href="#option-4-pgbackrest" title="Permanent link">&para;</a></h3>
-<p>pgBackRest is the right answer for a fleet of managed Postgres
-instances. For one home server it adds a stateful repository service
-that itself needs encryption, retention, and monitoring — pushing the
-problem one level down without solving it.</p>
-<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
-<ul>
-<li><code>scripts/backup.sh</code></li>
-<li><code>scripts/snapshot.sh</code></li>
-<li><code>scripts/restore.sh</code></li>
-<li><code>scripts/prune.sh</code></li>
-<li><a href="../../runbook/backup-restore/"><code>docs/runbook/backup-restore.md</code></a></li>
-<li><code>.github/workflows/backup-roundtrip.yml</code></li>
-<li><a href="https://age-encryption.org/">age — A simple, modern and secure encryption tool</a></li>
-<li>ADR-0001 — Self-hosted Postgres + DuckDB stack</li>
-<li>ADR-0024 — Vault layout</li>
-</ul>
+<p>Open an issue for the upgrade and do it as a single, tested PR.</p>
 
 
 

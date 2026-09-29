@@ -18,6 +18,7 @@ const accounts: readonly AccountSummary[] = [
     iban_masked: "••••1234",
     kind: "checking",
     last_updated_at: "2026-04-01T08:30:00Z",
+    balance_changed_on: "2026-03-31",
     name: "Cash account",
     provider: "bank",
   },
@@ -29,6 +30,7 @@ const accounts: readonly AccountSummary[] = [
     iban_masked: "",
     kind: "investment",
     last_updated_at: null,
+    balance_changed_on: null,
     name: "Investment depot",
     provider: "broker",
   },
@@ -83,6 +85,12 @@ describe("AccountOverview", () => {
     expect(within(cards[0]!).getByText("••••1234")).toBeInTheDocument();
     expect(within(cards[0]!).getByText("Freshness")).toBeInTheDocument();
     expect(within(cards[0]!).getByText(/^Updated /)).toBeInTheDocument();
+    expect(within(cards[0]!).getByText("Changed")).toBeInTheDocument();
+    expect(
+      within(cards[0]!).getByLabelText(/^Balance last changed 31 Mar 2026$/),
+    ).toBeInTheDocument();
+    expect(document.querySelector('time[datetime="2026-03-31"]')).not.toBeNull();
+    expect(within(cards[1]!).getByLabelText("Last balance change unavailable")).toBeInTheDocument();
     expect(within(cards[1]!).getByLabelText("IBAN not applicable")).toBeInTheDocument();
     expect(within(cards[1]!).getByText(/50.000/)).toBeInTheDocument();
   });

@@ -145,6 +145,9 @@ class AccountSummary(_FrozenModel):
     (``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.
     ``last_updated_at`` is the newest creation timestamp among transaction,
     holding-snapshot, and document rows associated with the account.
+    ``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``
+    on which the account-currency balance differed from the previous day
+    (or its first observed day); ``None`` when the account has no balances.
     """
 
     account_id: str
@@ -156,6 +159,7 @@ class AccountSummary(_FrozenModel):
     currency: str
     iban_masked: str
     last_updated_at: datetime | None
+    balance_changed_on: date | None
 
 
 class MartFreshness(_FrozenModel):

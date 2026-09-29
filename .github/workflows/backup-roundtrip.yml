@@ -133,6 +133,7 @@ jobs:
       - name: Seed synthetic Postgres schema
         run: |
           set -euo pipefail
+          psql --dbname "${DATABASE_URL}" -v ON_ERROR_STOP=1 <<'SQL'
           DROP SCHEMA IF EXISTS bk_smoke CASCADE;
           CREATE SCHEMA bk_smoke;
           CREATE TABLE bk_smoke.accounts (
@@ -160,6 +161,8 @@ jobs:
         id: pre
         run: |
           set -euo pipefail
+          A=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.accounts;')
+          T=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.transactions;')
           echo "accounts=${A}" >> "${GITHUB_OUTPUT}"
           echo "transactions=${T}" >> "${GITHUB_OUTPUT}"
           echo "pre: accounts=${A} transactions=${T}"
@@ -195,10 +198,14 @@ jobs:
       - name: Drop schema; restore.sh; verify row counts match
         run: |
           set -euo pipefail
+          psql --dbname "${DATABASE_URL}" -v ON_ERROR_STOP=1 \
               -c 'DROP SCHEMA bk_smoke CASCADE;'
           ARTEFACT=$(ls "${PENGE_BACKUP_ROOT}"/postgres/pg-*-smoke.sql.age)
           ./scripts/restore.sh \
               --input "${ARTEFACT}" \
+              --database-url "${DATABASE_URL}"
+          A=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.accounts;')
+          T=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.transactions;')
           echo "post: accounts=${A} transactions=${T}"
           test "${A}" = "${{ steps.pre.outputs.accounts }}"
           test "${T}" = "${{ steps.pre.outputs.transactions }}"

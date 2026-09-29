@@ -358,6 +358,29 @@ function LastUpdated({
   );
 }
 
+// ``balance_changed_on`` is a calendar date (YYYY-MM-DD); format in UTC so the
+// day never shifts with the viewer's timezone.
+const balanceChangedFormat = new Intl.DateTimeFormat("en-DK", {
+  dateStyle: "medium",
+  timeZone: "UTC",
+});
+
+function BalanceChanged({ value }: { readonly value: string | null }): React.JSX.Element {
+  if (value === null) {
+    return (
+      <Box component="span" aria-label="Last balance change unavailable" color="text.secondary">
+        —
+      </Box>
+    );
+  }
+  const formatted = balanceChangedFormat.format(new Date(`${value}T00:00:00Z`));
+  return (
+    <time dateTime={value} aria-label={`Balance last changed ${formatted}`}>
+      {formatted}
+    </time>
+  );
+}
+
 function DeltaValue({
   snapshot,
   currencyCode,
@@ -547,6 +570,10 @@ function AccountCard({
         <Box component="dt">Freshness</Box>
         <Box component="dd">
           <LastUpdated value={account.last_updated_at} prefix />
+        </Box>
+        <Box component="dt">Changed</Box>
+        <Box component="dd">
+          <BalanceChanged value={account.balance_changed_on} />
         </Box>
       </Box>
     </Paper>

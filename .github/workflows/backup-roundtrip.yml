@@ -61,9 +61,21 @@ jobs:
           --health-retries 10
           --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     env:
-      DATABASE_URL: postgresql://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge
       PENGE_BACKUP_ROOT: ${{ github.workspace }}/_backups
     steps:
+      - name: Resolve the Postgres host port
+        # `job.services` is only readable inside steps, never in a job-level
+        # `env:` block -- putting it there makes the whole workflow fail to
+        # parse. Publish it once here so every later step sees it.
+        env:
+          RESOLVED_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: |
+          set -euo pipefail
+          {
+            echo "PGPORT=${RESOLVED_PORT}"
+            echo "DATABASE_URL=postgresql://penge:penge@localhost:${RESOLVED_PORT}/penge"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install age, postgresql-client-17, duckdb
@@ -121,7 +133,6 @@ jobs:
       - name: Seed synthetic Postgres schema
         run: |
           set -euo pipefail
-          psql --dbname "${DATABASE_URL}" -v ON_ERROR_STOP=1 <<'SQL'
           DROP SCHEMA IF EXISTS bk_smoke CASCADE;
           CREATE SCHEMA bk_smoke;
           CREATE TABLE bk_smoke.accounts (
@@ -149,8 +160,6 @@ jobs:
         id: pre
         run: |
           set -euo pipefail
-          A=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.accounts;')
-          T=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.transactions;')
           echo "accounts=${A}" >> "${GITHUB_OUTPUT}"
           echo "transactions=${T}" >> "${GITHUB_OUTPUT}"
           echo "pre: accounts=${A} transactions=${T}"
@@ -186,14 +195,10 @@ jobs:
       - name: Drop schema; restore.sh; verify row counts match
         run: |
           set -euo pipefail
-          psql --dbname "${DATABASE_URL}" -v ON_ERROR_STOP=1 \
               -c 'DROP SCHEMA bk_smoke CASCADE;'
           ARTEFACT=$(ls "${PENGE_BACKUP_ROOT}"/postgres/pg-*-smoke.sql.age)
           ./scripts/restore.sh \
               --input "${ARTEFACT}" \
-              --database-url "${DATABASE_URL}"
-          A=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.accounts;')
-          T=$(psql --dbname "${DATABASE_URL}" -At -c 'SELECT count(*) FROM bk_smoke.transactions;')
           echo "post: accounts=${A} transactions=${T}"
           test "${A}" = "${{ steps.pre.outputs.accounts }}"
           test "${T}" = "${{ steps.pre.outputs.transactions }}"

@@ -3,11 +3,23 @@
     "schemas": {
       "AccountSummary": {
         "additionalProperties": false,
-        "description": "Account dimension row with identifiers masked server-side and import freshness.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.\n``last_updated_at`` is the newest creation timestamp among transaction,\nholding-snapshot, and document rows associated with the account.",
+        "description": "Account dimension row with identifiers masked server-side and import freshness.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.\n``last_updated_at`` is the newest creation timestamp among transaction,\nholding-snapshot, and document rows associated with the account.\n``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``\non which the account-currency balance differed from the previous day\n(or its first observed day); ``None`` when the account has no balances.",
         "properties": {
           "account_id": {
             "title": "Account Id",
             "type": "string"
+          },
+          "balance_changed_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Balance Changed On"
           },
           "currency": {
             "title": "Currency",
@@ -59,7 +71,8 @@
           "kind",
           "currency",
           "iban_masked",
-          "last_updated_at"
+          "last_updated_at",
+          "balance_changed_on"
         ],
         "title": "AccountSummary",
         "type": "object"

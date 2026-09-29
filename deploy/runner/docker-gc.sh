@@ -29,6 +29,12 @@
 #
 # Usage:
 #   ./docker-gc.sh [--max-age-hours N] [--prefix NAME] [--dry-run]
+#                  [--include-anonymous-volumes]
+#
+# `--include-anonymous-volumes` is an *operator-initiated* sweep of leaked
+# service-container volumes. It is off by default and the systemd timer never
+# passes it, because -- unlike every other step here -- it identifies its
+# targets by a naming heuristic rather than by ownership. See the runbook.
 #
 # Environment overrides:
 #   PENGE_GC_MAX_AGE_HOURS   same as --max-age-hours (default 2)
@@ -41,9 +47,10 @@ MAX_AGE_HOURS="${PENGE_GC_MAX_AGE_HOURS:-2}"
 PREFIX="${PENGE_GC_PREFIX:-buildx_buildkit_}"
 DOCKER="${DOCKER:-docker}"
 DRY_RUN=0
+INCLUDE_ANON_VOLUMES=0
 
 usage() {
-    sed -n '2,40p' "$0"
+    sed -n '2,48p' "$0"
 }
 
 require_value() {
@@ -71,6 +78,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         --dry-run)
             DRY_RUN=1
+            shift
+            ;;
+        --include-anonymous-volumes)
+            INCLUDE_ANON_VOLUMES=1
             shift
             ;;
         -h | --help)
@@ -157,7 +168,7 @@ select_stale() {
     done
 }
 
-log "max age ${MAX_AGE_HOURS}h, container prefix '${PREFIX}', dry-run=${DRY_RUN}"
+log "max age ${MAX_AGE_HOURS}h, container prefix '${PREFIX}', dry-run=${DRY_RUN}, anon-volumes=${INCLUDE_ANON_VOLUMES}"
 log "disk usage before:"
 "${DOCKER}" system df || true
 
@@ -228,28 +239,36 @@ for volume in "${dangling_volumes[@]:-}"; do
 done
 
 # 6. Anonymous volumes orphaned by GitHub Actions *service containers*.
-#    Every job with a `services:` block gets a fresh postgres container, and
-#    `postgres` declares `VOLUME /var/lib/postgresql/data`, so each run leaves
-#    an anonymous volume behind once the runner removes the container. They
-#    accumulate unbounded: ~5 GB across 80 volumes on `penge-1`.
+#    Every job with a `services:` block used to leak one: `postgres` declares
+#    `VOLUME /var/lib/postgresql/data`, and the volume outlives the container
+#    the runner removes. ~5 GB across 80 volumes accumulated this way.
 #
-#    Only 64-hex names are considered. That is Docker's format for an
-#    anonymous volume, so a *named* volume -- the only kind that can hold
-#    data someone cares about, such as a local `penge-db` -- is structurally
-#    unreachable here, no matter its age. The age gate still applies, so a
-#    volume a concurrent job has created but not yet attached is safe.
-mapfile -t stale_anon_volumes < <(
-    "${DOCKER}" volume ls --quiet --filter dangling=true 2>/dev/null | while read -r volume; do
-        [[ "${volume}" =~ ^[0-9a-f]{64}$ ]] || continue
-        created="$("${DOCKER}" volume inspect --format '{{.CreatedAt}}' "${volume}" 2>/dev/null || true)"
-        [[ -n "${created}" ]] && printf '%s\t%s\n' "${volume}" "${created}"
-    done | select_stale volume
-)
+#    The real fix is at the source -- the workflows now mount a tmpfs over
+#    that path, so no volume is created at all. This step only clears what
+#    leaked before that landed, or what a container outside CI leaves behind.
+#
+#    It is opt-in, and the timer never enables it, because a 64-hex name is
+#    Docker's *default* for an anonymous volume, not proof of ownership:
+#    nothing stops someone naming a volume that way, and any dangling
+#    anonymous volume on the host matches, not just a CI one. On a dedicated
+#    runner that is an acceptable trade for an operator to make deliberately;
+#    it is not one to make hourly and unattended.
+if [[ "${INCLUDE_ANON_VOLUMES}" -eq 1 ]]; then
+    mapfile -t stale_anon_volumes < <(
+        "${DOCKER}" volume ls --quiet --filter dangling=true 2>/dev/null | while read -r volume; do
+            [[ "${volume}" =~ ^[0-9a-f]{64}$ ]] || continue
+            created="$("${DOCKER}" volume inspect --format '{{.CreatedAt}}' "${volume}" 2>/dev/null || true)"
+            [[ -n "${created}" ]] && printf '%s\t%s\n' "${volume}" "${created}"
+        done | select_stale volume
+    )
 
-for volume in "${stale_anon_volumes[@]:-}"; do
-    [[ -n "${volume}" ]] || continue
-    run "${DOCKER}" volume rm --force "${volume}" || true
-done
+    for volume in "${stale_anon_volumes[@]:-}"; do
+        [[ -n "${volume}" ]] || continue
+        run "${DOCKER}" volume rm --force "${volume}" || true
+    done
+else
+    log "skipping anonymous-volume sweep (pass --include-anonymous-volumes to enable)" >&2
+fi
 
 # 7. Per-job `DOCKER_CONFIG` scratch directories from the image jobs.
 if [[ "${DRY_RUN}" -eq 1 ]]; then

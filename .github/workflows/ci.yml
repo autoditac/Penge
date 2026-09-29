@@ -371,11 +371,15 @@ jobs:
           POSTGRES_DB: penge
         ports:
           - 5432/tcp
+        # `--tmpfs` over the data dir stops postgres' `VOLUME` directive from
+        # creating an anonymous volume that outlives the job (#289), and keeps
+        # the test database in RAM.
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
@@ -410,11 +414,15 @@ jobs:
           POSTGRES_DB: penge
         ports:
           - 5432/tcp
+        # `--tmpfs` over the data dir stops postgres' `VOLUME` directive from
+        # creating an anonymous volume that outlives the job (#289), and keeps
+        # the test database in RAM.
         options: >-
           --health-cmd "pg_isready -U penge"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0

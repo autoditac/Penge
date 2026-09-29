@@ -291,7 +291,7 @@ def test_removes_orphaned_anonymous_service_container_volumes(
     """Postgres service containers leave an anonymous volume per job (#289)."""
     bin_dir, log = fake_docker
 
-    result = _run_gc(bin_dir, "--max-age-hours", "2")
+    result = _run_gc(bin_dir, "--max-age-hours", "2", "--include-anonymous-volumes")
 
     assert result.returncode == 0, result.stderr
     assert f"volume rm --force {OLD_ANON_VOLUME}" in _calls(log)
@@ -303,7 +303,7 @@ def test_leaves_recent_anonymous_volumes_alone(
     """A concurrent job may have just created a volume it has not attached."""
     bin_dir, log = fake_docker
 
-    result = _run_gc(bin_dir, "--max-age-hours", "2")
+    result = _run_gc(bin_dir, "--max-age-hours", "2", "--include-anonymous-volumes")
 
     assert result.returncode == 0, result.stderr
     assert f"volume rm --force {YOUNG_ANON_VOLUME}" not in _calls(log)
@@ -315,7 +315,18 @@ def test_never_removes_named_volumes_however_old(
     """Named volumes can hold real data, so only 64-hex names are eligible."""
     bin_dir, log = fake_docker
 
-    result = _run_gc(bin_dir, "--max-age-hours", "2")
+    result = _run_gc(bin_dir, "--max-age-hours", "2", "--include-anonymous-volumes")
 
     assert result.returncode == 0, result.stderr
     assert NAMED_VOLUME not in log.read_text()
+
+
+def test_anonymous_volume_sweep_is_opt_in(fake_docker: tuple[Path, Path]) -> None:
+    """The hourly timer must not act on a naming heuristic unattended."""
+    bin_dir, log = fake_docker
+
+    result = _run_gc(bin_dir, "--max-age-hours", "2")
+
+    assert result.returncode == 0, result.stderr
+    assert f"volume rm --force {OLD_ANON_VOLUME}" not in _calls(log)
+    assert "skipping anonymous-volume sweep" in result.stderr

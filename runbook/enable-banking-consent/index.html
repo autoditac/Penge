@@ -3663,8 +3663,15 @@ key is mounted.</p>
 <div class="highlight"><pre><span></span><code>podman<span class="w"> </span>secret<span class="w"> </span>create<span class="w"> </span>penge-eb-key<span class="w"> </span>09a4a71a-....pem
 </code></pre></div>
 <p>and reference it from the <code>penge-api.container</code> quadlet:</p>
-<div class="highlight"><pre><span></span><code><span class="na">Secret</span><span class="o">=</span><span class="s">penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400</span>
+<div class="highlight"><pre><span></span><code><span class="na">Secret</span><span class="o">=</span><span class="s">penge-eb-key,type=mount,target=/run/secrets/penge-eb-key,mode=0400,uid=1000,gid=1000</span>
 </code></pre></div>
+<p>The <code>uid=1000,gid=1000</code> is <strong>required</strong>: the API process runs as the
+   non-root <code>penge</code> user (uid 1000) inside the container, but a podman
+   secret mount defaults to <code>root:root 0400</code>. Without the explicit
+   <code>uid</code>/<code>gid</code>, the app cannot read the key and every EB call (e.g.
+   <code>POST /connections/link</code>) fails with HTTP 500 and
+   <code>PermissionError: [Errno 13] Permission denied: '/run/secrets/penge-eb-key'</code>
+   in the container log.</p>
 <ol>
 <li>Set the connection environment on the API container:</li>
 </ol>

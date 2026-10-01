@@ -40,7 +40,7 @@ const kinds = [
   ["livrente", 78_700, 0.096],
   ["checking", 69_500, 0.085],
   ["aktiesparekonto", 24_900, 0.03],
-  ["opsparingskonto", 12_000, 0.015],
+  ["savings", 12_000, 0.015],
 ] as const;
 
 describe("AllocationDonut", () => {
@@ -70,7 +70,7 @@ describe("AllocationDonut", () => {
       screen.getByRole("img", { name: "Allocation by Asset kind (EUR leg)" }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole("row")).toHaveLength(8);
-    expect(screen.getByRole("cell", { name: "opsparingskonto" })).toBeInTheDocument();
+    expect(screen.getByRole("cell", { name: "savings" })).toBeInTheDocument();
     expect(screen.getByText("EUR TOTAL")).toBeInTheDocument();
   });
 

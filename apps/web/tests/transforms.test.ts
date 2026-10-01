@@ -6,6 +6,7 @@ import type {
   NetWorthPoint,
   NetWorthTotalPoint,
 } from "../src/api/schemas";
+import { liquidKinds } from "../src/config/targets";
 import {
   accountBalanceSnapshots,
   allocationData,
@@ -177,6 +178,7 @@ const drillAccounts: AccountSummary[] = [
     entity_name: "Person A",
     iban_masked: "****1",
     kind: "checking",
+    reporting_kind: "checking",
     last_updated_at: "2026-01-03T08:00:00Z",
     balance_changed_on: "2026-01-02",
     name: "Giro",
@@ -189,6 +191,7 @@ const drillAccounts: AccountSummary[] = [
     entity_name: "Person B",
     iban_masked: "****2",
     kind: "investment",
+    reporting_kind: "investment",
     last_updated_at: "2026-01-03T09:00:00Z",
     balance_changed_on: "2026-01-02",
     name: "Depot",
@@ -278,6 +281,44 @@ describe("perAccountSeries / perKindSeries", () => {
     const kinds = perKindSeries([netWorthPoint("ghost", "2026-01-01", "5.0")], []);
     expect(kinds[0]?.label).toBe("unknown");
   });
+
+  it("groups source savings kinds under one reporting kind without changing other kinds", () => {
+    const accounts: AccountSummary[] = [
+      ...drillAccounts,
+      {
+        ...drillAccounts[0]!,
+        account_id: "nordnet-savings",
+        kind: "opsparingskonto",
+        reporting_kind: "savings",
+      },
+      {
+        ...drillAccounts[0]!,
+        account_id: "bank-savings",
+        kind: "savings",
+        reporting_kind: "savings",
+      },
+    ];
+    const points = [
+      netWorthPoint("a1", "2026-01-01", "100.0"),
+      netWorthPoint("a2", "2026-01-01", "300.0"),
+      netWorthPoint("nordnet-savings", "2026-01-01", "50.0"),
+      netWorthPoint("bank-savings", "2026-01-01", "25.0"),
+      netWorthPoint("a1", "2026-01-02", "110.0"),
+      netWorthPoint("a2", "2026-01-02", "290.0"),
+      netWorthPoint("nordnet-savings", "2026-01-02", "75.0"),
+      netWorthPoint("bank-savings", "2026-01-02", "50.0"),
+    ];
+
+    const series = perKindSeries(points, accounts);
+    expect(series.map((entry) => entry.label)).toEqual(["checking", "investment", "savings"]);
+    expect(series[2]?.series).toEqual([
+      ["2026-01-01", 75],
+      ["2026-01-02", 125],
+    ]);
+    expect(accounts.find((account) => account.account_id === "nordnet-savings")?.kind).toBe(
+      "opsparingskonto",
+    );
+  });
 });
 
 describe("kindWeightHistory / allocationDrift", () => {
@@ -299,6 +340,41 @@ describe("kindWeightHistory / allocationDrift", () => {
     const pension = drift.find((entry) => entry.kind === "pension");
     expect(pension?.current).toBe(0);
     expect(pension?.target).toBeCloseTo(0.2);
+  });
+
+  it("weights and drifts the combined savings reporting kind", () => {
+    const accounts: AccountSummary[] = [
+      ...drillAccounts,
+      {
+        ...drillAccounts[0]!,
+        account_id: "nordnet-savings",
+        kind: "opsparingskonto",
+        reporting_kind: "savings",
+      },
+      {
+        ...drillAccounts[0]!,
+        account_id: "bank-savings",
+        kind: "savings",
+        reporting_kind: "savings",
+      },
+    ];
+    const points = [
+      netWorthPoint("a1", "2026-01-02", "110.0"),
+      netWorthPoint("a2", "2026-01-02", "290.0"),
+      netWorthPoint("nordnet-savings", "2026-01-02", "75.0"),
+      netWorthPoint("bank-savings", "2026-01-02", "50.0"),
+    ];
+
+    const history = kindWeightHistory(points, accounts);
+    expect(history.kinds).toEqual(["checking", "investment", "savings"]);
+    expect(history.weights.map((row) => row[0])).toEqual([110 / 525, 290 / 525, 125 / 525]);
+    expect(history.weights.reduce((sum, row) => sum + (row[0] ?? 0), 0)).toBeCloseTo(1);
+
+    const savingsDrift = allocationDrift(history, { savings: 0.2 }).find(
+      (entry) => entry.kind === "savings",
+    );
+    expect(savingsDrift?.current).toBeCloseTo(125 / 525);
+    expect(savingsDrift?.drift).toBeCloseTo(125 / 525 - 0.2);
   });
 
   it("returns no drift entries for an empty history", () => {
@@ -323,15 +399,17 @@ describe("monthOverMonthChange", () => {
 });
 
 describe("liquidShare", () => {
-  it("sums liquid kinds over the EUR total", () => {
+  it("includes the combined savings category in liquid share", () => {
     const share = liquidShare(
       [
         { label: "checking", balance_eur: "100.0", balance_dkk: null, weight_eur: null },
+        { label: "savings", balance_eur: "325.0", balance_dkk: null, weight_eur: null },
         { label: "pension", balance_eur: "300.0", balance_dkk: null, weight_eur: null },
       ],
-      new Set(["checking"]),
+      liquidKinds,
     );
-    expect(share).toBeCloseTo(0.25);
+    expect(liquidKinds.has("savings")).toBe(true);
+    expect(share).toBeCloseTo(425 / 725);
   });
 
   it("returns null when the total is not positive", () => {

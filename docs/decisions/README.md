@@ -42,3 +42,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0045](0045-mui-core-webui-design-system.md) | MUI Core with a custom Penge theme for the WebUI design system | Proposed |
 | [0046](0046-scheduled-enable-banking-net-worth-refresh.md) | Scheduled Enable Banking sync and guarded net-worth refresh | Proposed |
 | [0047](0047-per-account-bank-metadata-corrections.md) | Per-account bank metadata corrections | Proposed |
+| [0048](0048-unified-savings-reporting-kind.md) | Unify cash savings in reporting while preserving source kinds | Proposed |

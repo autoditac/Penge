@@ -510,10 +510,12 @@ export interface components {
     };
     /**
      * AccountSummary
-     * @description Account dimension row with identifiers masked server-side and import freshness.
+     * @description Account row with source and reporting kinds, masked identifiers, and freshness.
      *
      *     ``iban_masked`` keeps only the last four characters
      *     (``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.
+     *     ``kind`` is the canonical source kind; ``reporting_kind`` is the kind
+     *     used to group the account in household reporting.
      *     ``last_updated_at`` is the newest creation timestamp among transaction,
      *     holding-snapshot, and document rows associated with the account.
      *     ``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``
@@ -541,6 +543,8 @@ export interface components {
       name: string;
       /** Provider */
       provider: string;
+      /** Reporting Kind */
+      reporting_kind: string;
     };
     /**
      * AllocationDimension

@@ -64,7 +64,7 @@
       },
       "AccountSummary": {
         "additionalProperties": false,
-        "description": "Account dimension row with identifiers masked server-side and import freshness.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.\n``last_updated_at`` is the newest creation timestamp among transaction,\nholding-snapshot, and document rows associated with the account.\n``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``\non which the account-currency balance differed from the previous day\n(or its first observed day); ``None`` when the account has no balances.",
+        "description": "Account row with source and reporting kinds, masked identifiers, and freshness.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.\n``kind`` is the canonical source kind; ``reporting_kind`` is the kind\nused to group the account in household reporting.\n``last_updated_at`` is the newest creation timestamp among transaction,\nholding-snapshot, and document rows associated with the account.\n``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``\non which the account-currency balance differed from the previous day\n(or its first observed day); ``None`` when the account has no balances.",
         "properties": {
           "account_id": {
             "title": "Account Id",
@@ -121,6 +121,10 @@
           "provider": {
             "title": "Provider",
             "type": "string"
+          },
+          "reporting_kind": {
+            "title": "Reporting Kind",
+            "type": "string"
           }
         },
         "required": [
@@ -130,6 +134,7 @@
           "provider",
           "name",
           "kind",
+          "reporting_kind",
           "currency",
           "iban_masked",
           "last_updated_at",

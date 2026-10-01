@@ -17,6 +17,7 @@ const accounts: readonly AccountSummary[] = [
     entity_name: "Person A",
     iban_masked: "••••1234",
     kind: "checking",
+    reporting_kind: "checking",
     last_updated_at: "2026-04-01T08:30:00Z",
     balance_changed_on: "2026-03-31",
     name: "Cash account",
@@ -29,6 +30,7 @@ const accounts: readonly AccountSummary[] = [
     entity_name: "Person B",
     iban_masked: "",
     kind: "investment",
+    reporting_kind: "investment",
     last_updated_at: null,
     balance_changed_on: null,
     name: "Investment depot",
@@ -59,6 +61,18 @@ const points: readonly NetWorthPoint[] = [
 ];
 
 describe("AccountOverview", () => {
+  it("shows the original source kind on account-specific cards", () => {
+    const nordnetSavings: AccountSummary = {
+      ...accounts[0]!,
+      kind: "opsparingskonto",
+      reporting_kind: "savings",
+    };
+    renderWithTheme(<AccountOverview accounts={[nordnetSavings]} points={[]} />);
+
+    expect(screen.getByText("opsparingskonto")).toBeInTheDocument();
+    expect(screen.queryByText("savings")).not.toBeInTheDocument();
+  });
+
   it("renders balances, optional IBANs, and monthly deltas in a responsive account grid", () => {
     renderWithTheme(<AccountOverview accounts={accounts} points={points} />);
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -83,7 +84,19 @@ class TestAllocation:
         assert body["by"] == "kind"
         assert body["as_of"] == "2026-06-02"
         labels = {entry["label"] for entry in body["slices"]}
-        assert labels == {"frie_midler", "aktiesparekonto"}
+        assert labels == {"frie_midler", "aktiesparekonto", "savings"}
+
+    def test_savings_kinds_are_combined_before_currency_sums_and_weights(
+        self, client: TestClient
+    ) -> None:
+        body = client.get("/allocation/current", params={"by": "kind"}).json()
+        by_label = {entry["label"]: entry for entry in body["slices"]}
+        savings = by_label["savings"]
+        assert savings["balance_eur"] == "325.0000"
+        assert savings["balance_dkk"] == "2424.5000"
+        assert savings["weight_eur"] == str(Decimal("325") / Decimal("2325"))
+        assert by_label["frie_midler"]["balance_eur"] == "1500.0000"
+        assert by_label["aktiesparekonto"]["balance_dkk"] == "3730.0000"
 
     def test_kind_slices_sum_balances(self, client: TestClient) -> None:
         body = client.get("/allocation/current").json()
@@ -101,12 +114,28 @@ class TestAllocation:
         labels = {entry["label"] for entry in body["slices"]}
         assert labels == {"Synthetic A", "Synthetic B"}
 
+    def test_group_by_currency_is_not_normalized(self, client: TestClient) -> None:
+        body = client.get("/allocation/current", params={"by": "currency"}).json()
+        by_label = {entry["label"]: entry for entry in body["slices"]}
+        assert set(by_label) == {"EUR", "DKK"}
+        assert by_label["EUR"]["balance_eur"] == "1135.0000"
+        assert by_label["DKK"]["balance_eur"] == "1190.0000"
+
     def test_invalid_dimension_rejected(self, client: TestClient) -> None:
         response = client.get("/allocation/current", params={"by": "provider"})
         assert response.status_code == 422
 
 
 class TestAccounts:
+    def test_source_kind_is_preserved_alongside_reporting_kind(self, client: TestClient) -> None:
+        body = client.get("/accounts").json()
+        opsparingskonto = next(entry for entry in body if entry["account_id"] == "a4")
+        bank_savings = next(entry for entry in body if entry["account_id"] == "a5")
+        assert opsparingskonto["kind"] == "opsparingskonto"
+        assert opsparingskonto["reporting_kind"] == "savings"
+        assert bank_savings["kind"] == "savings"
+        assert bank_savings["reporting_kind"] == "savings"
+
     def test_iban_masked_to_last_four(self, client: TestClient) -> None:
         body = client.get("/accounts").json()
         depot = next(entry for entry in body if entry["account_id"] == "a1")

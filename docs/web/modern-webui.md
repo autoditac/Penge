@@ -51,8 +51,8 @@ are recorded in ADR-0036.
   household TWR/MWR summary cards (EUR + DKK legs, with per-leg error notes
   when FX coverage is missing), contribution-vs-growth decomposition,
   recorded-fee drag per year, monthly cashflow with rolling 3-month savings
-  rate, asset-class   reporting-kind weights over time with drift vs documented target
-  weights (`src/config/targets.ts`), and per-account / per-asset-class
+  rate, reporting-kind weights over time with drift vs documented target
+  weights (`src/config/targets.ts`), and per-account / per-reporting-kind
   drill-down. Historical weights and drill-down use the same reporting-kind
   categories as current allocation, including combining `opsparingskonto`
   with `savings`. Returns methodology lives in the

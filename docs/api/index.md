@@ -36,8 +36,8 @@ Database resolution follows the same rules as every other component:
 | --------------------- | ---------------------------------------------------------------- |
 | `/net-worth/daily`    | Daily net worth, per account or summed (`group=total`)           |
 | `/cashflow/daily`     | Daily inflow/outflow/net per account                             |
-| `/allocation/current` | Latest-day allocation by `entity`, `currency`, or `kind`         |
-| `/accounts`           | Masked account dimension with latest source-data import timestamp |
+| `/allocation/current` | Latest-day allocation by `entity`, `currency`, or reporting kind |
+| `/accounts`           | Masked account dimension with source kind, reporting kind, and latest import timestamp |
 | `/meta/freshness`     | Latest data date and row count per mart, for staleness banners   |
 | `POST /meta/refresh`  | Trigger a guarded dbt-only refresh (shadow build/test + atomic promotion); does not re-sync bank connections |
 
@@ -139,6 +139,11 @@ retry coverage than not clicking the button at all.
 - Amounts are JSON **strings** (`"1000.0000"`), never floats — they are
   `Decimal` end-to-end and the client converts explicitly.
 - EUR and DKK are reported in parallel on every money-bearing row.
+- `/accounts.kind` retains the canonical source kind; `reporting_kind`
+  supplies the household reporting category. For example,
+  `opsparingskonto` remains the Nordnet source kind while mapping to
+  `savings` for kind-grouped allocation and historical performance
+  (ADR-0048).
 - Identifiers are masked server-side; the raw IBAN never leaves the process.
 - The OpenAPI schema is committed at [`openapi.json`](openapi.json) and kept
   current by a test; the WebUI's TypeScript client is generated from it.

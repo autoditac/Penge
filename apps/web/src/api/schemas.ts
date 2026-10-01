@@ -33,6 +33,7 @@ export const accountSummarySchema = z.object({
   last_updated_at: z.string().nullable(),
   name: z.string(),
   provider: z.string(),
+  reporting_kind: z.string(),
 });
 export type AccountSummary = z.infer<typeof accountSummarySchema>;
 

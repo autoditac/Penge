@@ -251,7 +251,7 @@ function accountLabel(accounts: readonly AccountSummary[], accountId: string): s
 }
 
 function accountKind(accounts: readonly AccountSummary[], accountId: string): string {
-  return accounts.find((account) => account.account_id === accountId)?.kind ?? "unknown";
+  return accounts.find((account) => account.account_id === accountId)?.reporting_kind ?? "unknown";
 }
 
 /** One EUR series per account (labelled with the masked account name). */

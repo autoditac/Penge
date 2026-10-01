@@ -19,6 +19,7 @@ from sqlalchemy.engine import Engine
 
 from penge.analytics import ReturnPoint, ReturnsError, mwr_from_series, twr_summary
 from penge.api import data
+from penge.api.account_kinds import reporting_kind
 from penge.api.connections.config import ConnectionsConfig
 from penge.api.imports.engine import get_import_engine
 from penge.api.models import (
@@ -185,6 +186,8 @@ def allocation_current(by: AllocationDimension = AllocationDimension.KIND) -> Al
     dkk_by_label: dict[str, Decimal] = {}
     for row in rows:
         label = str(row[column])
+        if by is AllocationDimension.KIND:
+            label = reporting_kind(label)
         eur = row["balance_eur"]
         dkk = row["balance_dkk"]
         if isinstance(eur, Decimal):
@@ -218,6 +221,7 @@ def accounts() -> list[AccountSummary]:
             provider=str(row["provider"]),
             name=mask_account_name(row["name"] if isinstance(row["name"], str) else None),
             kind=str(row["kind"]),
+            reporting_kind=reporting_kind(str(row["kind"])),
             currency=str(row["currency"]),
             iban_masked=mask_iban(row["iban"] if isinstance(row["iban"], str) else None),
             last_updated_at=row["last_updated_at"]

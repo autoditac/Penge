@@ -6,7 +6,7 @@
  * iteration; keeping the values here makes the assumption auditable.
  *
  * Weights refer to the EUR leg of `mart_net_worth_daily` grouped by
- * `account.kind` and must sum to 1.
+ * `reporting_kind` and must sum to 1.
  */
 
 export const targetWeightsByKind: Readonly<Record<string, number>> = {

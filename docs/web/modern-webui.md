@@ -27,7 +27,7 @@ are recorded in ADR-0036.
 ## Surfaces
 
 - **Overview** — net-worth trend (365 days, EUR + DKK), current allocation by
-  kind/currency/entity with a slim donut (EUR total in the centre) and a
+  reporting kind/currency/entity with a slim donut (EUR total in the centre) and a
   table that doubles as its legend: each category gets its own colour from
   the 8-colour theme palette, and any categories beyond that are grouped as
   "Other". The overview also has a tracked-account section with
@@ -39,7 +39,10 @@ are recorded in ADR-0036.
   exist does not advance it. Each account also shows the date its balance
   last changed (`balance_changed_on`: the latest `mart_net_worth_daily` day
   whose account-currency balance differs from the previous day). Accounts
-  render as a responsive card grid (one, two, or three columns).
+  render as a responsive card grid (one, two, or three columns) and retain
+  the original source `kind`. For reporting, `opsparingskonto` is grouped
+  with `savings`; the canonical account kind remains unchanged for connector
+  and audit use (ADR-0048).
 - **Performance** — dashboard v2 (#204, #206): KPI header (net worth,
   month-over-month delta, liquid share), range-selectable net-worth trend
   (1M/3M/1Y/5Y/all) with drawdown shading and max-drawdown KPI, TWR index
@@ -48,9 +51,11 @@ are recorded in ADR-0036.
   household TWR/MWR summary cards (EUR + DKK legs, with per-leg error notes
   when FX coverage is missing), contribution-vs-growth decomposition,
   recorded-fee drag per year, monthly cashflow with rolling 3-month savings
-  rate, asset-class weights over time with drift vs documented target
-  weights (`src/config/targets.ts`), and per-account / per-asset-class
-  drill-down. Returns methodology lives in the
+  rate, reporting-kind weights over time with drift vs documented target
+  weights (`src/config/targets.ts`), and per-account / per-reporting-kind
+  drill-down. Historical weights and drill-down use the same reporting-kind
+  categories as current allocation, including combining `opsparingskonto`
+  with `savings`. Returns methodology lives in the
   [returns engine docs](../analytics/returns.md) (ADR-0039).
 
   ![Performance dashboard v1 rendering synthetic demo data](img/performance-dashboard-v1.png)

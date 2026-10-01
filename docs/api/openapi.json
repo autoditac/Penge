@@ -1,6 +1,67 @@
 {
   "components": {
     "schemas": {
+      "AccountMetadataOut": {
+        "description": "The effective metadata after a correction; never includes an IBAN.",
+        "properties": {
+          "account_id": {
+            "format": "uuid",
+            "title": "Account Id",
+            "type": "string"
+          },
+          "entity_id": {
+            "format": "uuid",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "account_id",
+          "entity_id",
+          "kind"
+        ],
+        "title": "AccountMetadataOut",
+        "type": "object"
+      },
+      "AccountMetadataPatch": {
+        "additionalProperties": false,
+        "description": "A deliberate, per-account correction (not a connection-wide owner).",
+        "properties": {
+          "entity_id": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Entity Id"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "enum": [
+                  "checking",
+                  "savings"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          }
+        },
+        "title": "AccountMetadataPatch",
+        "type": "object"
+      },
       "AccountSummary": {
         "additionalProperties": false,
         "description": "Account dimension row with identifiers masked server-side and import freshness.\n\n``iban_masked`` keeps only the last four characters\n(``penge.web.mask.mask_iban``); the raw IBAN never leaves the API.\n``last_updated_at`` is the newest creation timestamp among transaction,\nholding-snapshot, and document rows associated with the account.\n``balance_changed_on`` is the latest ``as_of`` in ``mart_net_worth_daily``\non which the account-currency balance differed from the previous day\n(or its first observed day); ``None`` when the account has no balances.",
@@ -2194,7 +2255,7 @@
     }
   },
   "info": {
-    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. Write-capable surfaces are limited to staged imports under /imports per ADR-0037, Enable Banking consent and sync under /connections per ADR-0040, and the guarded dbt-only refresh under POST /meta/refresh per ADR-0046. The /connections endpoints provide the in-app Enable Banking consent flow and are only active where the EB signing key is configured. POST /meta/refresh triggers the guarded dbt-only shadow-build and atomic-promotion refresh from ADR-0046 without re-syncing any bank connection.",
+    "description": "Read-only JSON API over the Penge analytics marts. All amounts are reported in EUR and DKK in parallel; account identifiers are masked server-side. Write-capable surfaces are limited to staged imports under /imports per ADR-0037, Enable Banking consent and sync under /connections per ADR-0040, and the guarded dbt-only refresh under POST /meta/refresh per ADR-0046, and per-account bank metadata corrections under PATCH /accounts/{id}/metadata per ADR-0047. The /connections endpoints provide the in-app Enable Banking consent flow and are only active where the EB signing key is configured. POST /meta/refresh triggers the guarded dbt-only shadow-build and atomic-promotion refresh from ADR-0046 without re-syncing any bank connection.",
     "title": "Penge read API",
     "version": "1.0.0"
   },
@@ -2221,6 +2282,60 @@
           }
         },
         "summary": "Accounts"
+      }
+    },
+    "/accounts/{account_id}/metadata": {
+      "patch": {
+        "description": "Override owner and/or kind for an existing Enable Banking account.",
+        "operationId": "correct_account_metadata_accounts__account_id__metadata_patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "account_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Account Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AccountMetadataPatch"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountMetadataOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Correct Account Metadata",
+        "tags": [
+          "accounts"
+        ]
       }
     },
     "/allocation/current": {

@@ -7,6 +7,7 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from penge.api.account_metadata import router as account_metadata_router
 from penge.api.connections.routes import router as connections_router
 from penge.api.imports.routes import router as imports_router
 from penge.api.routes import router
@@ -35,7 +36,9 @@ def create_app() -> FastAPI:
             "Write-capable surfaces are limited to staged imports under "
             "/imports per ADR-0037, Enable Banking consent and sync under "
             "/connections per ADR-0040, and the guarded dbt-only refresh "
-            "under POST /meta/refresh per ADR-0046. The /connections endpoints "
+            "under POST /meta/refresh per ADR-0046, and per-account bank "
+            "metadata corrections under PATCH /accounts/{id}/metadata per ADR-0047. "
+            "The /connections endpoints "
             "provide the in-app Enable Banking consent flow and are "
             "only active where the EB signing key is configured. "
             "POST /meta/refresh triggers the guarded dbt-only shadow-build "
@@ -54,4 +57,5 @@ def create_app() -> FastAPI:
     app.include_router(router)
     app.include_router(imports_router)
     app.include_router(connections_router)
+    app.include_router(account_metadata_router)
     return app

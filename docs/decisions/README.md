@@ -41,3 +41,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0044](0044-continuous-image-publishing-and-nas-auto-deploy.md) | Continuous image publishing and NAS auto-deploy | Accepted |
 | [0045](0045-mui-core-webui-design-system.md) | MUI Core with a custom Penge theme for the WebUI design system | Proposed |
 | [0046](0046-scheduled-enable-banking-net-worth-refresh.md) | Scheduled Enable Banking sync and guarded net-worth refresh | Proposed |
+| [0047](0047-per-account-bank-metadata-corrections.md) | Per-account bank metadata corrections | Proposed |

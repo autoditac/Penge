@@ -24,6 +24,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/accounts/{account_id}/metadata": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /**
+     * Correct Account Metadata
+     * @description Override owner and/or kind for an existing Enable Banking account.
+     */
+    patch: operations["correct_account_metadata_accounts__account_id__metadata_patch"];
+    trace?: never;
+  };
   "/allocation/current": {
     parameters: {
       query?: never;
@@ -460,6 +480,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /**
+     * AccountMetadataOut
+     * @description The effective metadata after a correction; never includes an IBAN.
+     */
+    AccountMetadataOut: {
+      /**
+       * Account Id
+       * Format: uuid
+       */
+      account_id: string;
+      /**
+       * Entity Id
+       * Format: uuid
+       */
+      entity_id: string;
+      /** Kind */
+      kind: string;
+    };
+    /**
+     * AccountMetadataPatch
+     * @description A deliberate, per-account correction (not a connection-wide owner).
+     */
+    AccountMetadataPatch: {
+      /** Entity Id */
+      entity_id?: string | null;
+      /** Kind */
+      kind?: ("checking" | "savings") | null;
+    };
     /**
      * AccountSummary
      * @description Account dimension row with identifiers masked server-side and import freshness.
@@ -1371,6 +1419,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AccountSummary"][];
+        };
+      };
+    };
+  };
+  correct_account_metadata_accounts__account_id__metadata_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        account_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AccountMetadataPatch"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AccountMetadataOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

@@ -16,6 +16,7 @@ class TestOpenApiSchema:
             "/cashflow/daily",
             "/allocation/current",
             "/accounts",
+            "/accounts/{account_id}/metadata",
             "/meta/freshness",
             "/meta/refresh",
             "/returns/daily",

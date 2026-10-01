@@ -19,7 +19,6 @@ running balances therefore still reconcile with Nordnet's *Saldo*.
 
 from __future__ import annotations
 
-import logging
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -41,15 +40,12 @@ from penge.ingest.nordnet.models import (
 from penge.ingest.nordnet.parser import (
     UnknownAccountError,
     derive_cash_balances,
-    instrument_map_from_transactions,
     parse_holdings_file,
     parse_transactions,
 )
 
 if TYPE_CHECKING:
     from sqlalchemy.engine import Connection, Engine
-
-log = logging.getLogger("penge.ingest.nordnet.loader")
 
 PROVIDER = "nordnet"
 CASH_INSTRUMENT_KIND = "cash"
@@ -120,22 +116,39 @@ def load_records(
 
     _check_accounts_known(transactions, holdings, accounts_config)
 
-    isin_by_name = instrument_map_from_transactions(transactions)
     cash_balances = derive_cash_balances(transactions)
 
     meta = MetaData()
     tables = _reflect_tables(engine, meta)
 
     with engine.begin() as conn:
-        entity_ids = _upsert_entities(conn, tables["entity"], accounts_config)
-        account_ids = _upsert_accounts(conn, tables["account"], accounts_config, entity_ids)
+        _check_empty_snapshots_have_prior_securities(conn, tables, holdings)
+        names_by_account = _holding_instrument_maps(
+            conn, tables, transactions=transactions, holdings=holdings
+        )
+        referenced = {t.account_number for t in transactions} | {h.account_number for h in holdings}
+        active_config = accounts_config.model_copy(
+            update={
+                "accounts": tuple(a for a in accounts_config.accounts if a.number in referenced)
+            }
+        )
+        entity_ids = _upsert_entities(conn, tables["entity"], active_config)
+        account_ids = _upsert_accounts(conn, tables["account"], active_config, entity_ids)
+        instrument_names: dict[str, str] = {}
+        for txn in transactions:
+            if txn.instrument_name and txn.isin:
+                instrument_names[txn.isin] = txn.instrument_name
+        for account_map in names_by_account.values():
+            for name, isin in account_map.items():
+                instrument_names.setdefault(isin, name)
         instrument_ids = _upsert_instruments(
             conn,
             tables["instrument"],
-            isin_by_name=isin_by_name,
+            names_by_isin=instrument_names,
             transactions=transactions,
             holdings=holdings,
             cash_balances=cash_balances,
+            names_by_account=names_by_account,
         )
         n_txn = _upsert_transactions(
             conn,
@@ -147,12 +160,13 @@ def load_records(
         n_hld = _upsert_holding_snapshots(
             conn,
             tables["holding_snapshot"],
+            tables["instrument"],
             holdings=holdings,
             cash_balances=cash_balances,
             account_ids=account_ids,
             instrument_ids_by_isin=instrument_ids.by_isin,
             instrument_ids_by_cash_ticker=instrument_ids.by_cash_ticker,
-            isin_by_name=isin_by_name,
+            names_by_account=names_by_account,
         )
 
     return LoadResult(
@@ -167,6 +181,99 @@ def load_records(
 # --------------------------------------------------------------------------- #
 # Validation
 # --------------------------------------------------------------------------- #
+
+
+def _check_empty_snapshots_have_prior_securities(
+    conn: Connection,
+    tables: dict[str, Table],
+    holdings: Sequence[ParsedHoldingsFile],
+) -> None:
+    """Do not create an account from a header-only file with no position history."""
+    account = tables["account"]
+    snapshot = tables["holding_snapshot"]
+    instrument = tables["instrument"]
+    for holding_file in holdings:
+        if holding_file.holdings:
+            continue
+        known_security = (
+            select(snapshot.c.instrument_id)
+            .select_from(
+                snapshot.join(account, snapshot.c.account_id == account.c.id).join(
+                    instrument, snapshot.c.instrument_id == instrument.c.id
+                )
+            )
+            .where(
+                account.c.provider == PROVIDER,
+                account.c.external_id == holding_file.account_number,
+                snapshot.c.as_of <= holding_file.as_of,
+                instrument.c.kind == "security",
+                instrument.c.isin.is_not(None),
+            )
+            .limit(1)
+        )
+        if conn.execute(known_security).scalar_one_or_none() is None:
+            raise ValueError(
+                "empty Nordnet holdings export requires a prior mapped security "
+                "snapshot for this account on or before its date"
+            )
+
+
+def _holding_instrument_maps(
+    conn: Connection,
+    tables: dict[str, Table],
+    *,
+    transactions: Sequence[ParsedTransaction],
+    holdings: Sequence[ParsedHoldingsFile],
+) -> dict[str, dict[str, str]]:
+    """Resolve holdings names from same-account trades, snapshots, then this upload."""
+    account = tables["account"]
+    instrument = tables["instrument"]
+    result: dict[str, dict[str, str]] = {}
+    seen_snapshots: set[tuple[str, date]] = set()
+    for hf in holdings:
+        snapshot_key = (hf.account_number, hf.as_of)
+        if snapshot_key in seen_snapshots:
+            raise ValueError("duplicate Nordnet holdings account/date in one load")
+        seen_snapshots.add(snapshot_key)
+        names = {h.name for h in hf.holdings}
+        mapping: dict[str, str] = {}
+        if names:
+            for source in ("transaction", "holding_snapshot"):
+                records = tables[source]
+                stmt = (
+                    select(instrument.c.name, instrument.c.isin)
+                    .select_from(
+                        records.join(account, records.c.account_id == account.c.id).join(
+                            instrument, records.c.instrument_id == instrument.c.id
+                        )
+                    )
+                    .where(
+                        account.c.provider == PROVIDER,
+                        account.c.external_id == hf.account_number,
+                        instrument.c.name.in_(names),
+                        instrument.c.isin.is_not(None),
+                    )
+                    .distinct()
+                )
+                for name, isin in conn.execute(stmt):
+                    current = mapping.get(name)
+                    if current is not None and current != isin.strip():
+                        raise ValueError("ambiguous Nordnet holding instrument in account history")
+                    mapping[name] = isin.strip()
+        for txn in transactions:
+            if txn.account_number != hf.account_number or not txn.instrument_name or not txn.isin:
+                continue
+            current = mapping.get(txn.instrument_name)
+            if current is not None and current != txn.isin:
+                raise ValueError("conflicting Nordnet holding instrument in account history")
+            mapping[txn.instrument_name] = txn.isin
+        if names - mapping.keys():
+            raise ValueError("Nordnet holding has no ISIN mapping in this account's history")
+        resolved = [mapping[h.name] for h in hf.holdings]
+        if len(resolved) != len(set(resolved)):
+            raise ValueError("Nordnet holdings snapshot contains duplicate instruments")
+        result[hf.account_number] = mapping
+    return result
 
 
 def _check_accounts_known(
@@ -292,16 +399,21 @@ def _upsert_instruments(
     conn: Connection,
     instrument: Table,
     *,
-    isin_by_name: dict[str, str],
+    names_by_isin: dict[str, str],
     transactions: Sequence[ParsedTransaction],
     holdings: Sequence[ParsedHoldingsFile],
     cash_balances: Sequence[ParsedCashBalance],
+    names_by_account: dict[str, dict[str, str]],
 ) -> _InstrumentIds:
     by_isin = _upsert_security_instruments(
-        conn, instrument, isin_by_name=isin_by_name, holdings=holdings
+        conn,
+        instrument,
+        names_by_isin=names_by_isin,
+        holdings=holdings,
+        names_by_account=names_by_account,
+        update_existing=bool(transactions),
     )
     by_cash_ticker = _upsert_cash_instruments(conn, instrument, cash_balances)
-    _ = transactions  # currently unused; kept for future ticker-only securities
     return _InstrumentIds(by_isin=by_isin, by_cash_ticker=by_cash_ticker)
 
 
@@ -309,33 +421,45 @@ def _upsert_security_instruments(
     conn: Connection,
     instrument: Table,
     *,
-    isin_by_name: dict[str, str],
+    names_by_isin: dict[str, str],
     holdings: Sequence[ParsedHoldingsFile],
+    names_by_account: dict[str, dict[str, str]],
+    update_existing: bool,
 ) -> dict[str, str]:
     # Build payload keyed by ISIN. Pull name + currency from the first
     # holdings row whose name maps to that ISIN; fall back to the
     # raw name otherwise.
-    name_for_isin: dict[str, str] = {n: i for n, i in {**isin_by_name}.items()}
-    isin_to_name = {isin: name for name, isin in name_for_isin.items()}
     isin_to_currency: dict[str, str] = {}
     for hf in holdings:
         for h in hf.holdings:
-            isin = isin_by_name.get(h.name)
-            if isin is None:
-                continue
+            isin = names_by_account[hf.account_number][h.name]
             isin_to_currency.setdefault(isin, h.currency)
 
     payload = [
         {
             "isin": isin,
-            "name": isin_to_name[isin],
+            "name": names_by_isin[isin],
             "kind": "security",
             "currency": isin_to_currency.get(isin, "DKK"),
         }
-        for isin in sorted(isin_to_name)
+        for isin in sorted(names_by_isin)
     ]
     if not payload:
         return {}
+
+    existing: dict[str, str] = {}
+    if not update_existing:
+        existing = {
+            isin.strip(): str(instrument_id)
+            for instrument_id, isin in conn.execute(
+                select(instrument.c.id, instrument.c.isin).where(
+                    instrument.c.isin.in_(names_by_isin)
+                )
+            )
+        }
+        payload = [record for record in payload if record["isin"] not in existing]
+        if not payload:
+            return existing
 
     stmt = pg_insert(instrument).values(payload)
     stmt = stmt.on_conflict_do_update(
@@ -348,7 +472,7 @@ def _upsert_security_instruments(
     ).returning(instrument.c.id, instrument.c.isin)
     rows = conn.execute(stmt).all()
     # ``isin`` column is CHAR(12); strip just in case.
-    return {(r.isin or "").strip(): str(r.id) for r in rows}
+    return {**existing, **{(r.isin or "").strip(): str(r.id) for r in rows}}
 
 
 def _upsert_cash_instruments(
@@ -467,30 +591,21 @@ def _upsert_transactions(
 def _upsert_holding_snapshots(
     conn: Connection,
     holding_snapshot: Table,
+    instrument: Table,
     *,
     holdings: Sequence[ParsedHoldingsFile],
     cash_balances: Sequence[ParsedCashBalance],
     account_ids: dict[str, str],
     instrument_ids_by_isin: dict[str, str],
     instrument_ids_by_cash_ticker: dict[str, str],
-    isin_by_name: dict[str, str],
+    names_by_account: dict[str, dict[str, str]],
 ) -> int:
-    payload: list[dict[str, object]] = []
-
-    for hf in holdings:
+    written = 0
+    for hf in sorted(holdings, key=lambda item: item.as_of):
         account_id = account_ids[hf.account_number]
+        payload: list[dict[str, object]] = []
         for h in hf.holdings:
-            isin = isin_by_name.get(h.name)
-            if isin is None or isin not in instrument_ids_by_isin:
-                # No transaction history for this name yet → can't
-                # reliably tie to an instrument row. Skip rather
-                # than minting a name-only instrument.
-                log.warning(
-                    "skipping holding without ISIN mapping: account=%s name=%s",
-                    hf.account_number,
-                    h.name,
-                )
-                continue
+            isin = names_by_account[hf.account_number][h.name]
             payload.append(
                 _holding_payload(
                     account_id=account_id,
@@ -502,7 +617,38 @@ def _upsert_holding_snapshots(
                     cost_basis=_cost_basis(h),
                 )
             )
+        present_ids = {entry["instrument_id"] for entry in payload}
+        snapshot = holding_snapshot
+        previous = (
+            select(snapshot.c.instrument_id, snapshot.c.quantity, snapshot.c.market_value)
+            .join(instrument, snapshot.c.instrument_id == instrument.c.id)
+            .where(
+                snapshot.c.account_id == account_id,
+                snapshot.c.as_of <= hf.as_of,
+                instrument.c.kind == "security",
+            )
+            .distinct(snapshot.c.instrument_id)
+            .order_by(snapshot.c.instrument_id, snapshot.c.as_of.desc())
+        )
+        for instrument_id, quantity, market_value in conn.execute(previous):
+            if str(instrument_id) in present_ids:
+                continue
+            if quantity == 0 and (market_value is None or market_value == 0):
+                continue
+            payload.append(
+                _holding_payload(
+                    account_id=account_id,
+                    instrument_id=str(instrument_id),
+                    as_of=hf.as_of,
+                    quantity=Decimal("0"),
+                    price=None,
+                    market_value=Decimal("0"),
+                    cost_basis=Decimal("0"),
+                )
+            )
+        written += _write_snapshots(conn, holding_snapshot, payload)
 
+    payload = []
     for c in cash_balances:
         ticker = f"{CASH_TICKER_PREFIX}{c.currency}"
         instrument_id = instrument_ids_by_cash_ticker[ticker]
@@ -519,9 +665,16 @@ def _upsert_holding_snapshots(
             )
         )
 
+    return written + _write_snapshots(conn, holding_snapshot, payload)
+
+
+def _write_snapshots(
+    conn: Connection,
+    holding_snapshot: Table,
+    payload: list[dict[str, object]],
+) -> int:
     if not payload:
         return 0
-
     stmt = pg_insert(holding_snapshot).values(payload)
     stmt = stmt.on_conflict_do_update(
         constraint="ux_holding_snapshot__account_instrument_as_of",

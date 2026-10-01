@@ -16,6 +16,7 @@ import os
 import subprocess
 import textwrap
 from collections.abc import Iterator
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
@@ -33,7 +34,9 @@ from penge.ingest.nordnet.loader import (
     PROVIDER,
     UnknownAccountError,
     load_files,
+    load_records,
 )
+from penge.ingest.nordnet.parser import parse_holdings_file
 from tests.ingest.nordnet._fixture_builders import (
     HLD_HEADER,
     TXN_HEADER,
@@ -57,14 +60,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 # --------------------------------------------------------------------------- #
 
 
-@pytest.fixture(scope="session")  # type: ignore[untyped-decorator]
+@pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
     """Engine pointed at the test DB; runs ``alembic upgrade head`` once."""
 
     assert _DB_URL is not None
     eng = create_engine(_DB_URL)
     env = {**os.environ, "DATABASE_URL": _DB_URL}
-    subprocess.run(  # noqa: S603
+    subprocess.run(  # noqa: S603 — fixed migration command in an isolated test database
         ["alembic", "upgrade", "head"],  # noqa: S607
         cwd=REPO_ROOT,
         env=env,
@@ -76,7 +79,7 @@ def engine() -> Iterator[Engine]:
         eng.dispose()
 
 
-@pytest.fixture(autouse=True)  # type: ignore[untyped-decorator]
+@pytest.fixture(autouse=True)
 def _truncate(engine: Engine) -> Iterator[None]:
     """Wipe tables before each test — keeps tests independent."""
 
@@ -90,7 +93,7 @@ def _truncate(engine: Engine) -> Iterator[None]:
     yield
 
 
-@pytest.fixture  # type: ignore[untyped-decorator]
+@pytest.fixture
 def accounts_config(tmp_path: Path) -> AccountsConfig:
     """Synthetic config matching the fixture data below."""
 
@@ -121,7 +124,7 @@ def accounts_config(tmp_path: Path) -> AccountsConfig:
     return load_accounts_config(p)
 
 
-@pytest.fixture  # type: ignore[untyped-decorator]
+@pytest.fixture
 def fixture_csvs(tmp_path: Path) -> tuple[Path, list[Path]]:
     """A small but representative pair of CSVs.
 
@@ -285,9 +288,7 @@ def test_load_writes_canonical_records(
     with engine.connect() as conn:
         # accounts have correct kinds
         rows = conn.execute(
-            text(
-                "select external_id, kind from account where provider = :p " "order by external_id"
-            ),
+            text("select external_id, kind from account where provider = :p order by external_id"),
             {"p": PROVIDER},
         ).all()
         assert [(r.external_id, r.kind) for r in rows] == [
@@ -310,7 +311,7 @@ def test_load_writes_canonical_records(
 
         # cash instruments materialised
         cash = conn.execute(
-            text("select ticker from instrument where kind = 'cash' " "order by ticker")
+            text("select ticker from instrument where kind = 'cash' order by ticker")
         ).all()
         assert [r.ticker for r in cash] == [f"{CASH_TICKER_PREFIX}DKK"]
 
@@ -389,4 +390,401 @@ def test_load_rejects_unknown_account(
             transactions_csv=bad_csv,
             holdings_csvs=[],
             accounts_config=accounts_config,
+        )
+
+
+def test_holdings_only_resolves_prior_snapshot_and_keeps_other_accounts(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    fixture_csvs: tuple[Path, list[Path]],
+    tmp_path: Path,
+) -> None:
+    txn_path, holdings_paths = fixture_csvs
+    load_files(
+        engine,
+        transactions_csv=txn_path,
+        holdings_csvs=holdings_paths,
+        accounts_config=accounts_config,
+    )
+    changed_config = accounts_config.model_copy(
+        update={
+            "accounts": tuple(
+                account.model_copy(update={"name": "Do not rename"})
+                if account.number == "99999991"
+                else account
+                for account in accounts_config.accounts
+            )
+        }
+    )
+    next_snapshot = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 8.5.2026.csv",
+        [
+            HLD_HEADER,
+            hld_row(
+                name="iShares MSCI World",
+                currency="EUR",
+                quantity="101",
+                value_dkk="6100,00",
+            ),
+        ],
+    )
+    result = load_records(
+        engine,
+        transactions=[],
+        holdings=[parse_holdings_file(next_snapshot)],
+        accounts_config=changed_config,
+    )
+    assert result.accounts == 1
+    assert result.transactions == 0
+    assert result.holding_snapshots == 1
+    with engine.connect() as conn:
+        assert (
+            conn.execute(
+                text(
+                    "select count(*) from holding_snapshot hs join instrument i "
+                    "on i.id = hs.instrument_id where i.kind = 'cash'"
+                )
+            ).scalar_one()
+            == 3
+        )
+        assert (
+            conn.execute(
+                text("select quantity from holding_snapshot where as_of = '2026-05-08'")
+            ).scalar_one()
+            == 101
+        )
+        assert (
+            conn.execute(
+                text("select name from account where external_id = '99999991'")
+            ).scalar_one()
+            == "Aktiesparekonto"
+        )
+
+
+def test_holdings_only_unmapped_is_atomic(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    tmp_path: Path,
+) -> None:
+    path = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 8.5.2026.csv",
+        [HLD_HEADER, hld_row(name="Unmapped Fund", currency="EUR", quantity="1")],
+    )
+    with pytest.raises(ValueError, match="no ISIN mapping"):
+        load_records(
+            engine,
+            transactions=[],
+            holdings=[parse_holdings_file(path)],
+            accounts_config=accounts_config,
+        )
+    with engine.connect() as conn:
+        assert conn.execute(text("select count(*) from account")).scalar_one() == 0
+
+
+def test_combined_load_rejects_unmapped_position_without_partial_writes(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    fixture_csvs: tuple[Path, list[Path]],
+    tmp_path: Path,
+) -> None:
+    transactions_path, _ = fixture_csvs
+    holdings_path = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 9.5.2026.csv",
+        [
+            HLD_HEADER,
+            hld_row(name="iShares MSCI World", currency="EUR", quantity="1"),
+            hld_row(name="Unknown Fund", currency="EUR", quantity="1"),
+        ],
+    )
+    with pytest.raises(ValueError, match="no ISIN mapping"):
+        load_files(
+            engine,
+            transactions_csv=transactions_path,
+            holdings_csvs=[holdings_path],
+            accounts_config=accounts_config,
+        )
+    with engine.connect() as conn:
+        assert conn.execute(text('select count(*) from "transaction"')).scalar_one() == 0
+        assert conn.execute(text("select count(*) from holding_snapshot")).scalar_one() == 0
+
+
+def test_complete_snapshot_zeros_sold_security_and_same_date_reimport_restores_it(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    tmp_path: Path,
+) -> None:
+    trades = write_nordnet_csv(
+        tmp_path / "trades.csv",
+        [
+            TXN_HEADER,
+            txn_row(
+                id_="FIRST",
+                book_date="2026-05-01",
+                depot="99999990",
+                type_="KØBT",
+                name="Synthetic Alpha",
+                isin="IE00B4L5Y983",
+                amount="-10,00",
+                saldo="90,00",
+            ),
+            txn_row(
+                id_="SECOND",
+                book_date="2026-05-01",
+                depot="99999990",
+                type_="KØBT",
+                name="Synthetic Beta",
+                isin="IE00B3RBWM25",
+                amount="-20,00",
+                saldo="70,00",
+            ),
+        ],
+    )
+    first = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 5.5.2026.csv",
+        [
+            HLD_HEADER,
+            hld_row(
+                name="Synthetic Alpha",
+                currency="EUR",
+                quantity="2",
+                last_price="5,00",
+                value_dkk="100,00",
+            ),
+            hld_row(
+                name="Synthetic Beta",
+                currency="EUR",
+                quantity="3",
+                last_price="6,00",
+                value_dkk="200,00",
+            ),
+        ],
+    )
+    load_files(
+        engine,
+        transactions_csv=trades,
+        holdings_csvs=[first],
+        accounts_config=accounts_config,
+    )
+    next_date = tmp_path / "Depotoversigt for kontonummer 99999990, 7.5.2026.csv"
+    write_nordnet_csv(
+        next_date,
+        [
+            HLD_HEADER,
+            hld_row(
+                name="Synthetic Alpha",
+                currency="EUR",
+                quantity="4",
+                last_price="7,00",
+                value_dkk="250,00",
+            ),
+        ],
+    )
+    result = load_records(
+        engine,
+        transactions=[],
+        holdings=[parse_holdings_file(next_date)],
+        accounts_config=accounts_config,
+    )
+    assert result.holding_snapshots == 2
+
+    def snapshots() -> list[tuple[str, Decimal, Decimal | None, Decimal | None]]:
+        with engine.connect() as conn:
+            rows = conn.execute(
+                text(
+                    "select trim(i.isin) as isin, hs.quantity, hs.market_value, hs.price "
+                    "from holding_snapshot hs join instrument i on i.id = hs.instrument_id "
+                    "join account a on a.id = hs.account_id "
+                    "where a.external_id = '99999990' and hs.as_of = '2026-05-07' "
+                    "and i.kind = 'security' order by isin"
+                )
+            ).all()
+        return [(r.isin, r.quantity, r.market_value, r.price) for r in rows]
+
+    assert snapshots() == [
+        ("IE00B3RBWM25", Decimal("0"), Decimal("0"), None),
+        ("IE00B4L5Y983", Decimal("4"), Decimal("250"), Decimal("7")),
+    ]
+    with engine.connect() as conn:
+        assert (
+            conn.execute(
+                text(
+                    "select count(*) from holding_snapshot hs join instrument i "
+                    "on i.id = hs.instrument_id where i.kind = 'cash'"
+                )
+            ).scalar_one()
+            == 1
+        )
+        assert (
+            conn.execute(
+                text(
+                    "select quantity from holding_snapshot hs join instrument i "
+                    "on i.id = hs.instrument_id where i.isin = 'IE00B3RBWM25' "
+                    "and hs.as_of = '2026-05-05'"
+                )
+            ).scalar_one()
+            == 3
+        )
+
+    # Correct a previously incomplete full export on the same date.
+    write_nordnet_csv(
+        next_date,
+        [
+            HLD_HEADER,
+            hld_row(
+                name="Synthetic Alpha",
+                currency="EUR",
+                quantity="4",
+                last_price="7,00",
+                value_dkk="250,00",
+            ),
+            hld_row(
+                name="Synthetic Beta",
+                currency="EUR",
+                quantity="1",
+                last_price="8,00",
+                value_dkk="80,00",
+            ),
+        ],
+    )
+    corrected = load_records(
+        engine,
+        transactions=[],
+        holdings=[parse_holdings_file(next_date)],
+        accounts_config=accounts_config,
+    )
+    assert corrected.holding_snapshots == 2
+    assert snapshots() == [
+        ("IE00B3RBWM25", Decimal("1"), Decimal("80"), Decimal("8")),
+        ("IE00B4L5Y983", Decimal("4"), Decimal("250"), Decimal("7")),
+    ]
+    # Repeating the incomplete export must zero the restored position again.
+    write_nordnet_csv(
+        next_date,
+        [
+            HLD_HEADER,
+            hld_row(
+                name="Synthetic Alpha",
+                currency="EUR",
+                quantity="4",
+                last_price="7,00",
+                value_dkk="250,00",
+            ),
+        ],
+    )
+    assert (
+        load_records(
+            engine,
+            transactions=[],
+            holdings=[parse_holdings_file(next_date)],
+            accounts_config=accounts_config,
+        ).holding_snapshots
+        == 2
+    )
+    assert snapshots()[0] == ("IE00B3RBWM25", Decimal("0"), Decimal("0"), None)
+
+
+def test_same_name_with_two_isins_rejects_snapshot_atomically(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    tmp_path: Path,
+) -> None:
+    trades = write_nordnet_csv(
+        tmp_path / "trades.csv",
+        [
+            TXN_HEADER,
+            txn_row(
+                id_="FIRST",
+                book_date="2026-05-01",
+                depot="99999990",
+                type_="KØBT",
+                name="Ambiguous Fund",
+                isin="IE00B4L5Y983",
+                amount="-10,00",
+            ),
+            txn_row(
+                id_="SECOND",
+                book_date="2026-05-02",
+                depot="99999990",
+                type_="KØBT",
+                name="Ambiguous Fund",
+                isin="IE00B3RBWM25",
+                amount="-10,00",
+            ),
+        ],
+    )
+    holdings = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 7.5.2026.csv",
+        [HLD_HEADER, hld_row(name="Ambiguous Fund", currency="EUR", quantity="1")],
+    )
+    with pytest.raises(ValueError, match="conflicting Nordnet holding instrument"):
+        load_files(
+            engine,
+            transactions_csv=trades,
+            holdings_csvs=[holdings],
+            accounts_config=accounts_config,
+        )
+    with engine.connect() as conn:
+        assert conn.execute(text("select count(*) from holding_snapshot")).scalar_one() == 0
+        assert conn.execute(text('select count(*) from "transaction"')).scalar_one() == 0
+
+
+def test_duplicate_account_date_files_cannot_replace_each_other(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    fixture_csvs: tuple[Path, list[Path]],
+) -> None:
+    transactions, holdings = fixture_csvs
+    with pytest.raises(ValueError, match="duplicate Nordnet holdings account/date"):
+        load_files(
+            engine,
+            transactions_csv=transactions,
+            holdings_csvs=[holdings[0], holdings[0]],
+            accounts_config=accounts_config,
+        )
+    with engine.connect() as conn:
+        assert conn.execute(text("select count(*) from holding_snapshot")).scalar_one() == 0
+
+
+def test_header_only_requires_prior_security_not_just_existing_account(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    tmp_path: Path,
+) -> None:
+    transactions = write_nordnet_csv(
+        tmp_path / "cash-only.csv",
+        [
+            TXN_HEADER,
+            txn_row(
+                id_="CASH",
+                book_date="2026-05-01",
+                depot="99999990",
+                type_="INDBETALING",
+                amount="100,00",
+                saldo="100,00",
+            ),
+        ],
+    )
+    load_files(
+        engine,
+        transactions_csv=transactions,
+        holdings_csvs=[],
+        accounts_config=accounts_config,
+    )
+    empty = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 7.5.2026.csv",
+        [HLD_HEADER],
+    )
+    with pytest.raises(ValueError, match="prior mapped security snapshot"):
+        load_records(
+            engine,
+            transactions=[],
+            holdings=[parse_holdings_file(empty)],
+            accounts_config=accounts_config,
+        )
+    with engine.connect() as conn:
+        assert (
+            conn.execute(
+                text("select count(*) from holding_snapshot where as_of = '2026-05-07'")
+            ).scalar_one()
+            == 0
         )

@@ -22,6 +22,7 @@ import {
 } from "../api/queries";
 import type { ImportRow, ImportSessionWithRows, MappingSuggestion } from "../api/schemas";
 import { useNotify } from "../components/Notifications";
+import { MetaRefreshButton } from "../components/MetaRefreshButton";
 import {
   ErrorState,
   LoadingState,
@@ -47,10 +48,10 @@ import {
   editableFields,
   formatTimestamp,
   rowBadge,
+  rowSummary,
   SOURCE_LABELS,
   shortSha,
   sourceLabel,
-  summarizeIssues,
 } from "../imports/transforms";
 
 const SOURCE_OPTIONS = Object.entries(SOURCE_LABELS);
@@ -207,7 +208,8 @@ function UploadPanel({ state, dispatch }: StepProps): React.JSX.Element {
       >
         <strong>{busy ? "Uploading…" : "Drop a file here or browse"}</strong>
         <span className="stateHint">
-          Nordnet CSV · Growney/PFA PDF · manual balances JSON — max 25 MiB
+          Nordnet transactions or Depotoversigt CSV · Growney/PFA PDF · manual balances JSON — max
+          25 MiB
         </span>
         <input
           id="import-file"
@@ -260,13 +262,15 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
   }
 
   const session = sessionQuery.data;
+  const holdingsSession = session.source === "nordnet_holdings";
   const committing = state.step === "review" && state.busy;
   const discarding = discard.isPending;
   const busy = committing || discarding;
   const needsEntityName =
     (session.source === "growney" || session.source === "pfa") &&
     typeof session.params["entity_name"] !== "string";
-  const committable = canCommit(session.rows) && !(needsEntityName && entityName === "");
+  const committable =
+    canCommit(session.rows, holdingsSession) && !(needsEntityName && entityName === "");
 
   const suggestionKey = (s: MappingSuggestion): string => `${s.row_id}:${s.field}`;
   const rowsById = new Map(session.rows.map((row) => [row.id, row]));
@@ -350,7 +354,21 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
       }
     >
       <RowCountsBar session={session} />
-      {session.status === "staged" && (
+      {holdingsSession && session.rows.length === 0 && (
+        <p className="supporting">
+          No securities in this export. Committing it will close out the account's previously held
+          securities as of the snapshot date; cash stays unchanged.
+        </p>
+      )}
+      {holdingsSession && (
+        <p className="supporting">
+          Nordnet account {String(session.params["account_number"] ?? "unknown")} · snapshot{" "}
+          {String(session.params["as_of"] ?? "unknown")}. This file replaces the account's
+          securities snapshot for that date; cash still comes from transaction imports. If a holding
+          cannot be matched to an existing ISIN, import its transactions first.
+        </p>
+      )}
+      {session.status === "staged" && !holdingsSession && (
         <div className="suggestionControls">
           <button
             type="button"
@@ -457,8 +475,12 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
           Back to upload
         </Button>
       </Box>
-      {!canCommit(session.rows) && (
-        <p className="supporting">Fix or exclude the error rows before committing.</p>
+      {!committable && (
+        <p className="supporting">
+          {session.rows.length > 0 && session.rows.every((row) => row.excluded)
+            ? "At least one position must remain included. A genuinely empty export can close out all securities."
+            : "Fix or exclude the error rows before committing."}
+        </p>
       )}
     </Panel>
   );
@@ -523,17 +545,6 @@ function RowsTable({
       </table>
     </TableScroll>
   );
-}
-
-function rowSummary(row: ImportRow): string {
-  const issueText = summarizeIssues(row.issues);
-  if (issueText !== "") {
-    return issueText;
-  }
-  return editableFields(row.payload)
-    .slice(0, 4)
-    .map((field) => `${field.key}: ${field.value}`)
-    .join(" · ");
 }
 
 type RowEntryProps = {
@@ -741,10 +752,11 @@ function DonePanel({ state, dispatch }: StepProps): React.JSX.Element {
         <span className="badge tone-info">{counts.instruments} instruments</span>
       </div>
       <p className="supporting">
-        Rebuild the marts (<code>dbt build</code>) to refresh the dashboards, then check the
-        affected accounts on the <Link to="/">overview</Link>.
+        Refresh analytics to update the dashboards, then check the affected accounts on the{" "}
+        <Link to="/">overview</Link>.
       </p>
       <Box sx={{ mt: 2 }}>
+        <MetaRefreshButton />
         <Button
           variant="contained"
           onClick={() => {

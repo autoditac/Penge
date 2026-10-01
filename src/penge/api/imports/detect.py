@@ -5,10 +5,8 @@ file's leading bytes. An explicit ``source`` form field on upload
 always wins (see :mod:`penge.api.imports.routes`); detection only
 fills the gap. Undetectable files are rejected, never guessed.
 
-Nordnet *holdings* CSVs are recognised but rejected with a pointed
-message: the loader resolves instruments through transaction history,
-so a holdings-only session would silently skip unmapped positions
-(see ADR-0037). They stay on the CLI path for now.
+Nordnet holdings exports use a distinct source so their filename
+metadata and row kinds survive staging and review.
 """
 
 from __future__ import annotations
@@ -21,12 +19,14 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 SOURCE_NORDNET_TRANSACTIONS = "nordnet_transactions"
+SOURCE_NORDNET_HOLDINGS = "nordnet_holdings"
 SOURCE_GROWNEY = "growney"
 SOURCE_PFA = "pfa"
 SOURCE_MANUAL_BALANCES = "manual_balances"
 
 KNOWN_SOURCES = (
     SOURCE_NORDNET_TRANSACTIONS,
+    SOURCE_NORDNET_HOLDINGS,
     SOURCE_GROWNEY,
     SOURCE_PFA,
     SOURCE_MANUAL_BALANCES,
@@ -78,11 +78,7 @@ def _detect_utf16_csv(head: bytes) -> str | None:
     if columns and columns[0] == "Id" and "Bogføringsdag" in columns:
         return SOURCE_NORDNET_TRANSACTIONS
     if columns and columns[0] == "Navn":
-        raise UnsupportedSourceError(
-            "Nordnet holdings CSVs are not supported as import sessions; "
-            "load them via the penge-nordnet CLI together with a "
-            "transactions CSV (see ADR-0037)."
-        )
+        return SOURCE_NORDNET_HOLDINGS
     return None
 
 

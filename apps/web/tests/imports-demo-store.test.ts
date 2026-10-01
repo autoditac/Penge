@@ -34,6 +34,18 @@ describe("demo imports store", () => {
     expect(session.row_counts.error).toBe(1);
   });
 
+  it("stages a Nordnet holdings snapshot from a dated Depotoversigt export", () => {
+    const session = demoUploadImport(
+      fakeFile("Depotoversigt for kontonummer 99999990, 1.10.2026.csv"),
+    );
+    expect(session.source).toBe("nordnet_holdings");
+    expect(session.params).toEqual({ account_number: "99999990", as_of: "2026-10-01" });
+    expect(session.rows[0]?.kind).toBe("holding");
+    expect(session.rows[0]?.payload["market_value_dkk"]).toBe("1250.00");
+    const response = demoCommitImport(session.id);
+    expect(response.counts).toMatchObject({ holding_snapshots: 1, transactions: 0 });
+  });
+
   it("supports the full fix-then-commit flow", () => {
     const session = demoUploadImport(fakeFile("balances.json"));
     const errorRow = session.rows.find((row) => row.status === "error");

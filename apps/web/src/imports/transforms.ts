@@ -4,6 +4,7 @@ import type { ImportRow, RowIssue } from "../api/schemas";
 
 export const SOURCE_LABELS: Readonly<Record<string, string>> = {
   nordnet_transactions: "Nordnet transactions (CSV)",
+  nordnet_holdings: "Nordnet holdings (CSV)",
   growney: "Growney Depotauszug (PDF)",
   pfa: "PFA Pensionsoversigt (PDF)",
   manual_balances: "Manual balances (JSON)",
@@ -39,6 +40,21 @@ export function rowBadge(row: Pick<ImportRow, "status" | "excluded">): RowBadge 
 
 export function summarizeIssues(issues: readonly RowIssue[]): string {
   return issues.map((issue) => issue.detail).join("; ");
+}
+
+export function rowSummary(row: Pick<ImportRow, "kind" | "payload" | "issues">): string {
+  const issueText = summarizeIssues(row.issues);
+  if (issueText !== "") {
+    return issueText;
+  }
+  if (row.kind === "holding") {
+    const { name, quantity, market_value_dkk: marketValue } = row.payload;
+    return `${String(name ?? "Unknown holding")} · ${String(quantity ?? "—")} units · ${String(marketValue ?? "—")} DKK`;
+  }
+  return editableFields(row.payload)
+    .slice(0, 4)
+    .map((field) => `${field.key}: ${field.value}`)
+    .join(" · ");
 }
 
 export type EditableField = {
@@ -83,8 +99,15 @@ export function applyEdits(
  * The server enforces this independently; the client check only drives
  * the button state for the rows it can see.
  */
-export function canCommit(rows: readonly Pick<ImportRow, "status" | "excluded">[]): boolean {
-  return rows.length > 0 && rows.every((row) => row.excluded || row.status !== "error");
+export function canCommit(
+  rows: readonly Pick<ImportRow, "status" | "excluded">[],
+  allowEmpty = false,
+): boolean {
+  return (
+    (rows.length > 0 || allowEmpty) &&
+    (rows.length === 0 || rows.some((row) => !row.excluded)) &&
+    rows.every((row) => row.excluded || row.status !== "error")
+  );
 }
 
 export function shortSha(sha256: string): string {

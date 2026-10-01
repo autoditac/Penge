@@ -145,6 +145,74 @@ def test_repeated_sync_reports_no_data_writes(
     assert second.holding_snapshots == 1
 
 
+def test_account_corrections_survive_sync_for_two_accounts(
+    client: TestClient, engine: Engine, fake_client: FakeClient, tmp_path: Path
+) -> None:
+    """Corrections on one consent do not affect another account or revert on sync."""
+    linked = _link(client, provider="ebank")
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    second = fake_client.session_accounts[0].model_copy(
+        update={"uid": "uid-savings", "name": "Synthetic Savings"}
+    )
+    fake_client.session_accounts.append(second)
+    assert client.post(f"/connections/{linked['connection_id']}/sync").status_code == 200
+
+    with engine.begin() as conn:
+        owner = conn.execute(
+            text("insert into entity (name, kind) values ('Test Child', 'person') returning id")
+        ).scalar_one()
+        rows = conn.execute(
+            text("select id, external_id from account where provider = 'ebank'")
+        ).all()
+    ids = {external_id: str(account_id) for account_id, external_id in rows}
+
+    owner_response = client.patch(
+        f"/accounts/{ids['uid-1']}/metadata", json={"entity_id": str(owner)}
+    )
+    kind_response = client.patch(
+        f"/accounts/{ids['uid-savings']}/metadata", json={"kind": "savings"}
+    )
+    assert owner_response.status_code == 200, owner_response.text
+    assert kind_response.status_code == 200, kind_response.text
+    assert owner_response.json()["entity_id"] == str(owner)
+    assert kind_response.json()["kind"] == "savings"
+    assert (tmp_path / "refresh-state" / "pending").exists()
+    assert client.post(f"/connections/{linked['connection_id']}/sync").status_code == 200
+
+    with engine.connect() as conn:
+        corrected = conn.execute(
+            text(
+                "select external_id, entity_id, kind, entity_override_id, kind_override "
+                "from account where provider = 'ebank'"
+            )
+        ).all()
+    by_uid = {
+        external_id: (entity_id, kind, override_id, kind_override)
+        for external_id, entity_id, kind, override_id, kind_override in corrected
+    }
+    assert by_uid["uid-1"] == (owner, "checking", owner, None)
+    assert by_uid["uid-savings"][1:] == ("savings", None, "savings")
+    assert by_uid["uid-savings"][0] != owner
+
+
+def test_account_correction_rejects_invalid_inputs(client: TestClient, engine: Engine) -> None:
+    linked = _link(client)
+    client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
+    client.post(f"/connections/{linked['connection_id']}/sync")
+    with engine.connect() as conn:
+        account_id = conn.execute(text("select id from account")).scalar_one()
+    path = f"/accounts/{account_id}/metadata"
+
+    assert client.patch(path, json={}).status_code == 422
+    assert client.patch(path, json={"kind": "pension"}).status_code == 422
+    assert client.patch(path, json={"entity_id": None}).status_code == 422
+    assert client.patch(path, json={"entity_id": str(uuid.uuid4())}).status_code == 422
+    missing = client.patch(f"/accounts/{uuid.uuid4()}/metadata", json={"kind": "savings"})
+    assert missing.status_code == 404
+    with engine.connect() as conn:
+        assert conn.execute(text("select kind_override from account")).scalar_one() is None
+
+
 def test_sync_returns_unavailable_while_refresh_lock_is_held(
     client: TestClient, tmp_path: Path
 ) -> None:

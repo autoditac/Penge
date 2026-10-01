@@ -231,7 +231,7 @@ def _get_or_create_account(
     stmt = stmt.on_conflict_do_update(
         constraint="ux_account__provider_external_id",
         set_={
-            "entity_id": stmt.excluded.entity_id,
+            "entity_id": func.coalesce(account.c.entity_override_id, stmt.excluded.entity_id),
             "name": stmt.excluded.name,
             "currency": stmt.excluded.currency,
             "iban": stmt.excluded.iban,
@@ -239,7 +239,9 @@ def _get_or_create_account(
             "updated_at": func.now(),
         },
         where=(
-            account.c.entity_id.is_distinct_from(stmt.excluded.entity_id)
+            account.c.entity_id.is_distinct_from(
+                func.coalesce(account.c.entity_override_id, stmt.excluded.entity_id)
+            )
             | account.c.name.is_distinct_from(stmt.excluded.name)
             | account.c.currency.is_distinct_from(stmt.excluded.currency)
             | account.c.iban.is_distinct_from(stmt.excluded.iban)

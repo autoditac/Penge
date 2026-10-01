@@ -3421,11 +3421,11 @@ Database resolution follows the same rules as every other component:
 </tr>
 <tr>
 <td><code>/allocation/current</code></td>
-<td>Latest-day allocation by <code>entity</code>, <code>currency</code>, or <code>kind</code></td>
+<td>Latest-day allocation by <code>entity</code>, <code>currency</code>, or reporting kind</td>
 </tr>
 <tr>
 <td><code>/accounts</code></td>
-<td>Masked account dimension with latest source-data import timestamp</td>
+<td>Masked account dimension with source kind, reporting kind, and latest import timestamp</td>
 </tr>
 <tr>
 <td><code>/meta/freshness</code></td>
@@ -3588,6 +3588,11 @@ retry coverage than not clicking the button at all.</p>
 <li>Amounts are JSON <strong>strings</strong> (<code>"1000.0000"</code>), never floats — they are
   <code>Decimal</code> end-to-end and the client converts explicitly.</li>
 <li>EUR and DKK are reported in parallel on every money-bearing row.</li>
+<li><code>/accounts.kind</code> retains the canonical source kind; <code>reporting_kind</code>
+  supplies the household reporting category. For example,
+  <code>opsparingskonto</code> remains the Nordnet source kind while mapping to
+  <code>savings</code> for kind-grouped allocation and historical performance
+  (ADR-0048).</li>
 <li>Identifiers are masked server-side; the raw IBAN never leaves the process.</li>
 <li>The OpenAPI schema is committed at <a href="openapi.json"><code>openapi.json</code></a> and kept
   current by a test; the WebUI's TypeScript client is generated from it.</li>

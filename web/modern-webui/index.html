@@ -3498,7 +3498,7 @@ are recorded in ADR-0036.</p>
 <h2 id="surfaces">Surfaces<a class="headerlink" href="#surfaces" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Overview</strong> — net-worth trend (365 days, EUR + DKK), current allocation by
-  kind/currency/entity with a slim donut (EUR total in the centre) and a
+  reporting kind/currency/entity with a slim donut (EUR total in the centre) and a
   table that doubles as its legend: each category gets its own colour from
   the 8-colour theme palette, and any categories beyond that are grouped as
   "Other". The overview also has a tracked-account section with
@@ -3510,7 +3510,10 @@ are recorded in ADR-0036.</p>
   exist does not advance it. Each account also shows the date its balance
   last changed (<code>balance_changed_on</code>: the latest <code>mart_net_worth_daily</code> day
   whose account-currency balance differs from the previous day). Accounts
-  render as a responsive card grid (one, two, or three columns).</li>
+  render as a responsive card grid (one, two, or three columns) and retain
+  the original source <code>kind</code>. For reporting, <code>opsparingskonto</code> is grouped
+  with <code>savings</code>; the canonical account kind remains unchanged for connector
+  and audit use (ADR-0048).</li>
 <li><strong>Performance</strong> — dashboard v2 (#204, #206): KPI header (net worth,
   month-over-month delta, liquid share), range-selectable net-worth trend
   (1M/3M/1Y/5Y/all) with drawdown shading and max-drawdown KPI, TWR index
@@ -3519,9 +3522,11 @@ are recorded in ADR-0036.</p>
   household TWR/MWR summary cards (EUR + DKK legs, with per-leg error notes
   when FX coverage is missing), contribution-vs-growth decomposition,
   recorded-fee drag per year, monthly cashflow with rolling 3-month savings
-  rate, asset-class weights over time with drift vs documented target
-  weights (<code>src/config/targets.ts</code>), and per-account / per-asset-class
-  drill-down. Returns methodology lives in the
+  rate, reporting-kind weights over time with drift vs documented target
+  weights (<code>src/config/targets.ts</code>), and per-account / per-reporting-kind
+  drill-down. Historical weights and drill-down use the same reporting-kind
+  categories as current allocation, including combining <code>opsparingskonto</code>
+  with <code>savings</code>. Returns methodology lives in the
   <a href="../../analytics/returns/">returns engine docs</a> (ADR-0039).</li>
 </ul>
 <p><img alt="Performance dashboard v1 rendering synthetic demo data" src="../img/performance-dashboard-v1.png" /></p>

@@ -47,7 +47,7 @@ export function rowSummary(row: Pick<ImportRow, "kind" | "payload" | "issues">):
   if (issueText !== "") {
     return issueText;
   }
-  if (row.kind === "holding") {
+  if (row.kind === "holding" && typeof row.payload["market_value_dkk"] === "string") {
     const { name, quantity, market_value_dkk: marketValue } = row.payload;
     return `${String(name ?? "Unknown holding")} · ${String(quantity ?? "—")} units · ${String(marketValue ?? "—")} DKK`;
   }

@@ -60,6 +60,16 @@ describe("rowBadge", () => {
         }),
       ).toBe("Unknown ISIN");
     });
+
+    it("retains the generic summary for Growney holdings valued in EUR", () => {
+      expect(
+        rowSummary({
+          kind: "holding",
+          payload: { name: "Synthetic Fund", quantity: "2", market_value_eur: "125.00" },
+          issues: [],
+        }),
+      ).toBe("name: Synthetic Fund · quantity: 2 · market_value_eur: 125.00");
+    });
   });
 
   it("lets exclusion win over status", () => {

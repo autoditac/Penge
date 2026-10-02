@@ -123,7 +123,7 @@ def load_records(
 
     with engine.begin() as conn:
         _check_empty_snapshots_have_prior_securities(conn, tables, holdings)
-        names_by_account = _holding_instrument_maps(
+        names_by_snapshot = _holding_instrument_maps(
             conn, tables, transactions=transactions, holdings=holdings
         )
         referenced = {t.account_number for t in transactions} | {h.account_number for h in holdings}
@@ -138,8 +138,8 @@ def load_records(
         for txn in transactions:
             if txn.instrument_name and txn.isin:
                 instrument_names[txn.isin] = txn.instrument_name
-        for account_map in names_by_account.values():
-            for name, isin in account_map.items():
+        for snapshot_map in names_by_snapshot.values():
+            for name, isin in snapshot_map.items():
                 instrument_names.setdefault(isin, name)
         instrument_ids = _upsert_instruments(
             conn,
@@ -148,7 +148,7 @@ def load_records(
             transactions=transactions,
             holdings=holdings,
             cash_balances=cash_balances,
-            names_by_account=names_by_account,
+            names_by_snapshot=names_by_snapshot,
         )
         n_txn = _upsert_transactions(
             conn,
@@ -166,7 +166,7 @@ def load_records(
             account_ids=account_ids,
             instrument_ids_by_isin=instrument_ids.by_isin,
             instrument_ids_by_cash_ticker=instrument_ids.by_cash_ticker,
-            names_by_account=names_by_account,
+            names_by_snapshot=names_by_snapshot,
         )
 
     return LoadResult(
@@ -224,17 +224,15 @@ def _holding_instrument_maps(
     *,
     transactions: Sequence[ParsedTransaction],
     holdings: Sequence[ParsedHoldingsFile],
-) -> dict[str, dict[str, str]]:
+) -> dict[tuple[str, date], dict[str, str]]:
     """Resolve holdings names from same-account trades, snapshots, then this upload."""
     account = tables["account"]
     instrument = tables["instrument"]
-    result: dict[str, dict[str, str]] = {}
-    seen_snapshots: set[tuple[str, date]] = set()
+    result: dict[tuple[str, date], dict[str, str]] = {}
     for hf in holdings:
         snapshot_key = (hf.account_number, hf.as_of)
-        if snapshot_key in seen_snapshots:
+        if snapshot_key in result:
             raise ValueError("duplicate Nordnet holdings account/date in one load")
-        seen_snapshots.add(snapshot_key)
         names = {h.name for h in hf.holdings}
         mapping: dict[str, str] = {}
         if names:
@@ -272,7 +270,7 @@ def _holding_instrument_maps(
         resolved = [mapping[h.name] for h in hf.holdings]
         if len(resolved) != len(set(resolved)):
             raise ValueError("Nordnet holdings snapshot contains duplicate instruments")
-        result[hf.account_number] = mapping
+        result[snapshot_key] = mapping
     return result
 
 
@@ -403,14 +401,14 @@ def _upsert_instruments(
     transactions: Sequence[ParsedTransaction],
     holdings: Sequence[ParsedHoldingsFile],
     cash_balances: Sequence[ParsedCashBalance],
-    names_by_account: dict[str, dict[str, str]],
+    names_by_snapshot: dict[tuple[str, date], dict[str, str]],
 ) -> _InstrumentIds:
     by_isin = _upsert_security_instruments(
         conn,
         instrument,
         names_by_isin=names_by_isin,
         holdings=holdings,
-        names_by_account=names_by_account,
+        names_by_snapshot=names_by_snapshot,
         update_existing=bool(transactions),
     )
     by_cash_ticker = _upsert_cash_instruments(conn, instrument, cash_balances)
@@ -423,7 +421,7 @@ def _upsert_security_instruments(
     *,
     names_by_isin: dict[str, str],
     holdings: Sequence[ParsedHoldingsFile],
-    names_by_account: dict[str, dict[str, str]],
+    names_by_snapshot: dict[tuple[str, date], dict[str, str]],
     update_existing: bool,
 ) -> dict[str, str]:
     # Build payload keyed by ISIN. Pull name + currency from the first
@@ -432,7 +430,7 @@ def _upsert_security_instruments(
     isin_to_currency: dict[str, str] = {}
     for hf in holdings:
         for h in hf.holdings:
-            isin = names_by_account[hf.account_number][h.name]
+            isin = names_by_snapshot[(hf.account_number, hf.as_of)][h.name]
             isin_to_currency.setdefault(isin, h.currency)
 
     payload = [
@@ -598,14 +596,14 @@ def _upsert_holding_snapshots(
     account_ids: dict[str, str],
     instrument_ids_by_isin: dict[str, str],
     instrument_ids_by_cash_ticker: dict[str, str],
-    names_by_account: dict[str, dict[str, str]],
+    names_by_snapshot: dict[tuple[str, date], dict[str, str]],
 ) -> int:
     written = 0
     for hf in sorted(holdings, key=lambda item: item.as_of):
         account_id = account_ids[hf.account_number]
         payload: list[dict[str, object]] = []
         for h in hf.holdings:
-            isin = names_by_account[hf.account_number][h.name]
+            isin = names_by_snapshot[(hf.account_number, hf.as_of)][h.name]
             payload.append(
                 _holding_payload(
                     account_id=account_id,

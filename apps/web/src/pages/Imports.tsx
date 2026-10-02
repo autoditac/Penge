@@ -478,7 +478,9 @@ function ReviewPanel({ sessionId, state, dispatch }: ReviewPanelProps): React.JS
       {!committable && (
         <p className="supporting">
           {session.rows.length > 0 && session.rows.every((row) => row.excluded)
-            ? "At least one position must remain included. A genuinely empty export can close out all securities."
+            ? holdingsSession
+              ? "At least one position must remain included. A genuinely empty export can close out all securities."
+              : "At least one row must remain included."
             : "Fix or exclude the error rows before committing."}
         </p>
       )}

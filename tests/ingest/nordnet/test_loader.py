@@ -745,6 +745,73 @@ def test_duplicate_account_date_files_cannot_replace_each_other(
         assert conn.execute(text("select count(*) from holding_snapshot")).scalar_one() == 0
 
 
+def test_combined_load_preserves_mappings_for_multiple_dates_same_account(
+    engine: Engine,
+    accounts_config: AccountsConfig,
+    tmp_path: Path,
+) -> None:
+    transactions = write_nordnet_csv(
+        tmp_path / "trades.csv",
+        [
+            TXN_HEADER,
+            txn_row(
+                id_="ALPHA",
+                book_date="2026-05-01",
+                depot="99999990",
+                type_="KØBT",
+                name="Synthetic Alpha",
+                isin="IE00B4L5Y983",
+                amount="-10,00",
+            ),
+            txn_row(
+                id_="BETA",
+                book_date="2026-05-02",
+                depot="99999990",
+                type_="KØBT",
+                name="Synthetic Beta",
+                isin="IE00B3RBWM25",
+                amount="-20,00",
+            ),
+        ],
+    )
+    first = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 5.5.2026.csv",
+        [
+            HLD_HEADER,
+            hld_row(name="Synthetic Alpha", currency="EUR", quantity="2", value_dkk="100,00"),
+        ],
+    )
+    second = write_nordnet_csv(
+        tmp_path / "Depotoversigt for kontonummer 99999990, 7.5.2026.csv",
+        [
+            HLD_HEADER,
+            hld_row(name="Synthetic Beta", currency="EUR", quantity="3", value_dkk="200,00"),
+        ],
+    )
+
+    result = load_files(
+        engine,
+        transactions_csv=transactions,
+        holdings_csvs=[second, first],
+        accounts_config=accounts_config,
+    )
+
+    assert result.holding_snapshots == 3  # two positions and sold Alpha
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "select hs.as_of, trim(i.isin) as isin, hs.quantity, hs.market_value "
+                "from holding_snapshot hs join instrument i on i.id = hs.instrument_id "
+                "where i.kind = 'security' order by hs.as_of, isin"
+            )
+        ).all()
+    assert [(r.as_of.isoformat(), r.isin, r.quantity, r.market_value) for r in rows] == [
+        ("2026-05-05", "IE00B4L5Y983", Decimal("2"), Decimal("100")),
+        ("2026-05-07", "IE00B3RBWM25", Decimal("3"), Decimal("200")),
+        ("2026-05-07", "IE00B4L5Y983", Decimal("0"), Decimal("0")),
+    ]
+
+
 def test_header_only_requires_prior_security_not_just_existing_account(
     engine: Engine,
     accounts_config: AccountsConfig,

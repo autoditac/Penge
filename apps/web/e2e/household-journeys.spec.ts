@@ -126,6 +126,13 @@ test("local vendor provenance and stale merchant save use real revision guards",
   await expect(
     page.getByRole("region", { name: "Public merchant reference status" }),
   ).toContainText("2 entries");
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    )
+    .toBeLessThanOrEqual(1);
   const merchantPicker = page.getByRole("combobox", { name: "Merchant", exact: true });
   await merchantPicker.evaluate((element) =>
     element.scrollIntoView({ block: "center", behavior: "instant" }),
@@ -142,6 +149,13 @@ test("local vendor provenance and stale merchant save use real revision guards",
   }
   await page.keyboard.press("Enter");
   await expect(merchantPicker).toHaveText(`${label} merchant`);
+  await expect
+    .poll(() =>
+      page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      ),
+    )
+    .toBeLessThanOrEqual(1);
   await expect(page.locator('[role="listbox"]')).toHaveCount(0);
   await merchantPicker.evaluate((element) =>
     element.scrollIntoView({ block: "center", behavior: "instant" }),

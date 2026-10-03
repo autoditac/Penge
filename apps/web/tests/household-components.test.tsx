@@ -565,7 +565,7 @@ describe("TransactionDetailPanel", () => {
   });
 
   describe("MerchantManagementPanel", () => {
-    it("keeps page scroll geometry stable while trapping merchant menu focus", async () => {
+    it("retains modal scroll locking, focus trapping and Escape for merchant selection", async () => {
       const user = userEvent.setup();
       const merchant: HouseholdMerchant = {
         id: "merchant-scroll",
@@ -591,10 +591,9 @@ describe("TransactionDetailPanel", () => {
           onSaveAlias={vi.fn()}
         />,
       );
-      const overflow = document.body.style.overflow;
       await user.click(screen.getByRole("combobox", { name: "Merchant" }));
       expect(screen.getByRole("listbox")).toBeVisible();
-      expect(document.body.style.overflow).toBe(overflow);
+      expect(document.body.style.overflow).toBe("hidden");
       expect(screen.getByRole("listbox").contains(document.activeElement)).toBe(true);
       await user.keyboard("{Escape}");
       expect(screen.getByRole("combobox", { name: "Merchant" })).toHaveAttribute(
@@ -631,8 +630,8 @@ describe("TransactionDetailPanel", () => {
         status: "stale",
         sourceId: "name-suggestion-index",
         sourceVersion: "8.0.20260918",
-        checksum: "synthetic-checksum",
-        packageIntegrity: null,
+        checksum: "a".repeat(64),
+        packageIntegrity: `sha512-${"b".repeat(88)}`,
         candidateIntegrity: null,
         sourceUrl: "https://example.invalid/catalog",
         license: "BSD-3-Clause",
@@ -694,6 +693,9 @@ describe("TransactionDetailPanel", () => {
       const statusSection = screen.getByRole("region", {
         name: "Public merchant reference status",
       });
+      expect(statusSection).toHaveStyle({ overflowWrap: "anywhere" });
+      expect(statusSection).toHaveTextContent("a".repeat(64));
+      expect(statusSection).toHaveTextContent(`sha512-${"b".repeat(88)}`);
       expect(within(statusSection).getByText(/version 8\.0\.20260918/)).toBeInTheDocument();
       expect(within(statusSection).getByText(/BSD-3-Clause/)).toBeInTheDocument();
       expect(screen.getByText(/A newer source snapshot is not yet available/)).toBeInTheDocument();

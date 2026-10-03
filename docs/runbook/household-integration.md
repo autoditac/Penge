@@ -103,11 +103,14 @@ the combobox is expanded before testing the option's viewport geometry.
 The picker is scrolled to the viewport center, with an actual center-point
 hit-test before reopening: mobile traces showed default scrolling retrying at
 the bottom navigation edge rather than the intended visible control.
-Full-app synthetic response replay isolated the remaining root cause:
-MUI's body scroll lock moved the focused picker/menu during the opening gesture,
-placing mouseup on the backdrop and immediately closing the menu.
-The merchant menu now preserves page scroll geometry without disabling its
-focus trap, keyboard navigation, Escape handling, or focus restoration.
+Full-app synthetic response replay isolated the root cause: the public status
+SHA-256 digest overflowed its narrow container, expanding the mobile layout
+viewport from 412 to 564 pixels while the visual viewport remained 412 pixels.
+Menu coordinates then diverged from native touch coordinates.
+Public provenance text now wraps without truncating checksums or integrity.
+Browser assertions check actual document width before and after selection.
+The earlier scroll-lock workaround was removed; standard modal scroll locking,
+focus trapping, keyboard navigation, Escape and focus restoration are retained.
 Versioned rule regions expose accessible names so history actions target the
 active version explicitly instead of depending on layout ancestry.
 

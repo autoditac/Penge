@@ -154,7 +154,6 @@ export function MerchantManagementPanel({
               labelId="merchant-identity-label"
               label="Merchant"
               value={selectedMerchantId ?? ""}
-              MenuProps={{ disableScrollLock: true }}
               onChange={(event) =>
                 onSelectMerchant(event.target.value === "" ? null : event.target.value)
               }
@@ -491,7 +490,7 @@ function VendorReferenceStatus({
       component="section"
       variant="outlined"
       aria-label="Public merchant reference status"
-      sx={{ p: { xs: 1.75, sm: 2.25 }, borderRadius: 3.5 }}
+      sx={{ p: { xs: 1.75, sm: 2.25 }, borderRadius: 3.5, overflowWrap: "anywhere" }}
     >
       <Stack spacing={1}>
         <Stack

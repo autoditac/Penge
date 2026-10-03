@@ -592,12 +592,12 @@ describe("TransactionDetailPanel", () => {
         />,
       );
       const overflow = document.body.style.overflow;
-      await user.click(screen.getByRole("combobox", { name: "Merchant", exact: true }));
+      await user.click(screen.getByRole("combobox", { name: "Merchant" }));
       expect(screen.getByRole("listbox")).toBeVisible();
       expect(document.body.style.overflow).toBe(overflow);
       expect(screen.getByRole("listbox").contains(document.activeElement)).toBe(true);
       await user.keyboard("{Escape}");
-      expect(screen.getByRole("combobox", { name: "Merchant", exact: true })).toHaveAttribute(
+      expect(screen.getByRole("combobox", { name: "Merchant" })).toHaveAttribute(
         "aria-expanded",
         "false",
       );

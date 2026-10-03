@@ -140,11 +140,13 @@ test("local vendor provenance and stale merchant save use real revision guards",
   }
   await page.keyboard.press("Enter");
   await expect(merchantPicker).toHaveText(`${label} merchant`);
+  await expect(page.locator('[role="listbox"]')).toHaveCount(0);
   await merchantPicker.scrollIntoViewIfNeeded();
   await merchantPicker.click();
   const selectedOption = page.getByRole("option", { name: `${label} merchant`, exact: true });
   await expect(selectedOption).toBeInViewport({ ratio: 1 });
   await selectedOption.click();
+  await expect(page.locator('[role="listbox"]')).toHaveCount(0);
   await page.getByLabel("Merchant name or alias", { exact: true }).fill(`${label} public`);
   await page.getByLabel("Merchant name or alias", { exact: true }).press("Enter");
   const linked = page.waitForResponse(

@@ -96,6 +96,8 @@ Merchant selection scrolls the control into view before keyboard opening,
 uses native Home/ArrowDown/Enter with a selected-label assertion, then reopens the
 menu and verifies the option is fully in the viewport and pointer-selectable.
 This covers both keyboard and mobile touch geometry without forced clicks.
+Reopening waits for the previous listbox to unmount, so modal focus/scroll
+restoration cannot race the next pointer action during the exit transition.
 Versioned rule regions expose accessible names so history actions target the
 active version explicitly instead of depending on layout ancestry.
 

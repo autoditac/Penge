@@ -1,8 +1,8 @@
-"""Postgres + fake-client harness for the connections API tests.
+"""Guarded Postgres + fake-client harness for connections API tests.
 
-Requires ``PENGE_TEST_DATABASE_URL`` (or ``DATABASE_URL``); the tests
-skip otherwise. The Enable Banking client is always faked — no signing
-key, no network. All fixture data is synthetic.
+Requires an explicitly opted-in, loopback, test-named
+``PENGE_TEST_DATABASE_URL``. The Enable Banking client is always faked; all
+fixture data is synthetic.
 """
 
 from __future__ import annotations
@@ -21,6 +21,7 @@ from penge.api.connections import routes as connections_routes
 from penge.api.connections.config import ConnectionsConfig
 from penge.api.imports.engine import get_import_engine
 from tests.api.connections.fakes import FakeClient
+from tests.household.db_guard import validate_isolated_test_database_url
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -28,7 +29,7 @@ if TYPE_CHECKING:
     from fastapi import FastAPI
     from sqlalchemy.engine import Engine
 
-DB_URL = os.environ.get("PENGE_TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+DB_URL = os.environ.get("PENGE_TEST_DATABASE_URL")
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
@@ -38,9 +39,14 @@ pytestmark = pytest.mark.skipif(DB_URL is None, reason="no test database configu
 @pytest.fixture(scope="session")
 def engine() -> Iterator[Engine]:
     """Engine pointed at the test DB; runs ``alembic upgrade head`` once."""
-    assert DB_URL is not None
-    eng = create_engine(DB_URL)
-    env = {**os.environ, "DATABASE_URL": DB_URL}
+    if DB_URL is None:
+        pytest.skip("PENGE_TEST_DATABASE_URL is required for connections database tests")
+    test_database_url = validate_isolated_test_database_url(
+        DB_URL,
+        allow_destructive_test_db=os.environ.get("PENGE_ALLOW_DESTRUCTIVE_TEST_DB"),
+    )
+    eng = create_engine(test_database_url)
+    env = {**os.environ, "DATABASE_URL": test_database_url}
     subprocess.run(  # noqa: S603 — fixed argv, test-only helper
         ["alembic", "upgrade", "head"],  # noqa: S607
         cwd=REPO_ROOT,
@@ -59,7 +65,11 @@ def _truncate(engine: Engine) -> Iterator[None]:
     with engine.begin() as conn:
         conn.execute(
             text(
-                "TRUNCATE TABLE bank_connection, holding_snapshot, "
+                "TRUNCATE TABLE household_rule_preview, household_payment_detail_link, "
+                "household_audit, household_transaction_link, household_allocation, "
+                "household_classification, household_payment_detail, household_rule, "
+                "household_merchant_alias, household_merchant, household_category, "
+                "bank_connection, holding_snapshot, "
                 '"transaction", instrument, account, entity RESTART IDENTITY CASCADE'
             )
         )

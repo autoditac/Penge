@@ -1,0 +1,103 @@
+version: 2
+
+models:
+  - name: mart_household_report_daily
+    description: >
+      Daily signed household-report allocations by account, treatment, and
+      assigned category. Each source bank transaction is split exactly once;
+      provider detail is not joined as a cashflow source.
+    columns:
+      - name: entity_id
+        description: Owning household member.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__entity')
+              field: entity_id
+      - name: account_id
+        description: Canonical bank account on which the amount was booked.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__account')
+              field: account_id
+      - name: account_kind
+        description: Canonical source account kind.
+        data_tests:
+          - not_null
+      - name: account_currency
+        description: Currency of the bank booking and signed allocations.
+        data_tests:
+          - not_null
+      - name: as_of
+        description: Value date, falling back to the UTC date of the booking timestamp.
+        data_tests:
+          - not_null
+      - name: treatment
+        description: Economic treatment of the bank movement or allocation.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["income", "expense", "refund", "unclassified"]
+      - name: category_id
+        description: Assigned leaf category; null for unclassified allocations.
+        data_tests:
+          - relationships:
+              to: ref('stg_raw__household_category')
+              field: category_id
+      - name: is_default_scope
+        description: True for checking accounts included by default.
+        data_tests:
+          - not_null
+      - name: allocation_amount_native
+        description: Signed allocation amount in the bank account currency.
+        data_tests:
+          - not_null
+      - name: allocation_amount_eur
+        description: EUR conversion at the booking value date; null if FX is missing.
+      - name: allocation_known_amount_eur
+        description: Sum of available EUR conversions before missing-rate completeness.
+      - name: missing_fx_count_eur
+        description: Count of included allocations without a usable EUR conversion.
+        data_tests:
+          - not_null
+      - name: allocation_amount_dkk
+        description: DKK conversion at the booking value date; null if FX is missing.
+      - name: allocation_known_amount_dkk
+        description: Sum of available DKK conversions before missing-rate completeness.
+      - name: missing_fx_count_dkk
+        description: Count of included allocations without a usable DKK conversion.
+        data_tests:
+          - not_null
+      - name: transaction_count
+        description: Number of distinct bank transactions represented by this row.
+        data_tests:
+          - not_null
+      - name: unclassified_transaction_count
+        description: Distinct unclassified bank transactions represented by this row.
+        data_tests:
+          - not_null
+      - name: unclassified_expense_count
+        description: Distinct negative unclassified bank transactions represented by this row.
+        data_tests:
+          - not_null
+      - name: classification_review_count
+        description: Distinct transactions with a pending review or stale source snapshot.
+        data_tests:
+          - not_null
+      - name: source_snapshot_drift_count
+        description: Distinct transactions whose classification source snapshot differs.
+        data_tests:
+          - not_null
+      - name: allocation_mismatch_count
+        description: Distinct economic classifications whose split fails bank-amount conservation.
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - entity_id
+            - account_id
+            - as_of
+            - treatment
+            - category_id

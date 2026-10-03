@@ -1,0 +1,232 @@
+version: 2
+
+models:
+  - name: stg_raw__household_category
+    description: >
+      Pass-through view of the editable household category hierarchy. Archived
+      categories remain available for historical reporting.
+    columns:
+      - name: category_id
+        description: Stable category identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: name
+        description: User-visible category name.
+        data_tests:
+          - not_null
+      - name: kind
+        description: Category class, either expense or income.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["expense", "income"]
+      - name: parent_id
+        description: Parent category identifier, or null for a root.
+        data_tests:
+          - relationships:
+              to: ref('stg_raw__household_category')
+              field: category_id
+      - name: sort_order
+        description: Stable ordering among siblings.
+        data_tests:
+          - not_null
+      - name: archived
+        description: Whether the category is hidden from new assignments.
+        data_tests:
+          - not_null
+      - name: revision
+        description: Optimistic category revision.
+        data_tests:
+          - not_null
+
+  - name: stg_raw__household_classification
+    description: >
+      Pass-through bank transaction classification plus the original source
+      snapshot used to detect stale decisions.
+    columns:
+      - name: transaction_id
+        description: Canonical bank transaction classified.
+        data_tests:
+          - not_null
+          - unique
+          - relationships:
+              to: ref('stg_raw__transaction')
+              field: transaction_id
+      - name: treatment
+        description: Economic treatment assigned to the bank movement.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["expense", "income", "refund", "transfer", "excluded", "unclassified"]
+      - name: review_state
+        description: Review state of the current classification.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["classified", "needs_review", "unclassified"]
+      - name: merchant_id
+        description: Locally identified merchant, when confirmed.
+      - name: identity_confirmed
+        description: Whether this classification has a confirmed merchant identity.
+        data_tests:
+          - not_null
+      - name: provenance
+        description: Whether the decision was entered manually or by a deterministic rule.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["manual", "rule"]
+      - name: rule_id
+        description: Deterministic rule identifier, when rule-derived.
+      - name: revision
+        description: Monotone classification revision.
+        data_tests:
+          - not_null
+      - name: source_amount
+        description: Signed source bank amount captured when the decision was made.
+        data_tests:
+          - not_null
+      - name: source_currency
+        description: Bank account currency captured with the source snapshot.
+        data_tests:
+          - not_null
+      - name: source_ts
+        description: Bank transaction timestamp captured with the source snapshot.
+        data_tests:
+          - not_null
+      - name: source_counterparty
+        description: Bank counterparty captured with the source snapshot.
+      - name: source_kind
+        description: Canonical transaction kind captured with the source snapshot.
+        data_tests:
+          - not_null
+      - name: explanation
+        description: Human-readable reason for the classification.
+
+  - name: stg_raw__household_allocation
+    description: >
+      Pass-through signed split amount per category, in the bank transaction
+      currency.
+    columns:
+      - name: transaction_id
+        description: Bank transaction receiving the split.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__household_classification')
+              field: transaction_id
+      - name: category_id
+        description: Expense or income category receiving the split.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__household_category')
+              field: category_id
+      - name: amount_native
+        description: Signed split amount in the bank account currency.
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - transaction_id
+            - category_id
+
+  - name: stg_raw__household_payment_detail
+    description: >
+      Whitelisted, idempotently keyed provider payment details. This model is
+      enrichment only and never an independent cashflow ledger.
+    columns:
+      - name: detail_id
+        description: Surrogate detail identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: provider
+        description: Provider slug.
+        data_tests:
+          - not_null
+      - name: source_account_id
+        description: Opaque, stable source account identity.
+        data_tests:
+          - not_null
+      - name: external_reference
+        description: Stable provider entry reference used for idempotency.
+        data_tests:
+          - not_null
+      - name: connection_id
+        description: Enable Banking connection used for the latest fetch.
+      - name: ts
+        description: Provider booking timestamp.
+        data_tests:
+          - not_null
+      - name: amount_native
+        description: Signed provider amount in its original currency; not report cashflow.
+        data_tests:
+          - not_null
+      - name: currency
+        description: ISO-4217 source amount currency.
+        data_tests:
+          - not_null
+      - name: merchant_name
+        description: Minimal merchant description when available.
+      - name: reference
+        description: Minimal remittance/reference detail when available.
+      - name: event_kind
+        description: Conservative source-event kind; generic evidence remains unknown.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["purchase", "refund", "funding", "unknown"]
+      - name: source_fields
+        description: Strictly whitelisted provider metadata; never selected into financial totals.
+        data_tests:
+          - not_null
+      - name: revision
+        description: Monotone source-detail revision.
+        data_tests:
+          - not_null
+      - name: last_seen_at
+        description: Most recent successful observation timestamp.
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - provider
+            - source_account_id
+            - external_reference
+
+  - name: stg_raw__household_payment_detail_link
+    description: >
+      Explicitly approved signed allocations from provider detail to canonical
+      bank transactions, always denominated in bank currency.
+    columns:
+      - name: transaction_id
+        description: Canonical bank transaction.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__transaction')
+              field: transaction_id
+      - name: detail_id
+        description: Provider payment detail being reconciled.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__household_payment_detail')
+              field: detail_id
+      - name: bank_amount
+        description: Signed detail allocation in the canonical bank currency.
+        data_tests:
+          - not_null
+      - name: detail_revision
+        description: Source-detail revision explicitly approved by the user.
+        data_tests:
+          - not_null
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - transaction_id
+            - detail_id

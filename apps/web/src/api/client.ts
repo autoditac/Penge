@@ -71,17 +71,19 @@ export type SeriesParams = {
   readonly limit?: number;
 };
 
-async function getJson<T>(
+export type QueryValue = string | number | readonly string[] | undefined;
+
+export async function getJson<T>(
   path: string,
-  params: Readonly<Record<string, string | number | undefined>>,
+  params: Readonly<Record<string, QueryValue>>,
   schema: ZodType<T>,
 ): Promise<T> {
   return requestJson(path, { params }, schema);
 }
 
-type RequestOptions = {
+export type RequestOptions = {
   readonly method?: string;
-  readonly params?: Readonly<Record<string, string | number | undefined>>;
+  readonly params?: Readonly<Record<string, QueryValue>>;
   readonly jsonBody?: unknown;
   readonly formBody?: FormData;
 };
@@ -97,14 +99,18 @@ function errorDetail(payload: unknown): string | null {
   return null;
 }
 
-async function requestJson<T>(
+export async function requestJson<T>(
   path: string,
   options: RequestOptions,
   schema: ZodType<T>,
 ): Promise<T> {
   const url = new URL(path, apiBaseUrl);
   for (const [key, value] of Object.entries(options.params ?? {})) {
-    if (value !== undefined) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        url.searchParams.append(key, item);
+      }
+    } else if (value !== undefined) {
       url.searchParams.set(key, String(value));
     }
   }

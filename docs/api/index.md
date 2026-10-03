@@ -12,6 +12,12 @@ dbt-only refresh trigger under `/meta/refresh`
 (see [ADR-0046](../decisions/0046-scheduled-enable-banking-net-worth-refresh.md)),
 which reuses the scheduled worker's `DbtRunner`, lock, and pending marker
 without touching any bank connection.
+The `/vendors/reference-index` routes expose the separate public merchant
+reference catalog and perform local-only search; search strings never leave
+Penge (see [ADR-0051](../decisions/0051-public-merchant-reference-index.md)).
+The opt-in [household categorization API](household.md) adds guarded
+committed-transaction corrections, category trees, deterministic learning,
+and explicit historical previews without changing source facts.
 Import commits use that same lock and durable marker, so raw-table writes
 cannot overlap a shadow dbt build.
 
@@ -40,9 +46,33 @@ Database resolution follows the same rules as every other component:
 | `/accounts`           | Masked account dimension with source kind, reporting kind, and latest import timestamp |
 | `/meta/freshness`     | Latest data date and row count per mart, for staleness banners   |
 | `POST /meta/refresh`  | Trigger a guarded dbt-only refresh (shadow build/test + atomic promotion); does not re-sync bank connections |
+| `GET /vendors/reference-index/status` | Public catalog version, provenance, freshness, and sanitized failure state |
+| `GET /vendors/reference-index/search?q=...` | Local-only literal-alias search; collisions remain ambiguous |
 
 All series endpoints accept `since`, `until`, `account_id`, `entity_id`,
 `limit`, and `offset`; the default window is one year.
+
+Household income and expense reports use the isolated projection described in
+[Household reporting](household-reporting.md) and
+[ADR-0052](../decisions/0052-household-reporting-projection.md).
+The `/household/reports/summary`, `/categories`, and `/transactions` reads share
+date, account, entity, category, and granularity filters; they do not change
+existing cashflow semantics.
+
+The vendor reference search accepts `q` (1–100 characters) and `limit`
+(1–100, default 20).
+It prefers exact normalized aliases and otherwise returns substring matches.
+`match_status` is `no_match`, `unique`, or `ambiguous`; a unique result is
+still a suggestion and does not write a household merchant, private alias, or
+expense category.
+The `truncated` flag reports when more matches exist than the requested limit.
+When the public catalog is stale, search continues against the last validated
+generation while the response carries the stale status.
+Both routes are read-only and inherit the API's deployment access controls.
+Invalid search input returns `422`; refresh is performed only by the scheduled
+worker/CLI and has no browser-callable endpoint.
+See the [public reference connector](../connectors/merchant-reference.md) for
+source and license details.
 
 ## Returns and benchmarks (#206)
 

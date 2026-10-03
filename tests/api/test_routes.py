@@ -184,6 +184,8 @@ class TestFreshness:
         assert marts["mart_net_worth_daily"]["latest_as_of"] == "2026-06-02"
         assert marts["mart_cashflow_daily"]["latest_as_of"] is None
         assert marts["mart_cashflow_daily"]["row_count"] == 0
+        assert marts["mart_household_report_daily"]["latest_as_of"] == "2026-06-03"
+        assert marts["mart_household_report_daily"]["row_count"] == 4
 
 
 class TestReturnsDaily:

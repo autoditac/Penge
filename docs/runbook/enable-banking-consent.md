@@ -133,6 +133,17 @@ Every failed link/authorize/sync records a sanitised `last_error`
 inline on the connection card — so a `422 ALREADY_AUTHORIZED` is never
 silent.
 
+### PayPal Germany
+
+The Connections page also lists **PayPal (DE)** for a personal PSU.
+Its role is **detail-only**: syncing must not create a PayPal cash account,
+wallet balance, or independent household transaction.
+PayPal details enrich checking transactions only after an explicit approved
+link; unmatched details remain review-only.
+The signed bank movement stays authoritative for amount, currency, and date.
+See the [PayPal connector notes](../connectors/paypal.md) for the source
+fields and unverified capabilities.
+
 ### Will every import require consent?
 
 No. Consent (SCA) is required only the first time and again when the

@@ -31,7 +31,7 @@ from penge.api.connections.models import (
     LinkResponse,
     SyncResponse,
 )
-from penge.api.connections.provider import all_providers
+from penge.api.connections.provider import all_providers, get_provider
 from penge.api.imports.engine import get_import_engine
 from penge.ingest.enablebanking.client import Client
 from penge.ops.net_worth_refresh import (
@@ -128,11 +128,13 @@ def _account_out(raw: dict[str, object]) -> ConnectionAccountOut:
 
 
 def _connection_out(record: store.ConnectionRecord) -> ConnectionOut:
+    provider = get_provider(record.provider)
     return ConnectionOut(
         id=record.id,
         provider=record.provider,
         aspsp_name=record.aspsp_name,
         aspsp_country=record.aspsp_country,
+        data_role=provider.data_role if provider is not None else "unknown",
         entity_name=record.entity_name,
         status=record.status,
         valid_until=record.valid_until,
@@ -174,6 +176,8 @@ def list_aspsps(
                 aspsp_name=p.aspsp_name,
                 aspsp_country=p.aspsp_country,
                 default_currency=p.default_currency,
+                psu_type=p.psu_type,
+                data_role=p.data_role,
             )
             for p in all_providers()
         ]
@@ -262,6 +266,7 @@ def sync_route(
         connection=_connection_out(outcome.record),
         transactions=outcome.transactions,
         holding_snapshots=outcome.holding_snapshots,
+        payment_details=outcome.payment_details,
     )
 
 

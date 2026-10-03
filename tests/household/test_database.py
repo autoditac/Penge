@@ -52,7 +52,7 @@ def test_existing_cashflow_mart_keeps_raw_bank_transaction_semantics(
     clean_postgres_database: None,
 ) -> None:
     seeded = seed_household_source_facts(postgres_engine)
-    result = run_dbt("build", "--select", "+mart_cashflow_daily")
+    result = run_dbt("build")
     assert result.returncode == 0, result.stdout + result.stderr
 
     with postgres_engine.begin() as connection:
@@ -108,7 +108,7 @@ def test_real_report_api_conserves_splits_and_keeps_paypal_bank_grain(
         },
     )
     assert corrected.status_code == 200, corrected.text
-    built = run_dbt("build", "--select", "+mart_household_report_daily", "+mart_cashflow_daily")
+    built = run_dbt("build")
     assert built.returncode == 0, built.stdout + built.stderr
 
     filters = {

@@ -23,6 +23,13 @@ on:
       - migrations/**
       - tests/dbt/**
       - tests/household/**
+      - src/penge/**
+      - tests/api/**
+      - tests/analytics/**
+      - tests/ingest/**
+      - apps/web/**
+      - apps/mcp/**
+      - pnpm-lock.yaml
       - Justfile
       - pyproject.toml
       - uv.lock
@@ -34,6 +41,13 @@ on:
       - migrations/**
       - tests/dbt/**
       - tests/household/**
+      - src/penge/**
+      - tests/api/**
+      - tests/analytics/**
+      - tests/ingest/**
+      - apps/web/**
+      - apps/mcp/**
+      - pnpm-lock.yaml
       - Justfile
       - pyproject.toml
       - uv.lock
@@ -68,7 +82,7 @@ jobs:
         # creating an anonymous volume that outlives the job (#289), and keeps
         # the test database in RAM.
         options: >-
-          --health-cmd "pg_isready -U penge"
+          --health-cmd "pg_isready -U penge -d penge_household_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
@@ -142,6 +156,11 @@ jobs:
 
       - name: Seed synthetic browser data and materialize reports
         run: just household-browser-seed
+
+      - name: MCP household report real PostgreSQL runner
+        env:
+          PENGE_MCP_REPORT_PG_TEST: "1"
+        run: just household-mcp-postgres-test
 
       - name: Household desktop and mobile real-API browser acceptance
         env:

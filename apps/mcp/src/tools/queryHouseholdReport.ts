@@ -156,7 +156,7 @@ const REPORT_SQL = `
   WITH RECURSIVE category_scope(category_id) AS (
     SELECT c.category_id
     FROM analytics_staging.stg_raw__household_category AS c
-    WHERE c.category_id = $6::uuid
+    WHERE c.category_id = $5::uuid
     UNION
     SELECT child.category_id
     FROM analytics_staging.stg_raw__household_category AS child
@@ -175,10 +175,10 @@ const REPORT_SQL = `
       m.as_of BETWEEN $1::date AND $2::date
       OR m.as_of BETWEEN $3::date AND $4::date
     )
-    AND ($7::uuid[] IS NULL OR m.account_id = ANY($7::uuid[]))
-    AND ($8::uuid[] IS NULL OR m.entity_id = ANY($8::uuid[]))
+    AND ($6::uuid[] IS NULL OR m.account_id = ANY($6::uuid[]))
+    AND ($7::uuid[] IS NULL OR m.entity_id = ANY($7::uuid[]))
     AND (
-      $6::uuid IS NULL
+      $5::uuid IS NULL
       OR m.category_id IN (SELECT category_id FROM category_scope)
     )
   ORDER BY m.as_of, m.treatment, m.category_id NULLS FIRST
@@ -417,7 +417,6 @@ export function queryHouseholdReportTool(
         args.date_range.to,
         previous.from,
         previous.to,
-        args.granularity,
         args.category_id ?? null,
         accountIds,
         entityIds,

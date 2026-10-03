@@ -76,7 +76,7 @@ BANK_ENTRIES = (
         date(2026, 5, 31),
         Decimal("-500.00"),
         "Synthetic household transfer",
-        "Transfer to member B",
+        "Synthetic transfer to member B",
     ),
     BankEntry(
         "eur-salary",
@@ -164,7 +164,7 @@ BANK_ENTRIES = (
         date(2026, 5, 31),
         Decimal("3720.00"),
         "Synthetic household transfer",
-        "Transfer from member A",
+        "Synthetic transfer from member A",
     ),
     BankEntry(
         "dkk-salary",

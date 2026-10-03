@@ -242,6 +242,23 @@ describe("CategoryTree", () => {
   });
 
   describe("CategoryPicker", () => {
+    it("retains a selected archived assignment but prevents choosing it again", async () => {
+      const user = userEvent.setup();
+      const archived = { ...syntheticCategories[0]!, archived: true };
+      const onSelect = vi.fn();
+      renderWithTheme(
+        <CategoryPicker categories={[archived]} selectedId={archived.id} onSelect={onSelect} />,
+      );
+      const picker = screen.getByRole("combobox", { name: "Category" });
+      expect(picker).toHaveValue(archived.label);
+      await user.click(picker);
+      expect(screen.getByRole("option", { name: archived.label })).toHaveAttribute(
+        "aria-disabled",
+        "true",
+      );
+      expect(onSelect).not.toHaveBeenCalled();
+    });
+
     it("searches by nested path and returns the selected category id", async () => {
       const user = userEvent.setup();
       const onSelect = vi.fn();
@@ -293,6 +310,29 @@ describe("TransactionReviewList", () => {
 });
 
 describe("SplitEditor", () => {
+  it("preserves an existing archived split without offering it to new lines", async () => {
+    const user = userEvent.setup();
+    const onSave = vi.fn();
+    const archived = { ...syntheticCategories[0]!, archived: true, children: [] };
+    const initial = [{ id: "historical", categoryId: archived.id, amount: "-12.34" }];
+    renderWithTheme(
+      <SplitEditor
+        transactionAmount="-12.34"
+        currency="EUR"
+        categories={[archived]}
+        initialSplits={initial}
+        onSave={onSave}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Save split" }));
+    expect(onSave).toHaveBeenCalledWith(initial);
+    await user.click(screen.getByRole("button", { name: "Add split" }));
+    await user.click(screen.getByRole("combobox", { name: "Category 2" }));
+    expect(screen.queryByRole("option", { name: archived.label })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("button", { name: "Save split" })).toBeDisabled();
+  });
+
   it("blocks an unbalanced split and saves only once the exact source total is matched", async () => {
     const user = userEvent.setup();
     const onSave = vi.fn<(splits: readonly TransactionSplitDraft[]) => void>();

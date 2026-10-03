@@ -39,9 +39,17 @@ export function SplitEditor({
       transactionAmount,
       splits.map(({ amount }) => amount),
     );
-  const categoryOptions = flattenHouseholdCategories(categories).filter(
-    (category) => !category.archived,
-  );
+  const allCategories = flattenHouseholdCategories(categories);
+  function canKeepCategory(split: TransactionSplitDraft, categoryId: string): boolean {
+    const category = allCategories.find((item) => item.id === categoryId);
+    return (
+      category !== undefined &&
+      (!category.archived ||
+        initialSplits.some(
+          (initial) => initial.id === split.id && initial.categoryId === categoryId,
+        ))
+    );
+  }
 
   function updateSplit(id: string, patch: Partial<TransactionSplitDraft>): void {
     setSplits((current) =>
@@ -81,11 +89,13 @@ export function SplitEditor({
               value={split.categoryId}
               onChange={(event) => updateSplit(split.id, { categoryId: event.target.value })}
             >
-              {categoryOptions.map((category) => (
-                <MenuItem key={category.id} value={category.id}>
-                  {category.path}
-                </MenuItem>
-              ))}
+              {allCategories
+                .filter((category) => !category.archived || category.id === split.categoryId)
+                .map((category) => (
+                  <MenuItem key={category.id} value={category.id} disabled={category.archived}>
+                    {category.path}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
           <TextField
@@ -118,9 +128,7 @@ export function SplitEditor({
         disabled={
           !isBalanced ||
           splits.some(
-            (split) =>
-              split.categoryId === "" ||
-              !categoryOptions.some((category) => category.id === split.categoryId),
+            (split) => split.categoryId === "" || !canKeepCategory(split, split.categoryId),
           )
         }
         onClick={() => onSave(splits)}

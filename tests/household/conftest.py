@@ -10,15 +10,15 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pytest
-from alembic import command
-from alembic.config import Config
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from penge.api import data
 from penge.api.app import create_app
+from penge.api.imports.engine import get_import_engine
 from penge.household.models import Account, Base, SourceTransaction
+from tests.household.database_setup import upgrade_isolated_database
 from tests.household.db_guard import validate_isolated_test_database_url
 
 if TYPE_CHECKING:
@@ -39,16 +39,8 @@ def postgres_engine() -> Iterator[Engine]:
         DB_URL,
         allow_destructive_test_db=os.environ.get("PENGE_ALLOW_DESTRUCTIVE_TEST_DB"),
     )
+    upgrade_isolated_database(test_database_url)
     eng = create_engine(test_database_url)
-    previous_database_url = os.environ.get("DATABASE_URL")
-    os.environ["DATABASE_URL"] = test_database_url
-    try:
-        command.upgrade(Config(str(REPO_ROOT / "alembic.ini")), "head")
-    finally:
-        if previous_database_url is None:
-            os.environ.pop("DATABASE_URL", None)
-        else:
-            os.environ["DATABASE_URL"] = previous_database_url
     try:
         yield eng
     finally:
@@ -142,8 +134,6 @@ def postgres_api_client(
     monkeypatch.setenv("DATABASE_URL", DB_URL)
     monkeypatch.setenv("PENGE_HOUSEHOLD_ENABLED", "true")
     monkeypatch.setenv("PENGE_REFRESH_STATE_DIR", str(tmp_path / "refresh-state"))
-
-    from penge.api.imports.engine import get_import_engine
 
     get_import_engine.cache_clear()
     data.get_engine.cache_clear()

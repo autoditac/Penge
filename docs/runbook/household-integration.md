@@ -1,6 +1,6 @@
 # Household integration verification
 
-The household release candidate is assembled locally for epic #329.
+The household release candidate is published as draft PR #335 for epic #329.
 This checkpoint is not a deployment or a claim that all acceptance gates passed.
 All fixtures are synthetic.
 
@@ -38,8 +38,19 @@ Pinned `@playwright/test` is required because Vitest/jsdom cannot verify real
 desktop/mobile layout, navigation, and requests against the running API.
 CI runs `just household-browser-seed` and `just household-browser-test` against
 its disposable database; these recipes are not authorized for shared local data.
-Passing those checks does not establish browser behavior against a materialized
-report API.
+CI also runs `just household-mcp-postgres-test` against the seeded marts.
+This opt-in check uses the actual read-only PostgreSQL runner, not a fake runner,
+to verify positional SQL parameters across day/month/year report granularity.
+Unit tests and browser discovery alone do not establish real report behavior.
+
+Household database acceptance builds the full dbt graph, including relationship
+test targets outside the selected reporting ancestors.
+No integrity tests are suppressed.
+Fixture migrations run in a child process so Alembic cannot disable loggers or
+replace pytest's log-capture handlers in subsequent tests.
+Synthetic transfer descriptions carry the same explicit marker as other fixtures.
+The category picker and split editor retain existing archived assignments while
+preventing new archived-category selections.
 
 ## Outstanding acceptance gates
 
@@ -54,5 +65,6 @@ and mobile, not client-side mock reports.
 Personal PayPal entitlement, consent, actual provider fields, and history depth
 remain unverified.
 A public ASPSP listing does not prove live access.
-Signing, pushing, opening a PR, merging, and deploying are separately gated.
+Signed feature-branch publication was explicitly authorized.
+Merging, deploying, and live personal consent are not authorized.
 Keep the epic and child issues open until their acceptance criteria are satisfied.

@@ -68,6 +68,12 @@ describe("query_household_report", () => {
     expect(result.trend).toHaveLength(1);
     expect(result.trend[0]?.period_start).toBe("2025-07-01");
     expect(runner.calls.at(-1)?.sql).toContain("mart_household_report_daily");
+    const query = runner.calls.at(-1);
+    expect(query?.params).toHaveLength(7);
+    const placeholders = [...(query?.sql.matchAll(/\$(\d+)/g) ?? [])].map((match) =>
+      Number(match[1]),
+    );
+    expect([...new Set(placeholders)].sort()).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 
   it("encodes missing FX as null while retaining the exact known subtotal", async () => {

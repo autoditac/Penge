@@ -17,7 +17,9 @@ export function CategoryPicker({
   onSelect,
   disabled = false,
 }: CategoryPickerProps): React.JSX.Element {
-  const options = flattenHouseholdCategories(categories).filter((category) => !category.archived);
+  const options = flattenHouseholdCategories(categories).filter(
+    (category) => !category.archived || category.id === selectedId,
+  );
   const selected = options.find((category) => category.id === selectedId) ?? null;
 
   return (
@@ -26,6 +28,7 @@ export function CategoryPicker({
       value={selected}
       disabled={disabled}
       getOptionLabel={(option) => option.path}
+      getOptionDisabled={(option) => option.archived}
       isOptionEqualToValue={(option, value) => option.id === value.id}
       onChange={(_event, option) => onSelect(option?.id ?? null)}
       renderInput={(params) => <TextField {...params} label="Category" />}

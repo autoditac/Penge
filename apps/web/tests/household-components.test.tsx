@@ -565,6 +565,44 @@ describe("TransactionDetailPanel", () => {
   });
 
   describe("MerchantManagementPanel", () => {
+    it("keeps page scroll geometry stable while trapping merchant menu focus", async () => {
+      const user = userEvent.setup();
+      const merchant: HouseholdMerchant = {
+        id: "merchant-scroll",
+        name: "Synthetic scroll merchant",
+        identityKind: "stable",
+        confirmed: true,
+        archived: false,
+        revision: 1,
+        referenceSource: null,
+        referenceKey: null,
+        referenceVersion: null,
+      };
+      renderWithTheme(
+        <MerchantManagementPanel
+          merchants={[merchant]}
+          aliases={[]}
+          selectedMerchantId={merchant.id}
+          saving={false}
+          error={null}
+          onSelectMerchant={vi.fn()}
+          onSaveMerchant={vi.fn()}
+          onArchiveMerchant={vi.fn()}
+          onSaveAlias={vi.fn()}
+        />,
+      );
+      const overflow = document.body.style.overflow;
+      await user.click(screen.getByRole("combobox", { name: "Merchant", exact: true }));
+      expect(screen.getByRole("listbox")).toBeVisible();
+      expect(document.body.style.overflow).toBe(overflow);
+      expect(screen.getByRole("listbox").contains(document.activeElement)).toBe(true);
+      await user.keyboard("{Escape}");
+      expect(screen.getByRole("combobox", { name: "Merchant", exact: true })).toHaveAttribute(
+        "aria-expanded",
+        "false",
+      );
+    });
+
     it("shows local index status and only explicit local reference matches", async () => {
       const user = userEvent.setup();
       const onSearchReference = vi.fn();

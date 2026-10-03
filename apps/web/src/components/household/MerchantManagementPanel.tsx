@@ -154,6 +154,7 @@ export function MerchantManagementPanel({
               labelId="merchant-identity-label"
               label="Merchant"
               value={selectedMerchantId ?? ""}
+              MenuProps={{ disableScrollLock: true }}
               onChange={(event) =>
                 onSelectMerchant(event.target.value === "" ? null : event.target.value)
               }

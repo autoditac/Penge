@@ -6,6 +6,7 @@ import os
 
 from sqlalchemy import create_engine
 
+from tests.household.browser_fixtures import seed_browser_journeys
 from tests.household.db_guard import validate_isolated_test_database_url
 from tests.household.fixtures import seed_household_source_facts
 
@@ -18,7 +19,8 @@ def main() -> None:
     )
     engine = create_engine(url)
     try:
-        seed_household_source_facts(engine)
+        seeded = seed_household_source_facts(engine)
+        seed_browser_journeys(engine, seeded.account_ids["eur-checking"])
     finally:
         engine.dispose()
 

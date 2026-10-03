@@ -73,6 +73,31 @@ same-path frontend document cannot be mistaken for persisted API data.
 Each browser case has a bounded 90-second budget; failures retain synthetic
 screenshots/traces for three days in CI.
 
+### Connected browser coverage
+
+Separate July device-scoped sources leave the June report and MCP goldens unchanged.
+The seed uses household services to establish confirmed merchant/alias evidence,
+an active learned rule, protected manual evidence, and an unclassified historical
+candidate; public reference promotion uses a clearly synthetic two-record catalog
+without downloading anything or claiming publisher verification.
+Four review-only PayPal details are seeded without adding bank transactions.
+An in-memory regression verifies isolated device candidates and zero initial links.
+
+Desktop and mobile journeys exercise category-filtered real report drilldown,
+keyboard bulk selection, persisted manual bulk assignments, rejected unbalanced
+splits and exact balanced split persistence, local public reference search/linking,
+alias creation, and an actual concurrent merchant revision producing a failed save.
+History preview is checked for non-mutation before explicit approval, followed by
+persisted rule assignment and unchanged protected manual evidence.
+Manual correction and explicit aggregate PayPal reconciliation retain category
+allocations and bank identities/amounts across reload; invalid conservation blocks
+approval.
+These are connected persistence checks, not replacements for component/API tests.
+Component tests already cover archived choices, category hierarchy controls,
+decimal precision, missing-FX presentation, preview review guards, and vendor states.
+API/service tests cover source reimports, stale previews/details, deterministic
+learning conflicts, audit/undo, and public generation failure/privacy behavior.
+
 ## Outstanding acceptance gates
 
 The `just household-test` recipe requires a separately authorized disposable

@@ -68,6 +68,8 @@ Browser smoke fixes its client clock to the synthetic June fixture window and
 accepts the dashboard's initial category fetch instead of requiring a redundant
 request after cached navigation.
 It still verifies a real category POST and a fresh persisted GET after reload.
+Category response predicates require the API origin and JSON content type so a
+same-path frontend document cannot be mistaken for persisted API data.
 Each browser case has a bounded 90-second budget; failures retain synthetic
 screenshots/traces for three days in CI.
 

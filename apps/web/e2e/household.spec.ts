@@ -1,4 +1,17 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Response } from "@playwright/test";
+
+import { householdCategoriesResponseSchema } from "../src/api/schemas";
+
+function isCategoryResponse(response: Response, method: "GET" | "POST"): boolean {
+  const url = new URL(response.url());
+  return (
+    url.origin === "http://127.0.0.1:8000" &&
+    url.pathname === "/household/categories" &&
+    response.request().method() === method &&
+    response.status() === (method === "POST" ? 201 : 200) &&
+    response.headers()["content-type"]?.includes("application/json") === true
+  );
+}
 
 test("real household API renders bank reports and persists category mutations", async ({
   page,
@@ -8,11 +21,8 @@ test("real household API renders bank reports and persists category mutations", 
     (response) =>
       response.url().includes("/household/reports/summary") && response.status() === 200,
   );
-  const categoriesResponse = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === "/household/categories" &&
-      response.request().method() === "GET" &&
-      response.status() === 200,
+  const categoriesResponse = page.waitForResponse((response) =>
+    isCategoryResponse(response, "GET"),
   );
   await page.goto("/household/report");
   await Promise.all([summaryResponse, categoriesResponse]);
@@ -28,24 +38,16 @@ test("real household API renders bank reports and persists category mutations", 
   await page.getByRole("button", { name: "Add expense category", exact: true }).click();
   const categoryName = `Synthetic browser ${testInfo.project.name}`;
   await page.getByLabel("Category name", { exact: true }).fill(categoryName);
-  const mutation = page.waitForResponse(
-    (response) =>
-      response.url().endsWith("/household/categories") &&
-      response.request().method() === "POST" &&
-      response.status() === 201,
-  );
+  const mutation = page.waitForResponse((response) => isCategoryResponse(response, "POST"));
   await page.getByRole("button", { name: "Create category", exact: true }).click();
   await mutation;
   await expect(page.getByRole("button", { name: categoryName, exact: true })).toBeVisible();
-  const persistedCategories = page.waitForResponse(
-    (response) =>
-      new URL(response.url()).pathname === "/household/categories" &&
-      response.request().method() === "GET" &&
-      response.status() === 200,
+  const persistedCategories = page.waitForResponse((response) =>
+    isCategoryResponse(response, "GET"),
   );
   await page.reload();
   const persisted = await persistedCategories;
-  expect(await persisted.json()).toEqual(
+  expect(householdCategoriesResponseSchema.parse(await persisted.json())).toEqual(
     expect.arrayContaining([expect.objectContaining({ name: categoryName })]),
   );
   await expect(page.getByRole("button", { name: categoryName, exact: true })).toBeVisible();

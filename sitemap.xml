@@ -25,6 +25,14 @@
          <lastmod>2026-10-03</lastmod>
     </url>
     <url>
+         <loc>https://autoditac.github.io/Penge/api/household-reporting/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/api/household/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
          <loc>https://autoditac.github.io/Penge/architecture/</loc>
          <lastmod>2026-10-03</lastmod>
     </url>
@@ -61,7 +69,15 @@
          <lastmod>2026-10-03</lastmod>
     </url>
     <url>
+         <loc>https://autoditac.github.io/Penge/connectors/merchant-reference/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
          <loc>https://autoditac.github.io/Penge/connectors/nordnet/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/connectors/paypal/</loc>
          <lastmod>2026-10-03</lastmod>
     </url>
     <url>
@@ -273,7 +289,23 @@
          <lastmod>2026-10-03</lastmod>
     </url>
     <url>
+         <loc>https://autoditac.github.io/Penge/decisions/0050-audited-household-categorization/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/decisions/0051-public-merchant-reference-index/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/decisions/0052-household-reporting-projection/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
          <loc>https://autoditac.github.io/Penge/decisions/adr-template/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/licenses/name-suggestion-index/</loc>
          <lastmod>2026-10-03</lastmod>
     </url>
     <url>
@@ -314,6 +346,10 @@
     </url>
     <url>
          <loc>https://autoditac.github.io/Penge/runbook/healthchecks/</loc>
+         <lastmod>2026-10-03</lastmod>
+    </url>
+    <url>
+         <loc>https://autoditac.github.io/Penge/runbook/household-integration/</loc>
          <lastmod>2026-10-03</lastmod>
     </url>
     <url>

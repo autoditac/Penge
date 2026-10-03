@@ -16,7 +16,7 @@
         <link rel="prev" href="../web/modern-webui/">
       
       
-        <link rel="next" href="../mcp/tools/">
+        <link rel="next" href="household/">
       
       
         
@@ -380,6 +380,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -469,6 +473,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../connectors/merchant-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public merchant reference index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../connectors/gls/" class="md-nav__link">
         
   
@@ -505,6 +537,34 @@
     
   
     Evangelische Bank (Enable Banking)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../connectors/paypal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PayPal Germany (Enable Banking)
   
 
     
@@ -831,6 +891,10 @@
           
         
       
+        
+      
+        
+      
     
     
     
@@ -911,6 +975,62 @@
 
               
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="household/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Household categorization API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="household-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Household reporting API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
           </ul>
@@ -1500,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -1560,6 +1682,34 @@
     
   
     Monthly ritual (1-hour close)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../runbook/household-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Household integration verification
   
 
     
@@ -1955,6 +2105,12 @@
       
         
           
+        
+      
+        
+      
+        
+      
         
       
         
@@ -3181,6 +3337,90 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decisions/0050-audited-household-categorization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0050 Audited household categorization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decisions/0051-public-merchant-reference-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0051 Public merchant reference index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../decisions/0052-household-reporting-projection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0052 Household income and expense reporting projection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3389,6 +3629,12 @@ dbt-only refresh trigger under <code>/meta/refresh</code>
 (see <a href="../decisions/0046-scheduled-enable-banking-net-worth-refresh/">ADR-0046</a>),
 which reuses the scheduled worker's <code>DbtRunner</code>, lock, and pending marker
 without touching any bank connection.
+The <code>/vendors/reference-index</code> routes expose the separate public merchant
+reference catalog and perform local-only search; search strings never leave
+Penge (see <a href="../decisions/0051-public-merchant-reference-index/">ADR-0051</a>).
+The opt-in <a href="household/">household categorization API</a> adds guarded
+committed-transaction corrections, category trees, deterministic learning,
+and explicit historical previews without changing source facts.
 Import commits use that same lock and durable marker, so raw-table writes
 cannot overlap a shadow dbt build.</p>
 <h2 id="running-it">Running it<a class="headerlink" href="#running-it" title="Permanent link">&para;</a></h2>
@@ -3435,10 +3681,38 @@ Database resolution follows the same rules as every other component:
 <td><code>POST /meta/refresh</code></td>
 <td>Trigger a guarded dbt-only refresh (shadow build/test + atomic promotion); does not re-sync bank connections</td>
 </tr>
+<tr>
+<td><code>GET /vendors/reference-index/status</code></td>
+<td>Public catalog version, provenance, freshness, and sanitized failure state</td>
+</tr>
+<tr>
+<td><code>GET /vendors/reference-index/search?q=...</code></td>
+<td>Local-only literal-alias search; collisions remain ambiguous</td>
+</tr>
 </tbody>
 </table>
 <p>All series endpoints accept <code>since</code>, <code>until</code>, <code>account_id</code>, <code>entity_id</code>,
 <code>limit</code>, and <code>offset</code>; the default window is one year.</p>
+<p>Household income and expense reports use the isolated projection described in
+<a href="household-reporting/">Household reporting</a> and
+<a href="../decisions/0052-household-reporting-projection/">ADR-0052</a>.
+The <code>/household/reports/summary</code>, <code>/categories</code>, and <code>/transactions</code> reads share
+date, account, entity, category, and granularity filters; they do not change
+existing cashflow semantics.</p>
+<p>The vendor reference search accepts <code>q</code> (1–100 characters) and <code>limit</code>
+(1–100, default 20).
+It prefers exact normalized aliases and otherwise returns substring matches.
+<code>match_status</code> is <code>no_match</code>, <code>unique</code>, or <code>ambiguous</code>; a unique result is
+still a suggestion and does not write a household merchant, private alias, or
+expense category.
+The <code>truncated</code> flag reports when more matches exist than the requested limit.
+When the public catalog is stale, search continues against the last validated
+generation while the response carries the stale status.
+Both routes are read-only and inherit the API's deployment access controls.
+Invalid search input returns <code>422</code>; refresh is performed only by the scheduled
+worker/CLI and has no browser-callable endpoint.
+See the <a href="../connectors/merchant-reference/">public reference connector</a> for
+source and license details.</p>
 <h2 id="returns-and-benchmarks-206">Returns and benchmarks (#206)<a class="headerlink" href="#returns-and-benchmarks-206" title="Permanent link">&para;</a></h2>
 <p>The returns endpoints expose the TWR/MWR engine (ADR-0039) for the
 performance dashboard:</p>

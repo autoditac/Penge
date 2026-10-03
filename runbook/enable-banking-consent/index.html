@@ -380,6 +380,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -469,6 +473,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../connectors/merchant-reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Public merchant reference index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../connectors/gls/" class="md-nav__link">
         
   
@@ -505,6 +537,34 @@
     
   
     Evangelische Bank (Enable Banking)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../connectors/paypal/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PayPal Germany (Enable Banking)
   
 
     
@@ -829,6 +889,10 @@
           
         
       
+        
+      
+        
+      
     
     
     
@@ -909,6 +973,62 @@
 
               
             
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/household/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Household categorization API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/household-reporting/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Household reporting API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
               
             
           </ul>
@@ -1500,6 +1620,8 @@
       
         
       
+        
+      
     
     
     
@@ -1560,6 +1682,34 @@
     
   
     Monthly ritual (1-hour close)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../household-integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Household integration verification
   
 
     
@@ -1722,6 +1872,17 @@
   
     <nav class="md-nav" aria-label="In-app consent flow (Penge UI)">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#paypal-germany" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PayPal Germany
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#will-every-import-require-consent" class="md-nav__link">
@@ -2102,6 +2263,12 @@
       
         
           
+        
+      
+        
+      
+        
+      
         
       
         
@@ -3328,6 +3495,90 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0050-audited-household-categorization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0050 Audited household categorization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0051-public-merchant-reference-index/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0051 Public merchant reference index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../decisions/0052-household-reporting-projection/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ADR-0052 Household income and expense reporting projection
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3470,6 +3721,17 @@
   
     <nav class="md-nav" aria-label="In-app consent flow (Penge UI)">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#paypal-germany" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PayPal Germany
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#will-every-import-require-consent" class="md-nav__link">
@@ -3645,6 +3907,15 @@ SCA until the consent expires (~180 days).</p>
 (step, status code, EB error code, message, timestamp) that is shown
 inline on the connection card — so a <code>422 ALREADY_AUTHORIZED</code> is never
 silent.</p>
+<h3 id="paypal-germany">PayPal Germany<a class="headerlink" href="#paypal-germany" title="Permanent link">&para;</a></h3>
+<p>The Connections page also lists <strong>PayPal (DE)</strong> for a personal PSU.
+Its role is <strong>detail-only</strong>: syncing must not create a PayPal cash account,
+wallet balance, or independent household transaction.
+PayPal details enrich checking transactions only after an explicit approved
+link; unmatched details remain review-only.
+The signed bank movement stays authoritative for amount, currency, and date.
+See the <a href="../../connectors/paypal/">PayPal connector notes</a> for the source
+fields and unverified capabilities.</p>
 <h3 id="will-every-import-require-consent">Will every import require consent?<a class="headerlink" href="#will-every-import-require-consent" title="Permanent link">&para;</a></h3>
 <p>No. Consent (SCA) is required only the first time and again when the
 stored session expires or is revoked. Normal re-syncs reuse the

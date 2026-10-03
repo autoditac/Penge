@@ -3596,7 +3596,10 @@ commit — writing the raw tables exactly as the CLI ingest would.</p>
   Nordnet <em>holdings</em> CSVs are explicitly out: the loader resolves
   instruments through the transaction history, so a holdings-only load
   silently skips unmapped positions. Holdings stay on the CLI path (both
-  files in one run) until sessions support multi-file uploads (#208).</li>
+  files in one run) until sessions support multi-file uploads (#208).
+  <strong>Updated by <a href="../0049-nordnet-holdings-only-imports/">ADR-0049</a>:</strong>
+  account-scoped history lookup now makes holdings-only sessions safe without
+  multi-file uploads; missing mappings reject the whole commit.</li>
 <li>Source auto-detection sniffs filename + content (UTF-16 Nordnet headers,
   PDF magic + provider keywords, JSON shape); an explicit <code>source</code> form
   field always wins. Undetectable files are rejected with 422.</li>

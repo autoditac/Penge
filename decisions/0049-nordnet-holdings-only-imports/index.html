@@ -10,13 +10,9 @@
       
       
       
-        <link rel="canonical" href="https://autoditac.github.io/Penge/connectors/nordnet/">
+        <link rel="canonical" href="https://autoditac.github.io/Penge/decisions/0049-nordnet-holdings-only-imports/">
       
       
-        <link rel="prev" href="../pfa/">
-      
-      
-        <link rel="next" href="../abis/">
       
       
         
@@ -27,7 +23,7 @@
     
     
       
-        <title>Nordnet (DK CSV) - Penge</title>
+        <title>0049 — Account-scoped Nordnet holdings-only imports - Penge</title>
       
     
     
@@ -78,7 +74,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#nordnet-denmark" class="md-skip">
+        <a href="#0049-account-scoped-nordnet-holdings-only-imports" class="md-skip">
           Skip to content
         </a>
       
@@ -114,7 +110,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Nordnet (DK CSV)
+              0049 — Account-scoped Nordnet holdings-only imports
             
           </span>
         </div>
@@ -353,8 +349,6 @@
       
   
   
-    
-  
   
   
     
@@ -391,15 +385,15 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../" class="md-nav__link ">
+            <a href="../../connectors/" class="md-nav__link ">
               
   
   
@@ -423,7 +417,7 @@
             
           </div>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -443,7 +437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../ecb_fx/" class="md-nav__link">
+      <a href="../../connectors/ecb_fx/" class="md-nav__link">
         
   
   
@@ -471,7 +465,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../gls/" class="md-nav__link">
+      <a href="../../connectors/gls/" class="md-nav__link">
         
   
   
@@ -499,7 +493,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../evangelische-bank/" class="md-nav__link">
+      <a href="../../connectors/evangelische-bank/" class="md-nav__link">
         
   
   
@@ -527,7 +521,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../lunar/" class="md-nav__link">
+      <a href="../../connectors/lunar/" class="md-nav__link">
         
   
   
@@ -555,7 +549,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../growney/" class="md-nav__link">
+      <a href="../../connectors/growney/" class="md-nav__link">
         
   
   
@@ -583,7 +577,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../pfa/" class="md-nav__link">
+      <a href="../../connectors/pfa/" class="md-nav__link">
         
   
   
@@ -608,37 +602,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Nordnet (DK CSV)
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../connectors/nordnet/" class="md-nav__link">
         
   
   
@@ -654,114 +621,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#exporting-from-nordnet" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Exporting from Nordnet
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#account-mapping-config" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Account-mapping config
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#currency-handling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Currency handling
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#transaction-kind-mapping" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Transaction-kind mapping
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#programmatic-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Programmatic API
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#staged-imports-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Staged Imports API
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#cli" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        CLI
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#dbt-staging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        dbt staging
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -774,7 +633,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../abis/" class="md-nav__link">
+      <a href="../../connectors/abis/" class="md-nav__link">
         
   
   
@@ -802,7 +661,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../manual/" class="md-nav__link">
+      <a href="../../connectors/manual/" class="md-nav__link">
         
   
   
@@ -2187,7 +2046,7 @@
         
           
           <div class="md-nav__link md-nav__container">
-            <a href="../../decisions/" class="md-nav__link ">
+            <a href="../" class="md-nav__link ">
               
   
   
@@ -2231,7 +2090,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
+      <a href="../0001-self-hosted-postgres-duckdb-stack/" class="md-nav__link">
         
   
   
@@ -2259,7 +2118,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
+      <a href="../0002-custom-monorepo-over-off-the-shelf-pfm/" class="md-nav__link">
         
   
   
@@ -2287,7 +2146,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
+      <a href="../0003-hybrid-ingestion-psd2-and-csv-pdf/" class="md-nav__link">
         
   
   
@@ -2315,7 +2174,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
+      <a href="../0004-eur-and-dkk-shown-in-parallel/" class="md-nav__link">
         
   
   
@@ -2343,7 +2202,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0005-llm-access-via-mcp-only/" class="md-nav__link">
+      <a href="../0005-llm-access-via-mcp-only/" class="md-nav__link">
         
   
   
@@ -2371,7 +2230,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
+      <a href="../0006-trunk-based-conventional-commits-adrs/" class="md-nav__link">
         
   
   
@@ -2399,7 +2258,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0007-initial-relational-data-model/" class="md-nav__link">
+      <a href="../0007-initial-relational-data-model/" class="md-nav__link">
         
   
   
@@ -2427,7 +2286,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0008-nordnet-account-modelling/" class="md-nav__link">
+      <a href="../0008-nordnet-account-modelling/" class="md-nav__link">
         
   
   
@@ -2455,7 +2314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
+      <a href="../0009-abis-list-and-instrument-tax-treatment/" class="md-nav__link">
         
   
   
@@ -2483,7 +2342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0010-sim-return-model/" class="md-nav__link">
+      <a href="../0010-sim-return-model/" class="md-nav__link">
         
   
   
@@ -2511,7 +2370,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0011-sim-cashflow-engine/" class="md-nav__link">
+      <a href="../0011-sim-cashflow-engine/" class="md-nav__link">
         
   
   
@@ -2539,7 +2398,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0012-sim-goal-model/" class="md-nav__link">
+      <a href="../0012-sim-goal-model/" class="md-nav__link">
         
   
   
@@ -2567,7 +2426,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0013-sim-tax-overlay/" class="md-nav__link">
+      <a href="../0013-sim-tax-overlay/" class="md-nav__link">
         
   
   
@@ -2595,7 +2454,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0014-sim-montecarlo-runner/" class="md-nav__link">
+      <a href="../0014-sim-montecarlo-runner/" class="md-nav__link">
         
   
   
@@ -2623,7 +2482,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0015-sim-scenario-engine/" class="md-nav__link">
+      <a href="../0015-sim-scenario-engine/" class="md-nav__link">
         
   
   
@@ -2651,7 +2510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0016-tax-lot-tracker/" class="md-nav__link">
+      <a href="../0016-tax-lot-tracker/" class="md-nav__link">
         
   
   
@@ -2679,7 +2538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0017-lagerbeskatning-calculator/" class="md-nav__link">
+      <a href="../0017-lagerbeskatning-calculator/" class="md-nav__link">
         
   
   
@@ -2707,7 +2566,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0018-aktiesparekonto-handling/" class="md-nav__link">
+      <a href="../0018-aktiesparekonto-handling/" class="md-nav__link">
         
   
   
@@ -2735,7 +2594,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0019-pal-skat-tracking/" class="md-nav__link">
+      <a href="../0019-pal-skat-tracking/" class="md-nav__link">
         
   
   
@@ -2763,7 +2622,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0020-skat-report-generator/" class="md-nav__link">
+      <a href="../0020-skat-report-generator/" class="md-nav__link">
         
   
   
@@ -2791,7 +2650,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0021-de-vorabpauschale/" class="md-nav__link">
+      <a href="../0021-de-vorabpauschale/" class="md-nav__link">
         
   
   
@@ -2819,7 +2678,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0022-web-projection-dashboard/" class="md-nav__link">
+      <a href="../0022-web-projection-dashboard/" class="md-nav__link">
         
   
   
@@ -2847,7 +2706,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0023-mcp-server-architecture/" class="md-nav__link">
+      <a href="../0023-mcp-server-architecture/" class="md-nav__link">
         
   
   
@@ -2875,7 +2734,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0024-vault-layout/" class="md-nav__link">
+      <a href="../0024-vault-layout/" class="md-nav__link">
         
   
   
@@ -2903,7 +2762,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0025-encrypted-backups/" class="md-nav__link">
+      <a href="../0025-encrypted-backups/" class="md-nav__link">
         
   
   
@@ -2931,7 +2790,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
+      <a href="../0026-retire-gocardless-for-enable-banking/" class="md-nav__link">
         
   
   
@@ -2959,7 +2818,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0027-liquid-depot-simulation-model/" class="md-nav__link">
+      <a href="../0027-liquid-depot-simulation-model/" class="md-nav__link">
         
   
   
@@ -2987,7 +2846,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
+      <a href="../0032-household-real-estate-tax-context-source-assumptions/" class="md-nav__link">
         
   
   
@@ -3015,7 +2874,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0033-reporting-first-react-webui/" class="md-nav__link">
+      <a href="../0033-reporting-first-react-webui/" class="md-nav__link">
         
   
   
@@ -3043,7 +2902,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0034-application-container-images/" class="md-nav__link">
+      <a href="../0034-application-container-images/" class="md-nav__link">
         
   
   
@@ -3071,7 +2930,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0035-fastapi-read-api/" class="md-nav__link">
+      <a href="../0035-fastapi-read-api/" class="md-nav__link">
         
   
   
@@ -3099,7 +2958,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0036-webui-frontend-stack/" class="md-nav__link">
+      <a href="../0036-webui-frontend-stack/" class="md-nav__link">
         
   
   
@@ -3127,7 +2986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0037-staged-import-sessions/" class="md-nav__link">
+      <a href="../0037-staged-import-sessions/" class="md-nav__link">
         
   
   
@@ -3155,7 +3014,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
+      <a href="../0038-import-mapping-suggestions-via-mcp/" class="md-nav__link">
         
   
   
@@ -3183,7 +3042,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0039-returns-engine-twr-mwr/" class="md-nav__link">
+      <a href="../0039-returns-engine-twr-mwr/" class="md-nav__link">
         
   
   
@@ -3211,7 +3070,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
+      <a href="../0040-in-app-enable-banking-consent-flow/" class="md-nav__link">
         
   
   
@@ -3239,7 +3098,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0045-mui-core-webui-design-system/" class="md-nav__link">
+      <a href="../0045-mui-core-webui-design-system/" class="md-nav__link">
         
   
   
@@ -3267,7 +3126,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/0046-scheduled-enable-banking-net-worth-refresh/" class="md-nav__link">
+      <a href="../0046-scheduled-enable-banking-net-worth-refresh/" class="md-nav__link">
         
   
   
@@ -3295,7 +3154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../decisions/adr-template/" class="md-nav__link">
+      <a href="../adr-template/" class="md-nav__link">
         
   
   
@@ -3404,10 +3263,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#exporting-from-nordnet" class="md-nav__link">
+  <a href="#context-and-problem-statement" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Exporting from Nordnet
+        Context and Problem Statement
       
     </span>
   </a>
@@ -3415,10 +3274,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#account-mapping-config" class="md-nav__link">
+  <a href="#decision-drivers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Account-mapping config
+        Decision Drivers
       
     </span>
   </a>
@@ -3426,10 +3285,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#currency-handling" class="md-nav__link">
+  <a href="#considered-options" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Currency handling
+        Considered Options
       
     </span>
   </a>
@@ -3437,10 +3296,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#transaction-kind-mapping" class="md-nav__link">
+  <a href="#decision" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Transaction-kind mapping
+        Decision
       
     </span>
   </a>
@@ -3448,43 +3307,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#programmatic-api" class="md-nav__link">
+  <a href="#consequences" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Programmatic API
+        Consequences
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Consequences">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#positive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Positive
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#staged-imports-api" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#negative" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Staged Imports API
+        Negative
       
     </span>
   </a>
   
 </li>
-      
-        <li class="md-nav__item">
-  <a href="#cli" class="md-nav__link">
+        
+          <li class="md-nav__item">
+  <a href="#neutral" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CLI
+        Neutral
       
     </span>
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#dbt-staging" class="md-nav__link">
+  <a href="#links" class="md-nav__link">
     <span class="md-ellipsis">
       
-        dbt staging
+        Links
       
     </span>
   </a>
@@ -3508,7 +3384,7 @@
 
 
   
-    <a href="https://github.com/autoditac/Penge/edit/main/docs/connectors/nordnet.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
+    <a href="https://github.com/autoditac/Penge/edit/main/docs/decisions/0049-nordnet-holdings-only-imports.md" title="Edit this page" class="md-content__button md-icon" rel="edit">
       
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M10 20H6V4h7v5h5v3.1l2-2V8l-6-6H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h4zm10.2-7c.1 0 .3.1.4.2l1.3 1.3c.2.2.2.6 0 .8l-1 1-2.1-2.1 1-1c.1-.1.2-.2.4-.2m0 3.9L14.1 23H12v-2.1l6.1-6.1z"/></svg>
     </a>
@@ -3516,219 +3392,90 @@
   
 
 
-<h1 id="nordnet-denmark">Nordnet (Denmark)<a class="headerlink" href="#nordnet-denmark" title="Permanent link">&para;</a></h1>
-<p>Penge ingests Nordnet (DK) CSV exports: a <strong>transaction</strong> export covering
-accounts and a <strong>holdings</strong> export per account per snapshot date. The exports are
-UTF-16LE BOM tab-separated despite the <code>.csv</code> extension.</p>
-<p>This connector is <strong>DK-only</strong>. The original German Nordnet
-account is closed and out of scope.</p>
-<h2 id="exporting-from-nordnet">Exporting from Nordnet<a class="headerlink" href="#exporting-from-nordnet" title="Permanent link">&para;</a></h2>
-<p>In the Nordnet web UI:</p>
+<h1 id="0049-account-scoped-nordnet-holdings-only-imports">0049 — Account-scoped Nordnet holdings-only imports<a class="headerlink" href="#0049-account-scoped-nordnet-holdings-only-imports" title="Permanent link">&para;</a></h1>
+<ul>
+<li><strong>Status:</strong> Proposed</li>
+<li><strong>Date:</strong> 2026-10-01</li>
+<li><strong>Deciders:</strong> @autoditac</li>
+<li><strong>Tags:</strong> api, ingest, security, data</li>
+</ul>
+<h2 id="context-and-problem-statement">Context and Problem Statement<a class="headerlink" href="#context-and-problem-statement" title="Permanent link">&para;</a></h2>
+<p><a href="../0037-staged-import-sessions/">ADR-0037</a> excluded Nordnet holdings-only
+uploads because the loader mapped names from the same transaction export and
+silently skipped unknown positions.
+The staged Imports API needs to accept separately uploaded holdings exports.</p>
+<h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
+<ul>
+<li>Never silently omit a holding from an accepted snapshot.</li>
+<li>Never infer an ISIN from another account's history.</li>
+<li>Preserve transaction-derived cash balances and the CLI's combined-file path.</li>
+<li>Avoid unrelated account updates during a single-account import.</li>
+</ul>
+<h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>Mine konti → Transaktioner</strong> → set the date range (longest
-   available is "Hele perioden") → <strong>Eksportér</strong> → save the file
-   as <code>YYYYMMDD-nordnet-transactions-and-notes-export.csv</code>.</li>
-<li><strong>Min portefølje → Beholdninger</strong>, <em>for each account</em>, choose
-   <strong>Eksportér</strong> → save the file as
-   <code>Depotoversigt for kontonummer &lt;KONTO&gt;, &lt;D.M.YYYY&gt;.csv</code> (this
-   is Nordnet's default; do not rename it — the parser reads the
-   account number and snapshot date from the filename).</li>
+<li><strong>Resolve from account history at commit</strong> — look up instrument names via
+   existing trades and snapshots, with same-account transactions in the current
+   load as additional evidence; reject missing or ambiguous mappings.</li>
+<li><strong>Global name lookup</strong> — can wrongly attribute a position to another account.</li>
+<li><strong>Name-only instruments</strong> — discards stable ISIN identity and complicates
+   reconciliation when transactions arrive later.</li>
 </ol>
-<p>For staged API imports, upload each file separately and review it before committing.
-Import transaction history first; holdings-only uploads resolve instruments from
-previously ingested trades or holdings in the same account.
-An unmapped holding rejects the entire commit rather than dropping a position.
-The CLI can still import a transaction export and holdings files together.</p>
-<h2 id="account-mapping-config">Account-mapping config<a class="headerlink" href="#account-mapping-config" title="Permanent link">&para;</a></h2>
-<p>Real exports contain account numbers but no owner identity. The
-loader looks them up in a YAML file (loaded via
-<code>load_accounts_config()</code>); the parser itself is account-agnostic
-and only consumes the resulting mapping when it needs to
-reclassify internal transfers:</p>
-<div class="highlight"><pre><span></span><code>config/nordnet-accounts.yaml          # gitignored real config
-config/nordnet-accounts.example.yaml  # committed sample
-</code></pre></div>
-<p>Each entry maps a Nordnet kontonummer to the local entity name
-and the canonical account kind (<code>aktiedepot</code>, <code>aktiesparekonto</code>,
-<code>opsparingskonto</code> — see <a href="../../decisions/0008-nordnet-account-modelling/">ADR-0008</a>).
-Multi-owner setups (e.g. spouse accounts under power-of-attorney)
-are supported by simply listing the spouse's accounts under the
-spouse's <code>entity</code> value.</p>
-<h2 id="currency-handling">Currency handling<a class="headerlink" href="#currency-handling" title="Permanent link">&para;</a></h2>
-<p>DK Nordnet exports populate <code>Valuta</code> for the <em>Beløb</em> column on
-trades and dividends and leave it empty for cash-only rows
-(interest, ASK tax, internal transfers). The parser falls back to
-<code>DKK</code> when the column is empty — every account we operate is
-DKK-denominated.</p>
-<p>A Valutakonto sub-balance (e.g. an EUR pocket inside a DKK
-aktiedepot) is <strong>derived</strong> from the latest transaction <code>Saldo</code>
-per <code>(account, currency)</code> and surfaced as a synthetic
-<code>CASH:&lt;CCY&gt;</code> instrument snapshot. Nordnet does not export this
-sub-balance directly, so this derivation is the only way to
-reconcile the running balance — see ADR-0008 for the rationale.</p>
-<h2 id="transaction-kind-mapping">Transaction-kind mapping<a class="headerlink" href="#transaction-kind-mapping" title="Permanent link">&para;</a></h2>
-<table>
-<thead>
-<tr>
-<th>Nordnet <code>Transaktionstype</code></th>
-<th>Canonical <code>kind</code></th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>KØBT</code></td>
-<td><code>buy</code></td>
-</tr>
-<tr>
-<td><code>SOLGT</code></td>
-<td><code>sell</code></td>
-</tr>
-<tr>
-<td><code>UDBYTTE</code></td>
-<td><code>dividend</code></td>
-</tr>
-<tr>
-<td><code>INDBETALING</code></td>
-<td><code>deposit</code></td>
-</tr>
-<tr>
-<td><code>HÆVNING</code></td>
-<td><code>withdrawal</code> <em>or</em> <code>internal_transfer</code> (1)</td>
-</tr>
-<tr>
-<td><code>INDSÆTTELSE</code></td>
-<td><code>deposit</code> <em>or</em> <code>internal_transfer</code> (1)</td>
-</tr>
-<tr>
-<td><code>KREDITRENTE</code></td>
-<td><code>cash_interest</code></td>
-</tr>
-<tr>
-<td><code>DEPOTRENTE</code></td>
-<td><code>cash_interest</code> (2)</td>
-</tr>
-<tr>
-<td><code>OVERBELÅNINGSRENTE</code></td>
-<td><code>cash_interest</code> (2)</td>
-</tr>
-<tr>
-<td><code>AFKASTSKAT ASK</code></td>
-<td><code>tax_ask_charge</code></td>
-</tr>
-<tr>
-<td><code>SKATTEINDBETALING ASK</code></td>
-<td><code>tax_ask_payment</code></td>
-</tr>
-<tr>
-<td><em>…any other</em> <code>…RENTE</code></td>
-<td><code>cash_interest</code> (2)</td>
-</tr>
-</tbody>
-</table>
-<p>(1) For <code>HÆVNING</code> and <code>INDSÆTTELSE</code> the parser inspects
-<code>Transaktionstekst</code>; if it matches
-<code>Internal (from\|to) &lt;kontonummer&gt;</code> the row is reclassified as
-<code>internal_transfer</code> and the counter-account is preserved on the
-parsed record. The loader is then responsible for deduping the
-two halves of the transfer (see ADR-0008).</p>
-<p>(2) Danish interest types all carry the <code>RENTE</code> suffix
-(<code>KREDITRENTE</code> credit interest, <code>DEPOTRENTE</code> custody-account
-interest, <code>OVERBELÅNINGSRENTE</code> margin/over-collateralization loan
-interest, …). They all map to <code>cash_interest</code>: the amount's sign
-carries the income/expense direction and the row lands in the same
-returns and DK <code>kapitalindkomst</code> bucket. The well-known types are
-listed explicitly above; any other unmapped <code>…RENTE</code> type falls
-back to <code>cash_interest</code> so a new interest label never aborts an
-import. See <a href="../../decisions/0042-nordnet-interest-suffix-fallback/">ADR-0042</a>.</p>
-<h2 id="programmatic-api">Programmatic API<a class="headerlink" href="#programmatic-api" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">penge.ingest.nordnet</span><span class="w"> </span><span class="kn">import</span> <span class="p">(</span>
-    <span class="n">parse_transactions</span><span class="p">,</span>
-    <span class="n">parse_holdings_file</span><span class="p">,</span>
-    <span class="n">derive_cash_balances</span><span class="p">,</span>
-    <span class="n">instrument_map_from_transactions</span><span class="p">,</span>
-    <span class="n">load_accounts_config</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="n">cfg</span>   <span class="o">=</span> <span class="n">load_accounts_config</span><span class="p">(</span><span class="s2">"config/nordnet-accounts.yaml"</span><span class="p">)</span>
-<span class="n">txns</span>  <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">parse_transactions</span><span class="p">(</span><span class="s2">"20260507-nordnet-transactions-and-notes-export.csv"</span><span class="p">))</span>
-<span class="n">isin</span>  <span class="o">=</span> <span class="n">instrument_map_from_transactions</span><span class="p">(</span><span class="n">txns</span><span class="p">)</span>        <span class="c1"># Navn -&gt; ISIN</span>
-<span class="n">cash</span>  <span class="o">=</span> <span class="n">derive_cash_balances</span><span class="p">(</span><span class="n">txns</span><span class="p">)</span>                    <span class="c1"># per (account, ccy)</span>
-<span class="n">hld</span>   <span class="o">=</span> <span class="n">parse_holdings_file</span><span class="p">(</span><span class="s2">"Depotoversigt for kontonummer 60109543, 7.5.2026.csv"</span><span class="p">)</span>
-</code></pre></div>
-<p>The parser is pure (no DB writes). To upsert into Postgres use
-the <code>penge-nordnet</code> CLI or the <code>load_files</code> API:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">sqlalchemy</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_engine</span>
-
-<span class="kn">from</span><span class="w"> </span><span class="nn">penge.ingest.nordnet</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_accounts_config</span><span class="p">,</span> <span class="n">load_files</span>
-
-<span class="n">engine</span> <span class="o">=</span> <span class="n">create_engine</span><span class="p">(</span><span class="s2">"postgresql+psycopg://..."</span><span class="p">)</span>
-<span class="n">result</span> <span class="o">=</span> <span class="n">load_files</span><span class="p">(</span>
-    <span class="n">engine</span><span class="p">,</span>
-    <span class="n">transactions_csv</span><span class="o">=</span><span class="s2">"20260507-nordnet-transactions-and-notes-export.csv"</span><span class="p">,</span>
-    <span class="n">holdings_csvs</span><span class="o">=</span><span class="p">[</span>
-        <span class="s2">"Depotoversigt for kontonummer 60109543, 7.5.2026.csv"</span><span class="p">,</span>
-        <span class="s2">"Depotoversigt for kontonummer 60183456, 7.5.2026.csv"</span><span class="p">,</span>
-    <span class="p">],</span>
-    <span class="n">accounts_config</span><span class="o">=</span><span class="n">load_accounts_config</span><span class="p">(</span><span class="s2">"config/nordnet-accounts.yaml"</span><span class="p">),</span>
-<span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">)</span>  <span class="c1"># entities=1 accounts=6 instruments=N transactions=N holding_snapshots=N</span>
-</code></pre></div>
-<p>All writes happen in a single transaction and are idempotent —
-re-running the same export only updates <code>updated_at</code> columns.
-Holdings-only loads leave transaction-derived cash snapshots untouched.
-Only accounts referenced by the upload are upserted; other configured accounts are not changed.
-Each Depotoversigt is a <strong>complete security snapshot</strong> for its account/date:
-securities held on or before that date but absent from the export receive a
-zero-quantity, zero-market-value snapshot on that date, preventing downstream
-daily valuation from forward-filling a sold position indefinitely.
-Cash is never zeroed this way; it remains derived only from transaction balances.
-Reimporting the same account/date replaces omissions in either direction:
-previously omitted securities can be restored, and newly omitted ones are zeroed.
-An exported header-only holdings file is a valid empty account snapshot and
-zeros all previously active securities on that date.
-The API accepts it only with the full Nordnet holdings header, no nonblank
-data rows, a valid account/date filename, and a configured account; staging
-records <code>empty_snapshot_confirmed: true</code> and commit rechecks the stored file
-against its upload checksum before zeroing positions.
-Commit also requires a previously imported, ISIN-mapped security snapshot in
-that same Nordnet account on or before the export date. A header-only export
-cannot create an account or infer sold holdings from another account.
-Excluding <strong>all</strong> rows from a nonempty upload is not equivalent to an empty
-export: it is rejected rather than silently liquidating the account.
-Do not exclude a valid holding row during review unless you intend to treat that
-security as absent from the complete snapshot.
-Duplicate account/date files in one CLI load and ambiguous name-to-ISIN mappings
-are rejected rather than guessed.</p>
-<h2 id="staged-imports-api">Staged Imports API<a class="headerlink" href="#staged-imports-api" title="Permanent link">&para;</a></h2>
-<p><code>POST /imports</code> auto-detects the UTF-16LE <code>Navn</code> header as <code>nordnet_holdings</code>
-(or accepts that explicit <code>source</code>).
-Keep the Nordnet <code>Depotoversigt for kontonummer &lt;KONTO&gt;, &lt;D.M.YYYY&gt;.csv</code>
-filename: the account and snapshot date come from it and the account must be
-present in <code>PENGE_NORDNET_ACCOUNTS_CONFIG</code>.
-The response contains one reviewable <code>holding</code> row per position; use
-<code>PATCH /imports/{id}/rows/{row_id}</code> to correct or exclude positions, then
-<code>POST /imports/{id}/commit</code> to write snapshots.
-If a name has no unambiguous account-scoped ISIN mapping, commit returns <code>409</code>
-without writing anything; import the missing trade history first.
-Re-uploading the same account/date is an idempotent snapshot upsert.
-See <a href="../../decisions/0049-nordnet-holdings-only-imports/">ADR-0049</a>.</p>
-<h2 id="cli">CLI<a class="headerlink" href="#cli" title="Permanent link">&para;</a></h2>
-<p>After <code>uv sync</code>:</p>
-<div class="highlight"><pre><span></span><code>uv<span class="w"> </span>run<span class="w"> </span>--group<span class="w"> </span>db<span class="w"> </span>penge-nordnet<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--transactions<span class="w"> </span><span class="m">20260507</span>-nordnet-transactions-and-notes-export.csv<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--holdings<span class="w"> </span><span class="s2">"Depotoversigt for kontonummer 60109543, 7.5.2026.csv"</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--holdings<span class="w"> </span><span class="s2">"Depotoversigt for kontonummer 60183456, 7.5.2026.csv"</span><span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>--accounts-config<span class="w"> </span>config/nordnet-accounts.yaml
-</code></pre></div>
-<p>The CLI reads <code>DATABASE_URL</code> (or the assembled <code>POSTGRES_*</code> set,
-matching <code>penge-ecb-fx</code>).</p>
-<h2 id="dbt-staging">dbt staging<a class="headerlink" href="#dbt-staging" title="Permanent link">&para;</a></h2>
-<p>The staging view <code>stg_nordnet__transactions</code> filters
-<code>raw.transaction</code> to rows whose owning account has
-<code>provider = 'nordnet'</code>. Marts and tax models should consume that
-view — never <code>raw.transaction</code> directly — so the
-<code>accepted_values</code> schema test on <code>kind</code> keeps the canonical
-vocabulary honest.</p>
+<h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
+<p>Choose <strong>option 1</strong>. A distinct <code>nordnet_holdings</code> staged source retains the
+account and date from the Nordnet filename and validates account configuration.
+Rows remain editable/excludable; commit revalidates them and calls the existing
+loader with an empty transaction list.
+The loader uses account-scoped transaction and holding history, then same-account
+input transactions, to resolve every holding to an ISIN before writing.
+Missing or conflicting mappings reject the entire database transaction.
+Only accounts referenced by the load are upserted.
+Cash continues to be derived solely from transactions.
+Each Depotoversigt represents the complete security positions on one
+account/date. The loader writes zero quantity and market value at that date
+for previously active account securities missing from the file (including
+those present in a prior import of the same date). It never synthesizes cash
+zeros or changes another account. A same-date correction can restore a
+position by upserting the included security over its zero row.
+Duplicate account/date exports in one load are rejected.
+A header-only export is a valid empty snapshot, whereas excluding all rows
+from a nonempty staged export is rejected. Empty exports require the full
+provider header and a validated account/date filename; the staged session
+records an empty-export marker, and commit checks the stored file and SHA-256
+again before permitting zero-all semantics. Commit also requires an existing
+ISIN-mapped security snapshot for that Nordnet account on or before the
+export date; a header-only file cannot create an unrelated or untracked
+account. Failed loads remain staged and do not contribute to account freshness.
+The account read API takes the latest committed staged Nordnet session with an
+included row for that account into account freshness. Raw snapshot/transaction
+creation timestamps remain the fallback for CLI and historical loads. A
+repeat import can therefore advance <code>last_updated_at</code> without changing
+<code>balance_changed_on</code>. No additional persistence or migration is required.</p>
+<h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
+<h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Individual future snapshots can be reviewed and imported without re-exporting
+  history, and no position silently disappears.</li>
+<li>A repeated account/date import converges through the existing unique-key upsert.</li>
+<li>Sold positions no longer stay nonzero indefinitely in the forward-filled
+  daily valuation mart.</li>
+</ul>
+<h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
+<ul>
+<li>A holding not yet present in the account's ingested history requires its trade
+  export first; holdings-only import cannot invent a reliable ISIN.</li>
+</ul>
+<h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
+<ul>
+<li>No schema changes or new dependencies are required.</li>
+<li>Existing CLI transaction-plus-holdings ingestion uses the same resolution path.</li>
+</ul>
+<h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../0008-nordnet-account-modelling/">ADR-0008</a></li>
+<li><a href="../0037-staged-import-sessions/">ADR-0037</a></li>
+<li><a href="../../connectors/nordnet/">Nordnet connector</a></li>
+<li>Issue #296 — Nordnet account freshness and holdings imports</li>
+</ul>
 
 
 

@@ -22,14 +22,33 @@ const DEMO_ASPSPS: readonly Aspsp[] = [
     aspsp_name: "GLS Gemeinschaftsbank",
     aspsp_country: "DE",
     default_currency: "EUR",
+    psu_type: "personal",
+    data_role: "cash_account",
   },
   {
     provider: "ebank",
     aspsp_name: "Evangelische Bank",
     aspsp_country: "DE",
     default_currency: "EUR",
+    psu_type: "personal",
+    data_role: "cash_account",
   },
-  { provider: "lunar", aspsp_name: "Lunar", aspsp_country: "DK", default_currency: "DKK" },
+  {
+    provider: "lunar",
+    aspsp_name: "Lunar",
+    aspsp_country: "DK",
+    default_currency: "DKK",
+    psu_type: "personal",
+    data_role: "cash_account",
+  },
+  {
+    provider: "paypal",
+    aspsp_name: "PayPal",
+    aspsp_country: "DE",
+    default_currency: "EUR",
+    psu_type: "personal",
+    data_role: "payment_detail",
+  },
 ] as const;
 
 const ASPSP_BY_PROVIDER = new Map(DEMO_ASPSPS.map((a) => [a.provider, a]));
@@ -57,6 +76,7 @@ function seed(): void {
       provider: "lunar",
       aspsp_name: "Lunar",
       aspsp_country: "DK",
+      data_role: "cash_account",
       entity_name: "Rouven",
       status: "authorized",
       valid_until: DEMO_VALID_UNTIL,
@@ -96,6 +116,7 @@ export function demoStartLink(provider: string, entityName: string): LinkRespons
       provider,
       aspsp_name: aspsp.aspsp_name,
       aspsp_country: aspsp.aspsp_country,
+      data_role: aspsp.data_role,
       entity_name: entityName,
       status: "linking",
       valid_until: DEMO_VALID_UNTIL,
@@ -147,5 +168,11 @@ export function demoSync(connectionId: string): SyncResponse {
     last_error: null,
     updated_at: DEMO_NOW,
   };
-  return { connection: stored.connection, transactions: 12, holding_snapshots: 1 };
+  const paymentDetails = stored.connection.data_role === "payment_detail" ? 12 : 0;
+  return {
+    connection: stored.connection,
+    transactions: paymentDetails === 0 ? 12 : 0,
+    holding_snapshots: paymentDetails === 0 ? 1 : 0,
+    payment_details: paymentDetails,
+  };
 }

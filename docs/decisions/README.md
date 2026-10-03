@@ -44,3 +44,6 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0047](0047-per-account-bank-metadata-corrections.md) | Per-account bank metadata corrections | Proposed |
 | [0048](0048-unified-savings-reporting-kind.md) | Unify cash savings in reporting while preserving source kinds | Proposed |
 | [0049](0049-nordnet-holdings-only-imports.md) | Account-scoped Nordnet holdings-only imports | Proposed |
+| [0050](0050-audited-household-categorization.md) | Audited household categorization independent of source facts | Proposed |
+| [0051](0051-public-merchant-reference-index.md) | Versioned public merchant reference index | Proposed |
+| [0052](0052-household-reporting-projection.md) | Household income and expense reporting projection | Proposed |

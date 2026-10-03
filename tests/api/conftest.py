@@ -392,6 +392,11 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Iterator[TestClient]:
             {"mart": "mart_net_worth_daily", "latest_as_of": date(2026, 6, 2), "row_count": 3},
             {"mart": "mart_cashflow_daily", "latest_as_of": None, "row_count": 0},
             {"mart": "mart_returns_daily", "latest_as_of": date(2026, 6, 3), "row_count": 3},
+            {
+                "mart": "mart_household_report_daily",
+                "latest_as_of": date(2026, 6, 3),
+                "row_count": 4,
+            },
         ],
     )
 

@@ -78,6 +78,57 @@ exact deployed image digest. No credentials belong in the tracked units.
 `PENGE_REFRESH_STATE_DIR=/var/lib/penge-refresh` aligns API syncs, legacy bank
 sync CLIs, and the scheduled worker with the same lock and pending marker.
 
+## Scheduled public merchant-reference refresh
+
+The public-only NSI refresh uses a separate daily systemd timer and runs inside
+the same health-gated API container:
+
+- `deploy/nas/penge-merchant-reference-refresh.service`
+- `deploy/nas/penge-merchant-reference-refresh.timer`
+
+It checks the npm registry release metadata each day and downloads the exact
+versioned package only when it differs from the active generation.
+The worker verifies package integrity, license notice, release/catalog version,
+and the complete catalog before promoting it.
+The active generation remains available on network, validation, or database
+failure; the API reports `stale` when a previous generation exists and
+`failed` when no validated generation has ever been installed.
+
+### Enable the public reference timer
+
+After the PR is merged and the API image containing the worker is deployed:
+
+```bash
+sudo install -o root -g root -m 0644 \
+  deploy/nas/penge-merchant-reference-refresh.service \
+  deploy/nas/penge-merchant-reference-refresh.timer \
+  /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now penge-merchant-reference-refresh.timer
+sudo systemctl list-timers penge-merchant-reference-refresh.timer --no-pager
+```
+
+The timer runs once daily at 03:17 local time with up to 15 minutes of
+randomized delay and is persistent across host downtime.
+Change `OnCalendar` in the tracked timer unit to configure its schedule.
+
+### Inspect or run
+
+```bash
+sudo podman exec penge-api penge-refresh-merchant-reference --dry-run
+sudo systemctl start penge-merchant-reference-refresh.service
+sudo journalctl -u penge-merchant-reference-refresh.service -n 100 --no-pager
+curl --fail --silent http://127.0.0.1:8001/vendors/reference-index/status
+```
+
+The worker shares `/var/lib/penge-refresh/refresh.lock` with other guarded
+writers, does not call a per-merchant remote lookup, and does not transmit
+transaction or household data.
+The response status endpoint reports the active release/checksum, last attempt
+and success times, source attribution, record count, and sanitized error code.
+See the [connector page](../connectors/merchant-reference.md) for scope and
+source limitations.
+
 ### Install and enable
 
 After the PR is merged and the health-gated API update has deployed the worker:

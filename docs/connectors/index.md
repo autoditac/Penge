@@ -6,6 +6,7 @@ Planned sources:
 
 - GLS Bank (PSD2 via Enable Banking)
 - Evangelische Bank (PSD2 via Enable Banking)
+- PayPal Germany (personal PSD2 details via Enable Banking; enrichment only)
 - Lunar (PSD2 via Enable Banking)
 - Nordnet (CSV)
 - PFA (PDF + CSV)

@@ -214,6 +214,378 @@ def fetch_cashflow(
 
 
 # ---------------------------------------------------------------------------
+# Household reporting (#333, ADR-0052)
+# ---------------------------------------------------------------------------
+
+_HOUSEHOLD_CATEGORIES_SQL = """
+    select
+        category_id::text as category_id,
+        parent_id::text as parent_id,
+        name,
+        kind,
+        sort_order,
+        archived,
+        revision
+    from analytics_staging.stg_raw__household_category
+    order by sort_order, name, category_id
+"""
+
+
+def fetch_household_categories() -> list[dict[str, object]]:
+    """Return the complete category tree, including archived historical nodes."""
+    return _rows(_HOUSEHOLD_CATEGORIES_SQL, {})
+
+
+_HOUSEHOLD_DEFAULT_ACCOUNTS_SQL = """
+    select a.id::text as account_id
+    from account as a
+    where a.kind = 'checking'
+      and (
+          cardinality(cast(:entity_ids as text[])) = 0
+          or a.entity_id::text = any(cast(:entity_ids as text[]))
+      )
+    order by a.id
+"""
+
+
+def fetch_household_default_accounts(*, entity_ids: list[str]) -> list[str]:
+    """Resolve the default checking-account scope for selected household members."""
+    rows = _rows(_HOUSEHOLD_DEFAULT_ACCOUNTS_SQL, {"entity_ids": entity_ids})
+    return [str(row["account_id"]) for row in rows]
+
+
+_HOUSEHOLD_CHECKING_ACCOUNTS_SQL = """
+    select a.id::text as account_id
+    from account as a
+    where a.kind = 'checking'
+      and a.id::text = any(cast(:account_ids as text[]))
+      and (
+          cardinality(cast(:entity_ids as text[])) = 0
+          or a.entity_id::text = any(cast(:entity_ids as text[]))
+      )
+    order by a.id
+"""
+
+
+def fetch_household_checking_accounts(
+    *,
+    account_ids: list[str],
+    entity_ids: list[str],
+) -> list[str]:
+    """Return selected ids that belong to the eligible checking-account scope."""
+    if not account_ids:
+        return []
+    rows = _rows(
+        _HOUSEHOLD_CHECKING_ACCOUNTS_SQL,
+        {"account_ids": account_ids, "entity_ids": entity_ids},
+    )
+    return [str(row["account_id"]) for row in rows]
+
+
+_HOUSEHOLD_FACTS_SQL = """
+    select
+        f.transaction_id::text as transaction_id,
+        f.account_id::text as account_id,
+        f.entity_id::text as entity_id,
+        f.account_currency,
+        f.as_of,
+        f.transaction_created_at,
+        f.source_amount_native,
+        f.allocation_amount_native,
+        f.treatment,
+        f.category_id::text as category_id,
+        f.category_name,
+        f.category_kind,
+        f.category_parent_id::text as category_parent_id,
+        f.counterparty,
+        f.description,
+        f.classification_source_current,
+        f.source_snapshot_drift,
+        f.classification_review_state,
+        f.allocation_mismatch,
+        f.allocation_amount_eur,
+        f.allocation_amount_dkk,
+        f.is_default_scope
+    from analytics_marts.fct_household_report_allocation as f
+    where f.as_of >= :since
+      and f.as_of <= :until
+      and f.account_id::text = any(cast(:account_ids as text[]))
+      and (
+          cardinality(cast(:entity_ids as text[])) = 0
+          or f.entity_id::text = any(cast(:entity_ids as text[]))
+      )
+    order by f.as_of, f.transaction_id, f.category_id nulls first
+"""
+
+
+def fetch_household_report_facts(
+    *,
+    since: date,
+    until: date,
+    account_ids: list[str],
+    entity_ids: list[str],
+) -> list[dict[str, object]]:
+    """Return signed allocation facts for selected bank transactions only."""
+    return _rows(
+        _HOUSEHOLD_FACTS_SQL,
+        {
+            "since": since,
+            "until": until,
+            "account_ids": account_ids,
+            "entity_ids": entity_ids,
+        },
+    )
+
+
+_HOUSEHOLD_TRANSACTION_CANDIDATES = """
+    select
+        f.transaction_id,
+        max(f.as_of) as as_of
+    from analytics_marts.fct_household_report_allocation as f
+    where f.as_of >= :since
+      and f.as_of <= :until
+      and f.account_id::text = any(cast(:account_ids as text[]))
+      and (
+          cardinality(cast(:entity_ids as text[])) = 0
+          or f.entity_id::text = any(cast(:entity_ids as text[]))
+      )
+      and (
+          not :category_filter
+          or exists (
+              select 1
+              from analytics_marts.fct_household_report_allocation as selected
+              where selected.transaction_id = f.transaction_id
+                and selected.category_id::text = any(cast(:category_ids as text[]))
+          )
+      )
+      and (
+          :search is null
+          or position(lower(:search) in lower(concat_ws(
+              ' ',
+              f.counterparty,
+              f.description,
+              f.category_name
+          ))) > 0
+          or exists (
+              select 1
+              from analytics_staging.stg_raw__household_payment_detail_link as link
+              inner join analytics_staging.stg_raw__household_payment_detail as detail
+                  on link.detail_id = detail.detail_id
+              where link.transaction_id = f.transaction_id
+                and detail.provider = 'paypal'
+                and position(lower(:search) in lower(concat_ws(
+                    ' ',
+                    detail.merchant_name,
+                    detail.reference,
+                    detail.external_reference
+                ))) > 0
+          )
+      )
+    group by f.transaction_id
+"""
+
+_HOUSEHOLD_TRANSACTION_PAGE_SQL = f"""
+    with candidates as (
+        {_HOUSEHOLD_TRANSACTION_CANDIDATES}
+    ),
+    page as (
+        select candidate.transaction_id
+        from candidates as candidate
+        order by candidate.as_of desc, candidate.transaction_id desc
+        limit :limit offset :offset
+    )
+    select
+        f.transaction_id::text as transaction_id,
+        f.account_id::text as account_id,
+        f.entity_id::text as entity_id,
+        f.account_currency,
+        f.as_of,
+        f.transaction_created_at,
+        f.source_amount_native,
+        f.allocation_amount_native,
+        f.treatment,
+        f.category_id::text as category_id,
+        f.category_name,
+        f.category_kind,
+        f.category_parent_id::text as category_parent_id,
+        f.counterparty,
+        f.description,
+        f.classification_source_current,
+        f.source_snapshot_drift,
+        f.classification_review_state,
+        f.allocation_mismatch,
+        f.allocation_amount_eur,
+        f.allocation_amount_dkk,
+        f.is_default_scope
+    from page
+    inner join analytics_marts.fct_household_report_allocation as f
+        on page.transaction_id = f.transaction_id
+    order by f.as_of desc, f.transaction_id desc, f.category_id nulls first
+"""
+
+_HOUSEHOLD_TRANSACTION_COUNT_SQL = f"""
+    with candidates as (
+        {_HOUSEHOLD_TRANSACTION_CANDIDATES}
+    )
+    select count(*) from candidates
+"""
+
+
+def fetch_household_transaction_page(
+    *,
+    since: date,
+    until: date,
+    account_ids: list[str],
+    entity_ids: list[str],
+    category_ids: list[str],
+    category_filter: bool,
+    search: str | None,
+    limit: int,
+    offset: int,
+) -> tuple[list[dict[str, object]], int]:
+    """Return one stable bank-transaction page and the filtered transaction count."""
+    params = {
+        "since": since,
+        "until": until,
+        "account_ids": account_ids,
+        "entity_ids": entity_ids,
+        "category_ids": category_ids,
+        "category_filter": category_filter,
+        "search": search.casefold() if search is not None else None,
+        "limit": limit,
+        "offset": offset,
+    }
+    rows = _rows(_HOUSEHOLD_TRANSACTION_PAGE_SQL, params)
+    count = _count(_HOUSEHOLD_TRANSACTION_COUNT_SQL, params)
+    return rows, count
+
+
+_HOUSEHOLD_PAYMENT_DETAILS_SQL = """
+    select
+        link.transaction_id::text as transaction_id,
+        detail.detail_id::text as detail_id,
+        detail.external_reference,
+        detail.reference,
+        detail.merchant_name,
+        detail.event_kind,
+        detail.amount_native as source_amount,
+        detail.currency as source_currency,
+        (detail.ts at time zone 'UTC')::date as source_date,
+        detail.source_fields ->> 'merchant_category_code' as merchant_category_code,
+        detail.source_fields ->> 'bank_code' as bank_code,
+        detail.source_fields ->> 'bank_sub_code' as bank_sub_code,
+        link.bank_amount,
+        link.detail_revision as approved_detail_revision,
+        detail.revision as current_detail_revision
+    from analytics_staging.stg_raw__household_payment_detail_link as link
+    inner join analytics_staging.stg_raw__household_payment_detail as detail
+        on link.detail_id = detail.detail_id
+    where detail.provider = 'paypal'
+      and link.transaction_id::text = any(cast(:transaction_ids as text[]))
+    order by link.transaction_id, detail.detail_id
+"""
+
+
+def fetch_household_payment_details(*, transaction_ids: list[str]) -> list[dict[str, object]]:
+    """Return minimal whitelisted PayPal detail linked to selected bank rows."""
+    if not transaction_ids:
+        return []
+    return _rows(_HOUSEHOLD_PAYMENT_DETAILS_SQL, {"transaction_ids": transaction_ids})
+
+
+_HOUSEHOLD_UNMATCHED_DETAILS_SQL = """
+    select count(*)
+    from analytics_staging.stg_raw__household_payment_detail as detail
+    where detail.provider = 'paypal'
+      and (detail.ts at time zone 'UTC')::date >= :since
+      and (detail.ts at time zone 'UTC')::date <= :until
+      and not exists (
+          select 1
+          from analytics_staging.stg_raw__household_payment_detail_link as link
+          where link.detail_id = detail.detail_id
+      )
+      and (
+          cardinality(cast(:entity_ids as text[])) = 0
+          or exists (
+              select 1
+              from bank_connection as connection
+              inner join entity as owner on owner.name = connection.entity_name
+              where connection.id = detail.connection_id
+                and owner.id::text = any(cast(:entity_ids as text[]))
+          )
+      )
+"""
+
+
+def fetch_household_unmatched_payment_detail_count(
+    *,
+    since: date,
+    until: date,
+    entity_ids: list[str],
+) -> int:
+    """Count unlinked PayPal details for a date/member scope, never as expenses."""
+    return _count(
+        _HOUSEHOLD_UNMATCHED_DETAILS_SQL,
+        {"since": since, "until": until, "entity_ids": entity_ids},
+    )
+
+
+_HOUSEHOLD_SOURCE_FRESHNESS_SQL = """
+    select
+        min(f.as_of) as history_start,
+        max(f.as_of) as latest_bank_booking_date,
+        max(f.transaction_created_at) as latest_bank_import_at
+    from analytics_marts.fct_household_report_allocation as f
+    where f.account_id::text = any(cast(:account_ids as text[]))
+      and (
+          cardinality(cast(:entity_ids as text[])) = 0
+          or f.entity_id::text = any(cast(:entity_ids as text[]))
+      )
+"""
+
+_HOUSEHOLD_FX_FRESHNESS_SQL = """
+    select max(f.as_of) as latest_fx_rate_date
+    from analytics_staging.stg_raw__fx_rate as f
+    where f.base_ccy = 'EUR'
+      and f.quote_ccy = 'DKK'
+      and f.as_of <= :until
+"""
+
+_HOUSEHOLD_DETAIL_FRESHNESS_SQL = """
+    select max(connection.last_sync_at) as latest_payment_detail_sync_at
+    from bank_connection as connection
+    where connection.provider = 'paypal'
+      and connection.last_sync_status = 'ok'
+      and (
+          cardinality(cast(:entity_ids as text[])) = 0
+          or exists (
+              select 1
+              from entity as owner
+              where owner.name = connection.entity_name
+                and owner.id::text = any(cast(:entity_ids as text[]))
+          )
+      )
+"""
+
+
+def fetch_household_report_freshness(
+    *, account_ids: list[str], entity_ids: list[str], until: date
+) -> dict[str, object]:
+    """Return observed history and source freshness without claiming completeness."""
+    rows = _rows(
+        _HOUSEHOLD_SOURCE_FRESHNESS_SQL,
+        {"account_ids": account_ids, "entity_ids": entity_ids},
+    )
+    fx_rows = _rows(_HOUSEHOLD_FX_FRESHNESS_SQL, {"until": until})
+    detail_rows = _rows(_HOUSEHOLD_DETAIL_FRESHNESS_SQL, {"entity_ids": entity_ids})
+    return {
+        **rows[0],
+        **fx_rows[0],
+        **detail_rows[0],
+    }
+
+
+# ---------------------------------------------------------------------------
 # Allocation (latest day, joined with the account dimension)
 # ---------------------------------------------------------------------------
 
@@ -578,7 +950,12 @@ _FRESHNESS_SQL_TEMPLATE = """
     from analytics_marts.{mart}
 """
 
-_MARTS = ("mart_net_worth_daily", "mart_cashflow_daily", "mart_returns_daily")
+_MARTS = (
+    "mart_net_worth_daily",
+    "mart_cashflow_daily",
+    "mart_returns_daily",
+    "mart_household_report_daily",
+)
 
 
 def fetch_freshness() -> list[dict[str, object]]:

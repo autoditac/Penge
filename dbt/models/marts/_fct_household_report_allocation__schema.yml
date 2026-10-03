@@ -1,0 +1,107 @@
+version: 2
+
+models:
+  - name: fct_household_report_allocation
+    description: >
+      Bank-ledger-only household reporting fact. A row is one exact signed
+      category allocation or a synthetic unclassified/transfer/excluded line.
+      PayPal detail is not joined to this financial fact.
+    columns:
+      - name: transaction_id
+        description: Canonical source bank transaction identifier.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__transaction')
+              field: transaction_id
+      - name: account_id
+        description: Bank account on which the movement was booked.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__account')
+              field: account_id
+      - name: entity_id
+        description: Owner of the canonical bank account.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('stg_raw__entity')
+              field: entity_id
+      - name: account_kind
+        description: Canonical account kind; checking accounts form the default scope.
+        data_tests:
+          - not_null
+      - name: account_currency
+        description: Currency of the signed bank source amount and allocation.
+        data_tests:
+          - not_null
+      - name: as_of
+        description: Booking value date, with UTC transaction-date fallback.
+        data_tests:
+          - not_null
+      - name: transaction_created_at
+        description: Original canonical bank transaction creation timestamp.
+        data_tests:
+          - not_null
+      - name: source_amount_native
+        description: Full signed amount from the canonical bank transaction.
+        data_tests:
+          - not_null
+      - name: allocation_amount_native
+        description: Signed category split in the bank account currency.
+        data_tests:
+          - not_null
+      - name: treatment
+        description: Validated economic treatment; stale classifications become unclassified.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["income", "expense", "refund", "transfer", "excluded", "unclassified"]
+      - name: category_id
+        description: Assigned category; null for treatment-only synthetic lines.
+        data_tests:
+          - relationships:
+              to: ref('stg_raw__household_category')
+              field: category_id
+      - name: category_name
+        description: Category display name captured from the current category dimension.
+      - name: category_kind
+        description: Category type, income or expense.
+      - name: category_parent_id
+        description: Immediate parent category, or null for a root.
+      - name: counterparty
+        description: Original bank counterparty text; no provider detail is substituted here.
+      - name: description
+        description: Original bank transaction description.
+      - name: merchant_id
+        description: Locally confirmed merchant identity when the source snapshot is current.
+      - name: classification_source_current
+        description: True only when classification snapshot and review state match the bank source.
+        data_tests:
+          - not_null
+      - name: source_snapshot_drift
+        description: True when a saved classification snapshot differs from current bank facts.
+        data_tests:
+          - not_null
+      - name: classification_review_state
+        description: Current manual/rule classification review state, if one exists.
+      - name: classification_revision
+        description: Classification revision used to produce the reporting fact.
+      - name: allocation_mismatch
+        description: True when an economic split does not conserve the source bank amount.
+        data_tests:
+          - not_null
+      - name: is_default_scope
+        description: True for checking accounts included in reports by default.
+        data_tests:
+          - not_null
+      - name: allocation_amount_eur
+        description: Signed EUR conversion at the value date; null when rate coverage is missing.
+      - name: allocation_amount_dkk
+        description: Signed DKK conversion at the value date; null when rate coverage is missing.
+    data_tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - transaction_id
+            - category_id

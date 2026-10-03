@@ -9,7 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from penge.api.account_metadata import router as account_metadata_router
 from penge.api.connections.routes import router as connections_router
+from penge.api.household import router as household_router
 from penge.api.imports.routes import router as imports_router
+from penge.api.merchant_reference.routes import router as merchant_reference_router
 from penge.api.routes import router
 
 # Vite's dev server origins; override for other setups via
@@ -38,6 +40,10 @@ def create_app() -> FastAPI:
             "/connections per ADR-0040, and the guarded dbt-only refresh "
             "under POST /meta/refresh per ADR-0046, and per-account bank "
             "metadata corrections under PATCH /accounts/{id}/metadata per ADR-0047. "
+            "Opt-in household corrections, category/merchant management and deterministic "
+            "rule previews under /household follow ADR-0050 and never edit source facts. "
+            "The local-only /vendors/reference-index routes expose a versioned public "
+            "merchant-reference index and never send search text upstream. "
             "The /connections endpoints "
             "provide the in-app Enable Banking consent flow and are "
             "only active where the EB signing key is configured. "
@@ -58,4 +64,6 @@ def create_app() -> FastAPI:
     app.include_router(imports_router)
     app.include_router(connections_router)
     app.include_router(account_metadata_router)
+    app.include_router(household_router)
+    app.include_router(merchant_reference_router)
     return app

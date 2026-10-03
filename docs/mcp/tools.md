@@ -642,3 +642,63 @@ that are only redaction markers are dropped entirely.
   "arguments": { "import_session_id": "0b6c1a52-9d9e-4f7d-8a8e-2f5c6d7e8f90" }
 }
 ```
+
+## `query_household_report`
+
+Returns read-only household income and expense aggregates from
+`mart_household_report_daily`. The mart is bank-ledger based: PayPal detail
+is not a financial input, transfers and excluded principal movements are
+not report expenses, and refunds reduce expenses on their refund booking
+date. Provider details and transaction-level records are never returned.
+
+### Input
+
+| Field         | Type                               | Notes |
+| ------------- | ---------------------------------- | ----- |
+| `date_range`  | `{ from: string; to: string }`     | Inclusive ISO dates. |
+| `granularity` | `"day" \| "month" \| "year"`       | Trend bucket size. |
+| `account_ids` | `string[]` (optional)              | UUIDs of checking accounts only; omitted means all default-scope checking accounts. |
+| `entity_ids`  | `string[]` (optional)              | Household entity UUID filters; omitted means all entities. |
+| `category_id` | `string` UUID (optional)            | Includes the selected category and descendants. |
+
+The previous window is the immediately preceding window with the same
+inclusive number of days as `date_range`. The result includes current and
+previous totals, their difference, and a zero-filled current-window trend.
+Requests are limited to 4000 inclusive calendar days so daily trend output
+remains bounded.
+
+### Output
+
+Each measure (`income`, `gross_expenses`, `refunds`, `net_expenses`, and
+`surplus`) contains both `eur` and `dkk`. Each currency amount has this
+shape:
+
+```json
+{
+  "amount": "1234.50",
+  "known_subtotal": "1234.50",
+  "complete": true,
+  "missing_count": 0
+}
+```
+
+`amount` is `null` when one or more included allocations lack an FX rate.
+`known_subtotal` remains an exact decimal string and is not a substitute
+for the incomplete total. Decimal strings preserve database precision.
+The tool returns no account IDs, bank transactions, PayPal payloads, or
+other source-level rows.
+
+### Errors
+
+- Invalid dates, granularity, UUIDs, duplicate filters, or extra fields →
+  `tool/input_invalid`.
+- A selected account that is not checking, or an unknown category UUID →
+  a tool error; no report is returned.
+- Database errors (including a report mart not yet refreshed) propagate
+  as the underlying Postgres error.
+
+### Audit
+
+Every call is recorded by the MCP audit logger
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+status, and duration.

@@ -21,6 +21,8 @@ same DB state (idempotent).
 from __future__ import annotations
 
 import logging
+import os
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -28,7 +30,9 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import MetaData, Table, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.orm import Session
 
+from penge.household.service import invalidate_account_sources, lock_household, on_bank_sync
 from penge.ingest.enablebanking.mapping import (
     balance_to_market_value,
     external_id,
@@ -56,6 +60,7 @@ class LoadResult:
     transactions: int
     holding_snapshots: int
     writes: int
+    payment_details: int = 0
 
 
 # --------------------------------------------------------------------------- #
@@ -129,6 +134,12 @@ def _persist(
 ) -> LoadResult:
     tables = _reflect(engine)
     with engine.begin() as conn:
+        if os.environ.get("PENGE_HOUSEHOLD_ENABLED", "").lower() == "true":
+            with (
+                Session(bind=conn, join_transaction_mode="create_savepoint") as household_session,
+                household_session.begin(),
+            ):
+                lock_household(household_session)
         entity_id, entity_changed = _get_or_create_entity(conn, tables["entity"], entity_name)
         account_id, account_changed = _get_or_create_account(
             conn,
@@ -162,6 +173,12 @@ def _persist(
             instrument_id=instrument_id,
             fallback_date=datetime.now(UTC).date(),
         )
+        if account_changed and os.environ.get("PENGE_HOUSEHOLD_ENABLED", "").lower() == "true":
+            with (
+                Session(bind=conn, join_transaction_mode="create_savepoint") as household_session,
+                household_session.begin(),
+            ):
+                txn_writes += invalidate_account_sources(household_session, uuid.UUID(account_id))
     log.info(
         "Enable Banking load: provider=%s account=%s booked=%d snapshots=%d",
         provider,
@@ -197,7 +214,7 @@ def _get_or_create_entity(conn: Connection, entity: Table, name: str) -> tuple[s
     ).scalar_one_or_none()
     if existing is not None:
         return str(existing), 0
-    new_id = conn.execute(
+    new_id: uuid.UUID = conn.execute(
         entity.insert().values(name=name, kind=ENTITY_KIND).returning(entity.c.id)
     ).scalar_one()
     return str(new_id), 1
@@ -249,7 +266,7 @@ def _get_or_create_account(
         ),
     )
     changed = conn.execute(stmt.returning(account.c.id)).scalar_one_or_none() is not None
-    account_id = conn.execute(
+    account_id: uuid.UUID = conn.execute(
         select(account.c.id)
         .where(account.c.provider == provider, account.c.external_id == external_id)
         .limit(1)
@@ -275,7 +292,7 @@ def _get_or_create_cash_instrument(
     ).scalar_one_or_none()
     if existing is not None:
         return str(existing), 0
-    new_id = conn.execute(
+    new_id: uuid.UUID = conn.execute(
         instrument.insert()
         .values(
             kind=CASH_INSTRUMENT_KIND,
@@ -331,6 +348,17 @@ def _upsert_transactions(
         deduped[(row["account_id"], row["external_id"])] = row
     payload = list(deduped.values())
 
+    household_enabled = os.environ.get("PENGE_HOUSEHOLD_ENABLED", "").lower() == "true"
+    existing_ids: set[uuid.UUID] = set()
+    if household_enabled:
+        existing_ids = set(
+            conn.execute(
+                select(transaction.c.id).where(
+                    transaction.c.account_id == account_id,
+                    transaction.c.external_id.in_([row["external_id"] for row in payload]),
+                )
+            ).scalars()
+        )
     stmt = pg_insert(transaction).values(payload)
     stmt = stmt.on_conflict_do_update(
         constraint="ux_transaction__account_id_external_id",
@@ -363,7 +391,20 @@ def _upsert_transactions(
             | transaction.c.description.is_distinct_from(stmt.excluded.description)
         ),
     )
-    return len(payload), len(conn.execute(stmt.returning(transaction.c.id)).all())
+    changed_ids: list[uuid.UUID] = list(conn.execute(stmt.returning(transaction.c.id)).scalars())
+    classification_writes = 0
+    if household_enabled:
+        with (
+            Session(bind=conn, join_transaction_mode="create_savepoint") as household_session,
+            household_session.begin(),
+        ):
+            classification_writes = on_bank_sync(
+                household_session,
+                inserted_ids=[key for key in changed_ids if key not in existing_ids],
+                changed_ids=[key for key in changed_ids if key in existing_ids],
+            )
+            household_session.flush()
+    return len(payload), len(changed_ids) + classification_writes
 
 
 def _upsert_balance_snapshot(

@@ -36,3 +36,22 @@ sources:
           Investeringsselskaber) memberships per ISIN per tax year.
           Populated by the `penge-abis ingest` CLI; one row per
           observation. See ADR-0009.
+      - name: household_category
+        description: >
+          Editable household income/expense category hierarchy. See ADR-0050.
+      - name: household_classification
+        description: >
+          Versioned bank-transaction treatment and source snapshot for
+          household reporting. See ADR-0050.
+      - name: household_allocation
+        description: >
+          Signed bank-currency category split for a household transaction.
+          See ADR-0050.
+      - name: household_payment_detail
+        description: >
+          Whitelisted provider-side payment details; not a cash ledger.
+          See ADR-0050.
+      - name: household_payment_detail_link
+        description: >
+          Explicit approved allocation between a canonical bank transaction
+          and provider payment detail. See ADR-0050.

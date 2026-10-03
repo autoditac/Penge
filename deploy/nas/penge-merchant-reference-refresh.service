@@ -1,0 +1,12 @@
+# Runs the public-only NSI catalog refresh inside the health-gated API container.
+
+[Unit]
+Description=Penge public merchant-reference refresh
+After=network-online.target penge-db.service penge-api.service
+Wants=network-online.target
+Requires=penge-db.service penge-api.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/podman exec penge-api penge-refresh-merchant-reference
+TimeoutStartSec=30min

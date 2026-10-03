@@ -22,6 +22,7 @@ function connection(overrides: Partial<Connection> = {}): Connection {
     aspsp_country: "DE",
     aspsp_name: "GLS Gemeinschaftsbank",
     created_at: "2026-06-01T09:00:00Z",
+    data_role: "cash_account",
     entity_name: "Rouven",
     id: "00000000-0000-0000-0000-000000000001",
     last_error: null,
@@ -99,11 +100,14 @@ describe("connections client", () => {
   });
 
   it("passes the days query parameter when syncing", async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        jsonResponse({ connection: connection(), transactions: 5, holding_snapshots: 1 }),
-      );
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      jsonResponse({
+        connection: connection(),
+        transactions: 5,
+        holding_snapshots: 1,
+        payment_details: 0,
+      }),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     await syncConnection("00000000-0000-0000-0000-000000000001", 30);
@@ -121,6 +125,7 @@ describe("connections demo store", () => {
       "gls",
       "ebank",
       "lunar",
+      "paypal",
     ]);
 
     const link = store.demoStartLink("gls", "Rouven");
@@ -133,6 +138,19 @@ describe("connections demo store", () => {
     const synced = store.demoSync(link.connection_id);
     expect(synced.transactions).toBeGreaterThan(0);
     expect(synced.connection.last_sync_status).toBe("ok");
+  });
+
+  it("keeps PayPal sync in the detail-only lane", async () => {
+    const store = await import("../src/demo/connectionsStore");
+    const link = store.demoStartLink("paypal", "Rouven");
+    const authorized = store.demoAuthorize({ code: "demo-code", state: link.state });
+
+    expect(authorized.data_role).toBe("payment_detail");
+
+    const synced = store.demoSync(link.connection_id);
+    expect(synced.transactions).toBe(0);
+    expect(synced.holding_snapshots).toBe(0);
+    expect(synced.payment_details).toBeGreaterThan(0);
   });
 
   it("rejects an unknown provider", async () => {

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -24,6 +25,8 @@ class AspspOut(_Frozen):
     aspsp_name: str
     aspsp_country: str
     default_currency: str
+    psu_type: Literal["personal", "business"]
+    data_role: Literal["cash_account", "payment_detail"]
 
 
 class AspspListResponse(_Frozen):
@@ -35,7 +38,7 @@ class AspspListResponse(_Frozen):
 class LinkRequest(_Frozen):
     """Start a consent for one provider."""
 
-    provider: str = Field(description="Penge provider slug: gls | ebank | lunar.")
+    provider: str = Field(description="Penge provider slug: gls | ebank | lunar | paypal.")
     entity_name: str = Field(
         min_length=1,
         max_length=200,
@@ -88,6 +91,7 @@ class ConnectionOut(_Frozen):
     provider: str
     aspsp_name: str
     aspsp_country: str
+    data_role: Literal["cash_account", "payment_detail", "unknown"]
     entity_name: str
     status: str
     valid_until: datetime | None
@@ -111,6 +115,7 @@ class SyncResponse(_Frozen):
     connection: ConnectionOut
     transactions: int
     holding_snapshots: int
+    payment_details: int
 
 
 __all__ = [

@@ -56,8 +56,10 @@ nav:
   - Connectors:
       - connectors/index.md
       - "ECB daily FX rates": connectors/ecb_fx.md
+      - "Public merchant reference index": connectors/merchant-reference.md
       - "GLS Bank (Enable Banking)": connectors/gls.md
       - "Evangelische Bank (Enable Banking)": connectors/evangelische-bank.md
+      - "PayPal Germany (Enable Banking)": connectors/paypal.md
       - "Lunar (Enable Banking)": connectors/lunar.md
       - "Growney / Sutor Bank (PDF)": connectors/growney.md
       - "PFA pension (PDF)": connectors/pfa.md
@@ -70,6 +72,8 @@ nav:
   - Web:
       - "Modern WebUI": web/modern-webui.md
       - "Read API": api/index.md
+      - "Household categorization API": api/household.md
+      - "Household reporting API": api/household-reporting.md
   - MCP:
       - "Tool reference": mcp/tools.md
   - Simulation:
@@ -87,6 +91,7 @@ nav:
       - DK Refresh Checklist: tax/dk-refresh-checklist.md
   - Runbook:
       - "Monthly ritual (1-hour close)": runbook/monthly-ritual.md
+      - "Household integration verification": runbook/household-integration.md
       - "Monthly automated report": runbook/monthly-report.md
       - "Enable Banking consent (production)": runbook/enable-banking-consent.md
       - "Web dashboard": runbook/web.md
@@ -141,6 +146,9 @@ nav:
       - "ADR-0045 MUI Core WebUI design system": decisions/0045-mui-core-webui-design-system.md
       - "ADR-0046 Scheduled Enable Banking net-worth refresh": decisions/0046-scheduled-enable-banking-net-worth-refresh.md
       - "ADR template": decisions/adr-template.md
+      - "ADR-0050 Audited household categorization": decisions/0050-audited-household-categorization.md
+      - "ADR-0051 Public merchant reference index": decisions/0051-public-merchant-reference-index.md
+      - "ADR-0052 Household income and expense reporting projection": decisions/0052-household-reporting-projection.md
   - Privacy: privacy.md
   - Terms: terms.md
 

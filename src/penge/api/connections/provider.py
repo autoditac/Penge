@@ -9,12 +9,14 @@ auto-detection).
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Literal, Protocol
 
 from penge.ingest.ebank import loader as ebank_loader
 from penge.ingest.gls import loader as gls_loader
 from penge.ingest.lunar import loader as lunar_loader
+from penge.ingest.paypal import loader as paypal_loader
 
 if TYPE_CHECKING:
     from datetime import date
@@ -33,6 +35,7 @@ class _SyncAccount(Protocol):
         *,
         client: Client,
         account: AccountResource,
+        connection_id: uuid.UUID,
         entity_name: str,
         date_from: date,
         date_to: date,
@@ -48,7 +51,11 @@ class Provider:
     aspsp_country: str
     default_currency: str
     account_fallback: str
-    sync_account: _SyncAccount
+    psu_type: Literal["personal", "business"]
+    data_role: Literal["cash_account", "payment_detail"]
+    request_balances: bool
+    request_transactions: bool
+    sync_account: _SyncAccount | None
 
 
 def _gls_sync(
@@ -56,10 +63,12 @@ def _gls_sync(
     *,
     client: Client,
     account: AccountResource,
+    connection_id: uuid.UUID,
     entity_name: str,
     date_from: date,
     date_to: date,
 ) -> LoadResult:
+    _ = connection_id
     if account.uid is None:  # pragma: no cover - filtered upstream
         raise ValueError("account has no uid")
     return gls_loader.load_account(
@@ -80,10 +89,12 @@ def _ebank_sync(
     *,
     client: Client,
     account: AccountResource,
+    connection_id: uuid.UUID,
     entity_name: str,
     date_from: date,
     date_to: date,
 ) -> LoadResult:
+    _ = connection_id
     if account.uid is None:  # pragma: no cover - filtered upstream
         raise ValueError("account has no uid")
     return ebank_loader.load_account(
@@ -104,10 +115,12 @@ def _lunar_sync(
     *,
     client: Client,
     account: AccountResource,
+    connection_id: uuid.UUID,
     entity_name: str,
     date_from: date,
     date_to: date,
 ) -> LoadResult:
+    _ = connection_id
     if account.uid is None:  # pragma: no cover - filtered upstream
         raise ValueError("account has no uid")
     return lunar_loader.load_account(
@@ -124,6 +137,27 @@ def _lunar_sync(
     )
 
 
+def _paypal_sync(
+    engine: Engine,
+    *,
+    client: Client,
+    account: AccountResource,
+    connection_id: uuid.UUID,
+    entity_name: str,
+    date_from: date,
+    date_to: date,
+) -> LoadResult:
+    _ = entity_name
+    return paypal_loader.load_account(
+        engine,
+        client=client,
+        account=account,
+        connection_id=connection_id,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+
 _PROVIDERS: dict[str, Provider] = {
     "gls": Provider(
         slug="gls",
@@ -131,6 +165,10 @@ _PROVIDERS: dict[str, Provider] = {
         aspsp_country="DE",
         default_currency="EUR",
         account_fallback="GLS account",
+        psu_type="personal",
+        data_role="cash_account",
+        request_balances=True,
+        request_transactions=True,
         sync_account=_gls_sync,
     ),
     "ebank": Provider(
@@ -139,6 +177,10 @@ _PROVIDERS: dict[str, Provider] = {
         aspsp_country="DE",
         default_currency="EUR",
         account_fallback="Evangelische Bank account",
+        psu_type="personal",
+        data_role="cash_account",
+        request_balances=True,
+        request_transactions=True,
         sync_account=_ebank_sync,
     ),
     "lunar": Provider(
@@ -147,7 +189,23 @@ _PROVIDERS: dict[str, Provider] = {
         aspsp_country="DK",
         default_currency="DKK",
         account_fallback="Lunar account",
+        psu_type="personal",
+        data_role="cash_account",
+        request_balances=True,
+        request_transactions=True,
         sync_account=_lunar_sync,
+    ),
+    "paypal": Provider(
+        slug="paypal",
+        aspsp_name="PayPal",
+        aspsp_country="DE",
+        default_currency="EUR",
+        account_fallback="PayPal payment details",
+        psu_type="personal",
+        data_role="payment_detail",
+        request_balances=False,
+        request_transactions=True,
+        sync_account=_paypal_sync,
     ),
 }
 

@@ -69,6 +69,7 @@ def seed_browser_journeys(engine: Engine, account_id: uuid.UUID) -> None:
                         kind="withdrawal",
                         counterparty=merchant.name if key in ("evidence", "history") else label,
                         description=f"{label} {key}",
+                        external_id=f"synthetic-browser-{device}-{key.replace(' ', '-')}",
                     )
                 )
                 session.flush()

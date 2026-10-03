@@ -82,6 +82,9 @@ candidate; public reference promotion uses a clearly synthetic two-record catalo
 without downloading anything or claiming publisher verification.
 Four review-only PayPal details are seeded without adding bank transactions.
 An in-memory regression verifies isolated device candidates and zero initial links.
+Browser bank entries retain unique stable synthetic external IDs, including the
+provider staging not-null contract; the household read-only source projection
+exposes the existing raw column without introducing a migration.
 
 Desktop and mobile journeys exercise category-filtered real report drilldown,
 keyboard bulk selection, persisted manual bulk assignments, rejected unbalanced

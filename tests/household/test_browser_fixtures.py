@@ -23,6 +23,9 @@ def test_device_seeds_are_independent_and_preserve_bank_grain(engine: Engine) ->
     seed_browser_journeys(engine, account_id)
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(m.SourceTransaction)) == 10
+        external_ids = list(session.scalars(select(m.SourceTransaction.external_id)))
+        assert len(set(external_ids)) == 10
+        assert all(key is not None and key.startswith("synthetic-browser-") for key in external_ids)
         assert session.scalar(select(func.count()).select_from(m.PaymentDetail)) == 4
         assert session.scalar(select(func.count()).select_from(m.DetailLink)) == 0
         merchants: list[m.Merchant] = list(session.scalars(select(m.Merchant)))

@@ -47,6 +47,7 @@ class SourceTransaction(Base):
     kind: Mapped[str] = mapped_column(String)
     counterparty: Mapped[str | None] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(String)
+    external_id: Mapped[str | None] = mapped_column(String)
 
 
 class Category(Base):

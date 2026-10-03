@@ -260,6 +260,42 @@ _ACCOUNTS_SQL = """
         from document
         where account_id is not null
         group by account_id
+        union all
+        -- A repeated staged import updates existing raw rows, retaining their
+        -- original created_at. Use the successful commit time for each account
+        -- actually represented by an included row in that session.
+        select a.id as account_id, max(s.committed_at) as updated_at
+        from import_session as s
+        inner join import_row as r on r.session_id = s.id
+        inner join account as a
+            on a.provider = 'nordnet'
+            and a.external_id = case
+                when s.source = 'nordnet_transactions'
+                     and r.kind = 'transaction'
+                    then r.payload ->> 'account_number'
+                when s.source = 'nordnet_holdings'
+                     and r.kind = 'holding'
+                    then s.params ->> 'account_number'
+            end
+        where s.status = 'committed'
+          and s.committed_at is not null
+          and not r.excluded
+        group by a.id
+        union all
+        -- A header-only holdings export is a valid complete empty snapshot.
+        select a.id as account_id, max(s.committed_at) as updated_at
+        from import_session as s
+        inner join account as a
+            on a.provider = 'nordnet'
+            and a.external_id = (s.params ->> 'account_number')
+        where s.source = 'nordnet_holdings'
+          and s.status = 'committed'
+          and s.committed_at is not null
+          and (s.params ->> 'empty_snapshot_confirmed') = 'true'
+          and not exists (
+              select 1 from import_row as r where r.session_id = s.id
+          )
+        group by a.id
     ),
     latest_account_updates as (
         select account_id, max(updated_at) as last_updated_at

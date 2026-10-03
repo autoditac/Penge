@@ -321,6 +321,23 @@ def test_parse_holdings_round_trip(tmp_path: Path) -> None:
     )
 
 
+def test_empty_holdings_requires_complete_header_and_no_hidden_positions(tmp_path: Path) -> None:
+    filename = "Depotoversigt for kontonummer 99999990, 7.5.2026.csv"
+    path = write_nordnet_csv(tmp_path / filename, [HLD_HEADER])
+    assert parse_holdings_file(path).holdings == ()
+
+    write_nordnet_csv(path, [("Navn", "Valuta", "Antal", *([""] * 7))])
+    with pytest.raises(ValueError, match="complete header"):
+        parse_holdings_file(path)
+
+    write_nordnet_csv(
+        path,
+        [HLD_HEADER, hld_row(name="", currency="EUR", quantity="1")],
+    )
+    with pytest.raises(ValueError, match="values but no Navn"):
+        parse_holdings_file(path)
+
+
 def test_parse_holdings_filename() -> None:
     account, as_of = parse_holdings_filename("Depotoversigt for kontonummer 60109543, 7.5.2026.csv")
     assert account == "60109543"

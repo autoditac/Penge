@@ -6,6 +6,7 @@ import {
   editableFields,
   formatTimestamp,
   rowBadge,
+  rowSummary,
   shortSha,
   sourceLabel,
   summarizeIssues,
@@ -14,6 +15,7 @@ import {
 describe("sourceLabel", () => {
   it("maps known sources to human labels", () => {
     expect(sourceLabel("nordnet_transactions")).toContain("Nordnet");
+    expect(sourceLabel("nordnet_holdings")).toBe("Nordnet holdings (CSV)");
     expect(sourceLabel("growney")).toContain("Growney");
     expect(sourceLabel("pfa")).toContain("PFA");
     expect(sourceLabel("manual_balances")).toContain("Manual");
@@ -31,9 +33,42 @@ describe("rowBadge", () => {
       label: "duplicate",
       tone: "watch",
     });
+
     expect(rowBadge({ status: "error", excluded: false })).toEqual({
       label: "error",
       tone: "critical",
+    });
+  });
+
+  describe("rowSummary", () => {
+    it("shows the market value when reviewing a Nordnet holding", () => {
+      expect(
+        rowSummary({
+          kind: "holding",
+          payload: { name: "Synthetic Fund", quantity: "345", market_value_dkk: "49888.76" },
+          issues: [],
+        }),
+      ).toBe("Synthetic Fund · 345 units · 49888.76 DKK");
+    });
+
+    it("prioritizes validation issues over values", () => {
+      expect(
+        rowSummary({
+          kind: "holding",
+          payload: { name: "Synthetic Fund", market_value_dkk: "10" },
+          issues: [{ code: "invalid", detail: "Unknown ISIN" }],
+        }),
+      ).toBe("Unknown ISIN");
+    });
+
+    it("retains the generic summary for Growney holdings valued in EUR", () => {
+      expect(
+        rowSummary({
+          kind: "holding",
+          payload: { name: "Synthetic Fund", quantity: "2", market_value_eur: "125.00" },
+          issues: [],
+        }),
+      ).toBe("name: Synthetic Fund · quantity: 2 · market_value_eur: 125.00");
     });
   });
 
@@ -103,6 +138,7 @@ describe("applyEdits", () => {
 describe("canCommit", () => {
   it("requires at least one row", () => {
     expect(canCommit([])).toBe(false);
+    expect(canCommit([], true)).toBe(true);
   });
 
   it("accepts ok and warning rows", () => {
@@ -127,6 +163,10 @@ describe("canCommit", () => {
         { status: "error", excluded: true },
       ]),
     ).toBe(true);
+  });
+
+  it("does not treat excluding all positions as an empty Nordnet statement", () => {
+    expect(canCommit([{ status: "ok", excluded: true }], true)).toBe(false);
   });
 });
 

@@ -23,6 +23,7 @@ from penge.api.imports import store
 from penge.api.imports.detect import (
     SOURCE_GROWNEY,
     SOURCE_MANUAL_BALANCES,
+    SOURCE_NORDNET_HOLDINGS,
     SOURCE_NORDNET_TRANSACTIONS,
     SOURCE_PFA,
 )
@@ -140,6 +141,43 @@ def _stage_nordnet(engine: Engine, path: Path) -> StagingResult:
             )
         )
     return StagingResult(params={}, rows=rows)
+
+
+def _stage_nordnet_holdings(engine: Engine, path: Path) -> StagingResult:
+    from penge.api.imports import config
+    from penge.ingest.nordnet.config import load_accounts_config
+    from penge.ingest.nordnet.parser import parse_holdings_file
+
+    config_path = config.nordnet_accounts_config_path()
+    if config_path is None:
+        raise ImportStagingError("PENGE_NORDNET_ACCOUNTS_CONFIG is required for holdings uploads")
+    try:
+        accounts = load_accounts_config(config_path)
+        parsed = parse_holdings_file(path)
+    except (OSError, ValueError, UnicodeError) as exc:
+        raise ImportStagingError(
+            "could not parse Nordnet holdings export or accounts config"
+        ) from exc
+    if accounts.by_number(parsed.account_number) is None:
+        raise ImportStagingError("Nordnet holdings account is not present in accounts config")
+    _ = engine
+    return StagingResult(
+        params={
+            "account_number": parsed.account_number,
+            "as_of": parsed.as_of.isoformat(),
+            "empty_snapshot_confirmed": not parsed.holdings,
+        },
+        rows=[
+            store.StagedRow(
+                row_index=index,
+                kind=ROW_KIND_HOLDING,
+                payload=holding.model_dump(mode="json"),
+                status=store.ROW_STATUS_OK,
+                issues=[],
+            )
+            for index, holding in enumerate(parsed.holdings)
+        ],
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -313,6 +351,8 @@ def stage_file(engine: Engine, *, source: str, path: Path) -> StagingResult:
     """Parse one stored upload into session params plus staged rows."""
     if source == SOURCE_NORDNET_TRANSACTIONS:
         return _stage_nordnet(engine, path)
+    if source == SOURCE_NORDNET_HOLDINGS:
+        return _stage_nordnet_holdings(engine, path)
     if source == SOURCE_GROWNEY:
         return _stage_growney(engine, path)
     if source == SOURCE_PFA:
@@ -328,6 +368,10 @@ def _payload_model(source: str, kind: str) -> type[BaseModel]:
         from penge.ingest.nordnet.models import ParsedTransaction as NordnetTransaction
 
         return NordnetTransaction
+    if source == SOURCE_NORDNET_HOLDINGS and kind == ROW_KIND_HOLDING:
+        from penge.ingest.nordnet.models import ParsedHolding as NordnetHolding
+
+        return NordnetHolding
     if source == SOURCE_GROWNEY and kind == ROW_KIND_TRANSACTION:
         from penge.ingest.growney.models import ParsedTransaction as GrowneyTransaction
 

@@ -68,6 +68,18 @@ _HLD_COL_RETURN_DKK = 9
 _HLD_COLS_REQUIRED = 10
 
 _HLD_HEADER_FIRST = "Navn"
+_HLD_HEADER = (
+    "Navn",
+    "Valuta",
+    "Antal",
+    "GAK/gns. kurs",
+    "I dag %",
+    "Seneste kurs",
+    "Belåningsværdi DKK",
+    "Værdi DKK",
+    "Afkast",
+    "Afkast DKK",
+)
 
 # Filename like: "Depotoversigt for kontonummer 60109543, 7.5.2026.csv"
 _HOLDINGS_FILENAME_RE = re.compile(
@@ -103,15 +115,13 @@ def parse_transactions(source: str | Path | IO[str]) -> Iterator[ParsedTransacti
         return
     if len(header) < _TXN_COLS_REQUIRED:
         raise ValueError(
-            f"unexpected transactions header: {len(header)} columns, "
-            f"expected {_TXN_COLS_REQUIRED}"
+            f"unexpected transactions header: {len(header)} columns, expected {_TXN_COLS_REQUIRED}"
         )
 
     for row in rows:
         # Pad short rows; Nordnet emits trailing-empty rows for some types.
-        if len(row) < _TXN_COLS_REQUIRED:
-            row = [*row, *([""] * (_TXN_COLS_REQUIRED - len(row)))]
-        yield _row_to_transaction(row)
+        padded_row = [*row, *([""] * max(0, _TXN_COLS_REQUIRED - len(row)))]
+        yield _row_to_transaction(padded_row)
 
 
 def parse_holdings(source: str | Path | IO[str]) -> tuple[ParsedHolding, ...]:
@@ -129,16 +139,17 @@ def parse_holdings(source: str | Path | IO[str]) -> tuple[ParsedHolding, ...]:
         return ()
     if len(header) < _HLD_COLS_REQUIRED:
         raise ValueError(
-            f"unexpected holdings header: {len(header)} columns, " f"expected {_HLD_COLS_REQUIRED}"
+            f"unexpected holdings header: {len(header)} columns, expected {_HLD_COLS_REQUIRED}"
         )
 
     out: list[ParsedHolding] = []
     for row in rows:
         if not row or not row[_HLD_COL_NAME].strip():
+            if any(cell.strip() for cell in row):
+                raise ValueError("Nordnet holdings row has values but no Navn")
             continue
-        if len(row) < _HLD_COLS_REQUIRED:
-            row = [*row, *([""] * (_HLD_COLS_REQUIRED - len(row)))]
-        out.append(_row_to_holding(row))
+        padded_row = [*row, *([""] * max(0, _HLD_COLS_REQUIRED - len(row)))]
+        out.append(_row_to_holding(padded_row))
     return tuple(out)
 
 
@@ -162,10 +173,19 @@ def parse_holdings_file(path: str | Path) -> ParsedHoldingsFile:
     """Convenience: parse a holdings CSV and bundle filename metadata."""
 
     account, as_of = parse_holdings_filename(path)
+    holdings = parse_holdings(path)
+    if not holdings:
+        # An empty export clears all prior securities. Require the exact
+        # Nordnet header and only blank rows before treating it as complete.
+        rows = _iter_csv_rows(path, expected_first_header=_HLD_HEADER_FIRST)
+        if tuple(next(rows, ())) != _HLD_HEADER or any(
+            any(cell.strip() for cell in row) for row in rows
+        ):
+            raise ValueError("empty Nordnet holdings export lacks a complete header")
     return ParsedHoldingsFile(
         account_number=account,
         as_of=as_of,
-        holdings=parse_holdings(path),
+        holdings=holdings,
     )
 
 
@@ -189,7 +209,7 @@ def instrument_map_from_transactions(
             out[t.instrument_name] = t.isin
         elif existing != t.isin:
             raise ValueError(
-                f"conflicting ISIN for {t.instrument_name!r}: " f"{existing!r} vs {t.isin!r}"
+                f"conflicting ISIN for {t.instrument_name!r}: {existing!r} vs {t.isin!r}"
             )
     return out
 
@@ -218,13 +238,14 @@ def derive_cash_balances(
     out: list[ParsedCashBalance] = []
     for (account, currency), t in latest.items():
         as_of = t.value_date or t.bookkeeping_date
-        # mypy-narrow: saldo is non-None by construction above.
-        assert t.saldo is not None
+        saldo = t.saldo
+        if saldo is None:
+            continue
         out.append(
             ParsedCashBalance(
                 account_number=account,
                 currency=currency,
-                saldo=t.saldo,
+                saldo=saldo,
                 as_of=as_of,
             )
         )
@@ -249,7 +270,7 @@ def _iter_csv_rows(
     locale/format mismatches early).
     """
 
-    if isinstance(source, (str, Path)):
+    if isinstance(source, str | Path):
         # Nordnet writes UTF-16LE with a BOM. Python's "utf-16"
         # codec auto-detects it; we use the explicit name to avoid
         # any locale surprises and strip the BOM ourselves.
@@ -273,7 +294,7 @@ def _read_rows(stream: IO[str], expected_first_header: str) -> Iterator[list[str
             if not row or row[0] != expected_first_header:
                 got = row[0] if row else ""
                 raise ValueError(
-                    f"unexpected first column {got!r}; " f"expected {expected_first_header!r}"
+                    f"unexpected first column {got!r}; expected {expected_first_header!r}"
                 )
         yield row
 

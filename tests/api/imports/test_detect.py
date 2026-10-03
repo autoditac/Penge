@@ -5,14 +5,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 from penge.api.imports.detect import (
     SOURCE_GROWNEY,
     SOURCE_MANUAL_BALANCES,
+    SOURCE_NORDNET_HOLDINGS,
     SOURCE_NORDNET_TRANSACTIONS,
     SOURCE_PFA,
-    UnsupportedSourceError,
     detect_source,
 )
 from tests.ingest.nordnet._fixture_builders import (
@@ -50,7 +48,7 @@ def test_detects_nordnet_transactions_csv(tmp_path: Path) -> None:
     assert detect_source(path) == SOURCE_NORDNET_TRANSACTIONS
 
 
-def test_rejects_nordnet_holdings_csv(tmp_path: Path) -> None:
+def test_detects_nordnet_holdings_csv(tmp_path: Path) -> None:
     path = tmp_path / "Depotoversigt for kontonummer 99999990, 7.5.2026.csv"
     write_nordnet_csv(
         path,
@@ -59,8 +57,7 @@ def test_rejects_nordnet_holdings_csv(tmp_path: Path) -> None:
             hld_row(name="Synthetic ETF", currency="DKK", quantity="10"),
         ],
     )
-    with pytest.raises(UnsupportedSourceError):
-        detect_source(path)
+    assert detect_source(path) == SOURCE_NORDNET_HOLDINGS
 
 
 def test_detects_growney_pdf() -> None:

@@ -1,8 +1,7 @@
 # Nordnet (Denmark)
 
-Penge ingests two Nordnet (DK) CSV exports per import: a
-**transaction** export covering every account, and one
-**holdings** export per account per snapshot date. The exports are
+Penge ingests Nordnet (DK) CSV exports: a **transaction** export covering
+accounts and a **holdings** export per account per snapshot date. The exports are
 UTF-16LE BOM tab-separated despite the `.csv` extension.
 
 This connector is **DK-only**. The original German Nordnet
@@ -21,8 +20,11 @@ In the Nordnet web UI:
    is Nordnet's default; do not rename it — the parser reads the
    account number and snapshot date from the filename).
 
-Drop both files into your import staging directory (location is
-deployment-specific; see the loader runbook in a follow-up PR).
+For staged API imports, upload each file separately and review it before committing.
+Import transaction history first; holdings-only uploads resolve instruments from
+previously ingested trades or holdings in the same account.
+An unmapped holding rejects the entire commit rather than dropping a position.
+The CLI can still import a transaction export and holdings files together.
 
 ## Account-mapping config
 
@@ -134,6 +136,45 @@ print(result)  # entities=1 accounts=6 instruments=N transactions=N holding_snap
 
 All writes happen in a single transaction and are idempotent —
 re-running the same export only updates `updated_at` columns.
+Holdings-only loads leave transaction-derived cash snapshots untouched.
+Only accounts referenced by the upload are upserted; other configured accounts are not changed.
+Each Depotoversigt is a **complete security snapshot** for its account/date:
+securities held on or before that date but absent from the export receive a
+zero-quantity, zero-market-value snapshot on that date, preventing downstream
+daily valuation from forward-filling a sold position indefinitely.
+Cash is never zeroed this way; it remains derived only from transaction balances.
+Reimporting the same account/date replaces omissions in either direction:
+previously omitted securities can be restored, and newly omitted ones are zeroed.
+An exported header-only holdings file is a valid empty account snapshot and
+zeros all previously active securities on that date.
+The API accepts it only with the full Nordnet holdings header, no nonblank
+data rows, a valid account/date filename, and a configured account; staging
+records `empty_snapshot_confirmed: true` and commit rechecks the stored file
+against its upload checksum before zeroing positions.
+Commit also requires a previously imported, ISIN-mapped security snapshot in
+that same Nordnet account on or before the export date. A header-only export
+cannot create an account or infer sold holdings from another account.
+Excluding **all** rows from a nonempty upload is not equivalent to an empty
+export: it is rejected rather than silently liquidating the account.
+Do not exclude a valid holding row during review unless you intend to treat that
+security as absent from the complete snapshot.
+Duplicate account/date files in one CLI load and ambiguous name-to-ISIN mappings
+are rejected rather than guessed.
+
+## Staged Imports API
+
+`POST /imports` auto-detects the UTF-16LE `Navn` header as `nordnet_holdings`
+(or accepts that explicit `source`).
+Keep the Nordnet `Depotoversigt for kontonummer <KONTO>, <D.M.YYYY>.csv`
+filename: the account and snapshot date come from it and the account must be
+present in `PENGE_NORDNET_ACCOUNTS_CONFIG`.
+The response contains one reviewable `holding` row per position; use
+`PATCH /imports/{id}/rows/{row_id}` to correct or exclude positions, then
+`POST /imports/{id}/commit` to write snapshots.
+If a name has no unambiguous account-scoped ISIN mapping, commit returns `409`
+without writing anything; import the missing trade history first.
+Re-uploading the same account/date is an idempotent snapshot upsert.
+See [ADR-0049](../decisions/0049-nordnet-holdings-only-imports.md).
 
 ## CLI
 

@@ -79,10 +79,44 @@ written to the warehouse (upload → preview → fix/exclude rows → commit):
 | `POST /imports/{id}/suggestions`          | Proxy the MCP `suggest_import_mapping` tool (ADR-0038)        |
 | `DELETE /imports/{id}`                    | Discard the session and delete the stored upload              |
 
-Supported sources: `nordnet_transactions` (CSV), `growney` (Depotauszug PDF),
-`pfa` (Pensionsoversigt PDF), and `manual_balances` (JSON). Nordnet holdings
-CSVs are rejected — holdings-only loads silently skip instruments without
-transaction history, so they stay on the CLI path for now.
+Supported sources: `nordnet_transactions` and `nordnet_holdings` (UTF-16 CSV),
+`growney` (Depotauszug PDF), `pfa` (Pensionsoversigt PDF), and
+`manual_balances` (JSON).
+Nordnet holdings use the original account/date filename and require an
+account in the configured YAML.
+Stage transactions first when a holding has no prior account-scoped instrument
+history; an unmapped holding blocks the entire commit with `409` rather than
+silently skipping a position.
+Holdings-only commits never update transaction-derived cash snapshots.
+Each committed holdings export is treated as complete for its account/date:
+previously held securities missing from it receive zero snapshots, so sold
+positions stop forward-filling; cash and other accounts remain untouched.
+Excluding a holding during review means treating it as absent.
+Correcting an omission by reimporting the same date restores its original
+snapshot instead of retaining the zero.
+Header-only Nordnet holdings exports can be committed as complete empty
+snapshots when the complete provider header and filename are validated.
+The session params include `empty_snapshot_confirmed: true` for that case;
+commit revalidates the stored file and its upload checksum before zeroing.
+It requires prior ISIN-mapped security snapshot history in the same account
+on or before the export date; otherwise commit returns `409` and leaves the
+session staged without changing account freshness.
+Excluding every row of a nonempty export is rejected instead.
+The staged source is `nordnet_holdings`, each row has kind `holding`, session
+params carry `account_number` and `as_of`, and payloads use the
+`ParsedHolding` fields (`name`, `quantity`, `market_value_dkk`, etc.).
+The MCP mapping-suggestions tool accepts generic holding rows for this source,
+but suggestions are optional and do not resolve missing ISIN mappings; clients
+may omit the AI/suggestions step for holdings.
+For staged Nordnet imports, `/accounts.last_updated_at` reflects the latest
+successful commit with an included row for that account (including an
+identical re-import), or a committed header-only holdings snapshot, not just
+the raw row's first `created_at` timestamp.
+CLI and other provider imports still use raw row creation timestamps.
+`balance_changed_on` remains independent: a re-import without a changed
+balance does not move that date.
+See the [Nordnet connector](../connectors/nordnet.md) and
+[ADR-0049](../decisions/0049-nordnet-holdings-only-imports.md).
 
 Environment knobs: `PENGE_IMPORT_DIR` (upload storage, default
 `data/imports`), `PENGE_IMPORT_MAX_BYTES` (default 25 MiB),

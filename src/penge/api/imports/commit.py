@@ -10,7 +10,9 @@ stays staged.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pydantic import ValidationError
@@ -19,6 +21,7 @@ from penge.api.imports import config, staging
 from penge.api.imports.detect import (
     SOURCE_GROWNEY,
     SOURCE_MANUAL_BALANCES,
+    SOURCE_NORDNET_HOLDINGS,
     SOURCE_NORDNET_TRANSACTIONS,
     SOURCE_PFA,
 )
@@ -105,6 +108,71 @@ def _commit_nordnet(
         )
     except UnknownAccountError as exc:
         raise ImportCommitError(str(exc)) from exc
+    counts = CommitCounts(
+        entities=result.entities,
+        accounts=result.accounts,
+        instruments=result.instruments,
+        transactions=result.transactions,
+        holding_snapshots=result.holding_snapshots,
+    )
+    _report_writes(counts, on_write)
+    return counts
+
+
+def _commit_nordnet_holdings(
+    engine: Engine,
+    session: SessionRecord,
+    rows: Sequence[RowRecord],
+    *,
+    on_write: Callable[[int], None] | None,
+) -> CommitCounts:
+    from penge.ingest.nordnet.config import load_accounts_config
+    from penge.ingest.nordnet.loader import UnknownAccountError, load_records
+    from penge.ingest.nordnet.models import ParsedHolding, ParsedHoldingsFile
+    from penge.ingest.nordnet.parser import parse_holdings_file
+
+    config_path = config.nordnet_accounts_config_path()
+    if config_path is None:
+        raise ImportCommitError("PENGE_NORDNET_ACCOUNTS_CONFIG is required for holdings commits")
+    if not rows:
+        if session.params.get("empty_snapshot_confirmed") is not True:
+            raise ImportCommitError("empty Nordnet holdings snapshot was not validated at upload")
+        try:
+            stored = Path(session.stored_path)
+            if hashlib.sha256(stored.read_bytes()).hexdigest() != session.content_sha256:
+                raise ImportCommitError("empty Nordnet holdings upload changed since staging")
+            confirmed = parse_holdings_file(stored)
+        except (OSError, ValueError, UnicodeError) as exc:
+            raise ImportCommitError(
+                "empty Nordnet holdings upload could not be revalidated"
+            ) from exc
+        if (
+            confirmed.holdings
+            or confirmed.account_number != session.params.get("account_number")
+            or confirmed.as_of.isoformat() != session.params.get("as_of")
+        ):
+            raise ImportCommitError("empty Nordnet holdings upload differs from staged metadata")
+    try:
+        accounts_config = load_accounts_config(config_path)
+        holdings_file = ParsedHoldingsFile.model_validate(
+            {
+                "account_number": session.params["account_number"],
+                "as_of": session.params["as_of"],
+                "holdings": [
+                    ParsedHolding.model_validate(row.payload)
+                    for row in rows
+                    if row.kind == staging.ROW_KIND_HOLDING
+                ],
+            }
+        )
+        result = load_records(
+            engine,
+            transactions=[],
+            holdings=[holdings_file],
+            accounts_config=accounts_config,
+        )
+    except (OSError, KeyError, UnknownAccountError) as exc:
+        raise ImportCommitError("Nordnet holdings account or config is invalid") from exc
     counts = CommitCounts(
         entities=result.entities,
         accounts=result.accounts,
@@ -241,12 +309,18 @@ def commit_session(
             f"session has {len(error_rows)} error row(s) (row_index: {indices}); "
             "fix them via PATCH or exclude them before committing"
         )
-    if not included:
+    if not included and not (
+        session.source == SOURCE_NORDNET_HOLDINGS
+        and not rows
+        and session.params.get("empty_snapshot_confirmed") is True
+    ):
         raise ImportCommitError("session has no included rows to commit")
 
     try:
         if session.source == SOURCE_NORDNET_TRANSACTIONS:
             return _commit_nordnet(engine, included, on_write=on_write)
+        if session.source == SOURCE_NORDNET_HOLDINGS:
+            return _commit_nordnet_holdings(engine, session, included, on_write=on_write)
         if session.source == SOURCE_GROWNEY:
             return _commit_growney(
                 engine,

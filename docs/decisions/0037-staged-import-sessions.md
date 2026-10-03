@@ -72,6 +72,9 @@ Chosen option: **(1) staging tables + a scoped write engine**.
   instruments through the transaction history, so a holdings-only load
   silently skips unmapped positions. Holdings stay on the CLI path (both
   files in one run) until sessions support multi-file uploads (#208).
+  **Updated by [ADR-0049](0049-nordnet-holdings-only-imports.md):**
+  account-scoped history lookup now makes holdings-only sessions safe without
+  multi-file uploads; missing mappings reject the whole commit.
 - Source auto-detection sniffs filename + content (UTF-16 Nordnet headers,
   PDF magic + provider keywords, JSON shape); an explicit `source` form
   field always wins. Undetectable files are rejected with 422.

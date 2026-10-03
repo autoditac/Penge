@@ -19,7 +19,13 @@ from sqlalchemy import text
 from penge.api.imports import commit as commit_mod
 from penge.ops.net_worth_refresh import exclusive_lock
 from tests.api.imports.conftest import DB_URL, REPO_ROOT, manual_json, upload
-from tests.ingest.nordnet._fixture_builders import TXN_HEADER, txn_row, write_nordnet_csv
+from tests.ingest.nordnet._fixture_builders import (
+    HLD_HEADER,
+    TXN_HEADER,
+    hld_row,
+    txn_row,
+    write_nordnet_csv,
+)
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Sequence
@@ -221,6 +227,353 @@ def test_nordnet_commit_without_accounts_config_conflicts(
     assert response.status_code == 409
     assert "PENGE_NORDNET_ACCOUNTS_CONFIG" in response.json()["detail"]
     assert not (tmp_path / "refresh-state" / "pending").exists()
+
+
+def test_nordnet_holdings_stage_patch_commit_and_repeat(
+    client: TestClient,
+    engine: Engine,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+) -> None:
+    _ = nordnet_accounts_yaml
+    history = write_nordnet_csv(
+        tmp_path / "history.csv",
+        [
+            TXN_HEADER,
+            txn_row(
+                id_="TRADE",
+                book_date="2026-05-01",
+                depot=DEPOT,
+                type_="KØBT",
+                name="Synthetic Fund",
+                isin="IE00B4L5Y983",
+                amount="-10,00",
+                saldo="90,00",
+            ),
+        ],
+    )
+    transaction_session = upload(client, history).json()
+    assert client.post(f"/imports/{transaction_session['id']}/commit").status_code == 200
+    path = write_nordnet_csv(
+        tmp_path / f"Depotoversigt for kontonummer {DEPOT}, 7.5.2026.csv",
+        [
+            HLD_HEADER,
+            hld_row(name="Synthetic Fund", currency="EUR", quantity="2", last_price="4,00"),
+        ],
+    )
+    created = upload(client, path)
+    assert created.status_code == 201, created.text
+    body = created.json()
+    assert body["source"] == "nordnet_holdings"
+    assert body["params"] == {
+        "account_number": DEPOT,
+        "as_of": "2026-05-07",
+        "empty_snapshot_confirmed": False,
+    }
+    assert body["rows"][0]["kind"] == "holding"
+    row = body["rows"][0]
+    invalid = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"payload": {**row["payload"], "quantity": "invalid"}},
+    )
+    assert invalid.status_code == 200
+    assert invalid.json()["status"] == "error"
+    assert client.post(f"/imports/{body['id']}/commit").status_code == 409
+    patched = client.patch(
+        f"/imports/{body['id']}/rows/{row['id']}",
+        json={"payload": {**row["payload"], "quantity": "3"}},
+    )
+    assert patched.status_code == 200, patched.text
+    assert patched.json()["payload"]["quantity"] == "3"
+    assert (
+        client.patch(f"/imports/{body['id']}/rows/{row['id']}", json={"excluded": True}).status_code
+        == 200
+    )
+    assert client.post(f"/imports/{body['id']}/commit").status_code == 409
+    assert (
+        client.patch(
+            f"/imports/{body['id']}/rows/{row['id']}", json={"excluded": False}
+        ).status_code
+        == 200
+    )
+    committed = client.post(f"/imports/{body['id']}/commit")
+    assert committed.status_code == 200, committed.text
+    assert committed.json()["counts"]["transactions"] == 0
+    assert committed.json()["counts"]["holding_snapshots"] == 1
+    repeated = upload(client, path).json()
+    assert client.post(f"/imports/{repeated['id']}/commit").status_code == 200
+    with engine.connect() as conn:
+        security = conn.execute(
+            text(
+                "select hs.quantity from holding_snapshot hs "
+                "join instrument i on i.id = hs.instrument_id "
+                "where i.isin = 'IE00B4L5Y983' and hs.as_of = '2026-05-07'"
+            )
+        ).all()
+        cash = conn.execute(
+            text(
+                "select count(*) from holding_snapshot hs "
+                "join instrument i on i.id = hs.instrument_id where i.kind = 'cash'"
+            )
+        ).scalar_one()
+    assert [r.quantity for r in security] == [2]
+    assert cash == 1
+
+
+def test_nordnet_holdings_unmapped_rolls_back_and_is_account_scoped(
+    client: TestClient,
+    engine: Engine,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+) -> None:
+    _ = nordnet_accounts_yaml
+    # A same-named instrument in a different account is not evidence for this account.
+    with engine.begin() as conn:
+        conn.execute(text("insert into entity (name, kind) values ('Other owner', 'person')"))
+        conn.execute(
+            text(
+                "insert into account (entity_id, provider, external_id, name, kind, currency) "
+                "select id, 'nordnet', '99999991', 'Other', 'aktiedepot', 'DKK' "
+                "from entity where name = 'Other owner'"
+            )
+        )
+        conn.execute(
+            text(
+                "insert into instrument (name, kind, currency, isin) "
+                "values ('Synthetic Fund', 'security', 'EUR', 'IE00B4L5Y983')"
+            )
+        )
+        conn.execute(
+            text(
+                "insert into holding_snapshot (account_id, instrument_id, as_of, quantity) "
+                "select a.id, i.id, '2026-05-01', 1 from account a, instrument i "
+                "where a.external_id = '99999991' and i.isin = 'IE00B4L5Y983'"
+            )
+        )
+    path = write_nordnet_csv(
+        tmp_path / f"Depotoversigt for kontonummer {DEPOT}, 7.5.2026.csv",
+        [HLD_HEADER, hld_row(name="Synthetic Fund", currency="EUR", quantity="2")],
+    )
+    created = upload(client, path).json()
+    response = client.post(f"/imports/{created['id']}/commit")
+    assert response.status_code == 409
+    assert "no ISIN mapping" in response.json()["detail"]
+    with engine.connect() as conn:
+        assert (
+            conn.execute(
+                text("select count(*) from holding_snapshot where as_of = '2026-05-07'")
+            ).scalar_one()
+            == 0
+        )
+        assert (
+            conn.execute(
+                text("select count(*) from account where external_id = :account"),
+                {"account": DEPOT},
+            ).scalar_one()
+            == 0
+        )
+
+
+def test_nordnet_holdings_reject_unknown_account_and_date(
+    client: TestClient,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+) -> None:
+    _ = nordnet_accounts_yaml
+    for filename in (
+        "Depotoversigt for kontonummer 00000000, 7.5.2026.csv",
+        f"Depotoversigt for kontonummer {DEPOT}, 32.5.2026.csv",
+    ):
+        path = write_nordnet_csv(
+            tmp_path / filename,
+            [HLD_HEADER, hld_row(name="Synthetic Fund", currency="EUR", quantity="2")],
+        )
+        assert upload(client, path).status_code == 422
+
+
+def test_nordnet_empty_complete_snapshot_zeros_security_and_can_be_corrected(
+    client: TestClient,
+    engine: Engine,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+) -> None:
+    _ = nordnet_accounts_yaml
+    history = write_nordnet_csv(
+        tmp_path / "history.csv",
+        [
+            TXN_HEADER,
+            txn_row(
+                id_="TRADE",
+                book_date="2026-05-01",
+                depot=DEPOT,
+                type_="KØBT",
+                name="Synthetic Fund",
+                isin="IE00B4L5Y983",
+                amount="-10,00",
+                saldo="90,00",
+            ),
+        ],
+    )
+    created = upload(client, history).json()
+    assert client.post(f"/imports/{created['id']}/commit").status_code == 200
+    first = write_nordnet_csv(
+        tmp_path / f"Depotoversigt for kontonummer {DEPOT}, 5.5.2026.csv",
+        [
+            HLD_HEADER,
+            hld_row(
+                name="Synthetic Fund",
+                currency="EUR",
+                quantity="2",
+                value_dkk="100,00",
+            ),
+        ],
+    )
+    session = upload(client, first).json()
+    assert client.post(f"/imports/{session['id']}/commit").status_code == 200
+
+    empty = write_nordnet_csv(
+        tmp_path / f"Depotoversigt for kontonummer {DEPOT}, 7.5.2026.csv",
+        [HLD_HEADER],
+    )
+    session = upload(client, empty).json()
+    assert session["source"] == "nordnet_holdings"
+    assert session["row_counts"]["total"] == 0
+    assert session["params"] == {
+        "account_number": DEPOT,
+        "as_of": "2026-05-07",
+        "empty_snapshot_confirmed": True,
+    }
+    committed = client.post(f"/imports/{session['id']}/commit")
+    assert committed.status_code == 200, committed.text
+    assert committed.json()["counts"]["holding_snapshots"] == 1
+    with engine.connect() as conn:
+        position = conn.execute(
+            text(
+                "select hs.quantity, hs.market_value from holding_snapshot hs "
+                "join instrument i on i.id = hs.instrument_id "
+                "where i.isin = 'IE00B4L5Y983' and hs.as_of = '2026-05-07'"
+            )
+        ).one()
+        cash = conn.execute(
+            text(
+                "select count(*) from holding_snapshot hs "
+                "join instrument i on i.id = hs.instrument_id where i.kind = 'cash'"
+            )
+        ).scalar_one()
+    assert position.quantity == 0
+    assert position.market_value == 0
+    assert cash == 1
+
+    write_nordnet_csv(
+        empty,
+        [
+            HLD_HEADER,
+            hld_row(
+                name="Synthetic Fund",
+                currency="EUR",
+                quantity="3",
+                value_dkk="150,00",
+            ),
+        ],
+    )
+    correction = upload(client, empty).json()
+    assert client.post(f"/imports/{correction['id']}/commit").status_code == 200
+    with engine.connect() as conn:
+        restored = conn.execute(
+            text(
+                "select hs.quantity from holding_snapshot hs "
+                "join instrument i on i.id = hs.instrument_id "
+                "where i.isin = 'IE00B4L5Y983' and hs.as_of = '2026-05-07'"
+            )
+        ).scalar_one()
+    assert restored == 3
+
+
+def test_nordnet_header_only_requires_validated_complete_export(
+    client: TestClient,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+) -> None:
+    _ = nordnet_accounts_yaml
+    path = tmp_path / f"Depotoversigt for kontonummer {DEPOT}, 7.5.2026.csv"
+    write_nordnet_csv(path, [("Navn", "Valuta", "Antal", *([""] * 7))])
+    assert upload(client, path).status_code == 422
+
+    write_nordnet_csv(path, [HLD_HEADER, hld_row(name="", currency="EUR", quantity="1")])
+    assert upload(client, path).status_code == 422
+
+    valid = write_nordnet_csv(path, [HLD_HEADER])
+    staged = upload(client, valid).json()
+    assert staged["params"]["empty_snapshot_confirmed"] is True
+    stored_files = list((tmp_path / "imports").glob(f"*/{path.name}"))
+    assert len(stored_files) == 1
+    stored_files[0].write_bytes(b"changed after staging")
+    committed = client.post(f"/imports/{staged['id']}/commit")
+    assert committed.status_code == 409
+    assert "changed since staging" in committed.json()["detail"]
+
+
+def test_nordnet_header_only_requires_prior_security_in_same_account(
+    client: TestClient,
+    engine: Engine,
+    nordnet_accounts_yaml: Path,
+    tmp_path: Path,
+) -> None:
+    _ = nordnet_accounts_yaml
+    with engine.begin() as conn:
+        other_entity = conn.execute(
+            text("insert into entity (name, kind) values ('Other owner', 'person') returning id")
+        ).scalar_one()
+        other_account = conn.execute(
+            text(
+                "insert into account (entity_id, provider, external_id, name, kind, currency) "
+                "values (:owner, 'nordnet', '99999991', 'Other', 'aktiedepot', 'DKK') "
+                "returning id"
+            ),
+            {"owner": other_entity},
+        ).scalar_one()
+        instrument = conn.execute(
+            text(
+                "insert into instrument (name, kind, currency, isin) "
+                "values ('Synthetic Fund', 'security', 'EUR', 'IE00B4L5Y983') returning id"
+            )
+        ).scalar_one()
+        conn.execute(
+            text(
+                "insert into holding_snapshot (account_id, instrument_id, as_of, quantity) "
+                "values (:account, :instrument, '2026-05-01', 2)"
+            ),
+            {"account": other_account, "instrument": instrument},
+        )
+
+    empty = write_nordnet_csv(
+        tmp_path / f"Depotoversigt for kontonummer {DEPOT}, 7.5.2026.csv",
+        [HLD_HEADER],
+    )
+    staged = upload(client, empty).json()
+    assert staged["params"]["empty_snapshot_confirmed"] is True
+    response = client.post(f"/imports/{staged['id']}/commit")
+    assert response.status_code == 409
+    assert "prior mapped security snapshot" in response.json()["detail"]
+    assert client.get(f"/imports/{staged['id']}").json()["status"] == "staged"
+    assert not (tmp_path / "refresh-state" / "pending").exists()
+    with engine.connect() as conn:
+        assert (
+            conn.execute(
+                text(
+                    "select count(*) from account where provider = 'nordnet' and external_id = :n"
+                ),
+                {"n": DEPOT},
+            ).scalar_one()
+            == 0
+        )
+        assert (
+            conn.execute(
+                text("select quantity from holding_snapshot where account_id = :account"),
+                {"account": other_account},
+            ).scalar_one()
+            == 2
+        )
 
 
 # --------------------------------------------------------------------------- #

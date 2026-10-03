@@ -42,6 +42,32 @@ function recountRows(stored: StoredSession): void {
 }
 
 function demoRows(sessionId: string, source: string): ImportRow[] {
+  if (source === "nordnet_holdings") {
+    return [
+      {
+        id: `${sessionId}-row-0`,
+        row_index: 0,
+        kind: "holding",
+        payload: {
+          name: "Synthetic Index Fund",
+          currency: "DKK",
+          quantity: "10",
+          avg_cost: "100.00",
+          last_price: "125.00",
+          market_value_dkk: "1250.00",
+          return_pct: "25.00",
+          return_dkk: "250.00",
+        },
+        status: "ok",
+        issues: [],
+        edited: false,
+        excluded: false,
+        mappings: {},
+        suggested_by: null,
+        accepted_at: null,
+      },
+    ];
+  }
   if (source === "manual_balances") {
     return [
       {
@@ -144,7 +170,21 @@ export function demoUploadImport(file: File, source?: string): ImportSessionWith
   sequence += 1;
   const id = `demo-import-${sequence}`;
   const resolvedSource =
-    source ?? (file.name.endsWith(".json") ? "manual_balances" : "nordnet_transactions");
+    source ??
+    (file.name.endsWith(".json")
+      ? "manual_balances"
+      : file.name.startsWith("Depotoversigt for kontonummer ")
+        ? "nordnet_holdings"
+        : "nordnet_transactions");
+  const holdingsFilename =
+    /^Depotoversigt for kontonummer (\d+), (\d{1,2})\.(\d{1,2})\.(\d{4})\.csv$/.exec(file.name);
+  const params =
+    resolvedSource === "nordnet_holdings" && holdingsFilename !== null
+      ? {
+          account_number: holdingsFilename[1],
+          as_of: `${holdingsFilename[4]}-${holdingsFilename[3]?.padStart(2, "0")}-${holdingsFilename[2]?.padStart(2, "0")}`,
+        }
+      : {};
   const stored: StoredSession = {
     session: {
       id,
@@ -152,7 +192,7 @@ export function demoUploadImport(file: File, source?: string): ImportSessionWith
       original_filename: file.name,
       content_sha256: "d3m0".repeat(16),
       status: "staged",
-      params: {},
+      params,
       error: null,
       created_at: DEMO_TIMESTAMP,
       updated_at: DEMO_TIMESTAMP,

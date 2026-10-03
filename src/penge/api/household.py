@@ -74,7 +74,7 @@ def write_session(_: Annotated[None, Depends(require_enabled)]) -> Iterator[Sess
 
 
 Read = Annotated[Session, Depends(read_session)]
-Write = Annotated[Session, Depends(write_session)]
+Write = Annotated[Session, Depends(write_session, scope="function")]
 
 
 @router.get("/categories", response_model=list[s.CategoryOut])

@@ -540,6 +540,9 @@ describe("TransactionDetailPanel", () => {
         />,
       );
 
+      expect(
+        screen.getByRole("region", { name: "Rule for Example Utility, version 4" }),
+      ).toContainElement(screen.getByRole("button", { name: "Preview historical reapply" }));
       await user.click(screen.getByRole("button", { name: "Preview historical reapply" }));
       expect(onPreview).toHaveBeenCalledWith("rule-1");
       expect(screen.getByRole("button", { name: "Apply approved preview" })).toBeDisabled();

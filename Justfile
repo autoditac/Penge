@@ -270,7 +270,7 @@ api-test:
 
 # Run only inspected synthetic in-memory and database-free household tests.
 household-in-memory-test:
-    env -u DATABASE_URL -u PENGE_TEST_DATABASE_URL -u PENGE_ALLOW_DESTRUCTIVE_TEST_DB uv run --group dev --group api --group db --group http --group enablebanking pytest tests/household/test_api_journey.py tests/household/test_database_setup.py tests/household/test_browser_fixtures.py tests/ingest/paypal tests/analytics/test_household.py tests/api/test_household_reporting.py tests/api/test_openapi.py tests/api/test_routes.py tests/api/test_merchant_reference.py tests/api/test_merchant_reference_store.py tests/ingest/merchant_reference -q
+    env -u DATABASE_URL -u PENGE_TEST_DATABASE_URL -u PENGE_ALLOW_DESTRUCTIVE_TEST_DB uv run --group dev --group api --group db --group http --group enablebanking pytest tests/household/test_api_journey.py tests/household/test_database_setup.py tests/household/test_browser_fixtures.py tests/household/test_write_boundary.py tests/ingest/paypal tests/analytics/test_household.py tests/api/test_household_reporting.py tests/api/test_openapi.py tests/api/test_routes.py tests/api/test_merchant_reference.py tests/api/test_merchant_reference_store.py tests/ingest/merchant_reference -q
 
 # Parse household models without connecting to or materializing a database.
 household-dbt-parse:

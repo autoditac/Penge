@@ -72,6 +72,19 @@ Category response predicates require the API origin and JSON content type so a
 same-path frontend document cannot be mistaken for persisted API data.
 Each browser case has a bounded 90-second budget; failures retain synthetic
 screenshots/traces for three days in CI.
+Browser CI serves the production bundle with Vite preview rather than a mutable
+development module graph; traces showed cold optimizer/network-changed failures.
+Household writes commit in a function-scoped dependency before sending success
+headers, preventing an immediate browser refetch from racing an uncommitted save.
+An in-memory boundary regression checks commit-before-headers and commit failure
+returning a conflict rather than a false success.
+The shared write dependency is consumed only by household category, merchant and
+alias create/update, rule control/preview/apply, classification save, and undo.
+All retain service-owned flushes and the dependency-owned transaction, audit and
+refresh-intent lock; exceptions unwind the transaction and release the lock.
+Read dependencies and other API writers are unchanged.
+Versioned rule regions expose accessible names so history actions target the
+active version explicitly instead of depending on layout ancestry.
 
 ### Connected browser coverage
 

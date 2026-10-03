@@ -52,6 +52,8 @@ export function RuleManagementPanel({
             {rules.map((rule) => (
               <Box
                 key={rule.id}
+                component="section"
+                aria-label={`Rule for ${rule.merchantName}, version ${rule.version}`}
                 sx={{
                   display: "flex",
                   flexWrap: "wrap",

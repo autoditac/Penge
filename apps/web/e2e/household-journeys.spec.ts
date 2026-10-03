@@ -4,6 +4,7 @@ import {
   householdClassificationSchema,
   householdMerchantsResponseSchema,
   householdPreviewSchema,
+  householdRulesResponseSchema,
   householdReportTransactionsSchema,
   householdTransactionSchema,
   householdTransactionsResponseSchema,
@@ -205,9 +206,21 @@ test("historical rule approval protects manual evidence and PayPal details never
   if (evidence === undefined || history === undefined)
     throw new Error("Synthetic history is missing");
   await page.goto("/household/rules");
-  const rule = page
-    .getByRole("heading", { name: `${label} merchant`, exact: true })
-    .locator("../../..");
+  const merchantRows = householdMerchantsResponseSchema.parse(
+    await (await page.request.get(`${api}/household/merchants`)).json(),
+  );
+  const merchant = merchantRows.find(({ name }) => name === `${label} merchant`);
+  const rules = householdRulesResponseSchema.parse(
+    await (await page.request.get(`${api}/household/rules`)).json(),
+  );
+  const activeRule = rules.find(
+    ({ merchant_id, state }) => merchant_id === merchant?.id && state === "active",
+  );
+  if (activeRule === undefined) throw new Error("Synthetic active rule is missing");
+  const rule = page.getByRole("region", {
+    name: `Rule for ${label} merchant, version ${activeRule.version}`,
+    exact: true,
+  });
   const previewResponse = page.waitForResponse(
     (response) =>
       response.url().startsWith(`${api}/household/rules/`) &&

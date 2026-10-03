@@ -41,6 +41,8 @@ its disposable database; these recipes are not authorized for shared local data.
 CI also runs `just household-mcp-postgres-test` against the seeded marts.
 This opt-in check uses the actual read-only PostgreSQL runner, not a fake runner,
 to verify positional SQL parameters across day/month/year report granularity.
+The runner selects the acceptance seed's explicit provider/external account
+identity rather than assuming no other synthetic checking accounts exist.
 Unit tests and browser discovery alone do not establish real report behavior.
 
 Household database acceptance builds the full dbt graph, including relationship
@@ -56,6 +58,10 @@ and real-browser setup on the shared runners.
 Verbose pytest progress, the twenty slowest test durations, and wall/user/system
 timing for the acceptance and dbt commands distinguish expensive builds from
 stalled tests or shared-runner contention; a larger budget alone is not evidence.
+Measured CI showed file-backed SQLite fixture setup taking up to 62 seconds per
+test on the shared runner.
+The default household unit/API fixture now uses isolated in-memory SQLite with
+one shared connection for TestClient threads; real PostgreSQL gates are unchanged.
 The category picker and split editor retain existing archived assignments while
 preventing new archived-category selections.
 

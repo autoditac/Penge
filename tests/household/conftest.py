@@ -13,6 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
 from penge.api import data
 from penge.api.app import create_app
@@ -48,9 +49,13 @@ def postgres_engine() -> Iterator[Engine]:
 
 
 @pytest.fixture
-def engine(tmp_path: Path) -> Iterator[Engine]:
-    """Create household and minimal source-projection tables in SQLite."""
-    database = create_engine(f"sqlite:///{tmp_path / 'household.sqlite'}")
+def engine() -> Iterator[Engine]:
+    """Share one ephemeral in-memory source projection across API test threads."""
+    database = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(database)
     try:
         yield database

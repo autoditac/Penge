@@ -24,8 +24,9 @@ describe.skipIf(!enabled)("query_household_report on disposable PostgreSQL", () 
       try {
         const tool = queryHouseholdReportTool({ runner: client });
         const accounts = await client.query<{ id: string }>(
-          "SELECT id FROM public.account WHERE provider = $1 AND kind = 'checking'",
-          ["gls"],
+          "SELECT id FROM public.account WHERE provider = $1 AND external_id = $2 " +
+            "AND kind = 'checking'",
+          ["gls", "household-eur-checking"],
         );
         expect(accounts.rows).toHaveLength(1);
         const accountId = accounts.rows[0]?.id;

@@ -100,6 +100,9 @@ Reopening waits for the previous listbox to unmount, so modal focus/scroll
 restoration cannot race the next pointer action during the exit transition.
 Touch projects use native taps rather than mouse down/up synthesis and assert
 the combobox is expanded before testing the option's viewport geometry.
+The picker is scrolled to the viewport center, with an actual center-point
+hit-test before reopening: mobile traces showed default scrolling retrying at
+the bottom navigation edge rather than the intended visible control.
 Versioned rule regions expose accessible names so history actions target the
 active version explicitly instead of depending on layout ancestry.
 

@@ -127,7 +127,9 @@ test("local vendor provenance and stale merchant save use real revision guards",
     page.getByRole("region", { name: "Public merchant reference status" }),
   ).toContainText("2 entries");
   const merchantPicker = page.getByRole("combobox", { name: "Merchant", exact: true });
-  await merchantPicker.scrollIntoViewIfNeeded();
+  await merchantPicker.evaluate((element) =>
+    element.scrollIntoView({ block: "center", behavior: "instant" }),
+  );
   await merchantPicker.focus();
   await page.keyboard.press("ArrowDown");
   await expect(page.getByRole("listbox")).toBeVisible();
@@ -141,7 +143,20 @@ test("local vendor provenance and stale merchant save use real revision guards",
   await page.keyboard.press("Enter");
   await expect(merchantPicker).toHaveText(`${label} merchant`);
   await expect(page.locator('[role="listbox"]')).toHaveCount(0);
-  await merchantPicker.scrollIntoViewIfNeeded();
+  await merchantPicker.evaluate((element) =>
+    element.scrollIntoView({ block: "center", behavior: "instant" }),
+  );
+  await expect(merchantPicker).toBeInViewport({ ratio: 1 });
+  await expect
+    .poll(() =>
+      merchantPicker.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return element.contains(
+          document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2),
+        );
+      }),
+    )
+    .toBe(true);
   if (testInfo.project.use.hasTouch) {
     await merchantPicker.tap();
   } else {

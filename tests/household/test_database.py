@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import pytest
-from sqlalchemy import text
+from sqlalchemy import event, text
+from sqlalchemy.orm import ORMExecuteState, Session
 
 from tests.dbt.conftest import DBT_AVAILABLE, run_dbt
 from tests.household.conftest import DB_URL
@@ -41,6 +43,81 @@ def test_source_fixture_seeds_synthetic_accounts_entries_and_fx(
     assert set(seeded.entity_ids) == {"member-a", "member-b"}
     assert set(seeded.account_ids) == {"eur-checking", "dkk-checking"}
     assert all("Synthetic" in entry.description for entry in BANK_ENTRIES)
+
+
+def test_concurrent_household_reads_do_not_take_mutation_row_locks(
+    postgres_engine: Engine,
+    postgres_api_client: TestClient,
+) -> None:
+    seeded = seed_household_source_facts(postgres_engine)
+    category = postgres_api_client.post(
+        "/household/categories",
+        json={"expected_revision": 0, "name": "Synthetic concurrent reads", "kind": "expense"},
+    )
+    assert category.status_code == 201
+    paths = ["/household/transactions"]
+    for key in ("supermarket-split", "mixed-merchant-purchase"):
+        transaction_id = seeded.transaction_ids[key]
+        amount = next(entry.amount for entry in BANK_ENTRIES if entry.key == key)
+        correction = postgres_api_client.patch(
+            f"/household/transactions/{transaction_id}/classification",
+            json={
+                "expected_revision": 0,
+                "treatment": "expense",
+                "allocations": [{"category_id": category.json()["id"], "amount": str(amount)}],
+                "explanation": "Synthetic concurrent read regression",
+            },
+        )
+        assert correction.status_code == 200
+        paths.extend(
+            [
+                f"/household/transactions/{transaction_id}",
+                f"/household/transactions/{transaction_id}/suggestion",
+            ]
+        )
+    statements: list[str] = []
+
+    def observe_read(state: ORMExecuteState) -> None:
+        if state.is_select:
+            statements.append(str(state.statement))
+
+    def read(path: str) -> int:
+        status: int = postgres_api_client.get(path).status_code
+        return status
+
+    event.listen(Session, "do_orm_execute", observe_read)
+    try:
+        with ThreadPoolExecutor(max_workers=5) as workers:
+            statuses = list(workers.map(read, paths * 3))
+        assert statuses == [200] * 15
+        assert statements
+        assert all("FOR UPDATE" not in statement.upper() for statement in statements)
+    finally:
+        event.remove(Session, "do_orm_execute", observe_read)
+
+    key = "supermarket-split"
+    body = {
+        "expected_revision": 1,
+        "treatment": "expense",
+        "allocations": [
+            {
+                "category_id": category.json()["id"],
+                "amount": str(next(entry.amount for entry in BANK_ENTRIES if entry.key == key)),
+            }
+        ],
+        "explanation": "Synthetic concurrent write regression",
+    }
+    correction_path = f"/household/transactions/{seeded.transaction_ids[key]}/classification"
+
+    def correct(_: int) -> int:
+        status: int = postgres_api_client.patch(correction_path, json=body).status_code
+        return status
+
+    with ThreadPoolExecutor(max_workers=2) as workers:
+        writes = list(workers.map(correct, range(2)))
+    assert writes.count(200) == 1
+    assert all(status in (200, 409, 503) for status in writes)
+    assert postgres_api_client.patch(correction_path, json=body).status_code == 409
 
 
 @pytest.mark.skipif(

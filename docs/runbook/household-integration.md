@@ -85,7 +85,13 @@ The shared write dependency is consumed only by household category, merchant and
 alias create/update, rule control/preview/apply, classification save, and undo.
 All retain service-owned flushes and the dependency-owned transaction, audit and
 refresh-intent lock; exceptions unwind the transaction and release the lock.
-Read dependencies and other API writers are unchanged.
+Other API writers are unchanged.
+Household read sessions explicitly disable mutation row locks: concurrent list,
+detail and suggestion GETs previously locked distinct transactions then their
+shared account in inconsistent order, producing a real PostgreSQL deadlock.
+Write sessions retain their advisory lock, row locks and revision checks.
+The read/write source-lock regression verifies both modes; browser persistence
+reads remain concurrent and are not serialized to hide this defect.
 Versioned rule regions expose accessible names so history actions target the
 active version explicitly instead of depending on layout ancestry.
 

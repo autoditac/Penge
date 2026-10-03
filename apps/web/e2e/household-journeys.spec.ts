@@ -126,7 +126,8 @@ test("local vendor provenance and stale merchant save use real revision guards",
   await expect(
     page.getByRole("region", { name: "Public merchant reference status" }),
   ).toContainText("2 entries");
-  await page.getByRole("combobox", { name: "Merchant", exact: true }).click();
+  await page.getByRole("combobox", { name: "Merchant", exact: true }).focus();
+  await page.keyboard.press("ArrowDown");
   await page.getByRole("option", { name: `${label} merchant`, exact: true }).click();
   await page.getByLabel("Merchant name or alias", { exact: true }).fill(`${label} public`);
   await page.getByLabel("Merchant name or alias", { exact: true }).press("Enter");
@@ -223,9 +224,10 @@ test("historical rule approval protects manual evidence and PayPal details never
   });
   const previewResponse = page.waitForResponse(
     (response) =>
-      response.url().startsWith(`${api}/household/rules/`) &&
-      response.url().endsWith("/preview") &&
-      response.request().method() === "POST",
+      new URL(response.url()).origin === api &&
+      new URL(response.url()).pathname === `/household/rules/${activeRule.id}/preview` &&
+      response.request().method() === "POST" &&
+      response.status() === 201,
   );
   await rule.getByRole("button", { name: "Preview historical reapply", exact: true }).click();
   const preview = householdPreviewSchema.parse(await (await previewResponse).json());

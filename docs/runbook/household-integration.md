@@ -64,6 +64,12 @@ The default household unit/API fixture now uses isolated in-memory SQLite with
 one shared connection for TestClient threads; real PostgreSQL gates are unchanged.
 The category picker and split editor retain existing archived assignments while
 preventing new archived-category selections.
+Browser smoke fixes its client clock to the synthetic June fixture window and
+accepts the dashboard's initial category fetch instead of requiring a redundant
+request after cached navigation.
+It still verifies a real category POST and a fresh persisted GET after reload.
+Each browser case has a bounded 90-second budget; failures retain synthetic
+screenshots/traces for three days in CI.
 
 ## Outstanding acceptance gates
 

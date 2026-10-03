@@ -169,6 +169,15 @@ jobs:
           PENGE_API_CORS_ORIGINS: http://127.0.0.1:5173
         run: just household-browser-test
 
+      - name: Preserve synthetic browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: household-browser-failure-${{ github.run_id }}
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 3
+
       - name: dbt parse
         run: uv run --group dbt dbt parse --project-dir dbt --profiles-dir dbt
 

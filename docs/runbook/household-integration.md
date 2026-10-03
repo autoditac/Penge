@@ -74,6 +74,9 @@ Each browser case has a bounded 90-second budget; failures retain synthetic
 screenshots/traces for three days in CI.
 Browser CI serves the production bundle with Vite preview rather than a mutable
 development module graph; traces showed cold optimizer/network-changed failures.
+The browser recipe builds that bundle explicitly before starting Playwright,
+keeping compilation outside the server-readiness timeout and retaining the
+real API origin and demo-disabled build flags.
 Household writes commit in a function-scoped dependency before sending success
 headers, preventing an immediate browser refetch from racing an uncommitted save.
 An in-memory boundary regression checks commit-before-headers and commit failure

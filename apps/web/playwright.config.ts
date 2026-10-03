@@ -24,7 +24,7 @@ export default defineConfig({
       reuseExistingServer: false,
     },
     {
-      command: "pnpm build && pnpm exec vite preview --host 127.0.0.1 --port 5173",
+      command: "pnpm exec vite preview --host 127.0.0.1 --port 5173",
       url: "http://127.0.0.1:5173",
       reuseExistingServer: false,
       env: { VITE_PENGE_DEMO: "false", VITE_PENGE_API_URL: "http://127.0.0.1:8000" },

@@ -468,4 +468,7 @@ jobs:
           DATABASE_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge_household_test
           PENGE_TEST_DATABASE_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/penge_household_test
           PENGE_ALLOW_DESTRUCTIVE_TEST_DB: "1"
-        run: uv run --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr --group vault --group report --group api pytest
+        run: >-
+          time uv run --group dev --group db --group http --group web --group manual
+          --group enablebanking --group parsers --group ocr --group vault --group report
+          --group api pytest -v --durations=20

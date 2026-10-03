@@ -138,7 +138,7 @@ jobs:
         run: uv run --group dbt dbt deps --project-dir dbt --profiles-dir dbt
 
       - name: Mart regression tests (synthetic data)
-        run: uv run --group db --group dbt --group dev pytest tests/dbt -q
+        run: time uv run --group db --group dbt --group dev pytest tests/dbt -vv --durations=20
 
       - name: Household end-to-end tests (synthetic data)
         run: just household-test
@@ -173,4 +173,4 @@ jobs:
         run: uv run --group dbt dbt parse --project-dir dbt --profiles-dir dbt
 
       - name: dbt build
-        run: uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt
+        run: time uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt

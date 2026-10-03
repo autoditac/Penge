@@ -53,6 +53,9 @@ The real drilldown acceptance covers omitted search, case-insensitive search, an
 no-match search; optional search binds are explicitly typed for PostgreSQL.
 CI jobs have bounded 30-minute budgets to accommodate full synthetic dbt builds
 and real-browser setup on the shared runners.
+Verbose pytest progress, the twenty slowest test durations, and wall/user/system
+timing for the acceptance and dbt commands distinguish expensive builds from
+stalled tests or shared-runner contention; a larger budget alone is not evidence.
 The category picker and split editor retain existing archived assignments while
 preventing new archived-category selections.
 

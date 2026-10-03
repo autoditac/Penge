@@ -279,7 +279,7 @@ household-dbt-parse:
 # CI-only browser seed uses the same guarded disposable database.
 household-browser-seed:
     uv run --group db python -m tests.household.browser_seed
-    uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt
+    time uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt
 
 household-mcp-postgres-test:
     pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts
@@ -295,7 +295,7 @@ household-test:
     DATABASE_URL="${PENGE_TEST_DATABASE_URL}" uv run --group db alembic upgrade head
     DATABASE_URL="${PENGE_TEST_DATABASE_URL}" uv run --group db alembic downgrade base
     DATABASE_URL="${PENGE_TEST_DATABASE_URL}" uv run --group db alembic upgrade head
-    uv run --group dev --group api --group db --group http --group parsers --group manual --group enablebanking --group dbt pytest tests/household -q
+    time uv run --group dev --group api --group db --group http --group parsers --group manual --group enablebanking --group dbt pytest tests/household -vv --durations=20
 
 # Lint + type-check the read API package.
 api-lint:

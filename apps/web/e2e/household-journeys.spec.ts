@@ -126,9 +126,25 @@ test("local vendor provenance and stale merchant save use real revision guards",
   await expect(
     page.getByRole("region", { name: "Public merchant reference status" }),
   ).toContainText("2 entries");
-  await page.getByRole("combobox", { name: "Merchant", exact: true }).focus();
+  const merchantPicker = page.getByRole("combobox", { name: "Merchant", exact: true });
+  await merchantPicker.scrollIntoViewIfNeeded();
+  await merchantPicker.focus();
   await page.keyboard.press("ArrowDown");
-  await page.getByRole("option", { name: `${label} merchant`, exact: true }).click();
+  await expect(page.getByRole("listbox")).toBeVisible();
+  const optionLabels = await page.getByRole("option").allTextContents();
+  const targetIndex = optionLabels.indexOf(`${label} merchant`);
+  expect(targetIndex).toBeGreaterThanOrEqual(0);
+  await page.keyboard.press("Home");
+  for (let index = 0; index < targetIndex; index += 1) {
+    await page.keyboard.press("ArrowDown");
+  }
+  await page.keyboard.press("Enter");
+  await expect(merchantPicker).toHaveText(`${label} merchant`);
+  await merchantPicker.scrollIntoViewIfNeeded();
+  await merchantPicker.click();
+  const selectedOption = page.getByRole("option", { name: `${label} merchant`, exact: true });
+  await expect(selectedOption).toBeInViewport({ ratio: 1 });
+  await selectedOption.click();
   await page.getByLabel("Merchant name or alias", { exact: true }).fill(`${label} public`);
   await page.getByLabel("Merchant name or alias", { exact: true }).press("Enter");
   const linked = page.waitForResponse(

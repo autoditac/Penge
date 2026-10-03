@@ -92,6 +92,10 @@ shared account in inconsistent order, producing a real PostgreSQL deadlock.
 Write sessions retain their advisory lock, row locks and revision checks.
 The read/write source-lock regression verifies both modes; browser persistence
 reads remain concurrent and are not serialized to hide this defect.
+Merchant selection scrolls the control into view before keyboard opening,
+uses native Home/ArrowDown/Enter with a selected-label assertion, then reopens the
+menu and verifies the option is fully in the viewport and pointer-selectable.
+This covers both keyboard and mobile touch geometry without forced clicks.
 Versioned rule regions expose accessible names so history actions target the
 active version explicitly instead of depending on layout ancestry.
 

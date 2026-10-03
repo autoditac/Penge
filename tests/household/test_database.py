@@ -130,6 +130,20 @@ def test_real_report_api_conserves_splits_and_keeps_paypal_bank_grain(
     assert Decimal(purchase["signed_amount_native"]) == Decimal("-125.40")
     assert Decimal(purchase["matching_split_amount_native"]) == Decimal("-125.40")
     assert len(purchase["allocations"]) == 2
+    searched = postgres_api_client.get(
+        "/household/reports/transactions",
+        params={**filters, "search": "SYNTHETIC MIXED"},
+    )
+    assert searched.status_code == 200, searched.text
+    assert searched.json()["total"] == 1
+    assert searched.json()["items"][0]["transaction_id"] == transaction_id
+    absent = postgres_api_client.get(
+        "/household/reports/transactions",
+        params={**filters, "search": "synthetic absent merchant"},
+    )
+    assert absent.status_code == 200, absent.text
+    assert absent.json()["total"] == 0
+    assert absent.json()["items"] == []
 
     child_filters = {**filters, "category_id": child_id}
     selected = postgres_api_client.get("/household/reports/summary", params=child_filters)

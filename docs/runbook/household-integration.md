@@ -49,6 +49,10 @@ No integrity tests are suppressed.
 Fixture migrations run in a child process so Alembic cannot disable loggers or
 replace pytest's log-capture handlers in subsequent tests.
 Synthetic transfer descriptions carry the same explicit marker as other fixtures.
+The real drilldown acceptance covers omitted search, case-insensitive search, and
+no-match search; optional search binds are explicitly typed for PostgreSQL.
+CI jobs have bounded 30-minute budgets to accommodate full synthetic dbt builds
+and real-browser setup on the shared runners.
 The category picker and split editor retain existing archived assignments while
 preventing new archived-category selections.
 

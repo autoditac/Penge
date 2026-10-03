@@ -64,7 +64,7 @@ jobs:
   build:
     name: dbt build (smoke)
     runs-on: [self-hosted, linux, x64, penge]
-    timeout-minutes: 20
+    timeout-minutes: 30
     services:
       postgres:
         # postgres:17-alpine — same digest pinned in compose.yaml.

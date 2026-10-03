@@ -359,8 +359,8 @@ _HOUSEHOLD_TRANSACTION_CANDIDATES = """
           )
       )
       and (
-          :search is null
-          or position(lower(:search) in lower(concat_ws(
+          cast(:search as text) is null
+          or position(lower(cast(:search as text)) in lower(concat_ws(
               ' ',
               f.counterparty,
               f.description,
@@ -373,7 +373,7 @@ _HOUSEHOLD_TRANSACTION_CANDIDATES = """
                   on link.detail_id = detail.detail_id
               where link.transaction_id = f.transaction_id
                 and detail.provider = 'paypal'
-                and position(lower(:search) in lower(concat_ws(
+                and position(lower(cast(:search as text)) in lower(concat_ws(
                     ' ',
                     detail.merchant_name,
                     detail.reference,

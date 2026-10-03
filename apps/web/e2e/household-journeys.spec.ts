@@ -147,7 +147,9 @@ test("local vendor provenance and stale merchant save use real revision guards",
   } else {
     await merchantPicker.click();
   }
-  await expect(merchantPicker).toHaveAttribute("aria-expanded", "true");
+  await expect(
+    page.getByRole("combobox", { name: "Merchant", exact: true, includeHidden: true }),
+  ).toHaveAttribute("aria-expanded", "true");
   const selectedOption = page.getByRole("option", { name: `${label} merchant`, exact: true });
   await expect(selectedOption).toBeInViewport({ ratio: 1 });
   if (testInfo.project.use.hasTouch) {

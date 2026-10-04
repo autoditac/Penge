@@ -86,4 +86,31 @@ describe("Copilot SDK policy", () => {
     expect(listModels).not.toHaveBeenCalled();
     expect(forceStop).toHaveBeenCalledOnce();
   });
+
+  it("bounds abort and teardown and force-stops after cooperative cleanup fails", async () => {
+    const forceStop = vi.fn(async () => undefined);
+    const stop = vi.fn(async () => [new Error("synthetic stop failure")]);
+    const runtime = new GitHubCopilotRuntime(syntheticConfig({ requestTimeoutMs: 10 }), () => ({
+      start: async () => undefined,
+      createSession: async () => ({
+        send: async () => undefined,
+        abort: async () => new Promise<void>(() => undefined),
+        disconnect: async () => new Promise<void>(() => undefined),
+        on: () => () => undefined,
+      }),
+      stop,
+      forceStop,
+    }));
+    const run = await runtime.createRun({
+      actorId: "actor-a",
+      sessionId: "bounded-cleanup",
+      tokenProvider: provider,
+      sink: { onEvent: () => undefined },
+    });
+
+    await expect(run.abort()).rejects.toThrow(/exceeded 10 ms/);
+    await expect(run.close()).rejects.toThrow(/cleanup failed/i);
+    expect(stop).toHaveBeenCalledOnce();
+    expect(forceStop).toHaveBeenCalledOnce();
+  });
 });

@@ -17,6 +17,8 @@ class FakeCopilotRuntime implements CopilotRuntime {
     }
   >();
   sendGate?: Promise<void>;
+  closeError?: Error;
+  emitIdleOnAbort = false;
 
   async createRun(options: {
     actorId: string;
@@ -33,9 +35,20 @@ class FakeCopilotRuntime implements CopilotRuntime {
       },
       abort: async () => {
         state.aborted = true;
+        if (this.emitIdleOnAbort) {
+          state.sink.onEvent({
+            ...eventBase("session.idle"),
+            type: "session.idle",
+            ephemeral: true,
+            data: { aborted: true },
+          });
+        }
       },
       close: async () => {
         state.closed = true;
+        if (this.closeError !== undefined) {
+          throw this.closeError;
+        }
       },
     };
   }
@@ -321,6 +334,26 @@ describe("chat runtime isolation and lifecycle", () => {
     expect(store.audits.filter((event) => event.status === "cancelled")).toHaveLength(1);
   });
 
+  it("emits one terminal event when abort concurrently reports idle", async () => {
+    const copilot = new FakeCopilotRuntime();
+    copilot.emitIdleOnAbort = true;
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) => {
+      events.push(event);
+    });
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    await runtime.cancel("actor-a", sessionId);
+    expect(events.filter((event) => event.type === "completion")).toHaveLength(1);
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+
   it("propagates request timeout to process cleanup", async () => {
     vi.useFakeTimers();
     const copilot = new FakeCopilotRuntime();
@@ -333,6 +366,36 @@ describe("chat runtime isolation and lifecycle", () => {
     const sessionId = await runtime.start("actor-a", "Safe question", () => undefined);
     await vi.advanceTimersByTimeAsync(25);
     expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true });
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+
+  it("drains every session when audit and run cleanup reject", async () => {
+    class RejectingAuditStore extends MemoryChatStore {
+      override async appendAudit(
+        event: Parameters<MemoryChatStore["appendAudit"]>[0],
+      ): Promise<void> {
+        if (event.status !== "started") {
+          throw new Error("synthetic audit failure");
+        }
+        await super.appendAudit(event);
+      }
+    }
+
+    const copilot = new FakeCopilotRuntime();
+    copilot.closeError = new Error("synthetic close failure");
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new RejectingAuditStore(),
+    );
+    const first = await runtime.start("actor-a", "Safe question", () => undefined);
+    const second = await runtime.start("actor-b", "Another safe question", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.size).toBe(2));
+
+    await expect(runtime.close()).rejects.toThrow(/background lifecycle failures/);
+    expect(copilot.runs.get(first)).toMatchObject({ aborted: true, closed: true });
+    expect(copilot.runs.get(second)).toMatchObject({ aborted: true, closed: true });
     expect(runtime.activeSessionCount).toBe(0);
   });
 });

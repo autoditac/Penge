@@ -317,14 +317,23 @@ export class ChatRuntime {
   }
 
   async close(): Promise<void> {
-    await Promise.all(
+    const failures: unknown[] = [];
+    const sessionResults = await Promise.allSettled(
       [...this.sessions.values()].map((session) =>
         this.finish(session, "cancelled", undefined, true),
       ),
     );
-    await Promise.all([...this.backgroundTasks]);
-    if (this.backgroundErrors.length > 0) {
-      throw new AggregateError(this.backgroundErrors, "chat background lifecycle failures");
+    for (const result of sessionResults) {
+      if (result.status === "rejected") {
+        failures.push(result.reason);
+      }
+    }
+    while (this.backgroundTasks.size > 0) {
+      await Promise.allSettled([...this.backgroundTasks]);
+    }
+    failures.push(...this.backgroundErrors.splice(0));
+    if (failures.length > 0) {
+      throw new AggregateError(failures, "chat background lifecycle failures");
     }
   }
 

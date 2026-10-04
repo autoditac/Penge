@@ -8,6 +8,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { z } from "zod/v3";
 
 import type { AuditLogger } from "./audit.js";
+import { PengeError, ToolInputError, ToolUnknownError } from "./errors.js";
 import { ToolRegistry, type ToolContext, type ToolDefinition } from "./registry.js";
 import { metaTool } from "./tools/meta.js";
 
@@ -25,14 +26,10 @@ export interface BuiltServer {
   registry: ToolRegistry;
 }
 
-class ToolInputError extends Error {
-  override readonly name = "ToolInputError";
-  readonly code = "tool/input_invalid";
-}
-
-class ToolUnknownError extends Error {
-  override readonly name = "ToolUnknownError";
-  readonly code = "tool/unknown";
+function auditErrorCode(cause: unknown): string {
+  if (cause instanceof PengeError) return cause.code;
+  if (cause instanceof Error) return cause.name || "Error";
+  return "unknown_error";
 }
 
 export function buildServer(opts: BuildServerOptions): BuiltServer {
@@ -73,7 +70,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
         args: rawArgs,
         status: "error",
         durationMs: Date.now() - startedAt,
-        error: err.message,
+        error: err.code,
       });
       throw err;
     }
@@ -90,7 +87,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
         args: rawArgs,
         status: "error",
         durationMs: Date.now() - startedAt,
-        error: err.message,
+        error: err.code,
       });
       throw err;
     }
@@ -108,13 +105,12 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
         content: [{ type: "text", text: JSON.stringify(validated) }],
       };
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause);
       opts.audit.record({
         tool: name,
         args: rawArgs,
         status: "error",
         durationMs: Date.now() - startedAt,
-        error: message,
+        error: auditErrorCode(cause),
       });
       throw cause;
     }

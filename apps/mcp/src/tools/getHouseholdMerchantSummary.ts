@@ -1,31 +1,69 @@
 import { z } from "zod/v3";
 
 import type { ToolDefinition } from "../registry.js";
+import type { HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
+const IdentityKindSchema = z.enum(["stable", "processor", "marketplace", "mixed", "unknown"]);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const MerchantSummarySchema = z
-  .object({
-    id: z.string().regex(UUID),
-    normalized_name: z.string().max(200),
-    category_id: z.string().regex(UUID).optional(),
-    category_label: z.string().max(120).optional(),
-    confidence: z.number().min(0).max(1),
-  })
-  .strict();
 
 const InputSchema = z
   .object({
-    query: z.string().max(200).optional(),
-    limit: z.number().int().min(1).max(50).default(20),
+    query: z.string().min(2).max(120).optional(),
+    include_archived: z.boolean().default(false),
+    limit: z.number().int().min(1).max(50).default(25),
+    offset: z.number().int().min(0).max(5000).default(0),
+  })
+  .strict();
+
+const MerchantSchema = z
+  .object({
+    merchant_id: z.string().regex(UUID),
+    name: z.string().max(200),
+    identity_kind: IdentityKindSchema,
+    confirmed: z.boolean(),
+    archived: z.boolean(),
+    revision: z.number().int().positive(),
+    rule_version: z.number().int().nonnegative(),
+    alias_count: z.number().int().nonnegative(),
+    active_rule_count: z.number().int().nonnegative(),
+    classified_transaction_count: z.number().int().nonnegative(),
+    reference: z
+      .object({
+        source: z.string().max(200),
+        key: z.string().max(200),
+        version: z.string().max(200),
+      })
+      .strict()
+      .nullable(),
   })
   .strict();
 
 const OutputSchema = z
   .object({
     generated_at: z.string().datetime(),
-    merchants: z.array(MerchantSummarySchema).max(50),
-    total: z.number().int().nonnegative().max(5000),
+    total: z.number().int().nonnegative(),
+    limit: z.number().int().min(1).max(50),
+    offset: z.number().int().min(0).max(5000),
+    merchants: z.array(MerchantSchema).max(50),
+  })
+  .strict();
+
+const RowSchema = z
+  .object({
+    merchant_id: z.string().regex(UUID),
+    name: z.string(),
+    identity_kind: IdentityKindSchema,
+    confirmed: z.boolean(),
+    archived: z.boolean(),
+    revision: z.coerce.number().int().positive(),
+    rule_version: z.coerce.number().int().nonnegative(),
+    alias_count: z.coerce.number().int().nonnegative(),
+    active_rule_count: z.coerce.number().int().nonnegative(),
+    classified_transaction_count: z.coerce.number().int().nonnegative(),
+    reference_source: z.string().nullable(),
+    reference_key: z.string().nullable(),
+    reference_version: z.string().nullable(),
+    total_count: z.coerce.number().int().nonnegative(),
   })
   .strict();
 
@@ -33,38 +71,69 @@ export type GetHouseholdMerchantSummaryInput = z.infer<typeof InputSchema>;
 export type GetHouseholdMerchantSummaryOutput = z.infer<typeof OutputSchema>;
 
 export interface GetHouseholdMerchantSummaryOptions {
-  runner?: {
-    query: (
-      sql: string,
-      params: ReadonlyArray<unknown>,
-    ) => Promise<{ rows: Array<Record<string, unknown>> }>;
-  };
+  runner: HouseholdTransactionQueryRunner;
+  now?: () => Date;
 }
 
+const MERCHANT_SQL = `
+  SELECT m.id::text AS merchant_id, left(m.name, 200) AS name, m.identity_kind,
+    m.confirmed, m.archived, m.revision, m.rule_version,
+    (SELECT count(*)::int FROM household_merchant_alias a WHERE a.merchant_id = m.id)
+      AS alias_count,
+    (SELECT count(*)::int FROM household_rule r
+      WHERE r.merchant_id = m.id AND r.state = 'active') AS active_rule_count,
+    (SELECT count(*)::int FROM household_classification c
+      WHERE c.merchant_id = m.id) AS classified_transaction_count,
+    m.reference_source, m.reference_key, m.reference_version,
+    count(*) OVER()::int AS total_count
+  FROM household_merchant AS m
+  WHERE ($1::boolean OR NOT m.archived)
+    AND ($2::text IS NULL OR position(lower($2) in lower(m.name)) > 0)
+  ORDER BY m.name, m.id
+  LIMIT $3 OFFSET $4
+`;
+
 export function getHouseholdMerchantSummaryTool(
-  _opts: GetHouseholdMerchantSummaryOptions = {},
+  opts: GetHouseholdMerchantSummaryOptions,
 ): ToolDefinition<GetHouseholdMerchantSummaryInput, GetHouseholdMerchantSummaryOutput> {
   return {
     name: "get_household_merchant_summary",
     description:
-      "Return a bounded merchant-level summary for the household classification layer and locally normalized merchant aliases.",
+      "Return bounded household merchant identity, alias, rule, and classification counts without source payloads.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
-      void _opts.runner;
-      const merchants = [
-        {
-          id: "55555555-5555-4555-8555-555555555555",
-          normalized_name: "marketplace",
-          category_id: "11111111-1111-4111-8111-111111111111",
-          category_label: "Household spending",
-          confidence: 0.94,
-        },
-      ] as const;
+      const result = await opts.runner.query(MERCHANT_SQL, [
+        args.include_archived,
+        args.query?.toLocaleLowerCase("en") ?? null,
+        args.limit,
+        args.offset,
+      ]);
+      const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
-        generated_at: new Date().toISOString(),
-        merchants: merchants.slice(0, args.limit),
-        total: merchants.length,
+        generated_at: (opts.now?.() ?? new Date()).toISOString(),
+        total: rows[0]?.total_count ?? 0,
+        limit: args.limit,
+        offset: args.offset,
+        merchants: rows.map(
+          ({
+            total_count: _total,
+            reference_source,
+            reference_key,
+            reference_version,
+            ...row
+          }) => ({
+            ...row,
+            reference:
+              reference_source === null || reference_key === null || reference_version === null
+                ? null
+                : {
+                    source: reference_source,
+                    key: reference_key,
+                    version: reference_version,
+                  },
+          }),
+        ),
       };
     },
   };

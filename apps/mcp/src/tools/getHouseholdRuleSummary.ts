@@ -1,70 +1,108 @@
 import { z } from "zod/v3";
 
+import { ToolDataError } from "../errors.js";
 import type { ToolDefinition } from "../registry.js";
+import type { HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-const RuleSchema = z
-  .object({
-    id: z.string().regex(UUID),
-    name: z.string().max(120),
-    scope: z.enum(["global", "merchant", "category", "manual"]),
-    enabled: z.boolean(),
-    description: z.string().max(250),
-  })
-  .strict();
+const StateSchema = z.enum(["active", "conflict", "disabled", "insufficient"]);
 
 const InputSchema = z
   .object({
-    source: z.enum(["household_classification", "manual_facts", "paypal"]).optional(),
-    limit: z.number().int().min(1).max(50).default(20),
+    state: StateSchema.optional(),
+    merchant_id: z.string().regex(UUID).optional(),
+    limit: z.number().int().min(1).max(50).default(25),
+    offset: z.number().int().min(0).max(5000).default(0),
+  })
+  .strict();
+
+const RuleSchema = z
+  .object({
+    rule_id: z.string().regex(UUID),
+    merchant_id: z.string().regex(UUID),
+    merchant_name: z.string().max(200),
+    version: z.number().int().positive(),
+    state: StateSchema,
+    category_id: z.string().regex(UUID).nullable(),
+    category_name: z.string().max(200).nullable(),
+    treatment: z.string().max(30).nullable(),
+    explanation: z.string().max(1000),
+    created_at: z.string().datetime(),
   })
   .strict();
 
 const OutputSchema = z
   .object({
     generated_at: z.string().datetime(),
+    total: z.number().int().nonnegative(),
+    limit: z.number().int().min(1).max(50),
+    offset: z.number().int().min(0).max(5000),
     rules: z.array(RuleSchema).max(50),
-    total: z.number().int().nonnegative().max(5000),
   })
   .strict();
+
+const RowSchema = RuleSchema.omit({ created_at: true }).extend({
+  version: z.coerce.number().int().positive(),
+  created_at: z.union([z.date(), z.string()]),
+  total_count: z.coerce.number().int().nonnegative(),
+});
 
 export type GetHouseholdRuleSummaryInput = z.infer<typeof InputSchema>;
 export type GetHouseholdRuleSummaryOutput = z.infer<typeof OutputSchema>;
 
 export interface GetHouseholdRuleSummaryOptions {
-  runner?: {
-    query: (
-      sql: string,
-      params: ReadonlyArray<unknown>,
-    ) => Promise<{ rows: Array<Record<string, unknown>> }>;
-  };
+  runner: HouseholdTransactionQueryRunner;
+  now?: () => Date;
+}
+
+const RULE_SQL = `
+  SELECT r.id::text AS rule_id, r.merchant_id::text AS merchant_id,
+    left(m.name, 200) AS merchant_name, r.version, r.state,
+    r.category_id::text AS category_id, left(c.name, 200) AS category_name,
+    r.treatment, r.explanation, r.created_at, count(*) OVER()::int AS total_count
+  FROM household_rule AS r
+  INNER JOIN household_merchant AS m ON m.id = r.merchant_id
+  LEFT JOIN household_category AS c ON c.id = r.category_id
+  WHERE ($1::text IS NULL OR r.state = $1)
+    AND ($2::uuid IS NULL OR r.merchant_id = $2)
+  ORDER BY r.created_at DESC, r.id DESC
+  LIMIT $3 OFFSET $4
+`;
+
+function instant(value: Date | string): string {
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.valueOf())) {
+    throw new ToolDataError("rule query returned an invalid timestamp");
+  }
+  return parsed.toISOString();
 }
 
 export function getHouseholdRuleSummaryTool(
-  _opts: GetHouseholdRuleSummaryOptions = {},
+  opts: GetHouseholdRuleSummaryOptions,
 ): ToolDefinition<GetHouseholdRuleSummaryInput, GetHouseholdRuleSummaryOutput> {
   return {
     name: "get_household_rule_summary",
     description:
-      "Return the active classification rules and their scope without exposing raw transaction or rule payload details.",
+      "Return bounded append-only household rule summaries without raw evidence payloads.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
-      void _opts.runner;
-      const rules = [
-        {
-          id: "44444444-4444-4444-8444-444444444444",
-          name: "Marketplace merchant match",
-          scope: "merchant",
-          enabled: true,
-          description: "Maps known marketplace labels to the household spending category.",
-        },
-      ] as const;
+      const result = await opts.runner.query(RULE_SQL, [
+        args.state ?? null,
+        args.merchant_id ?? null,
+        args.limit,
+        args.offset,
+      ]);
+      const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
-        generated_at: new Date().toISOString(),
-        rules: rules.slice(0, args.limit),
-        total: rules.length,
+        generated_at: (opts.now?.() ?? new Date()).toISOString(),
+        total: rows[0]?.total_count ?? 0,
+        limit: args.limit,
+        offset: args.offset,
+        rules: rows.map(({ total_count: _total, created_at, ...row }) => ({
+          ...row,
+          created_at: instant(created_at),
+        })),
       };
     },
   };

@@ -10,6 +10,7 @@ import { createAuditLogger } from "./audit.js";
 import { loadConfig } from "./config.js";
 import { connect } from "./db.js";
 import { buildServer } from "./server.js";
+import { assertRegisteredToolAllowlist, assertSourceCatalogCoverage } from "./sources.js";
 import { answerPlanningQuestionTool } from "./tools/answerPlanningQuestion.js";
 import { computeTaxYearTool } from "./tools/computeTaxYear.js";
 import { getHouseholdMerchantSummaryTool } from "./tools/getHouseholdMerchantSummary.js";
@@ -32,13 +33,17 @@ const SERVER_VERSION = "0.0.0";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const audit = createAuditLogger({ logDir: config.logDir });
+  const audit = createAuditLogger({
+    logDir: config.logDir,
+    ...(config.actorId === undefined ? {} : { actorId: config.actorId }),
+    ...(config.sessionId === undefined ? {} : { sessionId: config.sessionId }),
+  });
   const data = await connect({
     databaseUrl: config.databaseUrl,
     duckdbPath: config.duckdbPath,
   });
 
-  const { server } = buildServer({
+  const { server, registry } = buildServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
     audit,
@@ -163,7 +168,18 @@ async function main(): Promise<void> {
           },
         },
       }),
-      getSourceCoverageTool(),
+      getSourceCoverageTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
       computeTaxYearTool(),
       runScenarioTool(),
       answerPlanningQuestionTool(),
@@ -182,6 +198,8 @@ async function main(): Promise<void> {
       }),
     ],
   });
+  assertSourceCatalogCoverage();
+  assertRegisteredToolAllowlist(registry.list().map((tool) => tool.name));
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

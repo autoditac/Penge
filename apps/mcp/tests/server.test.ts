@@ -3,16 +3,30 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 import type { AuditLogger } from "../src/audit.js";
-import { assertCoverageForSource, SOURCE_CATALOG } from "../src/sources.js";
+import {
+  assertRegisteredToolAllowlist,
+  assertSourceCatalogCoverage,
+  MCP_READ_ONLY_TOOL_ALLOWLIST,
+  SOURCE_CATALOG,
+  type SourceCatalogEntry,
+} from "../src/sources.js";
 import { buildServer } from "../src/server.js";
 
 it("fails closed when a supported source lacks an MCP evidence path", () => {
-  for (const source of SOURCE_CATALOG) {
-    expect(
-      () => assertCoverageForSource(source.id),
-      `${source.id} must expose an evidence path`,
-    ).not.toThrow();
-  }
+  expect(() => assertSourceCatalogCoverage()).not.toThrow();
+  const incomplete = SOURCE_CATALOG.map((source) =>
+    source.id === "gls" ? ({ ...source, evidence_paths: [] } as SourceCatalogEntry) : source,
+  );
+  expect(() => assertSourceCatalogCoverage(incomplete)).toThrow(
+    "supported source gls has no MCP evidence path",
+  );
+});
+
+it("fails closed when registered tools differ from the stdio allowlist", () => {
+  expect(() => assertRegisteredToolAllowlist(MCP_READ_ONLY_TOOL_ALLOWLIST)).not.toThrow();
+  expect(() => assertRegisteredToolAllowlist(["_meta", "mutate_everything"])).toThrow(
+    "registered MCP tools differ from the read-only allowlist",
+  );
 });
 
 function createCollectingAudit(): AuditLogger & { entries: Array<Record<string, unknown>> } {

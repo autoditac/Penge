@@ -1,13 +1,16 @@
 import { mkdirSync, createWriteStream, type WriteStream } from "node:fs";
 import { dirname, join } from "node:path";
 
-const REDACT_KEY = /(account|iban|cpr|tax[_-]?id|name|email|query)/i;
+const REDACT_KEY =
+  /(account|iban|cpr|tax[_-]?id|name|email|query|prompt|transcript|payload|secret|token|message|content)/i;
 const REDACTED = "[REDACTED]";
 
 export interface AuditRecord {
   ts: string;
   tool: string;
   args: unknown;
+  actorId?: string;
+  sessionId?: string;
   status: "ok" | "error";
   durationMs: number;
   error?: string;
@@ -48,6 +51,10 @@ export interface AuditLoggerOptions {
   stderr?: NodeJS.WritableStream;
   /** Override the date used for the file name (test determinism). */
   now?: () => Date;
+  /** Opaque per-person identifier. Must not contain a name or email address. */
+  actorId?: string;
+  /** Opaque bounded-lifetime chat session identifier. */
+  sessionId?: string;
 }
 
 export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
@@ -62,6 +69,8 @@ export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
     record(entry) {
       const record: AuditRecord = {
         ts: now().toISOString(),
+        ...(opts.actorId === undefined ? {} : { actorId: opts.actorId }),
+        ...(opts.sessionId === undefined ? {} : { sessionId: opts.sessionId }),
         ...entry,
         args: redactArgs(entry.args),
       };

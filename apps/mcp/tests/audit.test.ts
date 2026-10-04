@@ -38,6 +38,28 @@ describe("redactArgs", () => {
     });
   });
 
+  it("redacts prompt, transcript, message, token, secret, and payload fields", () => {
+    expect(
+      redactArgs({
+        prompt: "private question",
+        transcript: ["private answer"],
+        message: "private event",
+        access_token: "secret",
+        client_secret: "secret",
+        tool_payload: { amount: 42 },
+        limit: 5,
+      }),
+    ).toEqual({
+      prompt: "[REDACTED]",
+      transcript: "[REDACTED]",
+      message: "[REDACTED]",
+      access_token: "[REDACTED]",
+      client_secret: "[REDACTED]",
+      tool_payload: "[REDACTED]",
+      limit: 5,
+    });
+  });
+
   it("redacts case-insensitively and across nested objects", () => {
     expect(
       redactArgs({
@@ -70,6 +92,8 @@ describe("createAuditLogger", () => {
       logDir: dir,
       stderr,
       now: () => fixedDate,
+      actorId: "actor_01hx9p",
+      sessionId: "session_01hx9p",
     });
 
     logger.record({
@@ -90,6 +114,8 @@ describe("createAuditLogger", () => {
     expect(parsed.tool).toBe("_meta");
     expect(parsed.status).toBe("ok");
     expect(parsed.ts).toBe("2026-05-10T12:34:56.000Z");
+    expect(parsed.actorId).toBe("actor_01hx9p");
+    expect(parsed.sessionId).toBe("session_01hx9p");
     expect((parsed.args as Record<string, unknown>).account).toBe("[REDACTED]");
 
     rmSync(dir, { recursive: true, force: true });

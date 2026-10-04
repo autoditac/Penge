@@ -1,82 +1,98 @@
 import { z } from "zod/v3";
 
 import type { ToolDefinition } from "../registry.js";
+import type { HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const TaxonomyEntrySchema = z
+const InputSchema = z
   .object({
-    id: z.string().regex(UUID),
-    label: z.string().max(120),
-    parent_id: z.string().regex(UUID).nullable(),
-    coverage: z.number().min(0).max(1),
-    currency: z.enum(["DKK", "EUR"]),
+    parent_id: z.string().regex(UUID).nullable().optional(),
+    include_archived: z.boolean().default(false),
+    limit: z.number().int().min(1).max(50).default(25),
+    offset: z.number().int().min(0).max(5000).default(0),
   })
   .strict();
 
-const InputSchema = z
+const EntrySchema = z
   .object({
-    entity_id: z.string().regex(UUID).optional(),
-    include_children: z.boolean().default(true),
-    limit: z.number().int().min(1).max(50).default(20),
+    category_id: z.string().regex(UUID),
+    name: z.string().max(200),
+    kind: z.enum(["expense", "income"]),
+    parent_id: z.string().regex(UUID).nullable(),
+    sort_order: z.number().int().nonnegative(),
+    archived: z.boolean(),
+    revision: z.number().int().positive(),
+    allocation_count: z.number().int().nonnegative(),
+    classified_transaction_count: z.number().int().nonnegative(),
   })
   .strict();
 
 const OutputSchema = z
   .object({
     generated_at: z.string().datetime(),
-    entity_id: z.string().regex(UUID).optional(),
-    include_children: z.boolean(),
-    entries: z.array(TaxonomyEntrySchema).max(50),
-    total: z.number().int().nonnegative().max(5000),
+    total: z.number().int().nonnegative(),
+    limit: z.number().int().min(1).max(50),
+    offset: z.number().int().min(0).max(5000),
+    entries: z.array(EntrySchema).max(50),
   })
   .strict();
+
+const RowSchema = EntrySchema.extend({
+  total_count: z.coerce.number().int().nonnegative(),
+  allocation_count: z.coerce.number().int().nonnegative(),
+  classified_transaction_count: z.coerce.number().int().nonnegative(),
+  sort_order: z.coerce.number().int().nonnegative(),
+  revision: z.coerce.number().int().positive(),
+});
 
 export type GetHouseholdTaxonomySummaryInput = z.infer<typeof InputSchema>;
 export type GetHouseholdTaxonomySummaryOutput = z.infer<typeof OutputSchema>;
 
 export interface GetHouseholdTaxonomySummaryOptions {
-  runner?: {
-    query: (
-      sql: string,
-      params: ReadonlyArray<unknown>,
-    ) => Promise<{ rows: Array<Record<string, unknown>> }>;
-  };
+  runner: HouseholdTransactionQueryRunner;
+  now?: () => Date;
 }
 
+const TAXONOMY_SQL = `
+  SELECT c.id::text AS category_id, c.name, c.kind, c.parent_id::text AS parent_id,
+    c.sort_order, c.archived, c.revision,
+    (SELECT count(*)::int FROM household_allocation a WHERE a.category_id = c.id)
+      AS allocation_count,
+    (SELECT count(DISTINCT a.transaction_id)::int
+      FROM household_allocation a WHERE a.category_id = c.id)
+      AS classified_transaction_count,
+    count(*) OVER()::int AS total_count
+  FROM household_category AS c
+  WHERE ($1::uuid IS NULL OR c.parent_id = $1::uuid)
+    AND ($2::boolean OR NOT c.archived)
+  ORDER BY c.sort_order, c.name, c.id
+  LIMIT $3 OFFSET $4
+`;
+
 export function getHouseholdTaxonomySummaryTool(
-  _opts: GetHouseholdTaxonomySummaryOptions = {},
+  opts: GetHouseholdTaxonomySummaryOptions,
 ): ToolDefinition<GetHouseholdTaxonomySummaryInput, GetHouseholdTaxonomySummaryOutput> {
   return {
     name: "get_household_taxonomy_summary",
     description:
-      "Return a bounded, read-only summary of the household taxonomy and its coverage, without exposing raw statement data.",
+      "Return a bounded household category summary with stable IDs and usage counts; never source transactions or provider payloads.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
-      void _opts.runner;
-      const entries = [
-        {
-          id: "11111111-1111-4111-8111-111111111111",
-          label: "Household spending",
-          parent_id: null,
-          coverage: 1,
-          currency: "DKK",
-        },
-        {
-          id: "22222222-2222-4222-8222-222222222222",
-          label: "Housing",
-          parent_id: "11111111-1111-4111-8111-111111111111",
-          coverage: 0.9,
-          currency: "DKK",
-        },
-      ] as const;
+      const result = await opts.runner.query(TAXONOMY_SQL, [
+        args.parent_id ?? null,
+        args.include_archived,
+        args.limit,
+        args.offset,
+      ]);
+      const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
-        generated_at: new Date().toISOString(),
-        entity_id: args.entity_id ?? undefined,
-        include_children: args.include_children,
-        entries: entries.slice(0, args.limit),
-        total: entries.length,
+        generated_at: (opts.now?.() ?? new Date()).toISOString(),
+        total: rows[0]?.total_count ?? 0,
+        limit: args.limit,
+        offset: args.offset,
+        entries: rows.map(({ total_count: _total, ...row }) => row),
       };
     },
   };

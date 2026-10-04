@@ -1,5 +1,23 @@
 import { z } from "zod/v3";
 
+import { SourceCoverageError } from "./errors.js";
+
+export const SourceIdSchema = z.enum([
+  "gls",
+  "ebank",
+  "lunar",
+  "enable_banking",
+  "nordnet",
+  "pfa",
+  "growney",
+  "ecb_fx",
+  "manual_facts",
+  "household_classification",
+  "paypal",
+  "nsi_merchant_reference",
+]);
+export type SourceId = z.infer<typeof SourceIdSchema>;
+
 export const SourceKindSchema = z.enum([
   "bank",
   "brokerage",
@@ -7,430 +25,356 @@ export const SourceKindSchema = z.enum([
   "fx",
   "manual",
   "taxonomy",
-  "paypal",
+  "enrichment",
   "merchant_reference",
 ]);
 
-export const SourceStatusSchema = z.enum(["supported", "partial", "deprecated"]);
-export const SourceFreshnessSchema = z.enum(["fresh", "stale", "unknown", "partial"]);
-export const SourceEvidenceKindSchema = z.enum([
-  "catalog",
-  "transaction_search",
-  "transaction_detail",
-  "taxonomy_summary",
-  "merchant_summary",
-  "rule_summary",
-  "merchant_status",
-  "merchant_search",
-  "fx_summary",
-  "manual_fact_summary",
-  "paypal_detail",
-  "nsi_reference",
+export const SourceCapabilitySchema = z.enum([
+  "transactions",
+  "holdings",
+  "balances",
+  "fx_rates",
+  "manual_facts",
+  "classifications",
+  "allocations",
+  "rules",
+  "merchant_aliases",
+  "payment_enrichment",
+  "merchant_reference",
 ]);
+
+export const EvidenceToolNameSchema = z.enum([
+  "query_net_worth",
+  "query_cashflow",
+  "query_household_report",
+  "get_source_coverage",
+  "search_household_transactions",
+  "get_household_transaction_detail",
+  "get_household_taxonomy_summary",
+  "get_household_rule_summary",
+  "get_household_merchant_summary",
+  "get_merchant_reference_status",
+  "search_merchant_reference",
+]);
+export type EvidenceToolName = z.infer<typeof EvidenceToolNameSchema>;
+
+export const MCP_READ_ONLY_TOOL_ALLOWLIST = [
+  "_meta",
+  "query_net_worth",
+  "query_cashflow",
+  "query_household_report",
+  "search_household_transactions",
+  "get_household_transaction_detail",
+  "get_household_taxonomy_summary",
+  "get_household_rule_summary",
+  "get_household_merchant_summary",
+  "get_merchant_reference_status",
+  "search_merchant_reference",
+  "get_source_coverage",
+  "compute_tax_year",
+  "run_scenario",
+  "answer_planning_question",
+  "search_documents",
+  "suggest_import_mapping",
+] as const;
 
 export const SourceEvidencePathSchema = z
   .object({
-    tool: z.string().min(1),
-    kind: SourceEvidenceKindSchema,
-    description: z.string().min(1),
+    tool: EvidenceToolNameSchema,
+    evidence: z.string().min(1).max(240),
   })
   .strict();
 
 export const SourceCatalogEntrySchema = z
   .object({
-    id: z.string().min(1),
-    label: z.string().min(1),
+    id: SourceIdSchema,
+    label: z.string().min(1).max(120),
     kind: SourceKindSchema,
-    status: SourceStatusSchema,
-    freshness: SourceFreshnessSchema,
-    summary: z.string().min(1),
-    tools: z.array(z.string().min(1)).min(1),
+    capabilities: z.array(SourceCapabilitySchema).min(1),
     evidence_paths: z.array(SourceEvidencePathSchema).min(1),
-    notes: z.array(z.string().min(1)),
+    stale_after_days: z.number().int().positive().max(400),
   })
   .strict();
-
 export type SourceCatalogEntry = z.infer<typeof SourceCatalogEntrySchema>;
 
-export const SOURCE_CATALOG: readonly SourceCatalogEntry[] = [
-  {
+const entries = {
+  gls: {
     id: "gls",
     label: "GLS Bank",
     kind: "bank",
-    status: "supported",
-    freshness: "fresh",
-    summary:
-      "GLS checking and savings source evidence for household cashflow and account coverage.",
-    tools: [
-      "search_household_transactions",
-      "get_household_transaction_detail",
-      "get_source_coverage",
-    ],
+    capabilities: ["transactions", "balances"],
     evidence_paths: [
       {
         tool: "search_household_transactions",
-        kind: "transaction_search",
-        description: "List bounded GLS account transactions by account/date with stable IDs.",
+        evidence: "Bounded transaction search over GLS accounts.",
       },
       {
         tool: "get_household_transaction_detail",
-        kind: "transaction_detail",
-        description:
-          "Fetch stable-ID allocations, classification and audit evidence for a GLS transaction.",
+        evidence: "Stable transaction detail with classification and audit lineage.",
       },
       {
-        tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Expose the GLS source in the typed source catalog and tool mapping.",
+        tool: "query_household_report",
+        evidence: "Exact EUR/DKK household allocations and missing-FX evidence.",
       },
+      { tool: "get_source_coverage", evidence: "Account and transaction freshness counts." },
     ],
-    notes: [
-      "GLS is a supported cash-account source; the MCP layer exposes evidence summaries only.",
-    ],
+    stale_after_days: 8,
   },
-  {
+  ebank: {
     id: "ebank",
     label: "Evangelische Bank",
     kind: "bank",
-    status: "supported",
-    freshness: "fresh",
-    summary:
-      "Evangelische Bank account summaries and transaction evidence surfaced read-only over MCP.",
-    tools: [
-      "search_household_transactions",
-      "get_household_transaction_detail",
-      "get_source_coverage",
-    ],
+    capabilities: ["transactions", "balances"],
     evidence_paths: [
       {
         tool: "search_household_transactions",
-        kind: "transaction_search",
-        description: "Bounded transaction search over Evangelische Bank statements.",
+        evidence: "Bounded transaction search over Evangelische Bank accounts.",
       },
       {
         tool: "get_household_transaction_detail",
-        kind: "transaction_detail",
-        description: "Stable-ID detail for allocations, classifications and audit lineage.",
+        evidence: "Stable transaction detail with classification and audit lineage.",
       },
       {
-        tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Source-matrix declaration for Evangelische Bank coverage.",
+        tool: "query_household_report",
+        evidence: "Exact EUR/DKK household allocations and missing-FX evidence.",
       },
+      { tool: "get_source_coverage", evidence: "Account and transaction freshness counts." },
     ],
-    notes: ["MCP exposes evidence summaries, not raw account or statement dumps."],
+    stale_after_days: 8,
   },
-  {
+  lunar: {
     id: "lunar",
     label: "Lunar",
     kind: "bank",
-    status: "supported",
-    freshness: "fresh",
-    summary: "Lunar Enable Banking source evidence for card and checking transactions.",
-    tools: [
-      "search_household_transactions",
-      "get_household_transaction_detail",
-      "get_source_coverage",
-    ],
+    capabilities: ["transactions", "balances"],
     evidence_paths: [
       {
         tool: "search_household_transactions",
-        kind: "transaction_search",
-        description: "Read-only search for Lunar transactions with bounded output.",
+        evidence: "Bounded transaction search over Lunar accounts.",
       },
       {
         tool: "get_household_transaction_detail",
-        kind: "transaction_detail",
-        description: "Return Lunar detail and linked PayPal evidence without duplicate ledgers.",
+        evidence: "Stable detail with linked payment enrichment.",
       },
       {
-        tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Catalog entry for the Lunar source and tool mapping.",
+        tool: "query_household_report",
+        evidence: "Exact EUR/DKK household allocations and missing-FX evidence.",
       },
+      { tool: "get_source_coverage", evidence: "Account and transaction freshness counts." },
     ],
-    notes: ["Enable Banking integration remains read-only and evidence-scoped in MCP."],
+    stale_after_days: 8,
   },
-  {
+  enable_banking: {
     id: "enable_banking",
     label: "Enable Banking",
     kind: "bank",
-    status: "supported",
-    freshness: "fresh",
-    summary:
-      "Enable Banking abstractions for the household account sources behind GLS, Lunar and Evangelische Bank.",
-    tools: [
-      "search_household_transactions",
-      "get_household_transaction_detail",
-      "get_source_coverage",
-    ],
+    capabilities: ["transactions", "balances"],
     evidence_paths: [
       {
         tool: "search_household_transactions",
-        kind: "transaction_search",
-        description: "Bounded transaction search across the Enable Banking-backed account sources.",
+        evidence: "Provider-backed GLS, Evangelische Bank, and Lunar transactions.",
       },
       {
-        tool: "get_household_transaction_detail",
-        kind: "transaction_detail",
-        description: "Stable-ID detail with classification and audit-only evidence path.",
+        tool: "query_cashflow",
+        evidence: "Bounded provider-backed cashflow aggregates.",
       },
-      {
-        tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Allowlist and tool mapping for the shared Enable Banking layer.",
-      },
+      { tool: "get_source_coverage", evidence: "Aggregate provider-layer freshness." },
     ],
-    notes: ["This is the shared provider layer, not a raw statement dump surface."],
+    stale_after_days: 8,
   },
-  {
+  nordnet: {
     id: "nordnet",
     label: "Nordnet",
     kind: "brokerage",
-    status: "supported",
-    freshness: "fresh",
-    summary: "Nordnet transaction and holdings evidence via read-only MCP summaries.",
-    tools: [
-      "search_household_transactions",
-      "get_household_transaction_detail",
-      "get_source_coverage",
-    ],
+    capabilities: ["transactions", "holdings", "balances"],
     evidence_paths: [
       {
         tool: "search_household_transactions",
-        kind: "transaction_search",
-        description: "Search Nordnet transactions by date and account with stable IDs.",
+        evidence: "Bounded Nordnet transaction search.",
       },
       {
         tool: "get_household_transaction_detail",
-        kind: "transaction_detail",
-        description: "Return Nordnet transaction detail, holdings context, and audit evidence.",
+        evidence: "Stable Nordnet transaction detail.",
       },
       {
-        tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Catalog coverage declaration for Nordnet transactions and holdings.",
+        tool: "query_net_worth",
+        evidence: "Bounded Nordnet holding valuation aggregates.",
       },
+      { tool: "get_source_coverage", evidence: "Transaction and holding freshness counts." },
     ],
-    notes: [
-      "MCP supports Nordnet transactions and holdings evidence, not full account export dumps.",
-    ],
+    stale_after_days: 35,
   },
-  {
+  pfa: {
     id: "pfa",
     label: "PFA",
     kind: "pension",
-    status: "supported",
-    freshness: "stale",
-    summary: "PFA pension statement evidence exposed as summary and latest-scan metadata only.",
-    tools: ["get_household_taxonomy_summary", "get_source_coverage"],
+    capabilities: ["transactions", "holdings", "balances"],
     evidence_paths: [
       {
-        tool: "get_household_taxonomy_summary",
-        kind: "taxonomy_summary",
-        description: "Summarize pension and household classifications reachable from PFA metadata.",
+        tool: "search_household_transactions",
+        evidence: "Bounded pension transaction evidence when present.",
       },
       {
-        tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Keep the PFA source in the source coverage matrix.",
+        tool: "query_net_worth",
+        evidence: "Bounded PFA holding valuation aggregates.",
       },
+      { tool: "get_source_coverage", evidence: "PFA account, transaction, and holding counts." },
     ],
-    notes: [
-      "PFA is valid as a supported source, but the MCP layer remains summary-only until full detail schemas are upstream.",
-    ],
+    stale_after_days: 400,
   },
-  {
+  growney: {
     id: "growney",
     label: "Growney",
     kind: "brokerage",
-    status: "supported",
-    freshness: "stale",
-    summary:
-      "Growney statement and holdings data are summarized with coverage metadata for MCP consumers.",
-    tools: ["get_household_taxonomy_summary", "get_source_coverage"],
+    capabilities: ["transactions", "holdings", "balances"],
     evidence_paths: [
       {
-        tool: "get_household_taxonomy_summary",
-        kind: "taxonomy_summary",
-        description: "Summarize household allocation and classification coverage for Growney.",
+        tool: "search_household_transactions",
+        evidence: "Bounded Growney transaction evidence when present.",
+      },
+      {
+        tool: "query_net_worth",
+        evidence: "Bounded Growney holding valuation aggregates.",
       },
       {
         tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Track Growney as a supported source with summary-only evidence.",
+        evidence: "Growney account, transaction, and holding counts.",
       },
     ],
-    notes: ["Growney evidence is intentionally bounded to classification and category summaries."],
+    stale_after_days: 100,
   },
-  {
+  ecb_fx: {
     id: "ecb_fx",
     label: "ECB FX",
     kind: "fx",
-    status: "supported",
-    freshness: "fresh",
-    summary: "ECB exchange-rate source for FX freshness and missing-currency coverage checks.",
-    tools: ["get_source_coverage"],
+    capabilities: ["fx_rates"],
     evidence_paths: [
       {
-        tool: "get_source_coverage",
-        kind: "fx_summary",
-        description:
-          "Expose ECB FX coverage, missing-rate freshness, and source dependency status.",
+        tool: "query_household_report",
+        evidence: "Exact EUR/DKK totals with explicit missing-FX counts.",
+      },
+      {
+        tool: "query_net_worth",
+        evidence: "EUR/DKK-valued household holdings using the canonical FX mart.",
       },
     ],
-    notes: [
-      "FX coverage is evaluated by freshness and missing-rate status, not by raw rate dumps.",
-    ],
+    stale_after_days: 5,
   },
-  {
+  manual_facts: {
     id: "manual_facts",
     label: "Manual facts",
     kind: "manual",
-    status: "supported",
-    freshness: "fresh",
-    summary:
-      "Manual cash balances and valuation facts are available as bounded evidence summaries.",
-    tools: ["get_source_coverage", "get_household_taxonomy_summary"],
+    capabilities: ["manual_facts", "balances", "holdings"],
     evidence_paths: [
       {
-        tool: "get_household_taxonomy_summary",
-        kind: "manual_fact_summary",
-        description: "Return manual fact summaries used for household coverage and balancing.",
+        tool: "query_net_worth",
+        evidence: "Bounded manual balance and valuation aggregates.",
       },
       {
         tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Document the manual-facts source in the source matrix.",
+        evidence: "Manual account and snapshot counts with latest observation.",
       },
     ],
-    notes: [
-      "Manual facts stay bounded to summary metadata; no raw journal or ledger dump is exposed.",
-    ],
+    stale_after_days: 100,
   },
-  {
+  household_classification: {
     id: "household_classification",
     label: "Household classifications",
     kind: "taxonomy",
-    status: "supported",
-    freshness: "fresh",
-    summary:
-      "Household taxonomy, merchant mapping and rule summaries used for card and allocation processing.",
-    tools: [
-      "get_household_taxonomy_summary",
-      "get_household_rule_summary",
-      "get_household_merchant_summary",
-      "get_source_coverage",
-    ],
+    capabilities: ["classifications", "allocations", "rules", "merchant_aliases"],
     evidence_paths: [
       {
         tool: "get_household_taxonomy_summary",
-        kind: "taxonomy_summary",
-        description: "Summarize categories, weights, and coverage from the household taxonomy.",
+        evidence: "Bounded category tree and usage counts.",
       },
-      {
-        tool: "get_household_rule_summary",
-        kind: "rule_summary",
-        description: "Describe active classification rules and their scope.",
-      },
+      { tool: "get_household_rule_summary", evidence: "Bounded append-only rule summaries." },
       {
         tool: "get_household_merchant_summary",
-        kind: "merchant_summary",
-        description: "Summarize merchant-level mappings and classification status.",
+        evidence: "Bounded household merchant and alias summaries.",
+      },
+      {
+        tool: "get_household_transaction_detail",
+        evidence: "Exact allocations and current classification by stable transaction ID.",
       },
       {
         tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Declare the taxonomy and classification coverage contract in the MCP matrix.",
+        evidence: "Classification count and latest audit observation.",
       },
     ],
-    notes: ["This source is a classification layer, not a raw ledger or statement extractor."],
+    stale_after_days: 35,
   },
-  {
+  paypal: {
     id: "paypal",
     label: "PayPal enrichment",
-    kind: "paypal",
-    status: "supported",
-    freshness: "fresh",
-    summary:
-      "PayPal enrichment detail is exposed as stable linked records without duplicating transaction ledgers.",
-    tools: ["get_household_transaction_detail", "get_source_coverage"],
+    kind: "enrichment",
+    capabilities: ["payment_enrichment"],
     evidence_paths: [
       {
         tool: "get_household_transaction_detail",
-        kind: "paypal_detail",
-        description:
-          "Expose linked PayPal details for a stable transaction without duplicating ledger semantics.",
+        evidence: "Linked PayPal detail marked explicitly as non-ledger enrichment.",
       },
       {
         tool: "get_source_coverage",
-        kind: "catalog",
-        description: "Record the PayPal enrichment source as supported and evidence-backed.",
+        evidence: "Payment-detail count and latest observed revision.",
       },
     ],
-    notes: [
-      "PayPal detail is attached only as enrichment; the ledger remains single-source and non-duplicative.",
-    ],
+    stale_after_days: 8,
   },
-  {
+  nsi_merchant_reference: {
     id: "nsi_merchant_reference",
     label: "NSI merchant reference",
     kind: "merchant_reference",
-    status: "supported",
-    freshness: "fresh",
-    summary:
-      "Local NSI merchant-reference index is exposed through bounded status and search tools.",
-    tools: ["get_merchant_reference_status", "search_merchant_reference", "get_source_coverage"],
+    capabilities: ["merchant_reference"],
     evidence_paths: [
       {
         tool: "get_merchant_reference_status",
-        kind: "merchant_status",
-        description: "Return the local merchant-reference generation and status summary.",
+        evidence: "Local refresh state and active generation metadata.",
       },
       {
         tool: "search_merchant_reference",
-        kind: "merchant_search",
-        description: "Search the local public merchant reference index with bounded results.",
+        evidence: "Bounded local label and alias search.",
       },
-      {
-        tool: "get_source_coverage",
-        kind: "nsi_reference",
-        description: "Track the NSI merchant-reference source in the coverage matrix.",
-      },
+      { tool: "get_source_coverage", evidence: "Active generation freshness and row count." },
     ],
-    notes: [
-      "This is the public local reference index and never sends raw customer or account data upstream.",
-    ],
+    stale_after_days: 35,
   },
-];
+} satisfies Record<SourceId, SourceCatalogEntry>;
 
-export const SOURCE_BY_ID = new Map(SOURCE_CATALOG.map((entry) => [entry.id, entry]));
-export const SOURCE_ALLOWLIST = SOURCE_CATALOG.map((entry) => entry.id);
+export const SOURCE_CATALOG: readonly SourceCatalogEntry[] = SourceIdSchema.options.map(
+  (id) => entries[id],
+);
+export const SOURCE_ALLOWLIST: readonly SourceId[] = SourceIdSchema.options;
 
-export function getSourceCoverage(sourceIds?: readonly string[]): {
-  sources: SourceCatalogEntry[];
-  missing: string[];
-  complete: boolean;
-} {
-  const requested = sourceIds && sourceIds.length > 0 ? [...new Set(sourceIds)] : SOURCE_ALLOWLIST;
-  const sources = requested.flatMap((sourceId) => {
-    const entry = SOURCE_BY_ID.get(sourceId);
-    return entry ? [entry] : [];
-  });
-  const missing = requested.filter((sourceId) => !SOURCE_BY_ID.has(sourceId));
-  return {
-    sources,
-    missing,
-    complete: missing.length === 0 && sources.length > 0,
-  };
+export function assertSourceCatalogCoverage(
+  catalog: readonly SourceCatalogEntry[] = SOURCE_CATALOG,
+): void {
+  const byId = new Map(catalog.map((entry) => [entry.id, entry]));
+  for (const id of SOURCE_ALLOWLIST) {
+    const entry = byId.get(id);
+    if (!entry) {
+      throw new SourceCoverageError(`supported source ${id} is missing from the MCP catalog`);
+    }
+    if (entry.evidence_paths.length === 0) {
+      throw new SourceCoverageError(`supported source ${id} has no MCP evidence path`);
+    }
+    if (entry.evidence_paths.every((path) => path.tool === "get_source_coverage")) {
+      throw new SourceCoverageError(`supported source ${id} has no data-bearing MCP evidence path`);
+    }
+    for (const path of entry.evidence_paths) {
+      EvidenceToolNameSchema.parse(path.tool);
+    }
+  }
 }
 
-export function assertCoverageForSource(sourceId: string): void {
-  const entry = SOURCE_BY_ID.get(sourceId);
-  if (!entry) {
-    throw new Error(`source ${sourceId} is not in the supported MCP source catalog`);
-  }
-  if (entry.evidence_paths.length === 0) {
-    throw new Error(`source ${sourceId} is missing its MCP evidence path`);
+export function assertRegisteredToolAllowlist(registeredTools: readonly string[]): void {
+  const expected = new Set<string>(MCP_READ_ONLY_TOOL_ALLOWLIST);
+  const registered = new Set(registeredTools);
+  const missing = [...expected].filter((tool) => !registered.has(tool));
+  const unexpected = [...registered].filter((tool) => !expected.has(tool));
+  if (missing.length > 0 || unexpected.length > 0) {
+    throw new SourceCoverageError(
+      `registered MCP tools differ from the read-only allowlist: ` +
+        `missing=${missing.join(",") || "none"} unexpected=${unexpected.join(",") || "none"}`,
+    );
   }
 }

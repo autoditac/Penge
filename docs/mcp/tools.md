@@ -8,6 +8,9 @@ The MCP server is **read-only** by construction: every Postgres
 connection is forced to `default_transaction_read_only = on`, and tool
 output schemas are validated before being returned to the host. Tools
 return aggregates only — never raw transactions or account numbers.
+The exact source matrix, new evidence-tool schemas, and downstream chat/UI
+contracts are documented in the
+[MCP source coverage contract](source-coverage.md).
 
 ## `_meta`
 
@@ -351,17 +354,11 @@ malformed baseline JSON is a hard error (no safe empty default).
 {
   "baseline": {
     "p10": { "2025": 209028.14, "2026": 218463.81 /* ... */ },
-    "p50": {
-      /* ... */
-    },
-    "p90": {
-      /* ... */
-    },
+    "p50": {/* ... */},
+    "p90": {/* ... */},
     "fire_year_distribution": { "2032": 17, "2033": 23 }, // empty when no path met the goal
   },
-  "scenario": {
-    /* same shape */
-  },
+  "scenario": {/* same shape */},
   "deltas": {
     "p50_value_eur": -54321.0, // terminal-year p50 delta (scenario - baseline)
     "fire_year_shift_years": 2, // median-FIRE-year shift, or null if undefined
@@ -516,20 +513,20 @@ it is not a personal plan and contains no real financial data.
 
 ### Input
 
-| Field       | Type                | Notes                                                                 |
-| ----------- | ------------------- | --------------------------------------------------------------------- |
-| `plan_id`   | `"synthetic_household"` | Optional; defaults to the synthetic household.                     |
-| `questions` | `QuestionId[]`      | Optional; defaults to the three core questions below. Unique, max 5. |
+| Field       | Type                    | Notes                                                                |
+| ----------- | ----------------------- | -------------------------------------------------------------------- |
+| `plan_id`   | `"synthetic_household"` | Optional; defaults to the synthetic household.                       |
+| `questions` | `QuestionId[]`          | Optional; defaults to the three core questions below. Unique, max 5. |
 
 Supported `QuestionId` values:
 
-| Question id | Question |
-| --- | --- |
-| `can_we_retire` | Can this household retire on the planned timeline? |
-| `what_breaks_first` | What breaks first if the plan fails? |
-| `how_do_taxes_affect_plan` | How do taxes affect this plan? |
-| `which_assumptions_matter` | Which assumptions should be reviewed before deciding? |
-| `which_scenarios_should_we_test` | Which scenarios should we test before deciding? |
+| Question id                      | Question                                              |
+| -------------------------------- | ----------------------------------------------------- |
+| `can_we_retire`                  | Can this household retire on the planned timeline?    |
+| `what_breaks_first`              | What breaks first if the plan fails?                  |
+| `how_do_taxes_affect_plan`       | How do taxes affect this plan?                        |
+| `which_assumptions_matter`       | Which assumptions should be reviewed before deciding? |
+| `which_scenarios_should_we_test` | Which scenarios should we test before deciding?       |
 
 ### Output
 
@@ -543,17 +540,27 @@ Supported `QuestionId` values:
       "question_id": "can_we_retire",
       "status": "watch",
       "answer": "The plan is watch for retirement in 2029...",
-      "evidence": [{ "label": "planned_retirement_year", "value": "2029", "source": "RetirementReadinessReport" }],
+      "evidence": [
+        {
+          "label": "planned_retirement_year",
+          "value": "2029",
+          "source": "RetirementReadinessReport",
+        },
+      ],
       "risk_codes": ["de_vorabpauschale_not_in_household_plan"],
       "assumption_keys": ["planned_retirement_year", "annual_spending_plan"],
       "limitation_codes": ["planning_grade_not_filing_advice"],
-      "docs": ["docs/sim/planning-outputs.md"]
-    }
+      "docs": ["docs/sim/planning-outputs.md"],
+    },
   ],
   "risks": [{ "code": "de_vorabpauschale_not_in_household_plan", "severity": "warning" }],
-  "assumptions": [{ "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" }],
-  "limitations": [{ "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] }],
-  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"]
+  "assumptions": [
+    { "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" },
+  ],
+  "limitations": [
+    { "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] },
+  ],
+  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"],
 }
 ```
 
@@ -578,10 +585,10 @@ or rejecting a suggestion happens in the import wizard via
 
 ### Input
 
-| Field               | Type     | Notes                                              |
-| ------------------- | -------- | -------------------------------------------------- |
-| `import_session_id` | `string` | UUID of a **staged** import session.               |
-| `limit`             | `number` | Optional, 1–10000 (default 1000). Max rows read.   |
+| Field               | Type     | Notes                                            |
+| ------------------- | -------- | ------------------------------------------------ |
+| `import_session_id` | `string` | UUID of a **staged** import session.             |
+| `limit`             | `number` | Optional, 1–10000 (default 1000). Max rows read. |
 
 Sessions that are `committed`, `discarded`, or `expired` are rejected
 with an error — suggestions only make sense while a session is still
@@ -595,7 +602,7 @@ reviewable. Excluded rows are skipped.
     "id": "0b6c1a52-…",
     "source": "nordnet_transactions",
     "status": "staged",
-    "rows_considered": 3
+    "rows_considered": 3,
   },
   "suggestions": [
     {
@@ -605,9 +612,9 @@ reviewable. Excluded rows are skipped.
       "field": "category", // "category" | "counterparty" | "asset_class"
       "value": "investment.trade.buy",
       "confidence": 0.9, // 0..1, rule strength
-      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category"
-    }
-  ]
+      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category",
+    },
+  ],
 }
 ```
 
@@ -617,7 +624,7 @@ reviewable. Excluded rows are skipped.
 | -------------- | ------------------------------------------------------------------------------------------------------ | ---------- |
 | `category`     | Canonical transaction kind (`buy`, `dividend`, `internal_transfer`, …) mapped to a fixed category list | 0.9        |
 | `category`     | DA/DE/EN keyword match on the row's free text (gebyr/Gebühr, udbytte/Dividende, rente/Zins, …)         | 0.55–0.6   |
-| `counterparty` | Instrument name normalized (whitespace collapsed, IBAN/CPR/long-digit-run patterns redacted)          | 0.7        |
+| `counterparty` | Instrument name normalized (whitespace collapsed, IBAN/CPR/long-digit-run patterns redacted)           | 0.7        |
 | `counterparty` | Free text normalized the same way                                                                      | 0.5        |
 | `asset_class`  | `balance` rows → `cash`; `scheme` rows → `pension`                                                     | 0.95       |
 | `asset_class`  | Instrument-name keywords (bond/Anleihe/obligation, ETF/UCITS/MSCI, Geldmarkt, gold/Rohstoff)           | 0.65–0.7   |
@@ -653,13 +660,13 @@ date. Provider details and transaction-level records are never returned.
 
 ### Input
 
-| Field         | Type                               | Notes |
-| ------------- | ---------------------------------- | ----- |
-| `date_range`  | `{ from: string; to: string }`     | Inclusive ISO dates. |
-| `granularity` | `"day" \| "month" \| "year"`       | Trend bucket size. |
-| `account_ids` | `string[]` (optional)              | UUIDs of checking accounts only; omitted means all default-scope checking accounts. |
-| `entity_ids`  | `string[]` (optional)              | Household entity UUID filters; omitted means all entities. |
-| `category_id` | `string` UUID (optional)            | Includes the selected category and descendants. |
+| Field         | Type                           | Notes                                                                               |
+| ------------- | ------------------------------ | ----------------------------------------------------------------------------------- |
+| `date_range`  | `{ from: string; to: string }` | Inclusive ISO dates.                                                                |
+| `granularity` | `"day" \| "month" \| "year"`   | Trend bucket size.                                                                  |
+| `account_ids` | `string[]` (optional)          | UUIDs of checking accounts only; omitted means all default-scope checking accounts. |
+| `entity_ids`  | `string[]` (optional)          | Household entity UUID filters; omitted means all entities.                          |
+| `category_id` | `string` UUID (optional)       | Includes the selected category and descendants.                                     |
 
 The previous window is the immediately preceding window with the same
 inclusive number of days as `date_range`. The result includes current and

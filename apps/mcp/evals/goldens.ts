@@ -31,6 +31,9 @@ import {
   suggestImportMappingTool,
   type ImportMappingQueryRunner,
 } from "../src/tools/suggestImportMapping.js";
+import { getHouseholdTransactionDetailTool } from "../src/tools/getHouseholdTransactionDetail.js";
+import { getSourceCoverageTool } from "../src/tools/getSourceCoverage.js";
+import { queryHouseholdReportTool } from "../src/tools/queryHouseholdReport.js";
 
 import {
   approxEqual,
@@ -87,6 +90,15 @@ import {
   IMPORT_SESSION_ID,
   IMPORT_SESSION_ROW,
 } from "./fixtures/importRows.js";
+import {
+  ALLOCATION_DETAIL_ROW,
+  AUDIT_DETAIL_ROW,
+  EVAL_TRANSACTION_ID,
+  MISSING_FX_REPORT_ROW,
+  PAYPAL_DETAIL_ROW,
+  STALE_ECB_COVERAGE_ROW,
+  TRANSACTION_DETAIL_ROW,
+} from "./fixtures/sourceCoverageRows.js";
 
 const CTX = { serverName: "evals", serverVersion: "0.0.0-evals" };
 
@@ -97,7 +109,10 @@ export type ToolName =
   | "run_scenario"
   | "answer_planning_question"
   | "search_documents"
-  | "suggest_import_mapping";
+  | "suggest_import_mapping"
+  | "get_source_coverage"
+  | "query_household_report"
+  | "get_household_transaction_detail";
 
 export interface Golden {
   /** Stable, kebab-case id used to refer to the question in CI logs. */
@@ -193,6 +208,19 @@ function importMappingRunner(
     async query() {
       call += 1;
       return { rows: (call === 1 ? [session] : [...rows]) as never };
+    },
+  };
+}
+
+function transactionDetailRunner() {
+  return {
+    async query(sql: string) {
+      if (sql.includes("FROM transaction AS t")) return { rows: [TRANSACTION_DETAIL_ROW] };
+      if (sql.includes("FROM household_allocation AS x")) {
+        return { rows: [ALLOCATION_DETAIL_ROW] };
+      }
+      if (sql.includes("FROM household_audit")) return { rows: [AUDIT_DETAIL_ROW] };
+      return { rows: [PAYPAL_DETAIL_ROW] };
     },
   };
 }
@@ -893,6 +921,93 @@ export const GOLDENS: Golden[] = [
       const second = await make().handler({ import_session_id: IMPORT_SESSION_ID }, CTX);
       if (JSON.stringify(first) !== JSON.stringify(second)) {
         throw new Error("suggestions differ between identical runs");
+      }
+    },
+  },
+
+  // ===== Source coverage evidence (4) ================================
+  {
+    id: "source-coverage-flags-stale-fx",
+    question: "Does source coverage flag an ECB FX observation older than its declared cadence?",
+    rationale:
+      "A stale exchange-rate source must be explicit before an answer combines EUR and DKK values.",
+    tool: "get_source_coverage",
+    async run() {
+      const tool = getSourceCoverageTool({
+        runner: {
+          async query() {
+            return { rows: [STALE_ECB_COVERAGE_ROW] };
+          },
+        },
+        now: () => new Date("2026-10-04T08:00:00.000Z"),
+      });
+      const out = await tool.handler({ source_ids: ["ecb_fx"] }, CTX);
+      tool.outputSchema.parse(out);
+      if (out.sources[0]?.coverage.freshness !== "stale") {
+        throw new Error("expected ECB FX freshness to be stale");
+      }
+    },
+  },
+  {
+    id: "household-report-missing-fx-is-incomplete",
+    question:
+      "Does a missing EUR conversion remain null while preserving the exact known subtotal?",
+    rationale:
+      "Missing FX must never be silently converted to zero or presented as a complete household total.",
+    tool: "query_household_report",
+    async run() {
+      const tool = queryHouseholdReportTool({
+        runner: {
+          async query() {
+            return { rows: [MISSING_FX_REPORT_ROW] as never };
+          },
+        },
+      });
+      const out = await tool.handler(
+        { date_range: { from: "2026-06-02", to: "2026-06-02" }, granularity: "day" },
+        CTX,
+      );
+      tool.outputSchema.parse(out);
+      const eur = out.current.totals.gross_expenses.eur;
+      if (eur.complete || eur.amount !== null || eur.known_subtotal !== "50") {
+        throw new Error(`missing FX was not preserved: ${JSON.stringify(eur)}`);
+      }
+    },
+  },
+  {
+    id: "paypal-detail-never-duplicates-ledger",
+    question: "Is linked PayPal detail always marked enrichment-only under one bank ledger row?",
+    rationale:
+      "PayPal provider detail explains a bank booking; treating it as a second expense doubles spending.",
+    tool: "get_household_transaction_detail",
+    async run() {
+      const tool = getHouseholdTransactionDetailTool({ runner: transactionDetailRunner() });
+      const out = await tool.handler({ transaction_id: EVAL_TRANSACTION_ID }, CTX);
+      tool.outputSchema.parse(out);
+      if (
+        out.ledger_semantics !== "single_source_ledger" ||
+        out.linked_paypal.some((detail) => detail.ledger_semantics !== "enrichment_only")
+      ) {
+        throw new Error("PayPal detail violated single-source ledger semantics");
+      }
+    },
+  },
+  {
+    id: "transaction-detail-preserves-exact-allocation",
+    question: "Does transaction detail preserve the exact signed source-currency allocation total?",
+    rationale:
+      "Allocation evidence must reconcile exactly to the classified source amount without float drift.",
+    tool: "get_household_transaction_detail",
+    async run() {
+      const tool = getHouseholdTransactionDetailTool({ runner: transactionDetailRunner() });
+      const out = await tool.handler({ transaction_id: EVAL_TRANSACTION_ID }, CTX);
+      tool.outputSchema.parse(out);
+      if (
+        out.transaction.amount !== "-125.4000" ||
+        out.allocation_total !== "-125.4000" ||
+        out.allocations[0]?.amount !== "-125.4000"
+      ) {
+        throw new Error("exact allocation strings did not reconcile");
       }
     },
   },

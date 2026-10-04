@@ -7,10 +7,14 @@ describe("loadConfig", () => {
     const cfg = loadConfig({
       PENGE_DB_URL: "postgres://penge:penge@localhost:5432/penge",
       PENGE_DUCKDB_PATH: "/var/lib/penge/marts.duckdb",
+      PENGE_MCP_ACTOR_ID: "actor_01hx9p",
+      PENGE_MCP_SESSION_ID: "session_01hx9p",
     });
     expect(cfg.databaseUrl).toBe("postgres://penge:penge@localhost:5432/penge");
     expect(cfg.duckdbPath).toBe("/var/lib/penge/marts.duckdb");
     expect(cfg.logDir).toBe("logs/mcp");
+    expect(cfg.actorId).toBe("actor_01hx9p");
+    expect(cfg.sessionId).toBe("session_01hx9p");
   });
 
   it("rejects missing PENGE_DB_URL", () => {
@@ -24,6 +28,16 @@ describe("loadConfig", () => {
       loadConfig({
         PENGE_DB_URL: "not-a-url",
         PENGE_DUCKDB_PATH: "x.duckdb",
+      }),
+    ).toThrow(ConfigError);
+  });
+
+  it("rejects identity-bearing audit attribution", () => {
+    expect(() =>
+      loadConfig({
+        PENGE_DB_URL: new URL("http://localhost").toString(),
+        PENGE_DUCKDB_PATH: "x.duckdb",
+        PENGE_MCP_ACTOR_ID: "person@example.com",
       }),
     ).toThrow(ConfigError);
   });

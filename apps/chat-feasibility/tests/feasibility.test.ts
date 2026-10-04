@@ -99,7 +99,10 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       allowedModels: [hydraFusionModel],
       streaming: true,
       enableSessionStore: false,
+      enableConfigDiscovery: false,
       includedBuiltinSkills: [],
+      requestCanvasRenderer: false,
+      requestExtensions: false,
       mcpOAuthTokenStorage: "in-memory",
     });
     expect(proof.session.mcpServers).toEqual({

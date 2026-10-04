@@ -39,6 +39,7 @@ const navItems = [
   { to: "/imports", label: "Imports", end: false, icon: <UploadFileOutlinedIcon /> },
   { to: "/connections", label: "Connections", end: false, icon: <AccountBalanceOutlinedIcon /> },
   { to: "/planning", label: "Planning", end: false, icon: <AssignmentOutlinedIcon /> },
+  { to: "/ask", label: "Ask Penge", end: false, icon: <AssignmentOutlinedIcon /> },
   { to: "/household", label: "Spending", end: false, icon: <PaymentsOutlinedIcon /> },
 ] as const;
 

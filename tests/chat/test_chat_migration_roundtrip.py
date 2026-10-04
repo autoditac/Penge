@@ -191,7 +191,10 @@ def test_dedicated_chat_migration_roundtrip(
     assert finance_before.isdisjoint(CHAT_TABLES)
 
     secret_path = tmp_path / "chat-database-url"
-    secret_path.write_text(chat_url, encoding="utf-8")
+    bare_chat_url = chat_url.replace("postgresql+psycopg://", "postgresql://", 1)
+    assert bare_chat_url.startswith("postgresql://")
+    assert "%40" in bare_chat_url
+    secret_path.write_text(bare_chat_url, encoding="utf-8")
     secret_path.chmod(0o600)
     monkeypatch.setenv("PENGE_CHAT_MIGRATION_DATABASE_URL_FILE", str(secret_path))
     chat_config = Config("apps/chat/alembic.ini")

@@ -34,6 +34,7 @@ The authenticated external browser origin is separate from the listener and must
 The external API base is a trailing-slash URL so reverse-proxy path prefixes survive OAuth callback construction; the path-free app origin independently owns the `/ask` redirect.
 The reverse proxy must overwrite and supply `X-Penge-Auth-Issuer`, immutable Google `X-Penge-Auth-Subject`, and a mounted-secret-backed `X-Penge-Proxy-Secret`; direct or ambiguous headers are rejected.
 State-changing requests additionally require the configured application origin, chat/stop requests require `application/json`, and request bodies remain byte-bounded while accommodating every valid 8,000-code-unit question.
+SSE delivery has a bounded process buffer and drain deadline; a stalled client is disconnected through the normal cancellation path.
 
 Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE.
 The database stores only an HMAC state lookup and an encrypted versioned state envelope, never raw state or a plaintext verifier.
@@ -46,6 +47,7 @@ Pool acquisition, statements, transactions, and advisory-lock waits are bounded;
 
 The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedInUser: false`, actor-isolated storage, exact `hydrafusion`, no fallback, no session store, no config discovery, no skills, extensions, canvases, built-in tools, or custom tools.
 SDK session files use a bounded process-memory provider and persistent workspaces are disabled, so crashes cannot leave transcripts on disk.
+Large-output file spilling and runtime diagnostics are disabled; the pinned SDK transport captures child stderr without forwarding it into service logs.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
 Exact-model session creation with that provider is the per-actor entitlement check; client-global unauthenticated model listing is not used.
 A bounded, immediately closed exact-model session lets authenticated status checks establish readiness before the browser submits its first question.

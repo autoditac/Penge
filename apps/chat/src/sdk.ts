@@ -78,6 +78,7 @@ export function buildSessionConfig(
     streaming: true,
     enableSessionStore: false,
     infiniteSessions: { enabled: false },
+    largeOutput: { enabled: false },
     enableConfigDiscovery: false,
     includedBuiltinSkills: [],
     requestCanvasRenderer: false,
@@ -192,7 +193,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       },
       workingDirectory: this.config.mcpWorkingDirectory,
       useLoggedInUser: false,
-      logLevel: "error",
+      logLevel: "none",
       env: safeRuntimeEnvironment(),
     });
 

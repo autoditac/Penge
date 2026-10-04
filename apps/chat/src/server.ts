@@ -19,6 +19,8 @@ import type { StreamEvent } from "./stream.js";
 
 const AskRequestSchema = z.object({ question: z.string().trim().min(1).max(8_000) }).strict();
 const StopRequestSchema = z.object({ sessionId: z.string().uuid() }).strict();
+const MAX_SSE_BUFFER_BYTES = 256 * 1024;
+const MAX_SSE_DRAIN_MS = 5_000;
 const AuthStatusSchema = z
   .object({
     github: z
@@ -285,25 +287,89 @@ export async function startChatServer(
           throw new AuthenticationError("linked GitHub identity is required");
         }
         const connection: { sessionId?: string } = {};
-        const pending: StreamEvent[] = [];
+        const pending: Array<{ chunk: string; bytes: number; terminal: boolean }> = [];
         let streaming = false;
+        let blocked = false;
+        let endAfterDrain = false;
         let ended = false;
-        const sink = (event: StreamEvent): void => {
-          if (ended || response.destroyed) return;
-          if (!streaming) {
-            pending.push(event);
-            return;
-          }
-          response.write(`data: ${JSON.stringify(event)}\n\n`);
-          if (event.type === "completion" || event.type === "error") {
-            ended = true;
-            response.end();
+        let disconnectRequested = false;
+        let pendingBytes = 0;
+        let drainTimer: NodeJS.Timeout | undefined;
+        const disconnect = (): void => {
+          if (disconnectRequested || connection.sessionId === undefined) return;
+          disconnectRequested = true;
+          observe(dependencies.runtime.disconnect(actorId, connection.sessionId), "disconnect");
+        };
+        const clearDrainTimer = (): void => {
+          if (drainTimer !== undefined) {
+            clearTimeout(drainTimer);
+            drainTimer = undefined;
           }
         };
-        response.on("close", () => {
-          if (!ended && connection.sessionId !== undefined) {
-            observe(dependencies.runtime.disconnect(actorId, connection.sessionId), "disconnect");
+        const failDelivery = (): void => {
+          if (ended || response.destroyed) return;
+          clearDrainTimer();
+          response.destroy();
+          disconnect();
+        };
+        const armDrainTimer = (): void => {
+          clearDrainTimer();
+          drainTimer = setTimeout(
+            failDelivery,
+            Math.min(config.httpRequestTimeoutMs, MAX_SSE_DRAIN_MS),
+          );
+          drainTimer.unref();
+        };
+        const flush = (): void => {
+          if (!streaming || blocked || ended || response.destroyed) return;
+          while (pending.length > 0) {
+            const event = pending.shift()!;
+            pendingBytes -= event.bytes;
+            const accepted = response.write(event.chunk);
+            if (!accepted) {
+              blocked = true;
+              endAfterDrain = event.terminal;
+              armDrainTimer();
+              return;
+            }
+            if (event.terminal) {
+              ended = true;
+              clearDrainTimer();
+              response.end();
+              return;
+            }
           }
+        };
+        const sink = (event: StreamEvent): void => {
+          if (ended || response.destroyed) return;
+          const chunk = `data: ${JSON.stringify(event)}\n\n`;
+          const bytes = Buffer.byteLength(chunk);
+          if (response.writableLength + pendingBytes + bytes > MAX_SSE_BUFFER_BYTES) {
+            failDelivery();
+            return;
+          }
+          pending.push({
+            chunk,
+            bytes,
+            terminal: event.type === "completion" || event.type === "error",
+          });
+          pendingBytes += bytes;
+          flush();
+        };
+        response.on("drain", () => {
+          blocked = false;
+          clearDrainTimer();
+          if (endAfterDrain) {
+            endAfterDrain = false;
+            ended = true;
+            response.end();
+            return;
+          }
+          flush();
+        });
+        response.on("close", () => {
+          clearDrainTimer();
+          if (!ended) disconnect();
         });
         connection.sessionId = await dependencies.runtime.start(actorId, input.question, sink);
         if (response.destroyed) {
@@ -320,9 +386,7 @@ export async function startChatServer(
         });
         response.flushHeaders();
         streaming = true;
-        for (const event of pending) {
-          sink(event);
-        }
+        flush();
         return;
       }
 

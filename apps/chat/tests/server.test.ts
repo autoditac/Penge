@@ -1,3 +1,4 @@
+import { ServerResponse } from "node:http";
 import { createConnection } from "node:net";
 import { Writable } from "node:stream";
 
@@ -33,6 +34,7 @@ describe("loopback HTTP service", () => {
           finishReason: "completed",
           assumptions: [],
         });
+
         return "00000000-0000-4000-8000-000000000001";
       },
       cancel: async () => undefined,
@@ -72,6 +74,75 @@ describe("loopback HTTP service", () => {
       await server.close();
     }
   });
+
+  it.each(["active", "completed"] as const)(
+    "disconnects a stalled %s SSE stream after the bounded drain deadline",
+    async (state) => {
+      let sink: ((event: StreamEvent) => void) | undefined;
+      const disconnect = vi.fn(async () => undefined);
+      const write = vi.spyOn(ServerResponse.prototype, "write").mockReturnValue(false);
+      const sessionId = "00000000-0000-4000-8000-000000000001";
+      const server = await startChatServer(syntheticConfig({ httpRequestTimeoutMs: 25 }), {
+        runtime: {
+          start: async (_actorId, _question, eventSink) => {
+            sink = eventSink;
+            return sessionId;
+          },
+          cancel: async () => undefined,
+          disconnect,
+          cleanupIdle: async () => 0,
+          close: async () => undefined,
+          isModelAvailable: () => true,
+          ensureModelAvailable: async () => true,
+          invalidateActor: async () => undefined,
+        },
+        oauth: {
+          begin: async () => "https://github.com/login/oauth/authorize",
+          complete: async () => "synthetic-user",
+          status: async () => ({ state: "linked" as const, login: "synthetic-user" }),
+          unlink: async () => undefined,
+        },
+      });
+      try {
+        const response = await fetch(`${server.origin}/v1/chat`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ question: "Safe question" }),
+        });
+        expect(response.status).toBe(200);
+        if (sink === undefined) throw new Error("stream sink was not registered");
+        sink({
+          version: "1.0",
+          sessionId,
+          id: "event-1",
+          sequence: 0,
+          type: "text",
+          stream: "answer",
+          delta: "Synthetic answer",
+          source: "assistant",
+        });
+        if (state === "completed") {
+          sink({
+            version: "1.0",
+            sessionId,
+            id: "event-2",
+            sequence: 1,
+            type: "completion",
+            summary: "Synthetic completion",
+            coverage: "partial",
+            freshness: "stale",
+            finishReason: "completed",
+            assumptions: [],
+          });
+        }
+        await vi.waitFor(() => expect(disconnect).toHaveBeenCalledOnce(), { timeout: 500 });
+        expect(disconnect).toHaveBeenCalledWith(expect.any(String), sessionId);
+      } finally {
+        write.mockRestore();
+        await server.close();
+      }
+    },
+  );
 
   it("returns an explicit unavailable response before starting an SSE stream", async () => {
     const server = await startChatServer(syntheticConfig({ productionEnabled: false }), {

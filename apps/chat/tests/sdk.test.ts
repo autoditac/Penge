@@ -1,8 +1,15 @@
 import { access } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
-import { ToolSet, type CopilotClientOptions, type GitHubTokenProvider } from "@github/copilot-sdk";
+import {
+  CopilotClient,
+  RuntimeConnection,
+  ToolSet,
+  type CopilotClientOptions,
+  type GitHubTokenProvider,
+} from "@github/copilot-sdk";
 import { describe, expect, it, vi } from "vitest";
 
 import { BoundedMemorySessionFs } from "../src/memorySessionFs.js";
@@ -23,6 +30,7 @@ describe("Copilot SDK policy", () => {
       allowedModels: ["hydrafusion"],
       enableSessionStore: false,
       infiniteSessions: { enabled: false },
+      largeOutput: { enabled: false },
       enableConfigDiscovery: false,
       includedBuiltinSkills: [],
       requestCanvasRenderer: false,
@@ -60,6 +68,84 @@ describe("Copilot SDK policy", () => {
     await expect(fullMemoryFs.writeFile("/sessions/extra", "x")).rejects.toThrow(
       /memory is exhausted/,
     );
+  });
+
+  it("keeps tool output above the SDK spill threshold available to the event sink", async () => {
+    const payload = "x".repeat(51_201);
+    const received: unknown[] = [];
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
+      start: async () => undefined,
+      createSession: async (session) => {
+        expect(session.largeOutput).toEqual({ enabled: false });
+        return {
+          send: async () => undefined,
+          abort: async () => undefined,
+          disconnect: async () => undefined,
+          on: (handler) => {
+            handler({
+              id: crypto.randomUUID(),
+              parentId: null,
+              timestamp: new Date().toISOString(),
+              type: "tool.execution_complete",
+              data: {
+                success: true,
+                toolCallId: "large-output",
+                result: { content: payload },
+              },
+            });
+            return () => undefined;
+          },
+        };
+      },
+      stop: async () => [],
+      forceStop: async () => undefined,
+    }));
+    const run = await runtime.createRun({
+      actorId: "actor-a",
+      sessionId: "large-output",
+      tokenProvider: provider,
+      sink: { onEvent: (event) => received.push(event) },
+    });
+
+    expect(JSON.stringify(received)).toContain(payload);
+    await run.close();
+  });
+
+  it("does not forward runtime child stderr into service stderr", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "penge-copilot-stderr-"));
+    const runtimePath = join(directory, "runtime.js");
+    const marker = "synthetic-sensitive-runtime-marker";
+    await writeFile(
+      runtimePath,
+      `process.stderr.write(${JSON.stringify(`${marker}\n`)}); setInterval(() => {}, 1000);`,
+      "utf8",
+    );
+    const writes: string[] = [];
+    const write = vi.spyOn(process.stderr, "write").mockImplementation((chunk) => {
+      writes.push(String(chunk));
+      return true;
+    });
+    const client = new CopilotClient({
+      connection: RuntimeConnection.forStdio({ path: runtimePath }),
+      mode: "empty",
+      sessionFs: {
+        initialCwd: directory,
+        sessionStatePath: "/sessions",
+        conventions: "posix",
+      },
+      logLevel: "none",
+      useLoggedInUser: false,
+    });
+    const start = client.start().catch(() => undefined);
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(writes.join("")).not.toContain(marker);
+    } finally {
+      await client.forceStop();
+      await start;
+      write.mockRestore();
+      await rm(directory, { recursive: true });
+    }
   });
 
   it("fails before process creation while HydraFusion is feature-disabled", async () => {

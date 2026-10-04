@@ -14,4 +14,8 @@ allowBuilds:
 # `pnpm install` that `pnpm exec` runs as a deps-status check in CI.
 onlyBuiltDependencies:
   - esbuild
+# SDK 1.0.16 forwards child stderr directly to the service process; retain it
+# for startup diagnostics but suppress that unredacted output at the transport.
+patchedDependencies:
+  "@github/copilot-sdk@1.0.16": patches/@github__copilot-sdk@1.0.16.patch
 strictDepBuilds: false

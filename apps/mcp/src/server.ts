@@ -32,6 +32,30 @@ function auditErrorCode(cause: unknown): string {
   return "unknown_error";
 }
 
+function outputJsonSchema(tool: ToolDefinition): NonNullable<Tool["outputSchema"]> {
+  const schema = zodToJsonSchema(tool.outputSchema, {
+    target: "jsonSchema7",
+    $refStrategy: "none",
+  });
+  const schemaRecord = schema as Record<string, unknown>;
+  if (schemaRecord.type === "object") {
+    return schema as NonNullable<Tool["outputSchema"]>;
+  }
+  return {
+    type: "object",
+    properties: { result: schema },
+    required: ["result"],
+    additionalProperties: false,
+  } as NonNullable<Tool["outputSchema"]>;
+}
+
+function structuredContent(validated: unknown): Record<string, unknown> {
+  if (validated !== null && typeof validated === "object" && !Array.isArray(validated)) {
+    return Object.fromEntries(Object.entries(validated));
+  }
+  return { result: validated };
+}
+
 export function buildServer(opts: BuildServerOptions): BuiltServer {
   const registry = new ToolRegistry();
   const ctx: ToolContext = { serverName: opts.name, serverVersion: opts.version };
@@ -54,6 +78,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
         target: "openApi3",
         $refStrategy: "none",
       }) as Tool["inputSchema"],
+      outputSchema: outputJsonSchema(tool),
     }));
     return { tools };
   });
@@ -103,6 +128,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
       });
       return {
         content: [{ type: "text", text: JSON.stringify(validated) }],
+        structuredContent: structuredContent(validated),
       };
     } catch (cause) {
       opts.audit.record({

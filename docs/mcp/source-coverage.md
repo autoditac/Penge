@@ -31,6 +31,13 @@ Individual pre-existing tool contracts remain documented in the [MCP tool refere
 
 No arbitrary SQL, mutation tool, raw statement export, raw provider payload, or network MCP transport is registered.
 
+Every listed tool publishes its derived Zod output contract through MCP
+`outputSchema`.
+Object outputs are returned directly in `structuredContent`; top-level array or
+scalar outputs use `{ "result": ... }` because MCP structured output schemas
+must be objects.
+The existing JSON text content remains available for compatible MCP hosts.
+
 ## Source matrix
 
 `get_source_coverage` observes source counts and timestamps from PostgreSQL.
@@ -173,6 +180,8 @@ The chat service must not put prompts, transcripts, identities, OAuth tokens, or
 - Generate per-person and per-session opaque audit IDs and pass them only through the two environment variables above.
 - Compare MCP discovery with `tool_allowlist` and deny startup or calls on any mismatch.
 - Allow only the exact tools listed above and validate every tool result against its MCP schema.
+- Prefer MCP `structuredContent` over reparsing model-facing text.
+- Consume object-output evidence fields directly; unwrap `structuredContent.result` only for tools whose Zod output is a top-level array or scalar.
 - Treat `source_allowlist`, source IDs, stable transaction IDs, freshness, and completeness as opaque typed evidence.
 - Propagate cancellation by terminating the bounded MCP call/process and never persist prompts, transcripts, tool arguments, or tool results in audit storage.
 - Treat audit `argumentKeys` as operation-shape metadata only; never add argument values or mirror audit records into captured MCP stderr.

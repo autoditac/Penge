@@ -13,6 +13,11 @@ provider payloads.
 The exact source matrix, new evidence-tool schemas, and downstream chat/UI
 contracts are documented in the
 [MCP source coverage contract](source-coverage.md).
+Tool discovery publishes each Zod-derived output contract as MCP
+`outputSchema`, and successful calls include the validated value in
+`structuredContent`.
+Top-level arrays and scalars are wrapped as `{ "result": ... }` to satisfy the
+MCP object-only structured-output contract.
 
 ## `_meta`
 

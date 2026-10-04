@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check:entitlement": "node dist/check-entitlement.js",
-    "test": "vitest run",
+    "test": "tsc -p tsconfig.test.json && vitest run",
     "lint": "eslint . && prettier --check ."
   },
   "dependencies": {

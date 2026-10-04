@@ -32,7 +32,11 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       runtime: enabledRuntime(),
       tokenProvider: {
         actorId,
-        acquire: async () => ({ token: "synthetic-token", expiresIn: 300 }),
+        acquire: async () => ({
+          kind: "token",
+          accessToken: "synthetic-token",
+          expiresIn: 300,
+        }),
       },
       baseDirectory: "/tmp/penge-copilot/actor_0123456789abcdef",
       workingDirectory: "/srv/penge",
@@ -69,7 +73,11 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       runtime: enabledRuntime(),
       tokenProvider: {
         actorId,
-        acquire: async () => ({ token: "synthetic-token", expiresIn: 300 }),
+        acquire: async () => ({
+          kind: "token",
+          accessToken: "synthetic-token",
+          expiresIn: 300,
+        }),
       },
       baseDirectory: "/tmp/penge-copilot/actor_0123456789abcdef",
       workingDirectory: "/srv/penge",
@@ -128,7 +136,11 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
         runtime: enabledRuntime(),
         tokenProvider: {
           actorId: "actor_fedcba9876543210",
-          acquire: async () => ({ token: "synthetic-token", expiresIn: 300 }),
+          acquire: async () => ({
+            kind: "token",
+            accessToken: "synthetic-token",
+            expiresIn: 300,
+          }),
         },
         baseDirectory: "/tmp/penge-copilot/actor_0123456789abcdef",
         workingDirectory: "/srv/penge",

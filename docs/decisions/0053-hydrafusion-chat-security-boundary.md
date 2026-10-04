@@ -1,6 +1,6 @@
 # 0053 — Secure HydraFusion chat service boundary
 
-- **Status:** Proposed; accepted when this pull request merges
+- **Status:** Accepted
 - **Date:** 2026-10-04
 - **Deciders:** @autoditac
 - **Tags:** mcp, security, web, infra, chat

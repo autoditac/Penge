@@ -87,6 +87,55 @@ describe("Copilot SDK policy", () => {
     expect(forceStop).toHaveBeenCalledOnce();
   });
 
+  it("uses each actor's provider for that actor's exact-model session", async () => {
+    const accessTokens: string[] = [];
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
+      start: async () => undefined,
+      createSession: async (session) => {
+        const token = await session.gitHubTokenProvider?.({
+          host: "github.com",
+          sessionId: session.sessionId ?? "synthetic-session",
+          reason: "initial",
+        });
+        if (token?.kind === "token") {
+          accessTokens.push(token.accessToken);
+        }
+        return {
+          send: async () => undefined,
+          abort: async () => undefined,
+          disconnect: async () => undefined,
+          on: () => () => undefined,
+        };
+      },
+      stop: async () => [],
+      forceStop: async () => undefined,
+    }));
+    const providerFor =
+      (accessToken: string): GitHubTokenProvider =>
+      async () => ({
+        kind: "token",
+        accessToken,
+        expiresIn: 7_200,
+      });
+
+    const runs = await Promise.all([
+      runtime.createRun({
+        actorId: "actor-a",
+        sessionId: "session-a",
+        tokenProvider: providerFor("actor-a-token"),
+        sink: { onEvent: () => undefined },
+      }),
+      runtime.createRun({
+        actorId: "actor-b",
+        sessionId: "session-b",
+        tokenProvider: providerFor("actor-b-token"),
+        sink: { onEvent: () => undefined },
+      }),
+    ]);
+    expect(accessTokens.sort()).toEqual(["actor-a-token", "actor-b-token"]);
+    await Promise.all(runs.map(async (run) => run.close()));
+  });
+
   it("bounds abort and teardown and force-stops after cooperative cleanup fails", async () => {
     const forceStop = vi.fn(async () => undefined);
     const stop = vi.fn(async () => [new Error("synthetic stop failure")]);

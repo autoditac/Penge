@@ -117,9 +117,15 @@ fi
 grep -q 'proxy_set_header x-penge-auth-issuer ' "$nginx_template"
 grep -q 'proxy_set_header x-penge-auth-subject ' "$nginx_template"
 grep -q 'proxy_set_header x-penge-proxy-secret ' "$nginx_template"
-if grep -Eiq 'X-Forwarded-(User|Email|Client-Id)' "$nginx_template"; then
-  fail "chat nginx template must not forward mutable identity headers"
-fi
+for mutable_header in \
+  X-Forwarded-User \
+  X-Forwarded-Email \
+  X-Forwarded-Client-Id \
+  X-Login \
+  X-User; do
+  grep -q "^    proxy_set_header $mutable_header \"\";$" "$nginx_template" \
+    || fail "chat nginx template must clear mutable identity header $mutable_header"
+done
 
 sql_body="$(sed '/^[[:space:]]*--/d' "$db_template")"
 if grep -Eiq \
@@ -191,15 +197,15 @@ from pathlib import Path
 path = Path(sys.argv[1])
 lines = path.read_text().splitlines()
 expected_markers = {
-    "copilot-mode": "empty",
-    "model-fallback": "false",
-    "hydrafusion-entitlement-required": "true",
-    "source-coverage-required": "true",
-    "mcp-transport": "stdio",
-    "default-tools-enabled": "false",
-    "transcript-persistence": "false",
-    "structured-logging": "redacted",
-    "metrics": "private",
+    "copilot-mode": ("PENGE_COPILOT_MODE", "empty"),
+    "model-fallback": ("PENGE_MODEL_FALLBACK", "false"),
+    "hydrafusion-entitlement-required": ("PENGE_REQUIRE_HYDRAFUSION", "true"),
+    "source-coverage-required": ("PENGE_REQUIRE_SOURCE_COVERAGE", "true"),
+    "mcp-transport": ("PENGE_MCP_TRANSPORT", "stdio"),
+    "default-tools-enabled": ("PENGE_DEFAULT_TOOLS", "false"),
+    "transcript-persistence": ("PENGE_TRANSCRIPT_PERSISTENCE", "false"),
+    "structured-logging": ("PENGE_LOG_MODE", "redacted"),
+    "metrics": ("PENGE_METRICS_MODE", "private"),
 }
 assignments: dict[str, str] = {}
 marker_assignments: dict[str, tuple[str, str]] = {}
@@ -209,7 +215,8 @@ for line in lines:
     marker = re.fullmatch(r"# security-contract: ([a-z-]+)=([a-z]+)", stripped)
     if marker:
         name, documented_value = marker.groups()
-        if name not in expected_markers or documented_value != expected_markers[name]:
+        expected_key, expected_value = expected_markers.get(name, ("", ""))
+        if not expected_key or documented_value != expected_value:
             raise SystemExit(f"invalid security marker: {stripped}")
         if name in marker_assignments or pending_marker is not None:
             raise SystemExit(f"duplicate or unbound security marker: {name}")
@@ -230,10 +237,15 @@ if pending_marker is not None:
     raise SystemExit(f"unbound security marker: {pending_marker}")
 if set(marker_assignments) != set(expected_markers):
     raise SystemExit("security contract assignments are incomplete")
-for marker_name, (_, value) in marker_assignments.items():
-    if value != expected_markers[marker_name]:
+for marker_name, (key, value) in marker_assignments.items():
+    expected_key, expected_value = expected_markers[marker_name]
+    if key != expected_key:
         raise SystemExit(
-            f"unsafe {marker_name} value: expected {expected_markers[marker_name]}"
+            f"unsafe {marker_name} assignment: expected {expected_key}, got {key}"
+        )
+    if value != expected_value:
+        raise SystemExit(
+            f"unsafe {marker_name} value: expected {expected_value}"
         )
 PY
 then

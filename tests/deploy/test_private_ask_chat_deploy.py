@@ -176,9 +176,11 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     assert "location ^~ /ask/ {" not in nginx
     assert "location ^~ /ask/api/ {" in nginx
     assert "proxy_pass http://127.0.0.1:8123/;" in nginx
-    assert "X-Forwarded-User" not in nginx
-    assert "X-Forwarded-Email" not in nginx
-    assert "X-Forwarded-Client-Id" not in nginx
+    assert 'proxy_set_header X-Forwarded-User "";' in nginx
+    assert 'proxy_set_header X-Forwarded-Email "";' in nginx
+    assert 'proxy_set_header X-Forwarded-Client-Id "";' in nginx
+    assert 'proxy_set_header X-Login "";' in nginx
+    assert 'proxy_set_header X-User "";' in nginx
     assert nginx.count("proxy_set_header x-penge-auth-issuer ") == 1
     assert nginx.count("proxy_set_header x-penge-auth-subject ") == 1
     assert nginx.count("proxy_set_header x-penge-proxy-secret ") == 1
@@ -441,6 +443,30 @@ def test_ready_validator_rejects_malformed_containerfile_from(
 
     assert malformed.returncode != 0
     assert "chat Containerfile has a malformed FROM directive" in malformed.stderr
+
+
+def test_ready_validator_rejects_security_marker_bound_to_wrong_assignment(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    contract = validator.parent / "private-ask-chat.contract.env.in"
+    contract.write_text(
+        contract.read_text().replace(
+            "PENGE_MODEL_FALLBACK=false",
+            "UNUSED=false",
+        )
+    )
+
+    unsafe = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert unsafe.returncode != 0
+    assert "unsafe model-fallback assignment" in unsafe.stderr
 
 
 def test_ready_validator_rejects_mismatched_database_privilege_target(

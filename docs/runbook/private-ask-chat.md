@@ -348,7 +348,34 @@ The signed acceptance record must include pass/fail, timestamp, image digest, te
 Synthetic tests are not evidence of real HydraFusion entitlement.
 Real account acceptance is not complete until both authorized users participate.
 
-## External network and persistence checks
+## Pre-deployment artifact approval
+
+Create the approval manifest only after the packaging and contract evidence below
+is complete.
+This is a pre-deployment gate for the exact artifact to be installed; it does not
+contain live-service acceptance evidence.
+
+- [ ] #343–#346 exact contracts are merged into this branch.
+- [ ] `validate-private-ask-chat.sh --ready` passes.
+- [ ] Chat package and lockfile pin `@github/copilot-sdk` `1.0.16`.
+- [ ] Chat image CI, SBOM, provenance, vulnerability checks, and exact GHCR digest pass.
+- [ ] Source-coverage startup gate includes every source required by #344.
+- [ ] Dedicated OAuth database migration round-trip and explicit OAuth-table grants pass
+      without changing finance-database or global-role privileges.
+- [ ] Versioned rootless secrets exist and encrypted backups are verified.
+- [ ] Nginx exact/bounded routes pass `nginx -t` behind oauth2-proxy.
+- [ ] The exact rendered Quadlet, environment, nginx, and database templates are reviewed.
+- [ ] The detached reviewer signature covers the complete manifest and all template hashes.
+
+The manifest must bind the exact image digest, approved environment, rendered unit,
+all template hashes, and the bound checkout.
+The installer must reject any change to those artifacts.
+
+## Post-deployment live acceptance
+
+Perform the following only after the pre-deployment manifest has been approved and
+the rootless service has been installed.
+Record the resulting redacted evidence separately from the approval manifest.
 
 Run these only on the NAS after the gate is resolved:
 
@@ -374,17 +401,10 @@ Record only port numbers and open/closed state.
 
 ## NAS deployment checklist
 
-Do not create the approval manifest until every item is true.
+Complete the pre-deployment artifact approval section before installation, then
+complete this live checklist after the service is running:
 
-- [ ] #343–#346 exact contracts are merged into this branch.
-- [ ] `validate-private-ask-chat.sh --ready` passes.
-- [ ] Chat package and lockfile pin `@github/copilot-sdk` `1.0.16`.
-- [ ] Chat image CI, SBOM, provenance, vulnerability checks, and exact GHCR digest pass.
-- [ ] Source-coverage startup gate includes every source required by #344.
 - [ ] HydraFusion entitlement is externally verified for both authorized identities with no fallback.
-- [ ] Dedicated OAuth database migration round-trip and explicit OAuth-table grants pass without changing finance-database or global-role privileges.
-- [ ] Versioned rootless secrets exist and encrypted backups are verified.
-- [ ] Nginx exact/bounded routes pass `nginx -t` behind oauth2-proxy.
 - [ ] Container runs rootless with loopback-only publishing and default SELinux confinement.
 - [ ] `loginctl show-user penge-chat --property=Linger --value` returns `yes`.
 - [ ] Liveness/readiness, logs, and metrics meet the privacy contract.
@@ -393,7 +413,7 @@ Do not create the approval manifest until every item is true.
 - [ ] External scan and restart/no-transcript evidence pass.
 - [ ] Backup/restore, key rotation, unlink, and digest rollback drills pass.
 - [ ] Previous digest and compatible secret versions remain available for rollback.
-- [ ] The reviewed approval manifest binds the exact digest, environment, rendered unit, and all template hashes after all evidence is attached.
+- [ ] The separate live acceptance record is reviewed without private content.
 
 ## Incident response
 

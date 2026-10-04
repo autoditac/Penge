@@ -147,9 +147,9 @@ export function getHouseholdMerchantSummaryTool(
               reference_source === null || reference_key === null || reference_version === null
                 ? null
                 : {
-                    source: reference_source,
-                    key: reference_key,
-                    version: reference_version,
+                    source: redactTextBounded(reference_source, 200),
+                    key: redactTextBounded(reference_key, 200),
+                    version: redactTextBounded(reference_version, 200),
                   },
           }),
         ),

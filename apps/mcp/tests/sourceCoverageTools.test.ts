@@ -432,9 +432,9 @@ describe("source coverage tools", () => {
           alias_count: 1,
           active_rule_count: 1,
           classified_transaction_count: 2,
-          reference_source: "nsi",
-          reference_key: "synthetic-market",
-          reference_version: "fixture-v1",
+          reference_source: "nsi 123456789",
+          reference_key: "synthetic-market 123456789",
+          reference_version: "fixture-v1 123456789",
           total_count: 1,
         },
       ]),
@@ -447,12 +447,44 @@ describe("source coverage tools", () => {
     merchants.outputSchema.parse(merchantOut);
     expect(taxonomyOut.entries).toHaveLength(1);
     expect(ruleOut.rules).toHaveLength(1);
-    expect(merchantOut.merchants[0]?.reference?.source).toBe("nsi");
     expect(taxonomyOut.entries[0]?.name).toBe("Groceries [REDACTED]");
     expect(ruleOut.rules[0]?.merchant_name).toBe("Synthetic Market [REDACTED]");
     expect(ruleOut.rules[0]?.category_name).toBe("Groceries [REDACTED]");
     expect(ruleOut.rules[0]?.explanation).toBe("Synthetic exact alias [REDACTED]");
     expect(merchantOut.merchants[0]?.name).toBe("Synthetic Market [REDACTED]");
+    expect(merchantOut.merchants[0]?.reference).toEqual({
+      source: "nsi [REDACTED]",
+      key: "synthetic-market [REDACTED]",
+      version: "fixture-v1 [REDACTED]",
+    });
+  });
+
+  it("uses the oldest required evidence stream for source freshness", async () => {
+    let capturedSql = "";
+    const tool = getSourceCoverageTool({
+      runner: {
+        async query(sql) {
+          capturedSql = sql;
+          return {
+            rows: [
+              {
+                source_id: "nordnet",
+                account_count: 1,
+                transaction_count: 1,
+                holding_count: 1,
+                evidence_count: 2,
+                latest_observed_at: "2026-08-01T00:00:00.000Z",
+              },
+            ],
+          };
+        },
+      },
+      now: () => NOW,
+    });
+    const out = await tool.handler({ source_ids: ["nordnet"] }, CTX);
+    expect(out.sources[0]?.coverage.freshness).toBe("stale");
+    expect(capturedSql).toMatch(/least\(accounts\.latest_account_at/);
+    expect(capturedSql).toMatch(/min\(latest_observed_at\)/);
   });
 
   it("keeps summary totals when requested pages are empty", async () => {

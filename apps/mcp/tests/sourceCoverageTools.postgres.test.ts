@@ -18,6 +18,17 @@ import { queryNetWorthTool } from "../src/tools/queryNetWorth.js";
 import { searchHouseholdTransactionsTool } from "../src/tools/searchHouseholdTransactions.js";
 
 const enabled = process.env.PENGE_MCP_REPORT_PG_TEST === "1";
+const SYNTHETIC_ENTITY_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const SYNTHETIC_ACCOUNT_ID = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const SYNTHETIC_INSTRUMENT_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const SYNTHETIC_HOLDING_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+
+async function cleanSyntheticFacts(pool: pg.Pool): Promise<void> {
+  await pool.query("DELETE FROM holding_snapshot WHERE id = $1::uuid", [SYNTHETIC_HOLDING_ID]);
+  await pool.query("DELETE FROM account WHERE id = $1::uuid", [SYNTHETIC_ACCOUNT_ID]);
+  await pool.query("DELETE FROM instrument WHERE id = $1::uuid", [SYNTHETIC_INSTRUMENT_ID]);
+  await pool.query("DELETE FROM entity WHERE id = $1::uuid", [SYNTHETIC_ENTITY_ID]);
+}
 
 describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () => {
   it("starts the stdio MCP server with only PENGE_DB_URL_FILE", async () => {
@@ -126,121 +137,125 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
     }
     const fixturePool = new pg.Pool({ connectionString: url.toString() });
     try {
-      const entityId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
-      const accountId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
-      const instrumentId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+      await cleanSyntheticFacts(fixturePool);
       await fixturePool.query("INSERT INTO entity (id, name, kind) VALUES ($1::uuid, $2, $3)", [
-        entityId,
+        SYNTHETIC_ENTITY_ID,
         "Synthetic Manual Owner",
         "person",
       ]);
       await fixturePool.query(
         `INSERT INTO account (id, entity_id, provider, external_id, name, kind, currency)
          VALUES ($1::uuid, $2::uuid, 'manual', $3, $4, 'cash', 'EUR')`,
-        [accountId, entityId, "synthetic-manual-account", "Synthetic manual account"],
+        [
+          SYNTHETIC_ACCOUNT_ID,
+          SYNTHETIC_ENTITY_ID,
+          "synthetic-manual-account",
+          "Synthetic manual account",
+        ],
       );
       await fixturePool.query(
         `INSERT INTO instrument (id, name, kind, currency)
          VALUES ($1::uuid, $2, 'cash', 'EUR')`,
-        [instrumentId, "Synthetic manual fact"],
+        [SYNTHETIC_INSTRUMENT_ID, "Synthetic manual fact"],
       );
       await fixturePool.query(
         `INSERT INTO holding_snapshot (
            id, account_id, instrument_id, as_of, quantity, market_value
          ) VALUES ($1::uuid, $2::uuid, $3::uuid, '2026-06-30', 1, 100)`,
-        ["dddddddd-dddd-4ddd-8ddd-dddddddddddd", accountId, instrumentId],
+        [SYNTHETIC_HOLDING_ID, SYNTHETIC_ACCOUNT_ID, SYNTHETIC_INSTRUMENT_ID],
       );
-    } finally {
-      await fixturePool.end();
-    }
-    const data = await connect({ databaseUrl: url.toString(), duckdbPath: "" });
-    try {
-      const client = await data.acquire();
+      const data = await connect({ databaseUrl: url.toString(), duckdbPath: "" });
       try {
-        const context = { serverName: "postgres-test", serverVersion: "test" };
-        const search = searchHouseholdTransactionsTool({ runner: client });
-        const page = await search.handler(
-          {
-            source: "gls",
-            date_range: { from: "2026-06-01", to: "2026-06-30" },
-            limit: 10,
-            offset: 0,
-          },
-          context,
-        );
-        search.outputSchema.parse(page);
-        expect(page.items.length).toBeGreaterThan(0);
-        const transactionId = page.items[0]?.stable_id;
-        if (!transactionId) throw new Error("Synthetic GLS transaction fixture is missing");
-        const detail = getHouseholdTransactionDetailTool({
-          runner: {
-            query: (sql, params) => client.query(sql, [...params]),
-            async readSnapshot<T>(operation: (runner: typeof client) => Promise<T>): Promise<T> {
-              await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
-              try {
-                const result = await operation(client);
-                await client.query("COMMIT");
-                return result;
-              } catch (error) {
-                await client.query("ROLLBACK");
-                throw error;
-              }
+        const client = await data.acquire();
+        try {
+          const context = { serverName: "postgres-test", serverVersion: "test" };
+          const search = searchHouseholdTransactionsTool({ runner: client });
+          const page = await search.handler(
+            {
+              source: "gls",
+              date_range: { from: "2026-06-01", to: "2026-06-30" },
+              limit: 10,
+              offset: 0,
             },
-          },
-        });
-        const record = await detail.handler(
-          { transaction_id: transactionId, source: "gls" },
-          context,
-        );
-        detail.outputSchema.parse(record);
-        expect(record.transaction.stable_id).toBe(transactionId);
-        expect(record.ledger_semantics).toBe("single_source_ledger");
+            context,
+          );
+          search.outputSchema.parse(page);
+          expect(page.items.length).toBeGreaterThan(0);
+          const transactionId = page.items[0]?.stable_id;
+          if (!transactionId) throw new Error("Synthetic GLS transaction fixture is missing");
+          const detail = getHouseholdTransactionDetailTool({
+            runner: {
+              query: (sql, params) => client.query(sql, [...params]),
+              async readSnapshot<T>(operation: (runner: typeof client) => Promise<T>): Promise<T> {
+                await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+                try {
+                  const result = await operation(client);
+                  await client.query("COMMIT");
+                  return result;
+                } catch (error) {
+                  await client.query("ROLLBACK");
+                  throw error;
+                }
+              },
+            },
+          });
+          const record = await detail.handler(
+            { transaction_id: transactionId, source: "gls" },
+            context,
+          );
+          detail.outputSchema.parse(record);
+          expect(record.transaction.stable_id).toBe(transactionId);
+          expect(record.ledger_semantics).toBe("single_source_ledger");
 
-        const coverage = getSourceCoverageTool({ runner: client });
-        const matrix = await coverage.handler(
-          {
-            source_ids: [
-              "gls",
-              "manual_facts",
-              "household_classification",
-              "paypal",
-              "ecb_fx",
-              "pfa",
-            ],
-          },
-          context,
-        );
-        coverage.outputSchema.parse(matrix);
-        expect(matrix.sources).toHaveLength(6);
-        expect(matrix.sources.find((source) => source.id === "gls")?.coverage.account_count).toBe(
-          1,
-        );
-        const manual = matrix.sources.find((source) => source.id === "manual_facts")?.coverage;
-        expect(manual?.account_count).toBe(1);
-        expect(manual?.holding_count).toBe(1);
-        expect(manual?.completeness).toBe("complete");
-        expect(
-          matrix.sources.find((source) => source.id === "household_classification")?.coverage
-            .transaction_count,
-        ).toBeGreaterThan(0);
-        expect(
-          matrix.sources.find((source) => source.id === "household_classification")?.coverage
-            .evidence_count,
-        ).toBeGreaterThan(0);
-        expect(
-          matrix.sources.find((source) => source.id === "paypal")?.coverage.evidence_count,
-        ).toBeGreaterThan(0);
-        expect(
-          matrix.sources.find((source) => source.id === "ecb_fx")?.coverage.evidence_count,
-        ).toBeGreaterThan(0);
-        expect(matrix.sources.find((source) => source.id === "pfa")?.coverage.completeness).toBe(
-          "missing",
-        );
+          const coverage = getSourceCoverageTool({ runner: client });
+          const matrix = await coverage.handler(
+            {
+              source_ids: [
+                "gls",
+                "manual_facts",
+                "household_classification",
+                "paypal",
+                "ecb_fx",
+                "pfa",
+              ],
+            },
+            context,
+          );
+          coverage.outputSchema.parse(matrix);
+          expect(matrix.sources).toHaveLength(6);
+          expect(matrix.sources.find((source) => source.id === "gls")?.coverage.account_count).toBe(
+            1,
+          );
+          const manual = matrix.sources.find((source) => source.id === "manual_facts")?.coverage;
+          expect(manual?.account_count).toBe(1);
+          expect(manual?.holding_count).toBe(1);
+          expect(manual?.completeness).toBe("complete");
+          expect(
+            matrix.sources.find((source) => source.id === "household_classification")?.coverage
+              .transaction_count,
+          ).toBeGreaterThan(0);
+          expect(
+            matrix.sources.find((source) => source.id === "household_classification")?.coverage
+              .evidence_count,
+          ).toBeGreaterThan(0);
+          expect(
+            matrix.sources.find((source) => source.id === "paypal")?.coverage.evidence_count,
+          ).toBeGreaterThan(0);
+          expect(
+            matrix.sources.find((source) => source.id === "ecb_fx")?.coverage.evidence_count,
+          ).toBeGreaterThan(0);
+          expect(matrix.sources.find((source) => source.id === "pfa")?.coverage.completeness).toBe(
+            "missing",
+          );
+        } finally {
+          client.release();
+        }
       } finally {
-        client.release();
+        await data.close();
       }
     } finally {
-      await data.close();
+      await cleanSyntheticFacts(fixturePool);
+      await fixturePool.end();
     }
   });
 });

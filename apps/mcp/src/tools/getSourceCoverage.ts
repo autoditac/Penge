@@ -107,8 +107,24 @@ const COVERAGE_SQL = `
       accounts.account_count,
       coalesce(transactions.transaction_count, 0)::int AS transaction_count,
       coalesce(holdings.holding_count, 0)::int AS holding_count,
-      greatest(accounts.latest_account_at, transactions.latest_transaction_at,
-        holdings.latest_holding_at) AS latest_observed_at
+      CASE
+        WHEN accounts.provider IN ('nordnet', 'pfa', 'growney')
+          THEN CASE
+            WHEN transactions.latest_transaction_at IS NULL OR holdings.latest_holding_at IS NULL
+              THEN NULL
+            ELSE least(accounts.latest_account_at, transactions.latest_transaction_at,
+              holdings.latest_holding_at)
+          END
+        WHEN accounts.provider = 'manual'
+          THEN CASE
+            WHEN holdings.latest_holding_at IS NULL THEN NULL
+            ELSE least(accounts.latest_account_at, holdings.latest_holding_at)
+          END
+        ELSE CASE
+          WHEN transactions.latest_transaction_at IS NULL THEN NULL
+          ELSE least(accounts.latest_account_at, transactions.latest_transaction_at)
+        END
+      END AS latest_observed_at
     FROM account_counts AS accounts
     LEFT JOIN transaction_counts AS transactions ON transactions.provider = accounts.provider
     LEFT JOIN holding_counts AS holdings ON holdings.provider = accounts.provider
@@ -121,7 +137,7 @@ const COVERAGE_SQL = `
     UNION ALL
     SELECT 'enable_banking', coalesce(sum(account_count), 0)::int,
       coalesce(sum(transaction_count), 0)::int, 0,
-      coalesce(sum(transaction_count), 0)::int, max(latest_observed_at)
+      coalesce(sum(transaction_count), 0)::int, min(latest_observed_at)
     FROM account_sources WHERE source_id IN ('gls', 'ebank', 'lunar')
     UNION ALL
     SELECT 'ecb_fx', 0, 0, 0, count(*)::int, max(as_of)::timestamptz FROM fx_rate

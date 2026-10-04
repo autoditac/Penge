@@ -10,6 +10,7 @@ Each actor's exact `hydrafusion` entitlement is checked by creating the SDK sess
 
 - The HTTP listener accepts only `127.0.0.1`, `localhost`, or `::1`.
 - The reverse proxy must overwrite `X-Penge-Auth-Issuer`, `X-Penge-Auth-Subject`, and `X-Penge-Proxy-Secret`.
+- State-changing requests require the configured application origin; chat and stop bodies require `application/json`.
 - `X-Penge-Auth-Subject` is the immutable Google subject, not email or display name.
 - The browser never supplies an actor or household-member ID.
 - GitHub access and refresh tokens, OAuth state, and the PKCE verifier are encrypted with versioned AES-256-GCM envelopes.
@@ -17,7 +18,8 @@ Each actor's exact `hydrafusion` entitlement is checked by creating the SDK sess
 - OAuth callback state deletion commits before exchange while the actor lock remains held, so failed callbacks cannot reuse one-time state.
 - Unlink removes pending OAuth states and completes after any in-flight callback, then cancels active streams with a terminal event.
 - Database waits are bounded, idle pool failures trigger controlled shutdown, and readiness probes share chat concurrency limits.
-- Copilot, MCP, and HTTP teardown paths retain no prompt or transcript.
+- Copilot session files are bounded process memory, persistent SDK workspaces are disabled, and teardown retains no prompt or transcript.
+- Audit and request logs use fixed identifiers only; model-controlled argument names, values, and request paths are not retained.
 - The `penge_chat_oauth` database role is checked at startup against the dedicated chat database and may access only the three chat tables.
 - The finance MCP child receives only `PENGE_DB_URL_FILE`; database credentials are never rematerialized into its environment.
 

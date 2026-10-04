@@ -1,5 +1,7 @@
 import { createConnection } from "node:net";
+import { Writable } from "node:stream";
 
+import pino from "pino";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeatureDisabledError, PengeError, SessionLimitError } from "../src/errors.js";
@@ -9,6 +11,7 @@ import { syntheticConfig } from "./helpers.js";
 
 const headers = {
   "content-type": "application/json",
+  origin: "https://penge.example.test",
   "x-penge-proxy-secret": "p".repeat(32),
   "x-penge-auth-issuer": "https://accounts.google.com",
   "x-penge-auth-subject": "synthetic-google-subject",
@@ -244,6 +247,7 @@ describe("loopback HTTP service", () => {
         unlink: async () => undefined,
       },
     });
+
     try {
       const response = await fetch(`${server.origin}/v1/chat`, {
         method: "POST",
@@ -254,6 +258,90 @@ describe("loopback HTTP service", () => {
       const body = JSON.stringify(await response.json());
       expect(body).toContain("invalid_request");
       expect(body).not.toContain("synthetic secret diagnostic");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("rejects cross-origin mutations and non-JSON chat bodies", async () => {
+    const runtimeStart = vi.fn(async () => "00000000-0000-4000-8000-000000000001");
+    const unlink = vi.fn(async () => undefined);
+    const server = await startChatServer(syntheticConfig(), {
+      runtime: {
+        start: runtimeStart,
+        cancel: async () => undefined,
+        disconnect: async () => undefined,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => true,
+        ensureModelAvailable: async () => true,
+        invalidateActor: async () => undefined,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async () => "synthetic-user",
+        status: async () => ({ state: "linked" as const, login: "synthetic-user" }),
+        unlink,
+      },
+    });
+    try {
+      const crossOrigin = await fetch(`${server.origin}/v1/chat`, {
+        method: "POST",
+        headers: { ...headers, origin: "https://attacker.example.test" },
+        body: JSON.stringify({ question: "Safe question" }),
+      });
+      expect(crossOrigin.status).toBe(403);
+
+      const crossOriginDelete = await fetch(`${server.origin}/v1/auth/github`, {
+        method: "DELETE",
+        headers: { ...headers, origin: "https://attacker.example.test" },
+      });
+      expect(crossOriginDelete.status).toBe(403);
+
+      const formCompatible = await fetch(`${server.origin}/v1/chat`, {
+        method: "POST",
+        headers: { ...headers, "content-type": "text/plain" },
+        body: JSON.stringify({ question: "Safe question" }),
+      });
+      expect(formCompatible.status).toBe(415);
+      expect(runtimeStart).not.toHaveBeenCalled();
+      expect(unlink).not.toHaveBeenCalled();
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("logs only fixed route identifiers for caller-controlled paths", async () => {
+    let logs = "";
+    const destination = new Writable({
+      write(chunk, _encoding, callback) {
+        logs += chunk.toString();
+        callback();
+      },
+    });
+    const server = await startChatServer(syntheticConfig(), {
+      logger: pino({ level: "info" }, destination),
+      runtime: {
+        start: async () => "00000000-0000-4000-8000-000000000001",
+        cancel: async () => undefined,
+        disconnect: async () => undefined,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => false,
+        ensureModelAvailable: async () => false,
+        invalidateActor: async () => undefined,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async () => "synthetic-user",
+        status: async () => ({ state: "not-linked" as const, login: null }),
+        unlink: async () => undefined,
+      },
+    });
+    try {
+      await fetch(`${server.origin}/v1/chat/synthetic-sensitive-value`);
+      expect(logs).toContain('"route":"unrecognized"');
+      expect(logs).not.toContain("synthetic-sensitive-value");
     } finally {
       await server.close();
     }

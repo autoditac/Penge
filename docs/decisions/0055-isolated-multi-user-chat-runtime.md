@@ -33,6 +33,7 @@ The chat service must preserve [ADR-0005](0005-llm-access-via-mcp-only.md) and [
 The authenticated external browser origin is separate from the listener and must use HTTPS outside local development.
 The external API base is a trailing-slash URL so reverse-proxy path prefixes survive OAuth callback construction; the path-free app origin independently owns the `/ask` redirect.
 The reverse proxy must overwrite and supply `X-Penge-Auth-Issuer`, immutable Google `X-Penge-Auth-Subject`, and a mounted-secret-backed `X-Penge-Proxy-Secret`; direct or ambiguous headers are rejected.
+State-changing requests additionally require the configured application origin, and chat/stop requests require `application/json`.
 
 Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE.
 The database stores only an HMAC state lookup and an encrypted versioned state envelope, never raw state or a plaintext verifier.
@@ -41,9 +42,10 @@ A mounted versioned keyring retains old keys for decryption while one current ke
 Per-actor PostgreSQL advisory locks serialize refresh, relink, status, and unlink operations across service processes so rotating refresh tokens cannot be redeemed concurrently or overwrite a newer link.
 The same lock serializes OAuth state creation/consumption with unlink, which removes every pending state before it reports success.
 Callback state deletion commits before token exchange while the session-level actor lock remains held, so a failed callback cannot redeem the same one-time state again.
-Pool acquisition, statements, transactions, and advisory-lock waits are bounded; idle pool failures initiate metadata-only controlled shutdown.
+Pool acquisition, statements, transactions, and advisory-lock waits are bounded; OAuth transactions use a separate bound that covers the upstream refresh deadline, and idle pool failures initiate metadata-only controlled shutdown.
 
 The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedInUser: false`, actor-isolated storage, exact `hydrafusion`, no fallback, no session store, no config discovery, no skills, extensions, canvases, built-in tools, or custom tools.
+SDK session files use a bounded process-memory provider and persistent workspaces are disabled, so crashes cannot leave transcripts on disk.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
 Exact-model session creation with that provider is the per-actor entitlement check; client-global unauthenticated model listing is not used.
 A bounded, immediately closed exact-model session lets authenticated status checks establish readiness before the browser submits its first question.
@@ -55,7 +57,8 @@ Every successful `get_source_coverage` result must independently report the same
 The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.
 Events are zod-validated, ordered, session-bound, and terminal after completion or error.
 Prompt and transcript content are process-memory-only and removed when a bounded request ends.
-Audit storage contains only pseudonymous actor/session IDs, tool name, status, duration, and argument key names.
+Audit storage contains only pseudonymous actor/session IDs, fixed tool identifiers, status, and duration; model-controlled argument names and values are never retained.
+Request logging uses fixed recognized-route identifiers and never caller-controlled paths.
 
 OAuth/audit tables use a dedicated schema-only Alembic chain and database.
 Deployment owns database/role lifecycle and grants; the finance migration graph remains untouched.

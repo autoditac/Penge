@@ -88,6 +88,7 @@ interface Queryable {
 
 export interface PostgresChatStoreOptions {
   timeoutMs?: number;
+  oauthTransactionTimeoutMs?: number;
   onPoolError?: (error: Error) => void;
 }
 
@@ -104,6 +105,8 @@ export class PostgresChatStore implements ChatStore {
     options: PostgresChatStoreOptions = {},
   ): Promise<PostgresChatStore> {
     const timeoutMs = options.timeoutMs ?? 5_000;
+    const oauthTransactionTimeoutMs =
+      options.oauthTransactionTimeoutMs ?? Math.max(timeoutMs, 20_000);
     const pool = new Pool({
       connectionString: databaseUrl,
       max: 4,
@@ -112,7 +115,7 @@ export class PostgresChatStore implements ChatStore {
       query_timeout: timeoutMs,
       statement_timeout: timeoutMs,
       lock_timeout: timeoutMs,
-      idle_in_transaction_session_timeout: timeoutMs,
+      idle_in_transaction_session_timeout: oauthTransactionTimeoutMs,
     });
     pool.on("error", (error) => {
       options.onPoolError?.(error);

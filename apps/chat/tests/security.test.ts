@@ -8,7 +8,7 @@ import {
   buildMcpServerConfig,
 } from "../src/mcp.js";
 import { projectEvidence } from "../src/runtime.js";
-import { assertPromptIsSafe, redactedArgumentKeys } from "../src/security.js";
+import { assertPromptIsSafe } from "../src/security.js";
 import { syntheticConfig } from "./helpers.js";
 
 describe("read-only MCP policy", () => {
@@ -18,15 +18,6 @@ describe("read-only MCP policy", () => {
     expect(() => assertMcpToolAllowed("execute_sql")).toThrow(/denied by policy/);
     expect(() => assertMcpToolAllowed("_meta")).toThrow(/not in contract/);
     expect(() => assertMcpSourceAllowed("internet")).toThrow(/source allowlist/);
-  });
-
-  it("audits argument names without values", () => {
-    const keys = redactedArgumentKeys({
-      account_id: "synthetic-secret-account",
-      token: "synthetic-token",
-    });
-    expect(keys).toEqual(["account_id", "token"]);
-    expect(JSON.stringify(keys)).not.toContain("synthetic-secret-account");
   });
 
   it("requires the exact authoritative registration set and output schemas", () => {

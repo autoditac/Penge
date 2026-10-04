@@ -1,7 +1,7 @@
 import { Client } from "pg";
 import { describe, expect, it, vi } from "vitest";
 
-import { GitHubOAuthFlow } from "../src/oauth.js";
+import { GitHubOAuthFlow, UserTokenService } from "../src/oauth.js";
 import { PostgresChatStore } from "../src/store.js";
 import { syntheticConfig } from "./helpers.js";
 
@@ -61,6 +61,63 @@ describe("PostgreSQL chat-role isolation", () => {
       await store.close();
     }
   });
+
+  it.runIf(canRunFunctional)(
+    "keeps actor serialization through a slow successful token refresh",
+    async () => {
+      const config = syntheticConfig();
+      const store = await PostgresChatStore.connect(databaseUrl!, expectedRole!, {
+        timeoutMs: 50,
+        oauthTransactionTimeoutMs: 250,
+      });
+      const actorId = "actor_abcdef0123456789abcdef0123456789";
+      const initialResponses = [
+        new Response(
+          JSON.stringify({
+            access_token: "short-access",
+            refresh_token: "synthetic-refresh",
+            expires_in: 10,
+            refresh_token_expires_in: 10_000,
+            token_type: "bearer",
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+        new Response(JSON.stringify({ id: 84, login: "slow-refresh-user" }), {
+          headers: { "content-type": "application/json" },
+        }),
+      ];
+      const flow = new GitHubOAuthFlow(
+        config,
+        store,
+        vi.fn(async () => initialResponses.shift()!) as typeof fetch,
+      );
+      try {
+        const state = new URL(await flow.begin(actorId)).searchParams.get("state")!;
+        await flow.complete(actorId, state, "synthetic-code");
+        const refresh = vi.fn(async () => {
+          await new Promise((resolve) => setTimeout(resolve, 120));
+          return new Response(
+            JSON.stringify({
+              access_token: "rotated-access",
+              refresh_token: "rotated-refresh",
+              expires_in: 7_200,
+              token_type: "bearer",
+            }),
+            { headers: { "content-type": "application/json" } },
+          );
+        }) as typeof fetch;
+        const token = await new UserTokenService(config, store, refresh).providerFor(actorId)({
+          host: "github.com",
+          sessionId: "slow-refresh",
+          reason: "refresh",
+        });
+        expect(token).toMatchObject({ kind: "token", accessToken: "rotated-access" });
+        expect(refresh).toHaveBeenCalledOnce();
+      } finally {
+        await store.close();
+      }
+    },
+  );
 
   it.runIf(canRunFunctional)("observes an idle pool client failure", async () => {
     let observedError: Error | undefined;

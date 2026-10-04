@@ -1,6 +1,3 @@
-import { mkdir, rm } from "node:fs/promises";
-import { join } from "node:path";
-
 import {
   CopilotClient,
   ToolSet,
@@ -17,6 +14,7 @@ import {
   FeatureDisabledError,
   HydraFusionUnavailableError,
 } from "./errors.js";
+import { BoundedMemorySessionFs } from "./memorySessionFs.js";
 import { buildMcpServerConfig } from "./mcp.js";
 
 export interface CopilotEventSink {
@@ -78,6 +76,7 @@ export function buildSessionConfig(
     allowedModels: [HYDRAFUSION_MODEL],
     streaming: true,
     enableSessionStore: false,
+    infiniteSessions: { enabled: false },
     enableConfigDiscovery: false,
     includedBuiltinSkills: [],
     requestCanvasRenderer: false,
@@ -93,6 +92,7 @@ export function buildSessionConfig(
     mcpServers: {
       penge: buildMcpServerConfig(config),
     },
+    createSessionFsProvider: () => new BoundedMemorySessionFs(),
   };
 }
 
@@ -182,15 +182,13 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       );
     }
 
-    const baseDirectory = join(
-      this.config.copilotBaseDirectory,
-      options.actorId,
-      options.sessionId,
-    );
-    await mkdir(baseDirectory, { recursive: true, mode: 0o700 });
     const client = this.createClient({
       mode: "empty",
-      baseDirectory,
+      sessionFs: {
+        initialCwd: this.config.mcpWorkingDirectory,
+        sessionStatePath: "/sessions",
+        conventions: "posix",
+      },
       workingDirectory: this.config.mcpWorkingDirectory,
       useLoggedInUser: false,
       logLevel: "error",
@@ -214,11 +212,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       }
       unsubscribe = session.on((event) => options.sink.onEvent(event));
     } catch (error) {
-      try {
-        await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
-      } finally {
-        await rm(baseDirectory, { recursive: true, force: true });
-      }
+      await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
       throw error;
     }
 
@@ -238,35 +232,31 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
         unsubscribe?.();
         const cleanupErrors: Error[] = [];
         try {
+          await withTimeout(currentSession.disconnect(), this.config.requestTimeoutMs);
+        } catch (error) {
+          cleanupErrors.push(
+            error instanceof Error
+              ? error
+              : new CopilotRuntimeError("chat/copilot_cleanup", "session disconnect failed"),
+          );
+        }
+        try {
+          await withTimeout(stopClient(client), this.config.requestTimeoutMs);
+        } catch (error) {
+          cleanupErrors.push(
+            error instanceof Error
+              ? error
+              : new CopilotRuntimeError("chat/copilot_cleanup", "client cleanup failed"),
+          );
           try {
-            await withTimeout(currentSession.disconnect(), this.config.requestTimeoutMs);
-          } catch (error) {
+            await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
+          } catch (forceStopError) {
             cleanupErrors.push(
-              error instanceof Error
-                ? error
-                : new CopilotRuntimeError("chat/copilot_cleanup", "session disconnect failed"),
+              forceStopError instanceof Error
+                ? forceStopError
+                : new CopilotRuntimeError("chat/copilot_cleanup", "client force cleanup failed"),
             );
           }
-          try {
-            await withTimeout(stopClient(client), this.config.requestTimeoutMs);
-          } catch (error) {
-            cleanupErrors.push(
-              error instanceof Error
-                ? error
-                : new CopilotRuntimeError("chat/copilot_cleanup", "client cleanup failed"),
-            );
-            try {
-              await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
-            } catch (forceStopError) {
-              cleanupErrors.push(
-                forceStopError instanceof Error
-                  ? forceStopError
-                  : new CopilotRuntimeError("chat/copilot_cleanup", "client force cleanup failed"),
-              );
-            }
-          }
-        } finally {
-          await rm(baseDirectory, { recursive: true, force: true });
         }
         if (cleanupErrors.length > 0) {
           throw new CopilotRuntimeError(

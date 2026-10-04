@@ -104,10 +104,43 @@ function authenticate(request: IncomingMessage, config: ChatConfig): string {
   ).actorId;
 }
 
+function assertMutationRequest(
+  request: IncomingMessage,
+  config: ChatConfig,
+  requireJson: boolean,
+): void {
+  if (request.headers.origin !== new URL(config.publicAppOrigin).origin) {
+    throw new PengeError("chat/origin_rejected", "request origin is not trusted");
+  }
+  if (
+    requireJson &&
+    request.headers["content-type"]?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json"
+  ) {
+    throw new PengeError("chat/content_type_rejected", "request content type must be JSON");
+  }
+}
+
+function routeIdentifier(method: string | undefined, pathname: string): string {
+  const route = `${method ?? "UNKNOWN"} ${pathname}`;
+  return new Set([
+    "GET /health",
+    "GET /v1/auth/status",
+    "GET /oauth/github/start",
+    "GET /oauth/github/callback",
+    "DELETE /v1/auth/github",
+    "POST /v1/chat",
+    "POST /v1/chat/stop",
+  ]).has(route)
+    ? route
+    : "unrecognized";
+}
+
 function errorStatus(error: unknown): number {
   if (error instanceof AuthenticationError) return 401;
   if (error instanceof AuthorizationError) return 404;
   if (error instanceof SessionLimitError) return 429;
+  if (error instanceof PengeError && error.code === "chat/origin_rejected") return 403;
+  if (error instanceof PengeError && error.code === "chat/content_type_rejected") return 415;
   if (error instanceof FeatureDisabledError || error instanceof HydraFusionUnavailableError) {
     return 503;
   }
@@ -191,6 +224,9 @@ export async function startChatServer(
       }
 
       const actorId = authenticate(request, config);
+      if (request.method === "POST" || request.method === "DELETE") {
+        assertMutationRequest(request, config, request.method === "POST");
+      }
       if (request.method === "GET" && url.pathname === "/v1/auth/status") {
         const github = await dependencies.oauth.status(actorId);
         const modelAvailable =
@@ -296,7 +332,7 @@ export async function startChatServer(
         {
           code: error instanceof PengeError ? error.code : "chat/unexpected",
           method: request.method,
-          path: url.pathname,
+          route: routeIdentifier(request.method, url.pathname),
           status: errorStatus(error),
         },
         "chat request failed",

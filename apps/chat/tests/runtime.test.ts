@@ -164,7 +164,7 @@ describe("chat runtime isolation and lifecycle", () => {
       data: {
         toolName: "secret-from-model-do-not-audit",
         toolCallId: "call-1",
-        arguments: { account_id: "synthetic-sensitive-value" },
+        arguments: { synthetic_private_financial_fact: "synthetic-sensitive-value" },
       },
     });
     await vi.waitFor(() =>
@@ -174,10 +174,11 @@ describe("chat runtime isolation and lifecycle", () => {
     expect(store.audits).toContainEqual(
       expect.objectContaining({
         tool: "denied_untrusted_tool",
-        argumentKeys: ["account_id"],
+        argumentKeys: [],
       }),
     );
     expect(JSON.stringify(store.audits)).not.toContain("secret-from-model-do-not-audit");
+    expect(JSON.stringify(store.audits)).not.toContain("synthetic_private_financial_fact");
     expect(JSON.stringify(store.audits)).not.toContain("synthetic-sensitive-value");
 
     const idleSession = await runtime.start("actor-b", "Another safe question", () => undefined);

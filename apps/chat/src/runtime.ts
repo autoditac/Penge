@@ -12,7 +12,7 @@ import {
 } from "./errors.js";
 import { assertExactToolAllowlist, assertMcpToolAllowed, type McpToolName } from "./mcp.js";
 import type { ActiveCopilotRun, CopilotRuntime } from "./sdk.js";
-import { assertPromptIsSafe, redactedArgumentKeys, ToolPolicyError } from "./security.js";
+import { assertPromptIsSafe, ToolPolicyError } from "./security.js";
 import { createEventFactory, type StreamEvent, type StreamEventInput } from "./stream.js";
 import type { ChatStore } from "./store.js";
 
@@ -649,7 +649,7 @@ export class ChatRuntime {
           tool,
           status: "started",
           durationMs: null,
-          argumentKeys: redactedArgumentKeys(event.data.arguments),
+          argumentKeys: [],
         });
         break;
       }
@@ -719,7 +719,7 @@ export class ChatRuntime {
     }
   }
 
-  private async denyTool(session: ActiveSession, args: unknown): Promise<void> {
+  private async denyTool(session: ActiveSession, _args: unknown): Promise<void> {
     const deniedTool = "denied_untrusted_tool";
     await this.store.appendAudit({
       actorId: session.actorId,
@@ -727,7 +727,7 @@ export class ChatRuntime {
       tool: deniedTool,
       status: "denied",
       durationMs: null,
-      argumentKeys: redactedArgumentKeys(args),
+      argumentKeys: [],
     });
     await this.finish(
       session,

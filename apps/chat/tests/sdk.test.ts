@@ -1,6 +1,11 @@
-import { ToolSet, type GitHubTokenProvider } from "@github/copilot-sdk";
+import { access } from "node:fs/promises";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+
+import { ToolSet, type CopilotClientOptions, type GitHubTokenProvider } from "@github/copilot-sdk";
 import { describe, expect, it, vi } from "vitest";
 
+import { BoundedMemorySessionFs } from "../src/memorySessionFs.js";
 import { buildSessionConfig, GitHubCopilotRuntime } from "../src/sdk.js";
 import { syntheticConfig } from "./helpers.js";
 
@@ -11,12 +16,13 @@ const provider: GitHubTokenProvider = async () => ({
 });
 
 describe("Copilot SDK policy", () => {
-  it("pins empty mode session semantics to exact HydraFusion with local stdio MCP", () => {
+  it("pins empty mode session semantics to exact HydraFusion with local stdio MCP", async () => {
     const session = buildSessionConfig(syntheticConfig(), "session-1", provider);
     expect(session).toMatchObject({
       model: "hydrafusion",
       allowedModels: ["hydrafusion"],
       enableSessionStore: false,
+      infiniteSessions: { enabled: false },
       enableConfigDiscovery: false,
       includedBuiltinSkills: [],
       requestCanvasRenderer: false,
@@ -38,6 +44,15 @@ describe("Copilot SDK policy", () => {
     }
     expect(session.availableTools.toArray()).toContain("mcp:penge-get_source_coverage");
     expect(session.excludedTools.toArray()).toEqual(["builtin:*", "custom:*"]);
+    expect(session.createSessionFsProvider).toBeTypeOf("function");
+    const memoryFs = new BoundedMemorySessionFs();
+    await memoryFs.writeFile("/sessions/session-1/events.jsonl", "synthetic transcript");
+    await expect(memoryFs.readFile("/sessions/session-1/events.jsonl")).resolves.toBe(
+      "synthetic transcript",
+    );
+    await expect(
+      memoryFs.writeFile("/sessions/too-large", "x".repeat(8 * 1024 * 1024 + 1)),
+    ).rejects.toThrow(/memory is exhausted/);
   });
 
   it("fails before process creation while HydraFusion is feature-disabled", async () => {
@@ -85,6 +100,39 @@ describe("Copilot SDK policy", () => {
     expect(tokenProvider).toHaveBeenCalledOnce();
     expect(listModels).not.toHaveBeenCalled();
     expect(forceStop).toHaveBeenCalledOnce();
+  });
+
+  it("uses no disk-backed session path even when forced termination interrupts setup", async () => {
+    const copilotBaseDirectory = join(tmpdir(), `penge-chat-${crypto.randomUUID()}`);
+    let clientOptions: CopilotClientOptions | undefined;
+    const runtime = new GitHubCopilotRuntime(
+      syntheticConfig({ copilotBaseDirectory }),
+      (options) => {
+        clientOptions = options;
+        return {
+          start: async () => undefined,
+          createSession: async () => {
+            throw new Error("synthetic forced termination");
+          },
+          stop: async () => [],
+          forceStop: async () => undefined,
+        };
+      },
+    );
+    await expect(
+      runtime.createRun({
+        actorId: "actor-a",
+        sessionId: "session-a",
+        tokenProvider: provider,
+        sink: { onEvent: () => undefined },
+      }),
+    ).rejects.toThrow(/forced termination/);
+    expect(clientOptions?.baseDirectory).toBeUndefined();
+    expect(clientOptions?.sessionFs).toMatchObject({
+      sessionStatePath: "/sessions",
+      conventions: "posix",
+    });
+    await expect(access(copilotBaseDirectory)).rejects.toThrow();
   });
 
   it("uses each actor's provider for that actor's exact-model session", async () => {

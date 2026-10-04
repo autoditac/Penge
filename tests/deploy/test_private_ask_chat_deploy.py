@@ -825,7 +825,7 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
 
     _write_executable(
         fake_bin / "id",
-        '#!/bin/sh\nprintf "%s\\n" "${FAKE_ID_UID:-1000}"\n',
+        '#!/bin/sh\nprintf "%s\\n" "$FAKE_ID_UID"\n',
     )
     _write_executable(
         fake_bin / "podman",
@@ -865,6 +865,7 @@ exec /usr/bin/stat "$@"
         **os.environ,
         "HOME": str(home),
         "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        "FAKE_ID_UID": str(os.getuid()),
         "SYSTEMCTL_LOG": str(tmp_path / "systemctl.log"),
         "TRUSTED_REVIEWERS_FILE": str(trusted_reviewers),
     }
@@ -1075,7 +1076,7 @@ def test_installer_rejects_unsafe_contract_and_manifest_metadata(tmp_path: Path)
 
     assert "contract environment must use mode 0400 or 0600" in unsafe_contract.stderr
     assert "approval manifest must use mode 0400 or 0600" in unsafe_manifest.stderr
-    assert "contract environment must be owned by uid 1000" in wrong_owner.stderr
+    assert f"contract environment must be owned by uid {os.getuid()}" in wrong_owner.stderr
 
 
 def test_installer_requires_concrete_approving_review_url(tmp_path: Path) -> None:

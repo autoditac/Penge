@@ -422,6 +422,54 @@ describe("source coverage tools", () => {
     expect(out.linked_paypal[0]?.reference).not.toContain("123456789");
   });
 
+  it("fails closed when linked PayPal detail exceeds the response bound", async () => {
+    const runner = {
+      async query(sql: string) {
+        if (sql.includes("FROM transaction AS t")) {
+          return {
+            rows: [
+              {
+                stable_id: TX,
+                source: "gls",
+                account_id: ACCOUNT,
+                booked_at: "2026-06-02T10:00:00.000Z",
+                value_date: "2026-06-02",
+                kind: "card",
+                amount: "-125.4000",
+                fee: "0.0000",
+                tax: "0.0000",
+                currency: "EUR",
+                description: null,
+                counterparty: null,
+                treatment: null,
+                review_state: null,
+                merchant_id: null,
+                merchant_name: null,
+                identity_confirmed: null,
+                provenance: null,
+                rule_id: null,
+                revision: null,
+                explanation: null,
+              },
+            ],
+          };
+        }
+        if (sql.includes("FROM household_payment_detail_link")) {
+          return { rows: Array.from({ length: 11 }, () => ({})) };
+        }
+        return { rows: [] };
+      },
+      async readSnapshot<T>(operation: (snapshotRunner: typeof runner) => Promise<T>): Promise<T> {
+        return await operation(runner);
+      },
+    };
+    const tool = getHouseholdTransactionDetailTool({ runner, now: () => NOW });
+
+    await expect(tool.handler({ transaction_id: TX }, CTX)).rejects.toThrow(
+      "more linked PayPal detail",
+    );
+  });
+
   it("maps bounded taxonomy, rule, and merchant summary rows", async () => {
     const taxonomy = getHouseholdTaxonomySummaryTool({
       runner: fixedRows([

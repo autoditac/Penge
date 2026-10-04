@@ -212,7 +212,7 @@ const PAYPAL_SQL = `
   INNER JOIN household_payment_detail AS d ON d.id = link.detail_id
   WHERE link.transaction_id = $1::uuid AND d.provider = 'paypal'
   ORDER BY d.ts, d.id
-  LIMIT 10
+  LIMIT 11
 `;
 
 function instant(value: Date | string): string {
@@ -252,6 +252,11 @@ export function getHouseholdTransactionDetailTool(
         const allocationResult = await runner.query(ALLOCATION_SQL, [args.transaction_id]);
         const auditResult = await runner.query(AUDIT_SQL, [args.transaction_id]);
         const paypalResult = await runner.query(PAYPAL_SQL, [args.transaction_id]);
+        if (paypalResult.rows.length > 10) {
+          throw new ToolDataError(
+            "household transaction has more linked PayPal detail than the bounded MCP contract can expose",
+          );
+        }
         return {
           row: TransactionRowSchema.parse(raw),
           allocations: allocationResult.rows.map((value) => AllocationRowSchema.parse(value)),

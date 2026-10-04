@@ -48,6 +48,14 @@ function outputJsonSchema(tool: ToolDefinition): NonNullable<Tool["outputSchema"
   } as NonNullable<Tool["outputSchema"]>;
 }
 
+function inputJsonSchema(tool: ToolDefinition): Tool["inputSchema"] {
+  const schema = zodToJsonSchema(tool.inputSchema, {
+    target: "openApi3",
+    $refStrategy: "none",
+  });
+  return { ...schema, type: "object" } as Tool["inputSchema"];
+}
+
 function structuredContent(validated: unknown): Record<string, unknown> {
   if (validated !== null && typeof validated === "object" && !Array.isArray(validated)) {
     return Object.fromEntries(Object.entries(validated));
@@ -73,10 +81,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
     const tools: Tool[] = registry.list().map((tool) => ({
       name: tool.name,
       description: tool.description,
-      inputSchema: zodToJsonSchema(tool.inputSchema, {
-        target: "openApi3",
-        $refStrategy: "none",
-      }) as Tool["inputSchema"],
+      inputSchema: inputJsonSchema(tool),
       outputSchema: outputJsonSchema(tool),
     }));
     return { tools };

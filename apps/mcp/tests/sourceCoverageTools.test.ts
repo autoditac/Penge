@@ -305,7 +305,7 @@ describe("source coverage tools", () => {
             rows: [
               {
                 category_id: CATEGORY,
-                category_name: "Groceries",
+                category_name: "Groceries 123456789",
                 category_kind: "expense",
                 amount: "-125.4000",
                 currency: "EUR",
@@ -361,6 +361,7 @@ describe("source coverage tools", () => {
     expect(out.transaction.description).toBe("Synthetic purchase [REDACTED]");
     expect(out.transaction.counterparty).toBe("Synthetic Market [REDACTED]");
     expect(out.classification?.merchant_name).toBe("Synthetic Market [REDACTED]");
+    expect(out.allocations[0]?.category_name).toBe("Groceries [REDACTED]");
     expect(out.classification?.explanation).toBe("Synthetic manual classification for [REDACTED]");
     expect(out.linked_paypal[0]?.reference).toBe("Synthetic basket [REDACTED]");
   });

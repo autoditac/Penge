@@ -299,7 +299,7 @@ export function getHouseholdTransactionDetailTool(
               },
         allocations: allocations.map((allocation) => ({
           category_id: allocation.category_id,
-          category_name: allocation.category_name,
+          category_name: redactText(allocation.category_name),
           category_kind: allocation.category_kind,
           amount: allocation.amount,
           currency: allocation.currency,

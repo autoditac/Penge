@@ -65,6 +65,8 @@ Coverage metadata alone is not a data-bearing evidence path.
 
 Adding a value to `SourceIdSchema` requires a catalog entry at compile time.
 The contract test also rejects any supported source without a data-bearing evidence path.
+`query_net_worth` fails closed when any selected row lacks the requested EUR
+or DKK valuation; null aggregates never become false zero balances.
 
 ## New tool schemas
 

@@ -133,6 +133,7 @@ interface MartRow extends Record<string, unknown> {
   date: Date | string;
   breakdown_key: string | null;
   value: string | number | null;
+  missing_value_count: string | number;
 }
 
 function formatDate(value: Date | string): string {
@@ -155,7 +156,8 @@ function buildSql(
       SELECT
         m.as_of AS date,
         NULL::text AS breakdown_key,
-        SUM(${valueCol})::float8 AS value
+        SUM(${valueCol})::float8 AS value,
+        COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
       FROM ${martTable} AS m
       INNER JOIN ${accountTable} AS a ON a.id = m.account_id
       WHERE m.as_of >= $1::date AND m.as_of <= $2::date
@@ -171,7 +173,8 @@ function buildSql(
       SELECT
         m.as_of AS date,
         m.account_id::text AS breakdown_key,
-        SUM(${valueCol})::float8 AS value
+        SUM(${valueCol})::float8 AS value,
+        COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
       FROM ${martTable} AS m
       INNER JOIN ${accountTable} AS a ON a.id = m.account_id
       WHERE m.as_of >= $1::date AND m.as_of <= $2::date
@@ -187,7 +190,8 @@ function buildSql(
     SELECT
       m.as_of AS date,
       a.kind AS breakdown_key,
-      SUM(${valueCol})::float8 AS value
+      SUM(${valueCol})::float8 AS value,
+      COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
     FROM ${martTable} AS m
     INNER JOIN ${accountTable} AS a ON a.id = m.account_id
     WHERE m.as_of >= $1::date AND m.as_of <= $2::date
@@ -230,8 +234,13 @@ export function queryNetWorthTool(
       }
 
       return result.rows.map((row) => {
+        if (Number(row.missing_value_count) > 0 || row.value === null) {
+          throw new ToolDataError(
+            `net worth query cannot value every selected row in ${args.currency}`,
+          );
+        }
         const date = formatDate(row.date);
-        const value = typeof row.value === "string" ? Number(row.value) : (row.value ?? 0);
+        const value = typeof row.value === "string" ? Number(row.value) : row.value;
         const base = {
           date,
           currency: args.currency,

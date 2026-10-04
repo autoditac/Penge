@@ -579,7 +579,10 @@ describe("source coverage tools", () => {
     });
     const out = await tool.handler({ source_ids: ["nordnet"] }, CTX);
     expect(out.sources[0]?.coverage.freshness).toBe("stale");
-    expect(capturedSql).toMatch(/least\(accounts\.latest_account_at/);
+    expect(capturedSql).toMatch(
+      /least\(transactions\.latest_transaction_at, holdings\.latest_holding_at\)/,
+    );
+    expect(capturedSql).not.toMatch(/accounts\.latest_account_at|account.*updated_at/i);
     expect(capturedSql).toMatch(/min\(latest_observed_at\)/);
   });
 

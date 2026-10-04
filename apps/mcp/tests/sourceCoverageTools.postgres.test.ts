@@ -293,8 +293,21 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
           let matrix: GetSourceCoverageOutput;
           try {
             await isolateCoverageFacts(coverageClient, transactionId, accountId);
+            await coverageClient.query(
+              `UPDATE account SET updated_at = '2000-01-01T00:00:00Z'
+               WHERE id = $1::uuid`,
+              [accountId],
+            );
+            await coverageClient.query(
+              `UPDATE transaction SET created_at = '2026-12-30T12:00:00Z'
+               WHERE id = $1::uuid`,
+              [transactionId],
+            );
             await coverageClient.query("BEGIN TRANSACTION READ ONLY");
-            const coverage = getSourceCoverageTool({ runner: coverageClient });
+            const coverage = getSourceCoverageTool({
+              runner: coverageClient,
+              now: () => new Date("2026-12-31T00:00:00Z"),
+            });
             try {
               matrix = await coverage.handler(
                 {
@@ -325,6 +338,9 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
           expect(
             matrix.sources.find((source) => source.id === "gls")?.coverage.transaction_count,
           ).toBe(1);
+          expect(matrix.sources.find((source) => source.id === "gls")?.coverage.freshness).toBe(
+            "fresh",
+          );
           const manual = matrix.sources.find((source) => source.id === "manual_facts")?.coverage;
           expect(manual?.account_count).toBe(1);
           expect(manual?.holding_count).toBe(1);

@@ -82,7 +82,7 @@ export interface GetSourceCoverageOptions {
 
 const COVERAGE_SQL = `
   WITH account_counts AS (
-    SELECT provider, count(*)::int AS account_count, max(updated_at) AS latest_account_at
+    SELECT provider, count(*)::int AS account_count
     FROM account
     WHERE provider = ANY($1::text[])
     GROUP BY provider
@@ -112,18 +112,11 @@ const COVERAGE_SQL = `
           THEN CASE
             WHEN transactions.latest_transaction_at IS NULL OR holdings.latest_holding_at IS NULL
               THEN NULL
-            ELSE least(accounts.latest_account_at, transactions.latest_transaction_at,
-              holdings.latest_holding_at)
+            ELSE least(transactions.latest_transaction_at, holdings.latest_holding_at)
           END
         WHEN accounts.provider = 'manual'
-          THEN CASE
-            WHEN holdings.latest_holding_at IS NULL THEN NULL
-            ELSE least(accounts.latest_account_at, holdings.latest_holding_at)
-          END
-        ELSE CASE
-          WHEN transactions.latest_transaction_at IS NULL THEN NULL
-          ELSE least(accounts.latest_account_at, transactions.latest_transaction_at)
-        END
+          THEN holdings.latest_holding_at
+        ELSE transactions.latest_transaction_at
       END AS latest_observed_at
     FROM account_counts AS accounts
     LEFT JOIN transaction_counts AS transactions ON transactions.provider = accounts.provider

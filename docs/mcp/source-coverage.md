@@ -56,20 +56,20 @@ The existing JSON text content remains available for compatible MCP hosts.
 The catalog does not claim that a source is fresh or complete without observed evidence.
 Coverage metadata alone is not a data-bearing evidence path.
 
-| Source ID                  | Capabilities                                 | Data-bearing MCP evidence                            | Freshness observation                         |
-| -------------------------- | -------------------------------------------- | ---------------------------------------------------- | --------------------------------------------- |
-| `gls`                      | transactions, balances                       | transaction search/detail; household report          | account and transaction timestamps            |
-| `ebank`                    | transactions, balances                       | transaction search/detail; household report          | account and transaction timestamps            |
-| `lunar`                    | transactions, balances                       | transaction search/detail; household report          | account and transaction timestamps            |
-| `enable_banking`           | transactions, balances                       | transaction search; cashflow                         | aggregate GLS/EBank/Lunar timestamps          |
-| `nordnet`                  | transactions, holdings, balances             | transaction search/detail; source-filtered net worth | account, transaction, and holding timestamps  |
-| `pfa`                      | transactions, holdings, balances             | transaction search; source-filtered net worth        | account, transaction, and holding timestamps  |
-| `growney`                  | transactions, holdings, balances             | transaction search; source-filtered net worth        | account, transaction, and holding timestamps  |
-| `ecb_fx`                   | FX rates                                     | household report; net worth                          | latest EUR/DKK rate date                      |
-| `manual_facts`             | manual facts, balances, holdings             | source-filtered net worth                            | `manual` provider account/snapshot timestamps |
-| `household_classification` | classifications, allocations, rules, aliases | taxonomy/rule/merchant summaries; transaction detail | classification count and latest audit event   |
-| `paypal`                   | payment enrichment                           | transaction detail                                   | latest PayPal detail revision                 |
-| `nsi_merchant_reference`   | merchant reference                           | local status/search                                  | active generation completion                  |
+| Source ID                  | Capabilities                                 | Data-bearing MCP evidence                            | Freshness observation                       |
+| -------------------------- | -------------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |
+| `gls`                      | transactions, balances                       | transaction search/detail; household report          | latest transaction observation              |
+| `ebank`                    | transactions, balances                       | transaction search/detail; household report          | latest transaction observation              |
+| `lunar`                    | transactions, balances                       | transaction search/detail; household report          | latest transaction observation              |
+| `enable_banking`           | transactions, balances                       | transaction search; cashflow                         | aggregate GLS/EBank/Lunar timestamps        |
+| `nordnet`                  | transactions, holdings, balances             | transaction search/detail; source-filtered net worth | transaction and holding observations        |
+| `pfa`                      | transactions, holdings, balances             | transaction search; source-filtered net worth        | transaction and holding observations        |
+| `growney`                  | transactions, holdings, balances             | transaction search; source-filtered net worth        | transaction and holding observations        |
+| `ecb_fx`                   | FX rates                                     | household report; net worth                          | latest EUR/DKK rate date                    |
+| `manual_facts`             | manual facts, balances, holdings             | source-filtered net worth                            | latest `manual` holding observation         |
+| `household_classification` | classifications, allocations, rules, aliases | taxonomy/rule/merchant summaries; transaction detail | classification count and latest audit event |
+| `paypal`                   | payment enrichment                           | transaction detail                                   | latest PayPal detail revision               |
+| `nsi_merchant_reference`   | merchant reference                           | local status/search                                  | active generation completion                |
 
 Adding a value to `SourceIdSchema` requires a catalog entry at compile time.
 The contract test also rejects any supported source without a data-bearing evidence path.

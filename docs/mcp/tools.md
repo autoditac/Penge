@@ -120,7 +120,7 @@ movement valued in the requested currency.
 
 | Field         | Type                                   | Notes                                                                    |
 | ------------- | -------------------------------------- | ------------------------------------------------------------------------ |
-| `date_range`  | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`. `from` must be on or before `to`.                      |
+| `date_range`  | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`; ordered and limited to 367 inclusive days.             |
 | `granularity` | `"day" \| "week" \| "month" \| "year"` | Bucket size. The mart is daily-grain; coarser buckets are summed in SQL. |
 | `currency`    | `"EUR" \| "DKK"` (optional)            | Defaults to `EUR`. Both are first-class throughout Penge.                |
 
@@ -149,6 +149,9 @@ Array of:
   consumer should treat absence as zero, not as an error.
 - Week boundaries follow Postgres `date_trunc('week', ...)`, i.e.
   ISO weeks starting Monday.
+- Responses contain at most 367 periods. The query requests one sentinel
+  row beyond that limit and fails closed rather than returning truncated
+  evidence if the bound is exceeded.
 
 ### Example call
 

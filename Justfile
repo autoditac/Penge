@@ -42,6 +42,15 @@ lint:
 test:
     uv run pytest tests/ -q
 
+# Validate the fail-closed private Ask Penge deployment seam.
+# This intentionally does not claim image, NAS, HydraFusion, or two-user
+# readiness while the dependent #343-#346 contracts are unresolved.
+private-ask-chat-deploy-check:
+    ./deploy/nas/validate-private-ask-chat.sh --seam
+    uv run --group dev pytest \
+        tests/deploy/test_private_ask_chat_deploy.py \
+        tests/deploy/test_nas_deploy.py -q
+
 # --- Migrations ---------------------------------------------------------------
 
 # Apply all migrations against the local Postgres (compose must be up).

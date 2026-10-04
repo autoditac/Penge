@@ -1,0 +1,21 @@
+\set ON_ERROR_STOP on
+
+-- Non-executable least-privilege template.
+--
+-- #346 must replace every @@...@@ token with its migration-owned OAuth-link
+-- schema and table names.  No finance, analytics, MCP, transcript, or default
+-- privilege grant belongs here.
+
+BEGIN;
+
+@@CREATE_OR_ALTER_CHAT_ROLE_WITH_SECRET_MANAGED_LOGIN@@
+
+REVOKE ALL ON DATABASE @@DATABASE_IDENTIFIER@@ FROM @@CHAT_DATABASE_ROLE@@;
+REVOKE ALL ON SCHEMA public FROM @@CHAT_DATABASE_ROLE@@;
+GRANT CONNECT ON DATABASE @@DATABASE_IDENTIFIER@@ TO @@CHAT_DATABASE_ROLE@@;
+GRANT USAGE ON SCHEMA @@OAUTH_LINK_SCHEMA@@ TO @@CHAT_DATABASE_ROLE@@;
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON TABLE @@OAUTH_LINK_TABLES_ONLY@@
+    TO @@CHAT_DATABASE_ROLE@@;
+
+COMMIT;

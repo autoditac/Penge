@@ -76,9 +76,7 @@ def test_teardown_never_prunes_beyond_its_own_job() -> None:
 def test_ci_images_are_run_scoped_and_removed() -> None:
     """A shared `:ci` tag leaks the superseded image on every run."""
     ci = (ROOT / ".github/workflows/ci.yml").read_text()
-    tag = (
-        "CI_IMAGE_TAG: penge/${{ matrix.app }}:ci-" "${{ github.run_id }}-${{ github.run_attempt }}"
-    )
+    tag = "CI_IMAGE_TAG: penge/${{ matrix.app }}:ci-${{ github.run_id }}-${{ github.run_attempt }}"
 
     assert ci.count(tag) == 1
     assert "tags: penge/${{ matrix.app }}:ci\n" not in ci
@@ -159,29 +157,9 @@ def test_web_image_targets_the_production_api_origin() -> None:
     assert "ENV VITE_PENGE_API_URL=${VITE_PENGE_API_URL}" in containerfile
 
 
-def test_private_ask_chat_container_is_loopback_only_and_secret_backed() -> None:
-    quadlet = (ROOT / "deploy/nas/penge-chat.container").read_text()
-
-    assert "Image=ghcr.io/autoditac/penge/chat:main" in quadlet
-    assert "ContainerName=penge-chat" in quadlet
-    assert "PublishPort=127.0.0.1:8123:3000" in quadlet
-    assert "Secret=penge-github-oauth" in quadlet
-    assert "Secret=penge-chat-token-key" in quadlet
-    assert "Volume=/var/lib/penge/mcp:/var/lib/penge/mcp:ro" in quadlet
-    assert "ASK_PENGE_MODEL=hydrafusion" in quadlet
-    assert "ASK_PENGE_DISABLE_FALLBACK=true" in quadlet
-    assert "ASK_PENGE_REQUIRE_SOURCE_COVERAGE=true" in quadlet
-    assert "HealthCmd=" in quadlet
-    assert "Notify=healthy" in quadlet
-
-
-def test_private_ask_behind_oauth_proxy_overwrites_identity_headers() -> None:
+def test_private_ask_route_remains_closed_until_contracts_are_resolved() -> None:
     nginx = (ROOT / "deploy/nas/penge.eigmueller.de.conf").read_text()
 
-    assert "location /ask" in nginx
-    assert "proxy_pass http://127.0.0.1:8123;" in nginx
-    assert "proxy_set_header X-Forwarded-User  $user;" in nginx
-    assert "proxy_set_header X-Forwarded-Email $email;" in nginx
-    assert "proxy_set_header X-Forwarded-Client-Id $email;" in nginx
-    assert "Content-Security-Policy" in nginx
-    assert "proxy_buffering off;" in nginx
+    assert "location = /ask" in nginx
+    assert "location ^~ /ask/" in nginx
+    assert "proxy_pass http://127.0.0.1:8123;" not in nginx

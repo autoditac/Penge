@@ -315,9 +315,11 @@ describe("source coverage tools", () => {
   it("returns exact allocations and PayPal as enrichment-only detail", async () => {
     let usedSnapshot = false;
     let allocationSql = "";
+    let transactionSql = "";
     const runner = {
       async query(sql: string) {
         if (sql.includes("FROM transaction AS t")) {
+          transactionSql = sql;
           return {
             rows: [
               {
@@ -331,12 +333,12 @@ describe("source coverage tools", () => {
                 fee: "0.0000",
                 tax: "0.0000",
                 currency: "EUR",
-                description: "Synthetic purchase DE89370400440532013000",
-                counterparty: "Synthetic Market 123456789",
+                description: `${"x".repeat(220)} DE89370400440532013000`,
+                counterparty: `${"x".repeat(220)} 123456789`,
                 treatment: "expense",
                 review_state: "classified",
                 merchant_id: MERCHANT,
-                merchant_name: "Synthetic Market 123456789",
+                merchant_name: `${"x".repeat(180)} 123456789`,
                 identity_confirmed: true,
                 provenance: "manual",
                 rule_id: null,
@@ -380,8 +382,8 @@ describe("source coverage tools", () => {
               occurred_at: "2026-06-02T09:59:00.000Z",
               amount: "-125.4000",
               currency: "EUR",
-              merchant_name: "Synthetic Market 123456789",
-              reference: "Synthetic basket 123456789",
+              merchant_name: `${"x".repeat(220)} DE89370400440532013000`,
+              reference: `${"x".repeat(220)} 123456789`,
               event_kind: "purchase",
               detail_revision: 2,
               approved_detail_revision: 2,
@@ -405,12 +407,19 @@ describe("source coverage tools", () => {
     expect(out.ledger_semantics).toBe("single_source_ledger");
     expect(usedSnapshot).toBe(true);
     expect(allocationSql).toMatch(/LIMIT 100/);
-    expect(out.transaction.description).toBe("Synthetic purchase [REDACTED]");
-    expect(out.transaction.counterparty).toBe("Synthetic Market [REDACTED]");
-    expect(out.classification?.merchant_name).toBe("Synthetic Market [REDACTED]");
+    expect(transactionSql).not.toMatch(/left\(t\.(description|counterparty)/);
+    expect(out.transaction.description).toContain("[REDACTED]");
+    expect(out.transaction.counterparty).toContain("[REDACTED]");
+    expect(out.classification?.merchant_name).toContain("[REDACTED]");
+    expect(out.transaction.description).not.toContain("DE89370400440532013000");
+    expect(out.transaction.counterparty).not.toContain("123456789");
+    expect(out.classification?.merchant_name).not.toContain("123456789");
     expect(out.allocations[0]?.category_name).toBe("Groceries [REDACTED]");
     expect(out.classification?.explanation).toBe("Synthetic manual classification for [REDACTED]");
-    expect(out.linked_paypal[0]?.reference).toBe("Synthetic basket [REDACTED]");
+    expect(out.linked_paypal[0]?.merchant_name).toContain("[REDACTED]");
+    expect(out.linked_paypal[0]?.reference).toContain("[REDACTED]");
+    expect(out.linked_paypal[0]?.merchant_name).not.toContain("DE89370400440532013000");
+    expect(out.linked_paypal[0]?.reference).not.toContain("123456789");
   });
 
   it("maps bounded taxonomy, rule, and merchant summary rows", async () => {

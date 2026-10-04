@@ -7,8 +7,9 @@ Issue #346 replaces it with `apps/chat`.
 The package pins `@github/copilot-sdk@1.0.16` and type-checks the exact
 empty-mode, user-scoped token, streaming, local stdio MCP, and tool-filter
 configuration that the production backend must preserve.
-The current server exposes `_meta` plus eight implemented chat tools, which the
-harness uses for executable SDK configuration evidence.
+Repository source defines `_meta` plus eight implemented chat tools.
+The harness proves that the SDK configuration targets only those eight; it does
+not start the MCP child, call `tools/list`, or invoke a tool.
 The planned `issue-344-v1` contract is `_meta` plus 16 chat tools, but #350 is
 not merged; production readiness must remain blocked until an independent
 stdio `tools/list` result proves that exact registration set.

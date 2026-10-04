@@ -12,14 +12,15 @@ just chat-feasibility
 
 The recipe builds, tests, and lints `@penge/chat-feasibility`.
 It proves the pinned SDK configuration shape, empty mode, streaming event
-schemas, local stdio MCP config for the eight currently implemented tools,
+schemas, local stdio MCP configuration for the eight currently implemented tools,
 ambient-tool denial, actor/token/storage ownership, sanitized child
 environments, and typed unavailable-model errors.
 It uses synthetic values and makes no external model call.
+It does not start the MCP child, request `tools/list`, or invoke a tool.
 
 The planned `issue-344-v1` MCP server registers `_meta` plus 16 chat tools.
-It is not implemented on this PR's current base: the real server still has
-`_meta` plus eight chat tools.
+It is not implemented on this PR's current base: repository source currently
+defines `_meta` plus eight chat tools.
 Production remains blocked until #350 lands and an independent stdio
 `tools/list` test proves the exact 17-name registration set.
 Only the 16 chat tools may then enter the SDK allowlist; `_meta` remains

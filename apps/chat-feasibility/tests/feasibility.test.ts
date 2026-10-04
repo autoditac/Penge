@@ -61,7 +61,7 @@ function enabledRuntime() {
 }
 
 describe("HydraFusion Copilot SDK feasibility proof", () => {
-  it("builds the pinned SDK empty-mode session with stdio-only MCP", () => {
+  it("builds the pinned SDK empty-mode session configuration for stdio-only MCP", () => {
     const proof = buildCopilotSdkProof({
       runtime: enabledRuntime(),
       tokenProvider: {

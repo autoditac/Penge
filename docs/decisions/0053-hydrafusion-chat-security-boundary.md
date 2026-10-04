@@ -116,9 +116,11 @@ search/detail, household taxonomy/rule/merchant summaries, and
 merchant-reference status/search.
 The model-facing allowlist contains only the 16 chat tools; `_meta` remains
 registered for MCP protocol discovery and is never exposed to the model.
-At this PR's current base, the real server registers `_meta` plus only the
-eight existing tools.
-The harness therefore configures only those eight and raises
+At this PR's current base, repository source defines `_meta` plus only the eight
+existing tools.
+The harness configures only those eight, but does not start the MCP child,
+inspect `tools/list`, or invoke a tool.
+It raises
 `chat/mcp_contract_unavailable` when that observed set is checked against
 `issue-344-v1`.
 Production cannot claim or enable the target contract until #350 is merged and
@@ -129,9 +131,10 @@ set.
 ### Feasibility and entitlement evidence
 
 The synthetic harness type-checks the actual `1.0.16` client/session objects,
-local stdio server config, `ToolSet` filters, user-token ownership guard,
-official stream event names, and typed unavailable-model error.
-It makes no model call and is not live acceptance.
+local stdio server configuration, `ToolSet` filters, user-token ownership
+guard, official stream event names, and typed unavailable-model error.
+It does not spawn MCP, perform `tools/list`, invoke a tool, or make a model
+call, and is not live acceptance.
 
 The token-safe check on 2026-10-04 called only `listModels()` for the currently
 authenticated user, logged at error level, and emitted only the exact-ID result:

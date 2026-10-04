@@ -213,7 +213,7 @@ function importMappingRunner(
 }
 
 function transactionDetailRunner() {
-  return {
+  const runner = {
     async query(sql: string) {
       if (sql.includes("FROM transaction AS t")) return { rows: [TRANSACTION_DETAIL_ROW] };
       if (sql.includes("FROM household_allocation AS x")) {
@@ -222,7 +222,11 @@ function transactionDetailRunner() {
       if (sql.includes("FROM household_audit")) return { rows: [AUDIT_DETAIL_ROW] };
       return { rows: [PAYPAL_DETAIL_ROW] };
     },
+    async readSnapshot<T>(operation: (snapshotRunner: typeof runner) => Promise<T>): Promise<T> {
+      return await operation(runner);
+    },
   };
+  return runner;
 }
 
 // --- Goldens ---------------------------------------------------------

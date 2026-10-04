@@ -53,6 +53,16 @@ describe("query_net_worth — schema validation", () => {
     ).toThrow();
   });
 
+  it("rejects date ranges wider than 367 days", () => {
+    const tool = queryNetWorthTool({ runner: makeRunner([]) });
+    expect(() =>
+      tool.inputSchema.parse({
+        ...baseArgs,
+        date_range: { from: "2024-01-01", to: "2025-01-02" },
+      }),
+    ).toThrow(/367 days/);
+  });
+
   it("rejects calendar-impossible dates that match the YYYY-MM-DD shape", () => {
     const tool = queryNetWorthTool({ runner: makeRunner([]) });
     expect(() =>
@@ -87,7 +97,7 @@ describe("query_net_worth — SQL shape", () => {
     expect(runner.calls).toHaveLength(1);
     expect(runner.calls[0]!.sql).toMatch(/balance_eur/);
     expect(runner.calls[0]!.sql).not.toMatch(/balance_dkk/);
-    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31"]);
+    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31", null]);
   });
 
   it("uses balance_dkk for DKK", async () => {
@@ -103,7 +113,22 @@ describe("query_net_worth — SQL shape", () => {
     const tool = queryNetWorthTool({ runner });
     await tool.handler({ ...baseArgs, breakdown_by: "account" }, ctx);
     expect(runner.calls[0]!.sql).toMatch(/GROUP BY m\.as_of, m\.account_id/);
-    expect(runner.calls[0]!.sql).not.toMatch(/JOIN/);
+    expect(runner.calls[0]!.sql).toMatch(/a\.provider/);
+  });
+
+  it("applies the optional source filter without interpolating it", async () => {
+    const runner = makeRunner([]);
+    const tool = queryNetWorthTool({ runner });
+    await tool.handler({ ...baseArgs, source: "pfa" }, ctx);
+    expect(runner.calls[0]!.sql).toMatch(/\$3::text/);
+    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31", "pfa"]);
+  });
+
+  it("maps the public manual_facts source ID to the stored manual provider", async () => {
+    const runner = makeRunner([]);
+    const tool = queryNetWorthTool({ runner });
+    await tool.handler({ ...baseArgs, source: "manual_facts" }, ctx);
+    expect(runner.calls[0]!.params[2]).toBe("manual");
   });
 
   it("joins account.kind for breakdown_by=asset_class", async () => {

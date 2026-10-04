@@ -1,6 +1,7 @@
 import { z } from "zod/v3";
 
 import { ToolDataError, ToolNotFoundError } from "../errors.js";
+import { redactText } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 import { type HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
@@ -87,7 +88,7 @@ const OutputSchema = z
     ledger_semantics: z.literal("single_source_ledger"),
     transaction: TransactionSchema,
     classification: ClassificationSchema.nullable(),
-    allocations: z.array(AllocationSchema).max(20),
+    allocations: z.array(AllocationSchema).max(100),
     allocation_total: z.string().regex(DECIMAL),
     audit_evidence: z.array(AuditEvidenceSchema).max(20),
     linked_paypal: z.array(PaypalDetailSchema).max(10),
@@ -159,7 +160,9 @@ export type GetHouseholdTransactionDetailInput = z.infer<typeof InputSchema>;
 export type GetHouseholdTransactionDetailOutput = z.infer<typeof OutputSchema>;
 
 export interface GetHouseholdTransactionDetailOptions {
-  runner: HouseholdTransactionQueryRunner;
+  runner: HouseholdTransactionQueryRunner & {
+    readSnapshot<T>(operation: (runner: HouseholdTransactionQueryRunner) => Promise<T>): Promise<T>;
+  };
   now?: () => Date;
 }
 
@@ -189,7 +192,7 @@ const ALLOCATION_SQL = `
     ON classification.transaction_id = x.transaction_id
   WHERE x.transaction_id = $1::uuid
   ORDER BY c.sort_order, c.id
-  LIMIT 20
+  LIMIT 100
 `;
 
 const AUDIT_SQL = `
@@ -237,22 +240,27 @@ export function getHouseholdTransactionDetailTool(
     outputSchema: OutputSchema,
     async handler(args) {
       const providers = ProviderSchema.options;
-      const transactionResult = await opts.runner.query(TRANSACTION_SQL, [
-        args.transaction_id,
-        args.source ?? null,
-        providers,
-      ]);
-      const raw = transactionResult.rows[0];
-      if (!raw) {
-        throw new ToolNotFoundError(`household transaction ${args.transaction_id} was not found`);
-      }
-      const row = TransactionRowSchema.parse(raw);
-      const allocationResult = await opts.runner.query(ALLOCATION_SQL, [args.transaction_id]);
-      const auditResult = await opts.runner.query(AUDIT_SQL, [args.transaction_id]);
-      const paypalResult = await opts.runner.query(PAYPAL_SQL, [args.transaction_id]);
-      const allocations = allocationResult.rows.map((value) => AllocationRowSchema.parse(value));
-      const audits = auditResult.rows.map((value) => AuditRowSchema.parse(value));
-      const paypal = paypalResult.rows.map((value) => PaypalRowSchema.parse(value));
+      const snapshot = await opts.runner.readSnapshot(async (runner) => {
+        const transactionResult = await runner.query(TRANSACTION_SQL, [
+          args.transaction_id,
+          args.source ?? null,
+          providers,
+        ]);
+        const raw = transactionResult.rows[0];
+        if (!raw) {
+          throw new ToolNotFoundError(`household transaction ${args.transaction_id} was not found`);
+        }
+        const allocationResult = await runner.query(ALLOCATION_SQL, [args.transaction_id]);
+        const auditResult = await runner.query(AUDIT_SQL, [args.transaction_id]);
+        const paypalResult = await runner.query(PAYPAL_SQL, [args.transaction_id]);
+        return {
+          row: TransactionRowSchema.parse(raw),
+          allocations: allocationResult.rows.map((value) => AllocationRowSchema.parse(value)),
+          audits: auditResult.rows.map((value) => AuditRowSchema.parse(value)),
+          paypal: paypalResult.rows.map((value) => PaypalRowSchema.parse(value)),
+        };
+      });
+      const { row, allocations, audits, paypal } = snapshot;
       return {
         generated_at: (opts.now?.() ?? new Date()).toISOString(),
         ledger_semantics: "single_source_ledger",
@@ -267,8 +275,8 @@ export function getHouseholdTransactionDetailTool(
           fee: row.fee,
           tax: row.tax,
           currency: row.currency,
-          description: row.description,
-          counterparty: row.counterparty,
+          description: row.description === null ? null : redactText(row.description),
+          counterparty: row.counterparty === null ? null : redactText(row.counterparty),
         },
         classification:
           row.treatment === null ||
@@ -282,12 +290,12 @@ export function getHouseholdTransactionDetailTool(
                 treatment: row.treatment,
                 review_state: row.review_state,
                 merchant_id: row.merchant_id,
-                merchant_name: row.merchant_name,
+                merchant_name: row.merchant_name === null ? null : redactText(row.merchant_name),
                 identity_confirmed: row.identity_confirmed,
                 provenance: row.provenance,
                 rule_id: row.rule_id,
                 revision: row.revision,
-                explanation: row.explanation,
+                explanation: redactText(row.explanation),
               },
         allocations: allocations.map((allocation) => ({
           category_id: allocation.category_id,
@@ -308,8 +316,8 @@ export function getHouseholdTransactionDetailTool(
           occurred_at: instant(detail.occurred_at),
           amount: detail.amount,
           currency: detail.currency,
-          merchant_name: detail.merchant_name,
-          reference: detail.reference,
+          merchant_name: detail.merchant_name === null ? null : redactText(detail.merchant_name),
+          reference: detail.reference === null ? null : redactText(detail.reference),
           event_kind: detail.event_kind,
           detail_revision: detail.detail_revision,
           approved_detail_revision: detail.approved_detail_revision,

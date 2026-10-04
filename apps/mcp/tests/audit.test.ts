@@ -1,91 +1,37 @@
-import { describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import { describe, expect, it, vi } from "vitest";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
-import { createAuditLogger, redactArgs } from "../src/audit.js";
+import { auditArgumentKeys, createAuditLogger } from "../src/audit.js";
 
 const SCRATCH_ROOT = join(process.cwd(), "tests", ".scratch");
 mkdirSync(SCRATCH_ROOT, { recursive: true });
 
-describe("redactArgs", () => {
-  it("redacts top-level sensitive keys", () => {
+describe("auditArgumentKeys", () => {
+  it("returns sorted top-level keys without values or nested field names", () => {
     expect(
-      redactArgs({
-        account: "DK1234",
-        iban: "DE89...",
-        cpr: "010190-1234",
-        tax_id: "12345678",
-        name: "Rouven",
-        email: "x@example.com",
-        amount: 42,
+      auditArgumentKeys({
+        transaction_id: "11111111-1111-4111-8111-111111111111",
+        query: "private search",
+        nested: { prompt: "private prompt" },
       }),
-    ).toEqual({
-      account: "[REDACTED]",
-      iban: "[REDACTED]",
-      cpr: "[REDACTED]",
-      tax_id: "[REDACTED]",
-      name: "[REDACTED]",
-      email: "[REDACTED]",
-      amount: 42,
-    });
+    ).toEqual(["nested", "query", "transaction_id"]);
   });
 
-  it("redacts the `query` key (search arguments may carry sensitive strings)", () => {
-    expect(redactArgs({ query: "Rouven Sacha", limit: 5 })).toEqual({
-      query: "[REDACTED]",
-      limit: 5,
-    });
-  });
-
-  it("redacts prompt, transcript, message, token, secret, and payload fields", () => {
-    expect(
-      redactArgs({
-        prompt: "private question",
-        transcript: ["private answer"],
-        message: "private event",
-        access_token: "secret",
-        client_secret: "secret",
-        tool_payload: { amount: 42 },
-        limit: 5,
-      }),
-    ).toEqual({
-      prompt: "[REDACTED]",
-      transcript: "[REDACTED]",
-      message: "[REDACTED]",
-      access_token: "[REDACTED]",
-      client_secret: "[REDACTED]",
-      tool_payload: "[REDACTED]",
-      limit: 5,
-    });
-  });
-
-  it("redacts case-insensitively and across nested objects", () => {
-    expect(
-      redactArgs({
-        Counterparty: { Name: "Acme", Country: "DK" },
-        items: [{ Account_Number: "x", Memo: "rent" }],
-      }),
-    ).toEqual({
-      Counterparty: { Name: "[REDACTED]", Country: "DK" },
-      items: [{ Account_Number: "[REDACTED]", Memo: "rent" }],
-    });
-  });
-
-  it("leaves primitives and unrelated structures untouched", () => {
-    expect(redactArgs(42)).toBe(42);
-    expect(redactArgs("hello")).toBe("hello");
-    expect(redactArgs(null)).toBe(null);
-    expect(redactArgs([1, 2, { amount: 3 }])).toEqual([1, 2, { amount: 3 }]);
+  it("returns no keys for non-object inputs", () => {
+    expect(auditArgumentKeys(null)).toEqual([]);
+    expect(auditArgumentKeys("private")).toEqual([]);
+    expect(auditArgumentKeys(42)).toEqual([]);
   });
 });
 
 describe("createAuditLogger", () => {
-  it("writes one redacted JSONL record per call to file and stderr", async () => {
+  it("writes keys-only JSONL with restrictive permissions and an explicitly opted-in sink", async () => {
     const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
     const stderr = new PassThrough();
     const chunks: Buffer[] = [];
-    stderr.on("data", (c: Buffer) => chunks.push(c));
+    stderr.on("data", (chunk: Buffer) => chunks.push(chunk));
 
     const fixedDate = new Date("2026-05-10T12:34:56.000Z");
     const logger = createAuditLogger({
@@ -97,27 +43,59 @@ describe("createAuditLogger", () => {
     });
 
     logger.record({
-      tool: "_meta",
-      args: { account: "DK1", note: "ok" },
+      tool: "get_household_transaction_detail",
+      args: {
+        transaction_id: "11111111-1111-4111-8111-111111111111",
+        query: "private search value",
+        prompt: "private prompt",
+      },
       status: "ok",
       durationMs: 12,
     });
     await logger.close();
 
+    const filePath = join(dir, "audit-2026-05-10.jsonl");
+    const fileText = readFileSync(filePath, "utf8").trim();
     const stderrText = Buffer.concat(chunks).toString("utf8").trim();
-    expect(stderrText).toContain('"tool":"_meta"');
-    expect(stderrText).toContain('"account":"[REDACTED]"');
-    expect(stderrText).toContain('"note":"ok"');
+    for (const text of [fileText, stderrText]) {
+      expect(text).toContain('"tool":"get_household_transaction_detail"');
+      expect(text).toContain('"argumentKeys":["prompt","query","transaction_id"]');
+      expect(text).not.toContain("11111111-1111-4111-8111-111111111111");
+      expect(text).not.toContain("private search value");
+      expect(text).not.toContain("private prompt");
+    }
 
-    const fileText = readFileSync(join(dir, "audit-2026-05-10.jsonl"), "utf8").trim();
     const parsed = JSON.parse(fileText) as Record<string, unknown>;
-    expect(parsed.tool).toBe("_meta");
-    expect(parsed.status).toBe("ok");
     expect(parsed.ts).toBe("2026-05-10T12:34:56.000Z");
     expect(parsed.actorId).toBe("actor_01hx9p");
     expect(parsed.sessionId).toBe("session_01hx9p");
-    expect((parsed.args as Record<string, unknown>).account).toBe("[REDACTED]");
+    expect(statSync(dir).mode & 0o777).toBe(0o700);
+    expect(statSync(filePath).mode & 0o777).toBe(0o600);
 
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("does not duplicate audit records to process stderr by default", async () => {
+    const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
+    const writeSpy = vi.spyOn(process.stderr, "write");
+    const logger = createAuditLogger({
+      logDir: dir,
+      now: () => new Date("2026-05-10T12:34:56.000Z"),
+    });
+
+    logger.record({ tool: "_meta", args: { query: "private" }, status: "ok", durationMs: 1 });
+    await logger.close();
+
+    expect(writeSpy).not.toHaveBeenCalled();
+    writeSpy.mockRestore();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("surfaces audit-path creation errors", () => {
+    const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
+    const filePath = join(dir, "not-a-directory");
+    writeFileSync(filePath, "occupied");
+    expect(() => createAuditLogger({ logDir: filePath })).toThrow();
     rmSync(dir, { recursive: true, force: true });
   });
 });

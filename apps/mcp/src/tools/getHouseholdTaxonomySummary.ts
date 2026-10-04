@@ -70,6 +70,13 @@ const TAXONOMY_SQL = `
   LIMIT $3 OFFSET $4
 `;
 
+const TAXONOMY_COUNT_SQL = `
+  SELECT count(*)::int AS total_count
+  FROM household_category AS c
+  WHERE ($1::uuid IS NULL OR c.parent_id = $1::uuid)
+    AND ($2::boolean OR NOT c.archived)
+`;
+
 export function getHouseholdTaxonomySummaryTool(
   opts: GetHouseholdTaxonomySummaryOptions,
 ): ToolDefinition<GetHouseholdTaxonomySummaryInput, GetHouseholdTaxonomySummaryOutput> {
@@ -80,16 +87,22 @@ export function getHouseholdTaxonomySummaryTool(
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
+      const filterParams = [args.parent_id ?? null, args.include_archived] as const;
+      const countResult = await opts.runner.query(TAXONOMY_COUNT_SQL, filterParams);
+      const total = z.coerce
+        .number()
+        .int()
+        .nonnegative()
+        .parse(countResult.rows[0]?.total_count ?? 0);
       const result = await opts.runner.query(TAXONOMY_SQL, [
-        args.parent_id ?? null,
-        args.include_archived,
+        ...filterParams,
         args.limit,
         args.offset,
       ]);
       const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
         generated_at: (opts.now?.() ?? new Date()).toISOString(),
-        total: rows[0]?.total_count ?? 0,
+        total,
         limit: args.limit,
         offset: args.offset,
         entries: rows.map(({ total_count: _total, ...row }) => row),

@@ -1,14 +1,10 @@
-import { mkdirSync, createWriteStream, type WriteStream } from "node:fs";
-import { dirname, join } from "node:path";
-
-const REDACT_KEY =
-  /(account|iban|cpr|tax[_-]?id|name|email|query|prompt|transcript|payload|secret|token|message|content)/i;
-const REDACTED = "[REDACTED]";
+import { chmodSync, closeSync, constants, mkdirSync, openSync, statSync, writeSync } from "node:fs";
+import { join } from "node:path";
 
 export interface AuditRecord {
   ts: string;
   tool: string;
-  args: unknown;
+  argumentKeys: string[];
   actorId?: string;
   sessionId?: string;
   status: "ok" | "error";
@@ -16,38 +12,25 @@ export interface AuditRecord {
   error?: string;
 }
 
-/**
- * Recursively walk an unknown value and replace every value whose key matches
- * REDACT_KEY with "[REDACTED]". Arrays are walked element-wise. Primitive
- * values at the root return unchanged — redaction only applies inside objects
- * because we key off field names.
- */
-export function redactArgs(input: unknown): unknown {
-  if (Array.isArray(input)) {
-    return input.map((item) => redactArgs(item));
-  }
+export function auditArgumentKeys(input: unknown): string[] {
   if (input !== null && typeof input === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-      if (REDACT_KEY.test(key)) {
-        out[key] = REDACTED;
-      } else {
-        out[key] = redactArgs(value);
-      }
-    }
-    return out;
+    return Object.keys(input).sort();
   }
-  return input;
+  return [];
 }
 
 export interface AuditLogger {
-  record(entry: Omit<AuditRecord, "ts">): void;
+  record(
+    entry: Omit<AuditRecord, "ts" | "argumentKeys"> & {
+      args: unknown;
+    },
+  ): void;
   close(): Promise<void>;
 }
 
 export interface AuditLoggerOptions {
   logDir: string;
-  /** Override stderr stream (test injection). */
+  /** Explicit opt-in mirror for operators that have reviewed the sink. */
   stderr?: NodeJS.WritableStream;
   /** Override the date used for the file name (test determinism). */
   now?: () => Date;
@@ -59,29 +42,47 @@ export interface AuditLoggerOptions {
 
 export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
   const now = opts.now ?? (() => new Date());
-  const stderr: NodeJS.WritableStream = opts.stderr ?? process.stderr;
   const datePart = now().toISOString().slice(0, 10);
   const filePath = join(opts.logDir, `audit-${datePart}.jsonl`);
-  mkdirSync(dirname(filePath), { recursive: true });
-  const file: WriteStream = createWriteStream(filePath, { flags: "a" });
+  mkdirSync(opts.logDir, { recursive: true, mode: 0o700 });
+  chmodSync(opts.logDir, 0o700);
+  if ((statSync(opts.logDir).mode & 0o077) !== 0) {
+    throw new Error("MCP audit directory permissions must be 0700");
+  }
+  const file = openSync(
+    filePath,
+    constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY,
+    0o600,
+  );
+  chmodSync(filePath, 0o600);
+  if ((statSync(filePath).mode & 0o077) !== 0) {
+    closeSync(file);
+    throw new Error("MCP audit file permissions must be 0600");
+  }
+  let closed = false;
 
   return {
     record(entry) {
+      if (closed) throw new Error("MCP audit logger is closed");
       const record: AuditRecord = {
         ts: now().toISOString(),
         ...(opts.actorId === undefined ? {} : { actorId: opts.actorId }),
         ...(opts.sessionId === undefined ? {} : { sessionId: opts.sessionId }),
-        ...entry,
-        args: redactArgs(entry.args),
+        tool: entry.tool,
+        argumentKeys: auditArgumentKeys(entry.args),
+        status: entry.status,
+        durationMs: entry.durationMs,
+        ...(entry.error === undefined ? {} : { error: entry.error }),
       };
       const line = `${JSON.stringify(record)}\n`;
-      file.write(line);
-      stderr.write(line);
+      writeSync(file, line);
+      opts.stderr?.write(line);
     },
     async close() {
-      await new Promise<void>((resolve) => {
-        file.end(() => resolve());
-      });
+      if (!closed) {
+        closeSync(file);
+        closed = true;
+      }
     },
   };
 }

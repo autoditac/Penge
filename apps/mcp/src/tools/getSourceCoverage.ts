@@ -24,7 +24,13 @@ const ObservationRowSchema = z
 
 const InputSchema = z
   .object({
-    source_ids: z.array(SourceIdSchema).max(SOURCE_ALLOWLIST.length).optional(),
+    source_ids: z
+      .array(SourceIdSchema)
+      .max(SOURCE_ALLOWLIST.length)
+      .refine((ids) => new Set(ids).size === ids.length, {
+        message: "source_ids must be unique",
+      })
+      .optional(),
   })
   .strict();
 
@@ -131,7 +137,8 @@ const COVERAGE_SQL = `
     UNION ALL
     SELECT 'nsi_merchant_reference', 0, 0, 0, coalesce(max(record_count), 0)::int,
       max(completed_at)
-    FROM merchant_reference_generation WHERE status = 'active'
+    FROM merchant_reference_generation
+    WHERE status = 'active' AND source_id = 'name-suggestion-index'
   )
   SELECT requested.source_id, coalesce(o.account_count, 0)::int AS account_count,
     coalesce(o.transaction_count, 0)::int AS transaction_count,

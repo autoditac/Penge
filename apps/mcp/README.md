@@ -3,8 +3,8 @@
 Model Context Protocol server. Read-only gateway between LLM hosts
 (Claude Desktop, VS Code Copilot Chat, etc.) and the Penge data platform.
 
-This package ships the server loop, the tool registry, the audit-log
-redactor, and the read-only tool surface for net worth, cashflow, tax,
+This package ships the server loop, the tool registry, the keys-only audit
+logger, and the read-only tool surface for net worth, cashflow, tax,
 scenario, document-search, and household-planning questions. See
 [`docs/decisions/0023-mcp-server-architecture.md`](../../docs/decisions/0023-mcp-server-architecture.md)
 for the architectural decision and
@@ -33,11 +33,12 @@ by adding the snippet from ADR-0023 to `claude_desktop_config.json`.
 
 ## Audit log
 
-Every tool invocation is logged to `logs/mcp/audit-YYYY-MM-DD.jsonl` and
-mirrored to stderr. Argument values for fields whose name matches
-`account|iban|cpr|tax_id|name|email|query|prompt|transcript|payload|secret|token|message|content`
-(case-insensitive) are replaced with `"[REDACTED]"` before the record is
-written.
+Every tool invocation is logged to `logs/mcp/audit-YYYY-MM-DD.jsonl`.
+Records contain sorted top-level argument key names but no argument values.
+The directory and file modes are enforced as `0700` and `0600`, respectively,
+and audit records are not mirrored to the MCP process stderr by default.
+Audit write and permission failures are surfaced instead of silently dropping
+records.
 Audit attribution is pseudonymous and process-scoped; names, email addresses,
 prompts, transcripts, OAuth credentials, and tool result payloads are not audit
 fields.

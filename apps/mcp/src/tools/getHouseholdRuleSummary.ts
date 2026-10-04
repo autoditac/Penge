@@ -69,6 +69,13 @@ const RULE_SQL = `
   LIMIT $3 OFFSET $4
 `;
 
+const RULE_COUNT_SQL = `
+  SELECT count(*)::int AS total_count
+  FROM household_rule AS r
+  WHERE ($1::text IS NULL OR r.state = $1)
+    AND ($2::uuid IS NULL OR r.merchant_id = $2)
+`;
+
 function instant(value: Date | string): string {
   const parsed = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(parsed.valueOf())) {
@@ -87,16 +94,18 @@ export function getHouseholdRuleSummaryTool(
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
-      const result = await opts.runner.query(RULE_SQL, [
-        args.state ?? null,
-        args.merchant_id ?? null,
-        args.limit,
-        args.offset,
-      ]);
+      const filterParams = [args.state ?? null, args.merchant_id ?? null] as const;
+      const countResult = await opts.runner.query(RULE_COUNT_SQL, filterParams);
+      const total = z.coerce
+        .number()
+        .int()
+        .nonnegative()
+        .parse(countResult.rows[0]?.total_count ?? 0);
+      const result = await opts.runner.query(RULE_SQL, [...filterParams, args.limit, args.offset]);
       const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
         generated_at: (opts.now?.() ?? new Date()).toISOString(),
-        total: rows[0]?.total_count ?? 0,
+        total,
         limit: args.limit,
         offset: args.offset,
         rules: rows.map(({ total_count: _total, created_at, ...row }) => ({

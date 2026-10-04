@@ -37,6 +37,7 @@ const RowSchema = z
     record_count: z.coerce.number().int().nonnegative(),
     source_generated_at: z.union([z.date(), z.string()]).nullable(),
     last_checked_at: z.union([z.date(), z.string()]).nullable(),
+    last_attempt_at: z.union([z.date(), z.string()]).nullable(),
     last_success_at: z.union([z.date(), z.string()]).nullable(),
     error_code: z.string().nullable(),
   })
@@ -54,7 +55,8 @@ const STATUS_SQL = `
   SELECT 'nsi' AS source_id, state.status,
     state.active_generation_id::text AS active_generation_id,
     generation.source_version, coalesce(generation.record_count, 0)::int AS record_count,
-    generation.source_generated_at, state.last_checked_at, state.last_success_at,
+    generation.source_generated_at, state.last_checked_at, state.last_attempt_at,
+    state.last_success_at,
     state.error_code
   FROM merchant_reference_refresh_state AS state
   LEFT JOIN merchant_reference_generation AS generation
@@ -100,12 +102,26 @@ export function getMerchantReferenceStatusTool(
         };
       }
       const row = RowSchema.parse(raw);
+      const lastAttemptAt = instant(row.last_attempt_at);
+      const status =
+        row.status === "refreshing" &&
+        lastAttemptAt !== null &&
+        now.valueOf() - Date.parse(lastAttemptAt) >= 2 * 60 * 60 * 1000
+          ? row.active_generation_id === null
+            ? ("failed" as const)
+            : ("stale" as const)
+          : row.status;
       return {
         generated_at: now.toISOString(),
-        ...row,
+        source_id: row.source_id,
+        status,
+        active_generation_id: row.active_generation_id,
+        source_version: row.source_version,
+        record_count: row.record_count,
         source_generated_at: instant(row.source_generated_at),
         last_checked_at: instant(row.last_checked_at),
         last_success_at: instant(row.last_success_at),
+        error_code: row.error_code,
       };
     },
   };

@@ -198,7 +198,7 @@ const entries = {
       },
       {
         tool: "query_net_worth",
-        evidence: "Bounded Nordnet holding valuation aggregates.",
+        evidence: "Bounded source-filtered Nordnet holding valuation aggregates.",
       },
       { tool: "get_source_coverage", evidence: "Transaction and holding freshness counts." },
     ],
@@ -216,7 +216,7 @@ const entries = {
       },
       {
         tool: "query_net_worth",
-        evidence: "Bounded PFA holding valuation aggregates.",
+        evidence: "Bounded source-filtered PFA holding valuation aggregates.",
       },
       { tool: "get_source_coverage", evidence: "PFA account, transaction, and holding counts." },
     ],
@@ -234,7 +234,7 @@ const entries = {
       },
       {
         tool: "query_net_worth",
-        evidence: "Bounded Growney holding valuation aggregates.",
+        evidence: "Bounded source-filtered Growney holding valuation aggregates.",
       },
       {
         tool: "get_source_coverage",
@@ -268,7 +268,7 @@ const entries = {
     evidence_paths: [
       {
         tool: "query_net_worth",
-        evidence: "Bounded manual balance and valuation aggregates.",
+        evidence: "Bounded source-filtered manual balance and valuation aggregates.",
       },
       {
         tool: "get_source_coverage",

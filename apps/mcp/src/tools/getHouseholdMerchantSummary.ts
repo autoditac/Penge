@@ -81,7 +81,8 @@ const MERCHANT_SQL = `
     (SELECT count(*)::int FROM household_merchant_alias a WHERE a.merchant_id = m.id)
       AS alias_count,
     (SELECT count(*)::int FROM household_rule r
-      WHERE r.merchant_id = m.id AND r.state = 'active') AS active_rule_count,
+      WHERE r.merchant_id = m.id AND r.version = m.rule_version
+        AND r.state = 'active') AS active_rule_count,
     (SELECT count(*)::int FROM household_classification c
       WHERE c.merchant_id = m.id) AS classified_transaction_count,
     m.reference_source, m.reference_key, m.reference_version,
@@ -91,6 +92,13 @@ const MERCHANT_SQL = `
     AND ($2::text IS NULL OR position(lower($2) in lower(m.name)) > 0)
   ORDER BY m.name, m.id
   LIMIT $3 OFFSET $4
+`;
+
+const MERCHANT_COUNT_SQL = `
+  SELECT count(*)::int AS total_count
+  FROM household_merchant AS m
+  WHERE ($1::boolean OR NOT m.archived)
+    AND ($2::text IS NULL OR position(lower($2) in lower(m.name)) > 0)
 `;
 
 export function getHouseholdMerchantSummaryTool(
@@ -103,16 +111,25 @@ export function getHouseholdMerchantSummaryTool(
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
-      const result = await opts.runner.query(MERCHANT_SQL, [
+      const filterParams = [
         args.include_archived,
         args.query?.toLocaleLowerCase("en") ?? null,
+      ] as const;
+      const countResult = await opts.runner.query(MERCHANT_COUNT_SQL, filterParams);
+      const total = z.coerce
+        .number()
+        .int()
+        .nonnegative()
+        .parse(countResult.rows[0]?.total_count ?? 0);
+      const result = await opts.runner.query(MERCHANT_SQL, [
+        ...filterParams,
         args.limit,
         args.offset,
       ]);
       const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
         generated_at: (opts.now?.() ?? new Date()).toISOString(),
-        total: rows[0]?.total_count ?? 0,
+        total,
         limit: args.limit,
         offset: args.offset,
         merchants: rows.map(

@@ -27,6 +27,7 @@ import { searchDocumentsTool } from "./tools/searchDocuments.js";
 import { searchHouseholdTransactionsTool } from "./tools/searchHouseholdTransactions.js";
 import { searchMerchantReferenceTool } from "./tools/searchMerchantReference.js";
 import { suggestImportMappingTool } from "./tools/suggestImportMapping.js";
+import type { HouseholdTransactionQueryRunner } from "./tools/searchHouseholdTransactions.js";
 
 const SERVER_NAME = "penge-mcp";
 const SERVER_VERSION = "0.0.0";
@@ -42,6 +43,42 @@ async function main(): Promise<void> {
     databaseUrl: config.databaseUrl,
     duckdbPath: config.duckdbPath,
   });
+  const runner: HouseholdTransactionQueryRunner = {
+    async query(sql, params) {
+      const client = await data.acquire();
+      try {
+        return await client.query(sql, [...params]);
+      } finally {
+        client.release();
+      }
+    },
+  };
+  const snapshotRunner = {
+    ...runner,
+    async readSnapshot<T>(
+      operation: (transactionRunner: HouseholdTransactionQueryRunner) => Promise<T>,
+    ): Promise<T> {
+      const client = await data.acquire();
+      let transactionStarted = false;
+      try {
+        await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+        transactionStarted = true;
+        const transactionRunner: HouseholdTransactionQueryRunner = {
+          async query(sql, params) {
+            return await client.query(sql, [...params]);
+          },
+        };
+        const result = await operation(transactionRunner);
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        if (transactionStarted) await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+  };
 
   const { server, registry } = buildServer({
     name: SERVER_NAME,
@@ -49,152 +86,44 @@ async function main(): Promise<void> {
     audit,
     extraTools: [
       queryNetWorthTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       queryCashflowTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       queryHouseholdReportTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       searchHouseholdTransactionsTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       getHouseholdTransactionDetailTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner: snapshotRunner,
       }),
       getHouseholdTaxonomySummaryTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       getHouseholdRuleSummaryTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       getHouseholdMerchantSummaryTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       getMerchantReferenceStatusTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       searchMerchantReferenceTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       getSourceCoverageTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
       computeTaxYearTool(),
       runScenarioTool(),
       answerPlanningQuestionTool(),
       searchDocumentsTool({ vaultRoot: config.vaultRoot }),
       suggestImportMappingTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
+        runner,
       }),
     ],
   });

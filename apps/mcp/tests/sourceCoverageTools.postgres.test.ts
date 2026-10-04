@@ -69,7 +69,22 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
         expect(page.items.length).toBeGreaterThan(0);
         const transactionId = page.items[0]?.stable_id;
         if (!transactionId) throw new Error("Synthetic GLS transaction fixture is missing");
-        const detail = getHouseholdTransactionDetailTool({ runner: client });
+        const detail = getHouseholdTransactionDetailTool({
+          runner: {
+            query: (sql, params) => client.query(sql, [...params]),
+            async readSnapshot<T>(operation: (runner: typeof client) => Promise<T>): Promise<T> {
+              await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+              try {
+                const result = await operation(client);
+                await client.query("COMMIT");
+                return result;
+              } catch (error) {
+                await client.query("ROLLBACK");
+                throw error;
+              }
+            },
+          },
+        });
         const record = await detail.handler(
           { transaction_id: transactionId, source: "gls" },
           context,

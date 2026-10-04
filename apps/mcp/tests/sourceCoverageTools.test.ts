@@ -31,6 +31,26 @@ function fixedRows(rows: Array<Record<string, unknown>>) {
 }
 
 describe("source coverage tools", () => {
+  it("rejects duplicate source IDs", () => {
+    const tool = getSourceCoverageTool({ runner: fixedRows([]), now: () => NOW });
+    expect(() => tool.inputSchema.parse({ source_ids: ["ecb_fx", "ecb_fx"] })).toThrow(/unique/);
+  });
+
+  it("scopes NSI coverage observations to the NSI generation source", async () => {
+    let coverageSql = "";
+    const tool = getSourceCoverageTool({
+      runner: {
+        async query(sql) {
+          coverageSql = sql;
+          return { rows: [] };
+        },
+      },
+      now: () => NOW,
+    });
+    await tool.handler({ source_ids: ["nsi_merchant_reference"] }, CTX);
+    expect(coverageSql).toContain("source_id = 'name-suggestion-index'");
+  });
+
   it("reports stale and missing evidence without claiming completeness", async () => {
     const tool = getSourceCoverageTool({
       runner: fixedRows([
@@ -170,6 +190,7 @@ describe("source coverage tools", () => {
       ]),
       now: () => NOW,
     });
+
     const out = await tool.handler(
       {
         date_range: { from: "2026-06-01", to: "2026-06-30" },
@@ -183,7 +204,70 @@ describe("source coverage tools", () => {
     expect(out.items[0]?.classification?.allocation_count).toBe(1);
   });
 
+  it("keeps transaction totals when the requested page is empty", async () => {
+    const tool = searchHouseholdTransactionsTool({
+      runner: {
+        async query(sql: string) {
+          return sql.includes("SELECT count(*)::int AS total_count")
+            ? { rows: [{ total_count: 7 }] }
+            : { rows: [] };
+        },
+      },
+      now: () => NOW,
+    });
+    const out = await tool.handler(
+      {
+        date_range: { from: "2026-06-01", to: "2026-06-30" },
+        limit: 10,
+        offset: 100,
+      },
+      CTX,
+    );
+    expect(out.total).toBe(7);
+    expect(out.items).toEqual([]);
+  });
+
+  it("redacts identifiers embedded in transaction free text", async () => {
+    const tool = searchHouseholdTransactionsTool({
+      runner: fixedRows([
+        {
+          stable_id: TX,
+          source: "gls",
+          account_id: ACCOUNT,
+          transaction_date: "2026-06-02",
+          description: "Transfer to DE89370400440532013000",
+          counterparty: "Customer 123456789",
+          amount: "-1.0000",
+          currency: "EUR",
+          treatment: null,
+          review_state: null,
+          provenance: null,
+          revision: null,
+          merchant_id: null,
+          allocation_count: 0,
+          audit_id: null,
+          audit_action: null,
+          audit_created_at: null,
+          total_count: 1,
+        },
+      ]),
+      now: () => NOW,
+    });
+    const out = await tool.handler(
+      {
+        date_range: { from: "2026-06-01", to: "2026-06-30" },
+        limit: 10,
+        offset: 0,
+      },
+      CTX,
+    );
+    expect(out.items[0]?.description).toBe("Transfer to [REDACTED]");
+    expect(out.items[0]?.counterparty).toBe("Customer [REDACTED]");
+  });
+
   it("returns exact allocations and PayPal as enrichment-only detail", async () => {
+    let usedSnapshot = false;
+    let allocationSql = "";
     const runner = {
       async query(sql: string) {
         if (sql.includes("FROM transaction AS t")) {
@@ -200,22 +284,23 @@ describe("source coverage tools", () => {
                 fee: "0.0000",
                 tax: "0.0000",
                 currency: "EUR",
-                description: "Synthetic purchase",
-                counterparty: "Synthetic Market",
+                description: "Synthetic purchase DE89370400440532013000",
+                counterparty: "Synthetic Market 123456789",
                 treatment: "expense",
                 review_state: "classified",
                 merchant_id: MERCHANT,
-                merchant_name: "Synthetic Market",
+                merchant_name: "Synthetic Market 123456789",
                 identity_confirmed: true,
                 provenance: "manual",
                 rule_id: null,
                 revision: 2,
-                explanation: "Synthetic manual classification",
+                explanation: "Synthetic manual classification for 123456789",
               },
             ],
           };
         }
         if (sql.includes("FROM household_allocation AS x")) {
+          allocationSql = sql;
           return {
             rows: [
               {
@@ -248,8 +333,8 @@ describe("source coverage tools", () => {
               occurred_at: "2026-06-02T09:59:00.000Z",
               amount: "-125.4000",
               currency: "EUR",
-              merchant_name: "Synthetic Market",
-              reference: "Synthetic basket",
+              merchant_name: "Synthetic Market 123456789",
+              reference: "Synthetic basket 123456789",
               event_kind: "purchase",
               detail_revision: 2,
               approved_detail_revision: 2,
@@ -257,6 +342,10 @@ describe("source coverage tools", () => {
             },
           ],
         };
+      },
+      async readSnapshot<T>(operation: (snapshotRunner: typeof runner) => Promise<T>): Promise<T> {
+        usedSnapshot = true;
+        return await operation(runner);
       },
     };
     const tool = getHouseholdTransactionDetailTool({ runner, now: () => NOW });
@@ -267,6 +356,13 @@ describe("source coverage tools", () => {
     expect(out.linked_paypal).toHaveLength(1);
     expect(out.linked_paypal[0]?.ledger_semantics).toBe("enrichment_only");
     expect(out.ledger_semantics).toBe("single_source_ledger");
+    expect(usedSnapshot).toBe(true);
+    expect(allocationSql).toMatch(/LIMIT 100/);
+    expect(out.transaction.description).toBe("Synthetic purchase [REDACTED]");
+    expect(out.transaction.counterparty).toBe("Synthetic Market [REDACTED]");
+    expect(out.classification?.merchant_name).toBe("Synthetic Market [REDACTED]");
+    expect(out.classification?.explanation).toBe("Synthetic manual classification for [REDACTED]");
+    expect(out.linked_paypal[0]?.reference).toBe("Synthetic basket [REDACTED]");
   });
 
   it("maps bounded taxonomy, rule, and merchant summary rows", async () => {
@@ -345,6 +441,91 @@ describe("source coverage tools", () => {
     expect(merchantOut.merchants[0]?.reference?.source).toBe("nsi");
   });
 
+  it("keeps summary totals when requested pages are empty", async () => {
+    const runner = {
+      async query(sql: string) {
+        return sql.includes("SELECT count(*)::int AS total_count")
+          ? { rows: [{ total_count: 3 }] }
+          : { rows: [] };
+      },
+    };
+    const taxonomy = await getHouseholdTaxonomySummaryTool({
+      runner,
+      now: () => NOW,
+    }).handler({ include_archived: false, limit: 25, offset: 100 }, CTX);
+    const rules = await getHouseholdRuleSummaryTool({
+      runner,
+      now: () => NOW,
+    }).handler({ limit: 25, offset: 100 }, CTX);
+    const merchants = await getHouseholdMerchantSummaryTool({
+      runner,
+      now: () => NOW,
+    }).handler({ include_archived: false, limit: 25, offset: 100 }, CTX);
+    const references = await searchMerchantReferenceTool({
+      runner,
+      now: () => NOW,
+    }).handler({ query: "synthetic", limit: 10, offset: 100 }, CTX);
+    expect(taxonomy).toMatchObject({ total: 3, entries: [] });
+    expect(rules).toMatchObject({ total: 3, rules: [] });
+    expect(merchants).toMatchObject({ total: 3, merchants: [] });
+    expect(references).toMatchObject({ total: 3, results: [] });
+  });
+
+  it("normalizes NSI queries using NFKC, case folding, and whitespace collapse", async () => {
+    const params: ReadonlyArray<unknown>[] = [];
+    const search = searchMerchantReferenceTool({
+      runner: {
+        async query(_sql, values) {
+          params.push(values);
+          return params.length === 1 ? { rows: [{ total_count: 0 }] } : { rows: [] };
+        },
+      },
+      now: () => NOW,
+    });
+    await search.handler({ query: "  STRA\u00dfE\u3000MARKT  ", limit: 10, offset: 0 }, CTX);
+    expect(params[0]?.[0]).toBe("strasse markt");
+    expect(params[1]?.[0]).toBe("strasse markt");
+  });
+
+  it("marks abandoned NSI refreshes stale or failed", async () => {
+    const base = {
+      source_id: "nsi",
+      status: "refreshing",
+      source_version: "fixture-v1",
+      record_count: 1,
+      source_generated_at: "2026-10-01T00:00:00.000Z",
+      last_checked_at: "2026-10-04T00:00:00.000Z",
+      last_attempt_at: "2026-10-04T05:00:00.000Z",
+      last_success_at: "2026-10-01T00:00:00.000Z",
+      error_code: null,
+    };
+    const stale = await getMerchantReferenceStatusTool({
+      runner: fixedRows([{ ...base, active_generation_id: GENERATION }]),
+      now: () => NOW,
+    }).handler({ source_id: "nsi" }, CTX);
+    const failed = await getMerchantReferenceStatusTool({
+      runner: fixedRows([{ ...base, active_generation_id: null }]),
+      now: () => NOW,
+    }).handler({ source_id: "nsi" }, CTX);
+    expect(stale.status).toBe("stale");
+    expect(failed.status).toBe("failed");
+  });
+
+  it("counts only the merchant's current active rule version", async () => {
+    let merchantSql = "";
+    const tool = getHouseholdMerchantSummaryTool({
+      runner: {
+        async query(sql) {
+          merchantSql = sql;
+          return { rows: [] };
+        },
+      },
+      now: () => NOW,
+    });
+    await tool.handler({ include_archived: false, limit: 25, offset: 0 }, CTX);
+    expect(merchantSql).toMatch(/r\.version = m\.rule_version/);
+  });
+
   it("returns local NSI status and bounded search results", async () => {
     const status = getMerchantReferenceStatusTool({
       runner: fixedRows([
@@ -356,6 +537,7 @@ describe("source coverage tools", () => {
           record_count: 1,
           source_generated_at: "2026-10-01T00:00:00.000Z",
           last_checked_at: "2026-10-04T00:00:00.000Z",
+          last_attempt_at: "2026-10-04T00:00:00.000Z",
           last_success_at: "2026-10-04T00:00:00.000Z",
           error_code: null,
         },

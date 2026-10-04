@@ -7,7 +7,9 @@ an example call/response.
 The MCP server is **read-only** by construction: every Postgres
 connection is forced to `default_transaction_read_only = on`, and tool
 output schemas are validated before being returned to the host. Tools
-return aggregates only — never raw transactions or account numbers.
+return aggregates or explicitly bounded canonical records by stable ID.
+They never return `transaction.raw`, external account identifiers, IBANs, or
+provider payloads.
 The exact source matrix, new evidence-tool schemas, and downstream chat/UI
 contracts are documented in the
 [MCP source coverage contract](source-coverage.md).
@@ -26,11 +28,12 @@ requested date range, valued in the requested currency.
 
 ### Input
 
-| Field          | Type                                   | Notes                                                    |
-| -------------- | -------------------------------------- | -------------------------------------------------------- |
-| `date_range`   | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`. `from` must be on or before `to`.      |
-| `currency`     | `"EUR" \| "DKK"`                       | Both are first-class; pick whichever the consumer needs. |
-| `breakdown_by` | `"none" \| "account" \| "asset_class"` | See semantics below.                                     |
+| Field          | Type                                                | Notes                                                    |
+| -------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `date_range`   | `{ from: string; to: string }`                      | ISO `YYYY-MM-DD`; ordered; at most 367 inclusive days.   |
+| `currency`     | `"EUR" \| "DKK"`                                    | Both are first-class; pick whichever the consumer needs. |
+| `breakdown_by` | `"none" \| "account" \| "asset_class"`              | See semantics below.                                     |
+| `source`       | `"nordnet" \| "pfa" \| "growney" \| "manual_facts"` | Optional source-aware holdings filter.                   |
 
 ### Output
 
@@ -44,6 +47,11 @@ Array of:
   "value": 123456.78, // numeric, summed across the breakdown
 }
 ```
+
+The optional `source` filter is required when using this tool as
+source-specific holdings evidence.
+Queries are limited to a 367-day window and fail instead of returning a
+partial response if the result would exceed 5,000 rows.
 
 ### Breakdown semantics
 
@@ -93,7 +101,7 @@ Array of:
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `query_cashflow`
@@ -191,7 +199,7 @@ Array of:
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `compute_tax_year`
@@ -304,7 +312,7 @@ currency.
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration. The Python subprocess does not log financial
 data to stderr beyond the canonical `error: …` prefix on failure.
 
@@ -401,7 +409,7 @@ median FIRE year is undefined (fewer than 50 % of paths met the goal).
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `search_documents`
@@ -473,9 +481,9 @@ For each entry in `<PENGE_VAULT_ROOT>/.index.json`:
   DK CPR numbers (`\d{6}-?\d{4}`) and long digit runs (`\d{8,}`) —
   typical of account / customer numbers — are replaced with
   `[REDACTED]`.
-- The audit logger additionally redacts the `query` argument (and any
-  other key whose name matches the standard redaction policy in
-  `audit.ts`) before writing the audit record.
+- The audit logger records only top-level argument key names, so the
+  `query` value and all other argument values are absent from the audit
+  record.
 
 ### Example call
 
@@ -496,7 +504,7 @@ For each entry in `<PENGE_VAULT_ROOT>/.index.json`:
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `answer_planning_question`
@@ -707,5 +715,5 @@ other source-level rows.
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.

@@ -88,6 +88,32 @@ const SEARCH_SQL = `
   LIMIT $3 OFFSET $4
 `;
 
+const SEARCH_COUNT_SQL = `
+  SELECT count(*)::int AS total_count
+  FROM merchant_reference AS r
+  INNER JOIN merchant_reference_generation AS generation ON generation.id = r.generation_id
+  WHERE generation.status = 'active'
+    AND generation.source_id = 'name-suggestion-index'
+    AND ($2::text IS NULL OR position(lower($2) in lower(r.category_path)) = 1)
+    AND (
+      position(lower($1) in lower(r.label)) > 0
+      OR EXISTS (
+        SELECT 1 FROM merchant_reference_alias AS match_alias
+        WHERE match_alias.reference_id = r.id
+          AND position($1 in match_alias.normalized_alias) > 0
+      )
+    )
+`;
+
+function normalizeAlias(value: string): string {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase("und")
+    .replaceAll("ß", "ss")
+    .trim()
+    .replace(/\s+/g, " ");
+}
+
 function instant(value: Date | string): string {
   const parsed = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(parsed.valueOf())) {
@@ -106,9 +132,18 @@ export function searchMerchantReferenceTool(
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
+      const filterParams = [
+        normalizeAlias(args.query),
+        args.category_prefix === undefined ? null : normalizeAlias(args.category_prefix),
+      ] as const;
+      const countResult = await opts.runner.query(SEARCH_COUNT_SQL, filterParams);
+      const total = z.coerce
+        .number()
+        .int()
+        .nonnegative()
+        .parse(countResult.rows[0]?.total_count ?? 0);
       const result = await opts.runner.query(SEARCH_SQL, [
-        args.query.toLocaleLowerCase("en"),
-        args.category_prefix?.toLocaleLowerCase("en") ?? null,
+        ...filterParams,
         args.limit,
         args.offset,
       ]);
@@ -116,7 +151,7 @@ export function searchMerchantReferenceTool(
       return {
         generated_at: (opts.now?.() ?? new Date()).toISOString(),
         query: args.query,
-        total: rows[0]?.total_count ?? 0,
+        total,
         limit: args.limit,
         offset: args.offset,
         results: rows.map(({ total_count: _total, source_revision_at, ...row }) => ({

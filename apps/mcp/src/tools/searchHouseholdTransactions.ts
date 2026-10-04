@@ -1,6 +1,7 @@
 import { z } from "zod/v3";
 
 import { ToolDataError } from "../errors.js";
+import { redactText } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -155,6 +156,22 @@ const SEARCH_SQL = `
   LIMIT $7 OFFSET $8
 `;
 
+const COUNT_SQL = `
+  SELECT count(*)::int AS total_count
+  FROM transaction AS t
+  INNER JOIN account AS a ON a.id = t.account_id
+  LEFT JOIN household_classification AS c ON c.transaction_id = t.id
+  LEFT JOIN household_merchant AS m ON m.id = c.merchant_id
+  WHERE a.provider = ANY($1::text[])
+    AND ($2::text IS NULL OR a.provider = $2)
+    AND (t.ts AT TIME ZONE 'UTC')::date BETWEEN $3::date AND $4::date
+    AND ($5::uuid[] IS NULL OR a.id = ANY($5::uuid[]))
+    AND (
+      $6::text IS NULL
+      OR position(lower($6) in lower(concat_ws(' ', t.description, t.counterparty, m.name))) > 0
+    )
+`;
+
 function timestamp(value: Date | string | null): string | null {
   if (value === null) return null;
   const parsed = value instanceof Date ? value : new Date(value);
@@ -175,7 +192,7 @@ export function searchHouseholdTransactionsTool(
     outputSchema: OutputSchema,
     async handler(args) {
       const providers = ProviderSchema.options;
-      const result = await opts.runner.query(SEARCH_SQL, [
+      const params = [
         providers,
         args.source ?? null,
         args.date_range.from,
@@ -184,13 +201,20 @@ export function searchHouseholdTransactionsTool(
         args.query?.toLocaleLowerCase("en") ?? null,
         args.limit,
         args.offset,
-      ]);
+      ] as const;
+      const countResult = await opts.runner.query(COUNT_SQL, params.slice(0, 6));
+      const total = z.coerce
+        .number()
+        .int()
+        .nonnegative()
+        .parse(countResult.rows[0]?.total_count ?? 0);
+      const result = await opts.runner.query(SEARCH_SQL, params);
       const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
         generated_at: (opts.now?.() ?? new Date()).toISOString(),
         limit: args.limit,
         offset: args.offset,
-        total: rows[0]?.total_count ?? 0,
+        total,
         items: rows.map((row) => ({
           stable_id: row.stable_id,
           source: row.source,
@@ -199,8 +223,8 @@ export function searchHouseholdTransactionsTool(
             row.transaction_date instanceof Date
               ? row.transaction_date.toISOString().slice(0, 10)
               : row.transaction_date.slice(0, 10),
-          description: row.description,
-          counterparty: row.counterparty,
+          description: row.description === null ? null : redactText(row.description),
+          counterparty: row.counterparty === null ? null : redactText(row.counterparty),
           amount: row.amount,
           currency: row.currency,
           classification:

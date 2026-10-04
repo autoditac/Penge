@@ -43,11 +43,11 @@ Coverage metadata alone is not a data-bearing evidence path.
 | `ebank`                    | transactions, balances                       | transaction search/detail; household report          | account and transaction timestamps            |
 | `lunar`                    | transactions, balances                       | transaction search/detail; household report          | account and transaction timestamps            |
 | `enable_banking`           | transactions, balances                       | transaction search; cashflow                         | aggregate GLS/EBank/Lunar timestamps          |
-| `nordnet`                  | transactions, holdings, balances             | transaction search/detail; net worth                 | account, transaction, and holding timestamps  |
-| `pfa`                      | transactions, holdings, balances             | transaction search; net worth                        | account, transaction, and holding timestamps  |
-| `growney`                  | transactions, holdings, balances             | transaction search; net worth                        | account, transaction, and holding timestamps  |
+| `nordnet`                  | transactions, holdings, balances             | transaction search/detail; source-filtered net worth | account, transaction, and holding timestamps  |
+| `pfa`                      | transactions, holdings, balances             | transaction search; source-filtered net worth        | account, transaction, and holding timestamps  |
+| `growney`                  | transactions, holdings, balances             | transaction search; source-filtered net worth        | account, transaction, and holding timestamps  |
 | `ecb_fx`                   | FX rates                                     | household report; net worth                          | latest EUR/DKK rate date                      |
-| `manual_facts`             | manual facts, balances, holdings             | net worth                                            | `manual` provider account/snapshot timestamps |
+| `manual_facts`             | manual facts, balances, holdings             | source-filtered net worth                            | `manual` provider account/snapshot timestamps |
 | `household_classification` | classifications, allocations, rules, aliases | taxonomy/rule/merchant summaries; transaction detail | classification count and latest audit event   |
 | `paypal`                   | payment enrichment                           | transaction detail                                   | latest PayPal detail revision                 |
 | `nsi_merchant_reference`   | merchant reference                           | local status/search                                  | active generation completion                  |
@@ -117,7 +117,7 @@ Input:
 ```
 
 Output contains `generated_at`, paging metadata, total count, and at most 50 rows.
-Each row contains a stable transaction UUID, source, opaque account UUID, date, bounded description/counterparty, exact decimal-string amount, EUR/DKK currency, current classification summary, and latest audit-event reference.
+Each row contains a stable transaction UUID, source, opaque account UUID, date, value-pattern-redacted bounded description/counterparty, exact decimal-string amount, EUR/DKK currency, current classification summary, and latest audit-event reference.
 It never contains `transaction.raw`, external account IDs, IBANs, or provider payloads.
 
 ### `get_household_transaction_detail`
@@ -131,7 +131,9 @@ Input:
 }
 ```
 
-Output contains exactly one bank/brokerage ledger row, at most 20 exact decimal-string allocations, the current classification, at most 20 audit-event references, and at most 10 linked PayPal details.
+Output contains exactly one bank/brokerage ledger row, at most 100 exact decimal-string allocations, the current classification, at most 20 audit-event references, and at most 10 linked PayPal details.
+The transaction, classification, merchant, and PayPal free-text fields are value-pattern redacted before output.
+All detail reads run in one read-only repeatable-read PostgreSQL snapshot.
 The top level always declares `ledger_semantics: "single_source_ledger"`.
 Every PayPal record declares `ledger_semantics: "enrichment_only"`.
 Raw audit snapshots and PayPal `source_fields` are never returned.
@@ -157,8 +159,10 @@ The future chat worker may set `PENGE_MCP_ACTOR_ID` and `PENGE_MCP_SESSION_ID` w
 Both values must be opaque 8–64 character identifiers matching `[A-Za-z0-9_-]+`.
 Names and email addresses are rejected.
 
-Audit records contain only the pseudonymous IDs, tool name, redacted arguments, status, duration, timestamp, and bounded error text.
-Keys matching account, IBAN, CPR, tax ID, name, email, query, prompt, transcript, payload, secret, token, message, or content are redacted.
+Audit records contain only the pseudonymous IDs, tool name, sorted top-level argument key names, status, duration, timestamp, and bounded error code.
+No argument values are persisted, including dates, source IDs, stable transaction IDs, prompts, queries, or nested values.
+The audit directory and file modes are enforced as `0700` and `0600`, respectively; failures are surfaced.
+Records are not duplicated to the MCP process stderr by default.
 The chat service must not put prompts, transcripts, identities, OAuth tokens, or tool result payloads in either identifier.
 
 ## Downstream contracts
@@ -171,6 +175,7 @@ The chat service must not put prompts, transcripts, identities, OAuth tokens, or
 - Allow only the exact tools listed above and validate every tool result against its MCP schema.
 - Treat `source_allowlist`, source IDs, stable transaction IDs, freshness, and completeness as opaque typed evidence.
 - Propagate cancellation by terminating the bounded MCP call/process and never persist prompts, transcripts, tool arguments, or tool results in audit storage.
+- Treat audit `argumentKeys` as operation-shape metadata only; never add argument values or mirror audit records into captured MCP stderr.
 
 ### PBI #343 web UI
 

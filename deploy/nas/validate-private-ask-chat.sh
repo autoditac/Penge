@@ -64,8 +64,11 @@ sql_body="$(sed '/^[[:space:]]*--/d' "$db_template")"
 ! grep -Eiq 'grant[[:space:]]+all|analytics|finance|transcript|default privileges' \
   <<<"$sql_body"
 grep -q 'OAUTH_LINK_TABLES_ONLY' "$db_template"
-grep -q 'REVOKE ALL ON DATABASE @@DATABASE_IDENTIFIER@@ FROM PUBLIC;' "$db_template"
+grep -q 'current_database() <> .@@CHAT_OAUTH_DATABASE_NAME@@' "$db_template"
+grep -q 'REVOKE ALL ON DATABASE @@CHAT_OAUTH_DATABASE_IDENTIFIER@@ FROM PUBLIC;' \
+  "$db_template"
 grep -q 'REVOKE ALL ON SCHEMA public FROM PUBLIC;' "$db_template"
+! grep -q '@@DATABASE_IDENTIFIER@@' "$db_template"
 grep -q '^PENGE_CHAT_MODEL=hydrafusion$' "$contract_env_template"
 
 unresolved="$(
@@ -91,7 +94,9 @@ if [[ ! $image_digest =~ ^[0-9a-f]{64}$ ]]; then
   exit 1
 fi
 
-unresolved="$(grep -v '^@@CHAT_IMAGE_DIGEST@@$' <<<"$unresolved" || true)"
+unresolved="$(
+  grep -v -E '^@@(CHAT_IMAGE_DIGEST|CONTRACT_ENV_SHA256)@@$' <<<"$unresolved" || true
+)"
 if [[ -n $unresolved ]]; then
   printf 'deployment blocked by unresolved contracts:\n%s\n' "$unresolved" >&2
   exit 1

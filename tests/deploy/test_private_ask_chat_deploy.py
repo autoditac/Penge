@@ -1,3 +1,4 @@
+import hashlib
 import os
 import re
 import shutil
@@ -68,6 +69,10 @@ def test_quadlet_template_is_rootless_immutable_and_loopback_only() -> None:
     assert "ReadOnly=true" in quadlet
     assert "NoNewPrivileges=true" in quadlet
     assert "DropCapability=all" in quadlet
+    assert (
+        "EnvironmentFile=%h/.config/penge/approved/"
+        "private-ask-chat.contract-@@CONTRACT_ENV_SHA256@@.env"
+    ) in quadlet
     assert "WantedBy=default.target" in quadlet
     assert "WantedBy=multi-user.target" not in quadlet
     assert "systemctl --user daemon-reload" in installer
@@ -127,9 +132,15 @@ def test_database_template_cannot_grant_non_oauth_data_access() -> None:
     assert "analytics" not in executable_sql
     assert "finance" not in executable_sql
     assert "transcript" not in executable_sql
-    assert "revoke all on database @@database_identifier@@ from public;" in executable_sql
+    assert "current_database() <> '@@chat_oauth_database_name@@'" in executable_sql
+    assert (
+        "revoke all on database @@chat_oauth_database_identifier@@ from public;" in executable_sql
+    )
     assert "revoke all on schema public from public;" in executable_sql
-    assert "@@restore_required_non_chat_role_privileges_explicitly@@" in executable_sql
+    assert "@@database_identifier@@" not in executable_sql
+    assert "penge" not in executable_sql
+    assert "alter role" not in executable_sql
+    assert "grant create" not in executable_sql
 
 
 def test_architecture_contract_is_exact_but_activation_remains_unresolved() -> None:
@@ -167,6 +178,50 @@ def _write_executable(path: Path, content: str) -> None:
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
 
 
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _write_approval_manifest(repo: Path, home: Path, digest: str) -> Path:
+    nas = repo / "deploy" / "nas"
+    contract_dir = home / ".config" / "penge"
+    contract = contract_dir / "private-ask-chat.contract.env"
+    template = nas / "penge-chat.container.in"
+    contract_hash = _sha256(contract)
+    rendered = (
+        template.read_text()
+        .replace("@@CHAT_IMAGE_DIGEST@@", digest)
+        .replace("@@CONTRACT_ENV_SHA256@@", contract_hash)
+    )
+    approval = contract_dir / "private-ask-chat.approval.manifest"
+    approval.write_text(
+        "\n".join(
+            (
+                "version=1",
+                "decision=approved",
+                "reviewed_by=synthetic-reviewer",
+                (
+                    "review_reference=https://github.com/autoditac/Penge/"
+                    "pull/347#pullrequestreview-1"
+                ),
+                f"image_digest={digest}",
+                f"contract_env_sha256={contract_hash}",
+                f"quadlet_template_sha256={_sha256(template)}",
+                (f"rendered_quadlet_sha256={hashlib.sha256(rendered.encode()).hexdigest()}"),
+                f"nginx_template_sha256={_sha256(nas / 'penge-chat.nginx.conf.in')}",
+                f"database_template_sha256={_sha256(nas / 'penge-chat-db-role.sql.in')}",
+                (
+                    "contract_env_template_sha256="
+                    f"{_sha256(nas / 'private-ask-chat.contract.env.in')}"
+                ),
+                "",
+            )
+        )
+    )
+    approval.chmod(0o600)
+    return approval
+
+
 def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[str, str]]:
     repo = tmp_path / "repo"
     nas = repo / "deploy" / "nas"
@@ -177,8 +232,14 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
     fake_bin.mkdir()
     contract_dir.mkdir(parents=True)
 
+    for name in (
+        "install-private-ask-chat-quadlet.sh",
+        "penge-chat-db-role.sql.in",
+        "penge-chat.nginx.conf.in",
+        "private-ask-chat.contract.env.in",
+    ):
+        shutil.copy2(NAS / name, nas / name)
     installer = nas / "install-private-ask-chat-quadlet.sh"
-    shutil.copy2(NAS / installer.name, installer)
     template = _read("penge-chat.container.in")
     if resolved:
         replacements = {
@@ -200,8 +261,10 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
         for token, value in replacements.items():
             template = template.replace(token, value)
     (nas / "penge-chat.container.in").write_text(template)
-    (contract_dir / "private-ask-chat.contract.env").write_text("PENGE_CHAT_MODEL=hydrafusion\n")
-    (contract_dir / "private-ask-chat.contract-approved").touch()
+    contract = contract_dir / "private-ask-chat.contract.env"
+    contract.write_text("PENGE_CHAT_MODEL=hydrafusion\n")
+    contract.chmod(0o600)
+    _write_approval_manifest(repo, home, "a" * 64)
 
     _write_executable(
         fake_bin / "id",
@@ -222,6 +285,17 @@ exit 0
     _write_executable(
         fake_bin / "systemctl",
         '#!/bin/sh\nprintf "%s\\n" "$*" >"$SYSTEMCTL_LOG"\n',
+    )
+    _write_executable(
+        fake_bin / "stat",
+        """#!/bin/sh
+if [ -n "${FAKE_STAT_OWNER:-}" ] && [ "$1 $2" = "-c %u %a" ]; then
+  mode=$(/usr/bin/stat -c %a "$3")
+  printf "%s %s\\n" "$FAKE_STAT_OWNER" "$mode"
+  exit 0
+fi
+exec /usr/bin/stat "$@"
+""",
     )
     env = {
         **os.environ,
@@ -250,7 +324,7 @@ def test_installer_rejects_invalid_input_root_and_missing_approval(tmp_path: Pat
         env={**env, "FAKE_ID_UID": "0"},
         text=True,
     )
-    approval = Path(env["HOME"]) / ".config" / "penge" / ("private-ask-chat.contract-approved")
+    approval = Path(env["HOME"]) / ".config" / "penge" / "private-ask-chat.approval.manifest"
     approval.unlink()
     missing = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
         [installer, digest],
@@ -264,7 +338,7 @@ def test_installer_rejects_invalid_input_root_and_missing_approval(tmp_path: Pat
     assert root.returncode != 0
     assert "refusing root execution" in root.stderr
     assert missing.returncode != 0
-    assert "approval marker" in missing.stderr
+    assert "approval manifest" in missing.stderr
 
 
 def test_installer_rejects_unresolved_environment_and_quadlet(tmp_path: Path) -> None:
@@ -295,6 +369,81 @@ def test_installer_rejects_unresolved_environment_and_quadlet(tmp_path: Path) ->
     assert "unresolved private Ask contract tokens" in quadlet.stderr
 
 
+def test_installer_rejects_unsafe_contract_and_manifest_metadata(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    digest = "a" * 64
+    contract_dir = Path(env["HOME"]) / ".config" / "penge"
+    contract = contract_dir / "private-ask-chat.contract.env"
+    approval = contract_dir / "private-ask-chat.approval.manifest"
+
+    contract.chmod(0o640)
+    unsafe_contract = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    contract.chmod(0o600)
+    approval.chmod(0o644)
+    unsafe_manifest = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    approval.chmod(0o600)
+    wrong_owner = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env={**env, "FAKE_STAT_OWNER": "9999"},
+        text=True,
+    )
+
+    assert "contract environment must use mode 0400 or 0600" in unsafe_contract.stderr
+    assert "approval manifest must use mode 0400 or 0600" in unsafe_manifest.stderr
+    assert "contract environment must be owned by uid 1000" in wrong_owner.stderr
+
+
+def test_installer_invalidates_stale_artifact_and_digest_approval(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    digest = "a" * 64
+    repo = installer.parents[2]
+    contract = Path(env["HOME"]) / ".config" / "penge" / ("private-ask-chat.contract.env")
+
+    wrong_digest = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, "b" * 64],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    contract.write_text("PENGE_CHAT_MODEL=hydrafusion\nPENGE_EXTRA=changed\n")
+    changed_contract = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    contract.write_text("PENGE_CHAT_MODEL=hydrafusion\n")
+    template = repo / "deploy" / "nas" / "penge-chat.container.in"
+    template.write_text(f"{template.read_text()}# changed after approval\n")
+    changed_template = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert "image digest is not approved" in wrong_digest.stderr
+    assert "approval hash mismatch for contract_env_sha256" in changed_contract.stderr
+    assert "approval hash mismatch for quadlet_template_sha256" in changed_template.stderr
+
+
 def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -> None:
     installer, env = _installer_fixture(tmp_path, resolved=True)
     digest = "a" * 64
@@ -317,11 +466,16 @@ def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -
 
     unit_dir = Path(env["HOME"]) / ".config" / "containers" / "systemd"
     unit = unit_dir / "penge-chat.container"
+    approved_dir = Path(env["HOME"]) / ".config" / "penge" / "approved"
     assert missing.returncode != 0
     assert f"missing rootless Podman secret {missing_mount}" in missing.stderr
     assert installed.returncode == 0, installed.stderr
     assert unit.stat().st_mode & 0o777 == 0o600
     assert unit_dir.stat().st_mode & 0o777 == 0o700
+    approved_contracts = list(approved_dir.glob("private-ask-chat.contract-*.env"))
+    assert len(approved_contracts) == 1
+    assert approved_contracts[0].stat().st_mode & 0o777 == 0o600
+    assert _sha256(approved_contracts[0]) in unit.read_text()
     assert unit.read_text().count("Image=") == 1
     assert f"@sha256:{digest}" in unit.read_text()
     assert (tmp_path / "systemctl.log").read_text().strip() == "--user daemon-reload"

@@ -40,7 +40,8 @@ The #345 architecture contract fixes these requirements:
 
 The stable model assignment is tracked in `deploy/nas/private-ask-chat.contract.env.in`.
 Unknown environment names remain tokens instead of guessed defaults.
-The rootless service also requires `%h/.config/penge/private-ask-chat.contract-approved`; do not create that marker until every readiness and acceptance item below has evidence.
+The rootless service also requires `%h/.config/penge/private-ask-chat.approval.manifest`.
+Do not create that manifest until every readiness and acceptance item below has evidence and an identified reviewer records an approving GitHub review.
 
 ## Packaging and CI gate
 
@@ -74,7 +75,7 @@ It has no public MCP, Copilot runtime, database, raw-tool, health, or metrics po
 It uses a read-only root filesystem, a bounded temporary filesystem, default SELinux confinement, no new privileges, and no Linux capabilities.
 There is no persistent chat volume while the backend storage contract is unknown.
 
-The installer refuses root execution, mutable tags, wildcard binds, missing secrets, missing approval files, and unresolved contract tokens.
+The installer refuses root execution, mutable tags, wildcard binds, missing secrets, missing or stale approval, unsafe ownership or permissions, and unresolved contract tokens.
 Once the contracts are resolved and reviewed, render an exact image digest without the `sha256:` prefix:
 
 ```bash
@@ -84,6 +85,37 @@ deploy/nas/install-private-ask-chat-quadlet.sh \
 
 This example digest is synthetic and must never be deployed.
 The installer only renders and reloads the user service; it does not enable or start it.
+
+### Reviewed approval manifest
+
+Both `private-ask-chat.contract.env` and `private-ask-chat.approval.manifest` must:
+
+- be regular files, not symlinks;
+- be owned by the dedicated rootless service UID; and
+- use exactly mode `0400` or `0600`.
+
+The version-1 manifest contains exactly one value for each field:
+
+```text
+version=1
+decision=approved
+reviewed_by=<GitHub reviewer login>
+review_reference=https://github.com/autoditac/Penge/pull/<number>#pullrequestreview-<id>
+image_digest=<64 lowercase hexadecimal characters>
+contract_env_sha256=<sha256>
+quadlet_template_sha256=<sha256>
+rendered_quadlet_sha256=<sha256>
+nginx_template_sha256=<sha256>
+database_template_sha256=<sha256>
+contract_env_template_sha256=<sha256>
+```
+
+The reviewer calculates the hashes from the exact files and rendered Quadlet they reviewed.
+The installer rejects missing, duplicate, unknown, empty, malformed, or mismatched fields.
+It copies the approved environment to a private hash-addressed path, and the rendered Quadlet references only that snapshot.
+
+Any image digest, environment, Quadlet, nginx, database, or environment-template change invalidates the manifest.
+Create a new manifest and obtain a new review; never update hashes under an old review reference.
 
 ## Versioned Podman secrets
 
@@ -132,19 +164,22 @@ Account unlinking must revoke the GitHub grant where supported and delete only t
 It must not remove another user's link, finance data, audits, or shared source data.
 Use the backend-owned unlink operation once #346 provides it; do not manipulate ciphertext manually.
 
-## Least-privilege database role
+## Dedicated OAuth database and least-privilege role
 
 `deploy/nas/penge-chat-db-role.sql.in` is non-executable until #346 supplies migration-owned identifiers.
+The resolved template must target a dedicated chat OAuth database and abort when connected to any other database.
 The resolved SQL may grant only:
 
-- `CONNECT` on the Penge database.
+- `CONNECT` on the dedicated chat OAuth database.
 - `USAGE` on the OAuth-link schema.
 - `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the explicit OAuth-link tables.
 
 It must not grant schema creation, default privileges, sequence-wide access, finance or analytics reads, transcript storage, MCP access, ownership, role inheritance, or superuser capabilities.
-Because every PostgreSQL login implicitly belongs to `PUBLIC`, revoking privileges only from the chat role is insufficient.
-The SQL template first revokes database and `public`-schema privileges from `PUBLIC`, then requires explicit compatibility grants for every existing non-chat role before creating the chat role.
-Audit the current grants and test API, ingestion, dbt, migration, backup, and administration roles in an isolated restore before applying that database-wide baseline.
+Its `PUBLIC` revocations apply only inside that dedicated database.
+Chat deployment must not change the shared Penge finance database or any API, dbt, ingestion, migration, backup, or maintenance role privileges.
+
+If #346 instead mandates same-database storage, remove this provisioning template and place the exact grants in its reversible migration.
+Do not adapt this deployment seam to revoke shared-database privileges.
 Apply it through the reviewed database administration path only after `--ready` passes, then query PostgreSQL privileges and attach the redacted result to the acceptance record.
 
 ## Nginx trust boundary
@@ -184,11 +219,12 @@ Use pseudonymous actor and session identifiers only.
 
 ## Backup and restore
 
-OAuth-link rows are part of the existing encrypted PostgreSQL backup:
+The dedicated chat OAuth database requires its own encrypted logical backup.
+The existing finance-database backup does not include it.
+Use the established backup tooling with the dedicated database URL after #346 adds a collision-safe chat backup label/path:
 
 ```bash
-just backup --label pre-chat-change
-just restore-test
+DATABASE_URL=<dedicated-chat-oauth-url> just backup --label chat-oauth-pre-change
 ```
 
 The AES-GCM keyring is not useful inside the database backup and must be backed up separately through the approved encrypted secret channel.
@@ -197,7 +233,7 @@ A key backup without the encrypted database is also incomplete.
 
 For a restore drill:
 
-1. Restore the database into the isolated test database through `just restore-test`.
+1. Restore the dedicated OAuth backup into an isolated chat OAuth test database.
 2. Provision a disposable copy of the matching versioned keyring.
 3. Start only the synthetic backend against the restored database.
 4. Verify synthetic OAuth links decrypt and remain identity-isolated.
@@ -277,7 +313,7 @@ Record only port numbers and open/closed state.
 
 ## NAS deployment checklist
 
-Do not create the approval marker until every item is true.
+Do not create the approval manifest until every item is true.
 
 - [ ] #343–#346 exact contracts are merged into this branch.
 - [ ] `validate-private-ask-chat.sh --ready` passes.
@@ -285,7 +321,7 @@ Do not create the approval marker until every item is true.
 - [ ] Chat image CI, SBOM, provenance, vulnerability checks, and exact GHCR digest pass.
 - [ ] Source-coverage startup gate includes every source required by #344.
 - [ ] HydraFusion entitlement is externally verified for both authorized identities with no fallback.
-- [ ] Database migration round-trip and explicit OAuth-table grants pass.
+- [ ] Dedicated OAuth database migration round-trip and explicit OAuth-table grants pass without changing finance-database or global-role privileges.
 - [ ] Versioned rootless secrets exist and encrypted backups are verified.
 - [ ] Nginx exact/bounded routes pass `nginx -t` behind oauth2-proxy.
 - [ ] Container runs rootless with loopback-only publishing and default SELinux confinement.
@@ -295,7 +331,7 @@ Do not create the approval marker until every item is true.
 - [ ] External scan and restart/no-transcript evidence pass.
 - [ ] Backup/restore, key rotation, unlink, and digest rollback drills pass.
 - [ ] Previous digest and compatible secret versions remain available for rollback.
-- [ ] The reviewed approval marker is created only after all evidence is attached.
+- [ ] The reviewed approval manifest binds the exact digest, environment, rendered unit, and all template hashes after all evidence is attached.
 
 ## Incident response
 

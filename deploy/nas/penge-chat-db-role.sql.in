@@ -1,26 +1,30 @@
 \set ON_ERROR_STOP on
 
--- Non-executable least-privilege template.
+-- Non-executable dedicated-database least-privilege template.
 --
 -- #346 must replace every @@...@@ token with its migration-owned OAuth-link
--- schema and table names.  No finance, analytics, MCP, transcript, or default
--- privilege grant belongs here.
+-- database, schema, and table names.  This template must never target the
+-- shared Penge finance database or alter its PUBLIC/role privileges.
 
 BEGIN;
 
--- PUBLIC membership is implicit and cannot be removed from a login role.
--- Revoke the default database TEMP/CONNECT and public-schema privileges, then
--- restore every required non-chat role explicitly before creating the chat
--- role.  Resolve the compatibility-grant token from a privilege audit.
-REVOKE ALL ON DATABASE @@DATABASE_IDENTIFIER@@ FROM PUBLIC;
+DO $$
+BEGIN
+    IF current_database() <> '@@CHAT_OAUTH_DATABASE_NAME@@' THEN
+        RAISE EXCEPTION 'must run against the dedicated chat OAuth database';
+    END IF;
+END
+$$;
+
+-- PUBLIC changes are safe only inside the dedicated chat OAuth database.
+REVOKE ALL ON DATABASE @@CHAT_OAUTH_DATABASE_IDENTIFIER@@ FROM PUBLIC;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
-@@RESTORE_REQUIRED_NON_CHAT_ROLE_PRIVILEGES_EXPLICITLY@@
 
-@@CREATE_OR_ALTER_CHAT_ROLE_WITH_SECRET_MANAGED_LOGIN@@
+@@CREATE_DEDICATED_CHAT_ROLE_WITH_SECRET_MANAGED_LOGIN@@
 
-REVOKE ALL ON DATABASE @@DATABASE_IDENTIFIER@@ FROM @@CHAT_DATABASE_ROLE@@;
+REVOKE ALL ON DATABASE @@CHAT_OAUTH_DATABASE_IDENTIFIER@@ FROM @@CHAT_DATABASE_ROLE@@;
 REVOKE ALL ON SCHEMA public FROM @@CHAT_DATABASE_ROLE@@;
-GRANT CONNECT ON DATABASE @@DATABASE_IDENTIFIER@@ TO @@CHAT_DATABASE_ROLE@@;
+GRANT CONNECT ON DATABASE @@CHAT_OAUTH_DATABASE_IDENTIFIER@@ TO @@CHAT_DATABASE_ROLE@@;
 GRANT USAGE ON SCHEMA @@OAUTH_LINK_SCHEMA@@ TO @@CHAT_DATABASE_ROLE@@;
 GRANT SELECT, INSERT, UPDATE, DELETE
     ON TABLE @@OAUTH_LINK_TABLES_ONLY@@

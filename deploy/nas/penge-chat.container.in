@@ -9,7 +9,6 @@
 Description=Penge private Ask chat
 After=network-online.target
 Wants=network-online.target
-ConditionPathExists=%h/.config/penge/private-ask-chat.contract-approved
 
 [Container]
 Image=ghcr.io/autoditac/penge/chat@sha256:@@CHAT_IMAGE_DIGEST@@
@@ -20,7 +19,7 @@ PublishPort=127.0.0.1:8123:@@CHAT_HTTP_PORT@@
 Secret=penge-chat-github-oauth-@@GITHUB_OAUTH_SECRET_VERSION@@,type=mount,target=@@GITHUB_OAUTH_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
 Secret=penge-chat-token-keyring-@@TOKEN_KEYRING_SECRET_VERSION@@,type=mount,target=@@TOKEN_KEYRING_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
 Secret=penge-chat-database-url-@@DATABASE_URL_SECRET_VERSION@@,type=mount,target=@@DATABASE_URL_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
-EnvironmentFile=%h/.config/penge/private-ask-chat.contract.env
+EnvironmentFile=%h/.config/penge/approved/private-ask-chat.contract-@@CONTRACT_ENV_SHA256@@.env
 Volume=@@MCP_READ_ONLY_SOURCE@@:@@MCP_READ_ONLY_TARGET@@:ro
 ReadOnly=true
 NoNewPrivileges=true
@@ -35,7 +34,7 @@ Notify=healthy
 [Service]
 Restart=always
 TimeoutStartSec=120
-ExecStartPre=/usr/bin/test -r %h/.config/penge/private-ask-chat.contract.env
+ExecStartPre=/usr/bin/test -r %h/.config/penge/approved/private-ask-chat.contract-@@CONTRACT_ENV_SHA256@@.env
 ExecStartPost=/bin/sh -c 'set -eu; image_id=$(podman inspect penge-chat --format "{{.Image}}"); digest=$(podman image inspect "$image_id" --format "{{.Digest}}"); test -n "$digest"; echo "penge-chat deploy: $(date -Iseconds) digest=$digest"'
 
 [Install]

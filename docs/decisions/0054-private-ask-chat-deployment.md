@@ -38,7 +38,12 @@ The active nginx configuration explicitly returns `404` for only `/ask` and `/as
 A separate non-loadable nginx template contains the OAuth trust-boundary and identity-header overwrite contract, but it cannot be enabled until exact base-path, callback, and streaming semantics are known.
 
 The OAuth database role is likewise represented by a non-executable SQL template.
-It permits only connect, schema usage, and row operations on the migration-owned OAuth-link tables after those identifiers are supplied; it grants no finance, analytics, MCP, transcript, or default privileges.
+It targets a dedicated chat OAuth database, refuses execution against any other database, and permits only connect, schema usage, and row operations on migration-owned OAuth-link tables.
+Chat deployment never changes `PUBLIC`, database, schema, table, or role privileges in the shared Penge finance database.
+
+Installation requires a reviewed approval manifest owned by the rootless service account with no group or other permissions.
+The manifest binds the reviewer decision and reference to the exact image digest plus SHA-256 hashes of the contract environment, every deployment template, and the rendered Quadlet.
+The approved environment is copied to a hash-addressed private path used by the rendered unit, so changing any input requires a new review manifest.
 
 ADR-0053 fixes `@github/copilot-sdk` at `1.0.16`, Copilot mode `empty`, the exact model `hydrafusion`, separate per-user identities, process-local stdio MCP, and no default tools or fallback.
 Production activation still requires external, privacy-safe entitlement evidence and the source-coverage startup contract.
@@ -49,7 +54,7 @@ Production activation still requires external, privacy-safe entitlement evidence
 
 - The repository cannot accidentally install or start an unresolved chat unit.
 - Public routes remain closed while dependent contracts are absent.
-- Image, secret, database, and identity boundaries are reviewable before NAS changes.
+- Image, secret, dedicated-database, identity, and approval boundaries are reviewable before NAS changes.
 - Later integration failures become explicit CI/readiness failures instead of permissive defaults.
 
 ### Negative

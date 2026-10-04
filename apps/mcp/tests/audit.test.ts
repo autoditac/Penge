@@ -1,5 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
@@ -149,6 +158,26 @@ describe("createAuditLogger", () => {
     const filePath = join(dir, "not-a-directory");
     writeFileSync(filePath, "occupied");
     expect(() => createAuditLogger({ logDir: filePath })).toThrow();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("refuses a pre-existing audit-file symlink without touching its target", () => {
+    const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
+    const targetPath = join(dir, "target.txt");
+    const auditPath = join(dir, "audit-2026-05-10.jsonl");
+    writeFileSync(targetPath, "sentinel");
+    chmodSync(targetPath, 0o644);
+    symlinkSync(targetPath, auditPath);
+
+    expect(() =>
+      createAuditLogger({
+        logDir: dir,
+        now: () => new Date("2026-05-10T12:34:56.000Z"),
+      }),
+    ).toThrow();
+    expect(readFileSync(targetPath, "utf8")).toBe("sentinel");
+    expect(statSync(targetPath).mode & 0o777).toBe(0o644);
+
     rmSync(dir, { recursive: true, force: true });
   });
 });

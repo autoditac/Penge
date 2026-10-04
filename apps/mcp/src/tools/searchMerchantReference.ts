@@ -55,7 +55,12 @@ const OutputSchema = z
   })
   .strict();
 
-const RowSchema = ResultSchema.omit({ source_revision_at: true }).extend({
+const RowSchema = ResultSchema.omit({
+  label: true,
+  aliases: true,
+  source_revision_at: true,
+}).extend({
+  label: z.string(),
   aliases: z.array(z.string()),
   source_revision_at: z.union([z.date(), z.string()]),
   total_count: z.coerce.number().int().nonnegative(),
@@ -167,7 +172,8 @@ export function searchMerchantReferenceTool(
         offset: args.offset,
         results: rows.map(({ total_count: _total, source_revision_at, ...row }) => ({
           ...row,
-          aliases: row.aliases.slice(0, 10),
+          label: redactTextBounded(row.label, 256),
+          aliases: row.aliases.slice(0, 10).map((alias) => redactTextBounded(alias, 256)),
           source_revision_at: instant(source_revision_at),
         })),
       };

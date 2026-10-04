@@ -824,4 +824,33 @@ describe("source coverage tools", () => {
     expect(statusOut.status).toBe("current");
     expect(searchOut.results[0]?.label).toBe("Synthetic Market");
   });
+
+  it("redacts complete NSI labels and aliases before applying wire bounds", async () => {
+    const prefix = "A".repeat(245);
+    const search = searchMerchantReferenceTool({
+      runner: fixedRows([
+        {
+          reference_id: REFERENCE,
+          source_entity_id: "synthetic-market",
+          label: `${prefix} DE89370400440532013000`,
+          aliases: [`${prefix} 010101-1234`, `${prefix} 123456789012`, "Safe alias"],
+          category_path: "retail/grocery",
+          wikidata_id: null,
+          source_version: "fixture-v1",
+          source_revision_at: "2026-10-01T00:00:00.000Z",
+          total_count: 1,
+        },
+      ]),
+      now: () => NOW,
+    });
+
+    const out = await search.handler({ query: "synthetic", limit: 10, offset: 0 }, CTX);
+    search.outputSchema.parse(out);
+    const result = out.results[0];
+    expect(result?.label).toBe(`${prefix} [REDACTED]`);
+    expect(result?.aliases).toEqual([`${prefix} [REDACTED]`, `${prefix} [REDACTED]`, "Safe alias"]);
+    expect(result?.label.length).toBeLessThanOrEqual(256);
+    expect(result?.aliases.every((alias) => alias.length <= 256)).toBe(true);
+    expect(JSON.stringify(result)).not.toMatch(/DE8937040044|010101-1234|123456789012/);
+  });
 });

@@ -1,4 +1,14 @@
-import { chmodSync, closeSync, constants, mkdirSync, openSync, statSync, writeSync } from "node:fs";
+import {
+  chmodSync,
+  closeSync,
+  constants,
+  fchmodSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  statSync,
+  writeSync,
+} from "node:fs";
 import { join } from "node:path";
 
 const SAFE_ARGUMENT_KEY = /^[A-Za-z0-9_.-]{1,64}$/;
@@ -57,13 +67,21 @@ export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
   }
   const file = openSync(
     filePath,
-    constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY,
+    constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | constants.O_NOFOLLOW,
     0o600,
   );
-  chmodSync(filePath, 0o600);
-  if ((statSync(filePath).mode & 0o077) !== 0) {
+  try {
+    if (!fstatSync(file).isFile()) {
+      throw new Error("MCP audit path must be a regular file");
+    }
+    fchmodSync(file, 0o600);
+    const fileStat = fstatSync(file);
+    if ((fileStat.mode & 0o077) !== 0) {
+      throw new Error("MCP audit file permissions must be 0600");
+    }
+  } catch (error) {
     closeSync(file);
-    throw new Error("MCP audit file permissions must be 0600");
+    throw error;
   }
   let closed = false;
 

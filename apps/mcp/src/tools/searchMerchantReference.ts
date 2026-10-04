@@ -2,6 +2,7 @@ import { z } from "zod/v3";
 import { caseFold } from "unicode-case-folding";
 
 import { ToolDataError } from "../errors.js";
+import { redactTextBounded } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 import type { HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
@@ -160,7 +161,7 @@ export function searchMerchantReferenceTool(
       const rows = result.rows.map((raw) => RowSchema.parse(raw));
       return {
         generated_at: (opts.now?.() ?? new Date()).toISOString(),
-        query: args.query,
+        query: redactTextBounded(args.query, 100),
         total,
         limit: args.limit,
         offset: args.offset,

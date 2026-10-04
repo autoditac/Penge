@@ -170,9 +170,9 @@ const TRANSACTION_SQL = `
   SELECT t.id::text AS stable_id, a.provider AS source, a.id::text AS account_id,
     t.ts AS booked_at, t.value_date, t.kind, t.amount::text AS amount,
     t.fee::text AS fee, t.tax::text AS tax, a.currency,
-    left(t.description, 240) AS description, left(t.counterparty, 240) AS counterparty,
+    t.description, t.counterparty,
     c.treatment, c.review_state, c.merchant_id::text AS merchant_id,
-    left(m.name, 200) AS merchant_name, c.identity_confirmed, c.provenance,
+    m.name AS merchant_name, c.identity_confirmed, c.provenance,
     c.rule_id::text AS rule_id, c.revision, c.explanation
   FROM transaction AS t
   INNER JOIN account AS a ON a.id = t.account_id
@@ -205,8 +205,7 @@ const AUDIT_SQL = `
 
 const PAYPAL_SQL = `
   SELECT d.id::text AS detail_id, d.ts AS occurred_at, d.amount::text AS amount,
-    d.currency, left(d.merchant_name, 240) AS merchant_name,
-    left(d.reference, 240) AS reference, d.event_kind,
+    d.currency, d.merchant_name, d.reference, d.event_kind,
     d.revision AS detail_revision, link.detail_revision AS approved_detail_revision,
     link.bank_amount::text AS bank_amount
   FROM household_payment_detail_link AS link

@@ -273,6 +273,45 @@ describe("source coverage tools", () => {
     expect(out.items[0]?.counterparty).toBe("Customer [REDACTED]");
   });
 
+  it("redacts identifiers that occur after the SQL text prefix", async () => {
+    const prefix = "x".repeat(220);
+    const tool = searchHouseholdTransactionsTool({
+      runner: fixedRows([
+        {
+          stable_id: TX,
+          source: "gls",
+          account_id: ACCOUNT,
+          transaction_date: "2026-06-02",
+          description: `${prefix} DE89370400440532013000`,
+          counterparty: null,
+          amount: "-1.0000",
+          currency: "EUR",
+          treatment: null,
+          review_state: null,
+          provenance: null,
+          revision: null,
+          merchant_id: null,
+          allocation_count: 0,
+          audit_id: null,
+          audit_action: null,
+          audit_created_at: null,
+          total_count: 1,
+        },
+      ]),
+      now: () => NOW,
+    });
+    const out = await tool.handler(
+      {
+        date_range: { from: "2026-06-01", to: "2026-06-30" },
+        limit: 10,
+        offset: 0,
+      },
+      CTX,
+    );
+    expect(out.items[0]?.description).toContain("[REDACTED]");
+    expect(out.items[0]?.description).not.toContain("DE89370400440532013000");
+  });
+
   it("returns exact allocations and PayPal as enrichment-only detail", async () => {
     let usedSnapshot = false;
     let allocationSql = "";
@@ -546,6 +585,18 @@ describe("source coverage tools", () => {
     });
     await search.handler({ query: "ΟΣ", limit: 10, offset: 0 }, CTX);
     expect(params[0]?.[0]).toBe("οσ");
+  });
+
+  it("redacts sensitive identifiers in the echoed NSI query", async () => {
+    const search = searchMerchantReferenceTool({
+      runner: fixedRows([]),
+      now: () => NOW,
+    });
+    const out = await search.handler(
+      { query: "DE89370400440532013000", limit: 10, offset: 0 },
+      CTX,
+    );
+    expect(out.query).toBe("[REDACTED]");
   });
 
   it("rejects NSI search terms without a Unicode letter or number", () => {

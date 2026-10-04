@@ -46,8 +46,10 @@ Do not create that manifest until every readiness and acceptance item below has 
 ## Packaging and CI gate
 
 `.github/workflows/private-ask-chat-deployment.yml` runs deployment tests and the seam validator.
-While `apps/chat/package.json` is absent, CI requires the unresolved seam to remain non-deployable.
-As soon as the backend package appears, CI switches to `--ready` and fails until all of the following are true:
+CI requires the unresolved seam to remain non-deployable until the release workflow publishes an attested image digest.
+It must not infer readiness merely from the presence of `apps/chat/package.json`.
+When the image integration lands, replace the seam step with an explicit dependency on the image build/attestation job and pass that job's exact digest as `PENGE_CHAT_IMAGE_DIGEST` to `--ready`.
+The ready gate then requires all of the following:
 
 1. All Quadlet, nginx, database, and environment contract tokens except the deployment-time image digest are resolved.
 2. `apps/chat/Containerfile` exists.
@@ -123,6 +125,7 @@ contract_env_template_sha256=<sha256>
 
 The reviewer calculates the hashes from the exact files and rendered Quadlet they reviewed.
 The installer rejects missing, duplicate, unknown, empty, malformed, or mismatched fields.
+The private environment file must match the fully resolved, reviewed environment template byte for byte; missing, duplicate, reordered, or additional assignments are rejected even when their file hash appears in the manifest.
 It copies the approved environment to a private hash-addressed path, and the rendered Quadlet references only that snapshot.
 
 Any image digest, environment, Quadlet, nginx, database, or environment-template change invalidates the manifest.

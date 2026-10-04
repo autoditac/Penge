@@ -53,10 +53,5 @@ jobs:
           uv run --group dev pytest \
             tests/deploy/test_private_ask_chat_deploy.py \
             tests/deploy/test_nas_deploy.py -q
-      - name: Require secure seam or complete integration
-        run: |
-          if [[ -f apps/chat/package.json ]]; then
-            ./deploy/nas/validate-private-ask-chat.sh --ready
-          else
-            ./deploy/nas/validate-private-ask-chat.sh --seam
-          fi
+      - name: Require fail-closed seam
+        run: ./deploy/nas/validate-private-ask-chat.sh --seam

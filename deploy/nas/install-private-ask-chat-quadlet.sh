@@ -119,6 +119,10 @@ if grep -n '@@[A-Z0-9_]\+@@' "$contract_env" >&2; then
   echo "deployment blocked: unresolved private Ask environment tokens" >&2
   exit 1
 fi
+if ! cmp -s "$contract_env_template" "$contract_env"; then
+  echo "deployment blocked: contract environment is not the exact reviewed template" >&2
+  exit 1
+fi
 
 contract_env_sha256="$(sha256_file "$contract_env")"
 declare -A expected_hashes=(

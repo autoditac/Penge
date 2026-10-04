@@ -9,10 +9,28 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 NAS = ROOT / "deploy" / "nas"
 CHAT_APP_PRESENT = (ROOT / "apps" / "chat" / "package.json").exists()
+CONTRACT_REPLACEMENTS = {
+    "@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@": "PENGE_COPILOT_MODE=empty",
+    "@@DEFAULT_TOOLS_DISABLED_ENV_ASSIGNMENT@@": "PENGE_DEFAULT_TOOLS=false",
+    "@@HYDRAFUSION_ENTITLEMENT_REQUIRED_ENV_ASSIGNMENT@@": ("PENGE_REQUIRE_HYDRAFUSION=true"),
+    "@@MODEL_FALLBACK_DISABLED_ENV_ASSIGNMENT@@": "PENGE_MODEL_FALLBACK=false",
+    "@@PRIVACY_SAFE_METRICS_ENV_ASSIGNMENT@@": "PENGE_METRICS_MODE=private",
+    "@@PRIVACY_SAFE_STRUCTURED_LOGGING_ENV_ASSIGNMENT@@": "PENGE_LOG_MODE=redacted",
+    "@@PROCESS_LOCAL_STDIO_MCP_ENV_ASSIGNMENT@@": "PENGE_MCP_TRANSPORT=stdio",
+    "@@SOURCE_COVERAGE_STARTUP_GATE_ENV_ASSIGNMENT@@": ("PENGE_REQUIRE_SOURCE_COVERAGE=true"),
+    "@@TRANSCRIPT_PERSISTENCE_DISABLED_ENV_ASSIGNMENT@@": ("PENGE_TRANSCRIPT_PERSISTENCE=false"),
+}
 
 
 def _read(name: str) -> str:
     return (NAS / name).read_text()
+
+
+def _resolved_contract_environment() -> str:
+    contract = _read("private-ask-chat.contract.env.in")
+    for token, value in CONTRACT_REPLACEMENTS.items():
+        contract = contract.replace(token, value)
+    return contract
 
 
 def test_unresolved_chat_contract_is_non_deployable() -> None:
@@ -193,6 +211,13 @@ def test_no_chat_mcp_or_runtime_listener_is_publicly_configured() -> None:
     assert "copilot-runtime" not in public_config.lower()
 
 
+def test_ci_keeps_seam_gate_until_an_attested_digest_is_wired() -> None:
+    workflow = (ROOT / ".github" / "workflows" / "private-ask-chat-deployment.yml").read_text()
+
+    assert "validate-private-ask-chat.sh --seam" in workflow
+    assert "validate-private-ask-chat.sh --ready" not in workflow
+
+
 def _write_executable(path: Path, content: str) -> None:
     path.write_text(content)
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
@@ -262,25 +287,10 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
         database = database.replace(token, value)
     (nas / "penge-chat-db-role.sql.in").write_text(database)
 
-    contract = _read("private-ask-chat.contract.env.in")
-    contract_replacements = {
-        "@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@": "PENGE_COPILOT_MODE=empty",
-        "@@DEFAULT_TOOLS_DISABLED_ENV_ASSIGNMENT@@": "PENGE_DEFAULT_TOOLS=false",
-        "@@HYDRAFUSION_ENTITLEMENT_REQUIRED_ENV_ASSIGNMENT@@": ("PENGE_REQUIRE_HYDRAFUSION=true"),
-        "@@MODEL_FALLBACK_DISABLED_ENV_ASSIGNMENT@@": "PENGE_MODEL_FALLBACK=false",
-        "@@PRIVACY_SAFE_METRICS_ENV_ASSIGNMENT@@": "PENGE_METRICS_MODE=private",
-        "@@PRIVACY_SAFE_STRUCTURED_LOGGING_ENV_ASSIGNMENT@@": "PENGE_LOG_MODE=redacted",
-        "@@PROCESS_LOCAL_STDIO_MCP_ENV_ASSIGNMENT@@": "PENGE_MCP_TRANSPORT=stdio",
-        "@@SOURCE_COVERAGE_STARTUP_GATE_ENV_ASSIGNMENT@@": ("PENGE_REQUIRE_SOURCE_COVERAGE=true"),
-        "@@TRANSCRIPT_PERSISTENCE_DISABLED_ENV_ASSIGNMENT@@": (
-            "PENGE_TRANSCRIPT_PERSISTENCE=false"
-        ),
-    }
-    for token, value in contract_replacements.items():
-        contract = contract.replace(token, value)
-    (nas / "private-ask-chat.contract.env.in").write_text(contract)
+    (nas / "private-ask-chat.contract.env.in").write_text(_resolved_contract_environment())
 
     (chat / "package.json").write_text('{"dependencies":{"@github/copilot-sdk":"1.0.16"}}\n')
+    (repo / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n")
     (chat / "Containerfile").write_text(
         "\n".join(
             (
@@ -372,6 +382,46 @@ def test_ready_validator_rejects_mismatched_database_privilege_target(
     assert "database guard and privilege target differ" in mismatched.stderr
 
 
+def test_ready_validator_parses_effective_sdk_dependency_and_instructions(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    repo = validator.parents[2]
+    package = repo / "apps" / "chat" / "package.json"
+    containerfile = repo / "apps" / "chat" / "Containerfile"
+
+    package.write_text(
+        '{"metadata":{"@github/copilot-sdk":"1.0.16"},'
+        '"dependencies":{"@github/copilot-sdk":"^1.0.16"}}\n'
+    )
+    mutable_sdk = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    package.write_text('{"dependencies":{"@github/copilot-sdk":"1.0.16"}}\n')
+    containerfile.write_text(
+        f"FROM node@sha256:{'a' * 64}\n"
+        "# COPY pnpm-lock.yaml ./\n"
+        "# RUN pnpm install --frozen-lockfile\n"
+    )
+    commented_packaging = subprocess.run(  # noqa: S603
+        # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert mutable_sdk.returncode != 0
+    assert "must pin @github/copilot-sdk exactly to 1.0.16" in mutable_sdk.stderr
+    assert commented_packaging.returncode != 0
+    assert "does not COPY pnpm-lock.yaml" in commented_packaging.stderr
+
+
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
@@ -455,8 +505,13 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
         for token, value in replacements.items():
             template = template.replace(token, value)
     (nas / "penge-chat.container.in").write_text(template)
+    contract_template = nas / "private-ask-chat.contract.env.in"
+    if resolved:
+        contract_template.write_text(_resolved_contract_environment())
     contract = contract_dir / "private-ask-chat.contract.env"
-    contract.write_text("PENGE_CHAT_MODEL=hydrafusion\n")
+    contract.write_text(
+        contract_template.read_text() if resolved else "PENGE_CHAT_MODEL=hydrafusion\n"
+    )
     contract.chmod(0o600)
     _write_approval_manifest(repo, home, "a" * 64)
 
@@ -548,7 +603,11 @@ def test_installer_rejects_unresolved_environment_and_quadlet(tmp_path: Path) ->
         env=env,
         text=True,
     )
-    contract.write_text("PENGE_CHAT_MODEL=hydrafusion\n")
+    contract_template = installer.parent / "private-ask-chat.contract.env.in"
+    resolved_contract = _resolved_contract_environment()
+    contract_template.write_text(resolved_contract)
+    contract.write_text(resolved_contract)
+    _write_approval_manifest(installer.parents[2], Path(env["HOME"]), digest)
     quadlet = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
         [installer, digest],
         capture_output=True,
@@ -561,6 +620,26 @@ def test_installer_rejects_unresolved_environment_and_quadlet(tmp_path: Path) ->
     assert "unresolved private Ask environment tokens" in environment.stderr
     assert quadlet.returncode != 0
     assert "unresolved private Ask contract tokens" in quadlet.stderr
+
+
+def test_installer_requires_exact_resolved_environment_contract(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    digest = "a" * 64
+    home = Path(env["HOME"])
+    contract = home / ".config" / "penge" / "private-ask-chat.contract.env"
+    contract.write_text(contract.read_text().replace("PENGE_MODEL_FALLBACK=false\n", ""))
+    _write_approval_manifest(installer.parents[2], home, digest)
+
+    incomplete = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert incomplete.returncode != 0
+    assert "contract environment is not the exact reviewed template" in incomplete.stderr
 
 
 def test_installer_rejects_unsafe_contract_and_manifest_metadata(tmp_path: Path) -> None:
@@ -652,7 +731,7 @@ def test_installer_invalidates_stale_artifact_and_digest_approval(tmp_path: Path
         env=env,
         text=True,
     )
-    contract.write_text("PENGE_CHAT_MODEL=hydrafusion\n")
+    contract.write_text((repo / "deploy" / "nas" / "private-ask-chat.contract.env.in").read_text())
     template = repo / "deploy" / "nas" / "penge-chat.container.in"
     template.write_text(f"{template.read_text()}# changed after approval\n")
     changed_template = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
@@ -664,7 +743,7 @@ def test_installer_invalidates_stale_artifact_and_digest_approval(tmp_path: Path
     )
 
     assert "image digest is not approved" in wrong_digest.stderr
-    assert "approval hash mismatch for contract_env_sha256" in changed_contract.stderr
+    assert "contract environment is not the exact reviewed template" in changed_contract.stderr
     assert "approval hash mismatch for quadlet_template_sha256" in changed_template.stderr
 
 

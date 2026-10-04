@@ -177,11 +177,47 @@ done
 
 containerfile="$root/apps/chat/Containerfile"
 validate_containerfile_bases "$containerfile"
-grep -q 'pnpm-lock.yaml' "$containerfile"
-grep -q -- '--frozen-lockfile' "$containerfile"
-grep -Eq \
-  '"@github/copilot-sdk"[[:space:]]*:[[:space:]]*"1\.0\.16"' \
-  "$root/apps/chat/package.json"
+container_instructions="$(
+  sed -E '/^[[:space:]]*#/d; :join; /\\[[:space:]]*$/ { N; s/\\[[:space:]]*\n/ /; b join; }' \
+    "$containerfile"
+)"
+lock_copy="$(
+  grep -Ein \
+  '^[[:space:]]*COPY([[:space:]]+--[^[:space:]]+)*[[:space:]]+[^#]*pnpm-lock\.yaml' \
+    <<<"$container_instructions" \
+    | head -n 1 || true
+)"
+[[ -n $lock_copy ]] || fail "chat Containerfile does not COPY pnpm-lock.yaml"
+frozen_install="$(
+  grep -Ein \
+    '^[[:space:]]*RUN([[:space:]]+--[^[:space:]]+)*[[:space:]]+([^#]*[;&|][[:space:]]*)?pnpm[[:space:]]+install([[:space:]]|$)[^#]*--frozen-lockfile([[:space:]]|$)' \
+    <<<"$container_instructions" \
+    | head -n 1 || true
+)"
+[[ -n $frozen_install ]] || fail "chat Containerfile does not perform a frozen pnpm install"
+((10#${lock_copy%%:*} < 10#${frozen_install%%:*})) \
+  || fail "chat Containerfile must COPY pnpm-lock.yaml before the frozen install"
+[[ -r "$root/pnpm-lock.yaml" ]] || fail "repository pnpm-lock.yaml is missing"
+if ! sdk_version="$(
+  uv run --no-project python - "$root/apps/chat/package.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+package = json.loads(Path(sys.argv[1]).read_text())
+dependencies = package.get("dependencies")
+if not isinstance(dependencies, dict):
+    raise SystemExit("dependencies must be an object")
+version = dependencies.get("@github/copilot-sdk")
+if not isinstance(version, str):
+    raise SystemExit("@github/copilot-sdk must be a runtime dependency")
+print(version)
+PY
+)"; then
+  fail "chat package.json is invalid or lacks the Copilot SDK runtime dependency"
+fi
+[[ $sdk_version == "1.0.16" ]] \
+  || fail "chat package.json must pin @github/copilot-sdk exactly to 1.0.16"
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/ci.yml"
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/release.yml"
 echo "private Ask deployment contracts are resolved and packaging is ready"

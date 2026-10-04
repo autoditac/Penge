@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
-  '@github/copilot-sdk@1.0.16': bbc094435afd127c1f8905d7b2e731eb8608c5f8515c225ba26413bf28a42383
+  '@github/copilot-sdk@1.0.16': 971f76c7d474ece8f27ed8bfde2c721907e366be4e7384b91c2fc9d80f3a3116
 
 importers:
 
@@ -15,7 +15,7 @@ importers:
     dependencies:
       '@github/copilot-sdk':
         specifier: 1.0.16
-        version: 1.0.16(patch_hash=bbc094435afd127c1f8905d7b2e731eb8608c5f8515c225ba26413bf28a42383)
+        version: 1.0.16(patch_hash=971f76c7d474ece8f27ed8bfde2c721907e366be4e7384b91c2fc9d80f3a3116)
       '@modelcontextprotocol/sdk':
         specifier: 1.30.1
         version: 1.30.1(zod@4.6.5)
@@ -2780,7 +2780,7 @@ snapshots:
   '@github/copilot-sdk-win32-x64@1.0.16':
     optional: true
 
-  '@github/copilot-sdk@1.0.16(patch_hash=bbc094435afd127c1f8905d7b2e731eb8608c5f8515c225ba26413bf28a42383)':
+  '@github/copilot-sdk@1.0.16(patch_hash=971f76c7d474ece8f27ed8bfde2c721907e366be4e7384b91c2fc9d80f3a3116)':
     dependencies:
       koffi: 3.2.1
       vscode-jsonrpc: 8.2.1

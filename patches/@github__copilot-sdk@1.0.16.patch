@@ -1,8 +1,128 @@
 diff --git a/dist/cjs/client.js b/dist/cjs/client.js
-index 191eb1ac850f4cba745f87505374a2848f477d0d..197f2bb699cbe646340ff7461fb104402ed59f65 100644
+index 191eb1ac850f4cba745f87505374a2848f477d0d..34b392035bc456ab2e158c7cf473068fb23e62da 100644
 --- a/dist/cjs/client.js
 +++ b/dist/cjs/client.js
-@@ -2293,13 +2293,6 @@ class CopilotClient {
+@@ -118,6 +118,24 @@ async function withTimeout(promise, timeoutMs, message) {
+     }
+   }
+ }
++function killChildProcessTree(child, signal) {
++  if (process.platform !== "win32" && child.pid !== void 0) {
++    process.kill(-child.pid, signal);
++    return;
++  }
++  child.kill(signal);
++}
++function killOwnedProcessGroup(pid, signal) {
++  if (process.platform !== "win32") {
++    try {
++      process.kill(-pid, signal);
++    } catch (error) {
++      if (error?.code !== "ESRCH") {
++        throw error;
++      }
++    }
++  }
++}
+ async function waitForChildExit(child, timeoutMs) {
+   if (child.exitCode != null || child.signalCode != null) {
+     return true;
+@@ -277,6 +295,8 @@ class TeardownResilientStreamMessageWriter extends import_node.StreamMessageWrit
+ class CopilotClient {
+   cliStartTimeout = null;
+   cliProcess = null;
++  ownedProcessGroups = /* @__PURE__ */ new Set();
++  onRuntimeProcessSpawned;
+   ffiHost = null;
+   connection = null;
+   requestAdapter = null;
+@@ -417,6 +437,7 @@ class CopilotClient {
+    * ```
+    */
+   constructor(options = {}) {
++    this.onRuntimeProcessSpawned = options.onRuntimeProcessSpawned;
+     const conn = options._internalConnection ?? options.connection ?? CopilotClient.resolveDefaultConnection();
+     if (conn.kind === "uri" && (options.gitHubToken !== void 0 || options.useLoggedInUser !== void 0)) {
+       throw new Error(
+@@ -879,7 +900,7 @@ class CopilotClient {
+       }
+       try {
+         if (child.exitCode == null && child.signalCode == null) {
+-          child.kill();
++          killChildProcessTree(child, "SIGTERM");
+           if (!await waitForChildExit(child, RUNTIME_SHUTDOWN_TIMEOUT_MS)) {
+             errors.push(
+               new Error(
+@@ -898,6 +919,14 @@ class CopilotClient {
+         if (this.cliProcess === child) {
+           this.cliProcess = null;
+         }
++        for (const pid of this.ownedProcessGroups) {
++          killOwnedProcessGroup(pid, "SIGKILL");
++        }
++        await new Promise((resolve2) => setTimeout(resolve2, 25));
++        for (const pid of this.ownedProcessGroups) {
++          killOwnedProcessGroup(pid, "SIGKILL");
++        }
++        this.ownedProcessGroups.clear();
+       }
+     }
+     if (this.ffiHost) {
+@@ -996,11 +1025,25 @@ class CopilotClient {
+     }
+     if (this.cliProcess && !this.isExternalServer) {
+       try {
+-        this.cliProcess.kill("SIGKILL");
++        killChildProcessTree(this.cliProcess, "SIGKILL");
+       } catch {
+       }
+       this.cliProcess = null;
+     }
++    for (const pid of this.ownedProcessGroups) {
++      try {
++        killOwnedProcessGroup(pid, "SIGKILL");
++      } catch {
++      }
++    }
++    await new Promise((resolve2) => setTimeout(resolve2, 25));
++    for (const pid of this.ownedProcessGroups) {
++      try {
++        killOwnedProcessGroup(pid, "SIGKILL");
++      } catch {
++      }
++    }
++    this.ownedProcessGroups.clear();
+     if (this.ffiHost) {
+       const host = this.ffiHost;
+       this.ffiHost = null;
+@@ -2265,16 +2308,24 @@ class CopilotClient {
+           stdio: stdioConfig,
+           cwd: this.options.workingDirectory,
+           env: envWithoutNodeDebug,
+-          windowsHide: true
++          windowsHide: true,
++          detached: process.platform !== "win32"
+         });
+       } else {
+         this.cliProcess = (0, import_node_child_process.spawn)(this.resolvedCliPath, args, {
+           stdio: stdioConfig,
+           cwd: this.options.workingDirectory,
+           env: envWithoutNodeDebug,
+-          windowsHide: true
++          windowsHide: true,
++          detached: process.platform !== "win32"
+         });
+       }
++      if (process.platform !== "win32" && this.cliProcess.pid !== void 0) {
++        this.ownedProcessGroups.add(this.cliProcess.pid);
++      }
++      if (this.cliProcess.pid !== void 0) {
++        this.onRuntimeProcessSpawned?.(this.cliProcess.pid);
++      }
+       let stdout = "";
+       let resolved = false;
+       if (this.connectionConfig.kind === "stdio") {
+@@ -2293,13 +2344,6 @@ class CopilotClient {
        }
        this.cliProcess.stderr?.on("data", (data) => {
          this.stderrBuffer += data.toString();
@@ -17,10 +137,130 @@ index 191eb1ac850f4cba745f87505374a2848f477d0d..197f2bb699cbe646340ff7461fb10440
        this.cliProcess.on("error", (error) => {
          if (!resolved) {
 diff --git a/dist/client.js b/dist/client.js
-index c9eaedbf00d592f2f3681ac59cb48dca59aaa130..2ccd85ae637193c29f77fd1500c71155afd487fb 100644
+index c9eaedbf00d592f2f3681ac59cb48dca59aaa130..a356ced5285f516211788e4943577488c53a8b41 100644
 --- a/dist/client.js
 +++ b/dist/client.js
-@@ -2273,13 +2273,6 @@ class CopilotClient {
+@@ -98,6 +98,24 @@ async function withTimeout(promise, timeoutMs, message) {
+     }
+   }
+ }
++function killChildProcessTree(child, signal) {
++  if (process.platform !== "win32" && child.pid !== void 0) {
++    process.kill(-child.pid, signal);
++    return;
++  }
++  child.kill(signal);
++}
++function killOwnedProcessGroup(pid, signal) {
++  if (process.platform !== "win32") {
++    try {
++      process.kill(-pid, signal);
++    } catch (error) {
++      if (error?.code !== "ESRCH") {
++        throw error;
++      }
++    }
++  }
++}
+ async function waitForChildExit(child, timeoutMs) {
+   if (child.exitCode != null || child.signalCode != null) {
+     return true;
+@@ -257,6 +275,8 @@ class TeardownResilientStreamMessageWriter extends StreamMessageWriter {
+ class CopilotClient {
+   cliStartTimeout = null;
+   cliProcess = null;
++  ownedProcessGroups = /* @__PURE__ */ new Set();
++  onRuntimeProcessSpawned;
+   ffiHost = null;
+   connection = null;
+   requestAdapter = null;
+@@ -397,6 +417,7 @@ class CopilotClient {
+    * ```
+    */
+   constructor(options = {}) {
++    this.onRuntimeProcessSpawned = options.onRuntimeProcessSpawned;
+     const conn = options._internalConnection ?? options.connection ?? CopilotClient.resolveDefaultConnection();
+     if (conn.kind === "uri" && (options.gitHubToken !== void 0 || options.useLoggedInUser !== void 0)) {
+       throw new Error(
+@@ -859,7 +880,7 @@ class CopilotClient {
+       }
+       try {
+         if (child.exitCode == null && child.signalCode == null) {
+-          child.kill();
++          killChildProcessTree(child, "SIGTERM");
+           if (!await waitForChildExit(child, RUNTIME_SHUTDOWN_TIMEOUT_MS)) {
+             errors.push(
+               new Error(
+@@ -878,6 +899,14 @@ class CopilotClient {
+         if (this.cliProcess === child) {
+           this.cliProcess = null;
+         }
++        for (const pid of this.ownedProcessGroups) {
++          killOwnedProcessGroup(pid, "SIGKILL");
++        }
++        await new Promise((resolve2) => setTimeout(resolve2, 25));
++        for (const pid of this.ownedProcessGroups) {
++          killOwnedProcessGroup(pid, "SIGKILL");
++        }
++        this.ownedProcessGroups.clear();
+       }
+     }
+     if (this.ffiHost) {
+@@ -976,11 +1005,25 @@ class CopilotClient {
+     }
+     if (this.cliProcess && !this.isExternalServer) {
+       try {
+-        this.cliProcess.kill("SIGKILL");
++        killChildProcessTree(this.cliProcess, "SIGKILL");
+       } catch {
+       }
+       this.cliProcess = null;
+     }
++    for (const pid of this.ownedProcessGroups) {
++      try {
++        killOwnedProcessGroup(pid, "SIGKILL");
++      } catch {
++      }
++    }
++    await new Promise((resolve2) => setTimeout(resolve2, 25));
++    for (const pid of this.ownedProcessGroups) {
++      try {
++        killOwnedProcessGroup(pid, "SIGKILL");
++      } catch {
++      }
++    }
++    this.ownedProcessGroups.clear();
+     if (this.ffiHost) {
+       const host = this.ffiHost;
+       this.ffiHost = null;
+@@ -2245,16 +2288,24 @@ class CopilotClient {
+           stdio: stdioConfig,
+           cwd: this.options.workingDirectory,
+           env: envWithoutNodeDebug,
+-          windowsHide: true
++          windowsHide: true,
++          detached: process.platform !== "win32"
+         });
+       } else {
+         this.cliProcess = spawn(this.resolvedCliPath, args, {
+           stdio: stdioConfig,
+           cwd: this.options.workingDirectory,
+           env: envWithoutNodeDebug,
+-          windowsHide: true
++          windowsHide: true,
++          detached: process.platform !== "win32"
+         });
+       }
++      if (process.platform !== "win32" && this.cliProcess.pid !== void 0) {
++        this.ownedProcessGroups.add(this.cliProcess.pid);
++      }
++      if (this.cliProcess.pid !== void 0) {
++        this.onRuntimeProcessSpawned?.(this.cliProcess.pid);
++      }
+       let stdout = "";
+       let resolved = false;
+       if (this.connectionConfig.kind === "stdio") {
+@@ -2273,13 +2324,6 @@ class CopilotClient {
        }
        this.cliProcess.stderr?.on("data", (data) => {
          this.stderrBuffer += data.toString();
@@ -34,3 +274,16 @@ index c9eaedbf00d592f2f3681ac59cb48dca59aaa130..2ccd85ae637193c29f77fd1500c71155
        });
        this.cliProcess.on("error", (error) => {
          if (!resolved) {
+diff --git a/dist/types.d.ts b/dist/types.d.ts
+index 98a0223a3bef03b83327cebf85aff7079431939e..48b647160b219fbfa9639f59159bbb9ef9226569 100644
+--- a/dist/types.d.ts
++++ b/dist/types.d.ts
+@@ -249,6 +249,8 @@ export interface CopilotClientInfo {
+     integrationVersion?: string;
+ }
+ export interface CopilotClientOptions {
++    /** Called when an SDK-owned runtime process is spawned. */
++    onRuntimeProcessSpawned?: (pid: number) => void;
+     /**
+      * How to connect to the Copilot runtime. When omitted, defaults to
+      * {@link RuntimeConnection.forStdio} with the bundled runtime.

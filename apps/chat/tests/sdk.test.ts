@@ -1,5 +1,5 @@
 import { access } from "node:fs/promises";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -13,7 +13,11 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import { BoundedMemorySessionFs } from "../src/memorySessionFs.js";
-import { buildSessionConfig, GitHubCopilotRuntime } from "../src/sdk.js";
+import {
+  buildSessionConfig,
+  GitHubCopilotRuntime,
+  terminateRuntimeProcessTree,
+} from "../src/sdk.js";
 import { syntheticConfig } from "./helpers.js";
 
 const provider: GitHubTokenProvider = async () => ({
@@ -21,6 +25,32 @@ const provider: GitHubTokenProvider = async () => ({
   accessToken: "synthetic",
   expiresIn: 7_200,
 });
+
+async function waitForFile(path: string): Promise<string> {
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      return await readFile(path, "utf8");
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  throw new Error(`timed out waiting for ${path}`);
+}
+
+async function waitForProcessExit(pid: number): Promise<void> {
+  for (let attempt = 0; attempt < 100; attempt += 1) {
+    try {
+      const stat = await readFile(`/proc/${pid}/stat`, "utf8");
+      if (stat.split(" ")[2] === "Z") return;
+      process.kill(pid, 0);
+    } catch (error) {
+      if (["ENOENT", "ESRCH"].includes((error as NodeJS.ErrnoException).code ?? "")) return;
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error(`process ${pid} did not exit`);
+}
 
 describe("Copilot SDK policy", () => {
   it("pins empty mode session semantics to exact HydraFusion with local stdio MCP", async () => {
@@ -147,6 +177,67 @@ describe("Copilot SDK policy", () => {
       await rm(directory, { recursive: true });
     }
   });
+
+  it.runIf(process.platform !== "win32")(
+    "force-stops a stuck runtime descendant process",
+    async () => {
+      const directory = await mkdtemp(join(tmpdir(), "penge-copilot-tree-"));
+      const runtimePath = join(directory, "runtime.js");
+      const descendantPidPath = join(directory, "descendant.pid");
+      await writeFile(
+        runtimePath,
+        [
+          'const { spawn } = require("node:child_process");',
+          'const { writeFileSync } = require("node:fs");',
+          `const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { stdio: "ignore" });`,
+          `writeFileSync(${JSON.stringify(descendantPidPath)}, JSON.stringify({ runtime: process.pid, descendant: child.pid }));`,
+          "setInterval(() => {}, 1000);",
+        ].join("\n"),
+        "utf8",
+      );
+      const client = new CopilotClient({
+        connection: RuntimeConnection.forStdio({ path: runtimePath }),
+        mode: "empty",
+        sessionFs: {
+          initialCwd: directory,
+          sessionStatePath: "/sessions",
+          conventions: "posix",
+        },
+        logLevel: "none",
+        useLoggedInUser: false,
+      });
+      let runtimePid: number | undefined;
+      try {
+        const start = client.start().catch(() => undefined);
+        const processIds = JSON.parse(await waitForFile(descendantPidPath)) as {
+          runtime: number;
+          descendant: number;
+        };
+        const descendantPid = processIds.descendant;
+        runtimePid = processIds.runtime;
+        expect(descendantPid).toBeGreaterThan(0);
+        process.kill(descendantPid, 0);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(
+          (
+            client as unknown as {
+              ownedProcessGroups: Set<number>;
+            }
+          ).ownedProcessGroups,
+        ).toContain(processIds.runtime);
+
+        await client.forceStop();
+        await terminateRuntimeProcessTree(runtimePid);
+        await start;
+
+        await waitForProcessExit(descendantPid);
+      } finally {
+        await client.forceStop();
+        await terminateRuntimeProcessTree(runtimePid);
+        await rm(directory, { recursive: true });
+      }
+    },
+  );
 
   it("fails before process creation while HydraFusion is feature-disabled", async () => {
     const runtime = new GitHubCopilotRuntime(syntheticConfig({ productionEnabled: false }));

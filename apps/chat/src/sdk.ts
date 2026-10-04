@@ -108,6 +108,31 @@ async function stopClient(client: CopilotClientLike): Promise<void> {
   }
 }
 
+export async function terminateRuntimeProcessTree(runtimePid: number | undefined): Promise<void> {
+  if (runtimePid === undefined || process.platform === "win32") return;
+  const terminate = (): void => {
+    try {
+      process.kill(-runtimePid, "SIGKILL");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+    }
+  };
+  terminate();
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  terminate();
+}
+
+async function forceStopClient(
+  client: CopilotClientLike,
+  runtimePid: number | undefined,
+): Promise<void> {
+  try {
+    await client.forceStop();
+  } finally {
+    await terminateRuntimeProcessTree(runtimePid);
+  }
+}
+
 async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
   let timer: NodeJS.Timeout | undefined;
   const timeout = new Promise<never>((_resolve, reject) => {
@@ -184,6 +209,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       );
     }
 
+    let runtimePid: number | undefined;
     const client = this.createClient({
       mode: "empty",
       sessionFs: {
@@ -195,6 +221,9 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       useLoggedInUser: false,
       logLevel: "none",
       env: safeRuntimeEnvironment(),
+      onRuntimeProcessSpawned: (pid) => {
+        runtimePid = pid;
+      },
     });
 
     let session: CopilotSessionLike | undefined;
@@ -219,7 +248,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       }
       unsubscribe = session.on((event) => options.sink.onEvent(event));
     } catch (error) {
-      await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
+      await withTimeout(forceStopClient(client, runtimePid), this.config.requestTimeoutMs);
       throw error;
     }
 
@@ -256,7 +285,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
               : new CopilotRuntimeError("chat/copilot_cleanup", "client cleanup failed"),
           );
           try {
-            await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
+            await withTimeout(forceStopClient(client, runtimePid), this.config.requestTimeoutMs);
           } catch (forceStopError) {
             cleanupErrors.push(
               forceStopError instanceof Error

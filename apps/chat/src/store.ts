@@ -88,6 +88,7 @@ interface Queryable {
 
 export interface PostgresChatStoreOptions {
   timeoutMs?: number;
+  connectionTimeoutMs?: number;
   oauthTransactionTimeoutMs?: number;
   onPoolError?: (error: Error) => void;
 }
@@ -105,13 +106,14 @@ export class PostgresChatStore implements ChatStore {
     options: PostgresChatStoreOptions = {},
   ): Promise<PostgresChatStore> {
     const timeoutMs = options.timeoutMs ?? 5_000;
+    const connectionTimeoutMs = options.connectionTimeoutMs ?? timeoutMs;
     const oauthTransactionTimeoutMs =
       options.oauthTransactionTimeoutMs ?? Math.max(timeoutMs, 20_000);
     const pool = new Pool({
       connectionString: databaseUrl,
       max: 4,
       application_name: "penge-chat",
-      connectionTimeoutMillis: timeoutMs,
+      connectionTimeoutMillis: connectionTimeoutMs,
       query_timeout: timeoutMs,
       statement_timeout: timeoutMs,
       lock_timeout: timeoutMs,

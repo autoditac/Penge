@@ -50,6 +50,7 @@ describe("PostgreSQL chat-role isolation", () => {
     const blocker = new Client({ connectionString: adminUrl });
     const store = await PostgresChatStore.connect(databaseUrl!, expectedRole!, {
       timeoutMs: 100,
+      connectionTimeoutMs: 1_000,
     });
     await blocker.connect();
     try {
@@ -68,6 +69,7 @@ describe("PostgreSQL chat-role isolation", () => {
       const config = syntheticConfig();
       const store = await PostgresChatStore.connect(databaseUrl!, expectedRole!, {
         timeoutMs: 50,
+        connectionTimeoutMs: 1_000,
         oauthTransactionTimeoutMs: 250,
       });
       const actorId = "actor_abcdef0123456789abcdef0123456789";

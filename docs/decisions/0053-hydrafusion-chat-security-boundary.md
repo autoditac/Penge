@@ -1,105 +1,167 @@
-# 0053 — Secure HydraFusion chat boundary and empty-mode feature gate
+# 0053 — Secure HydraFusion chat service boundary
 
-- **Status:** Proposed
+- **Status:** Proposed; accepted when this pull request merges
 - **Date:** 2026-10-04
 - **Deciders:** @autoditac
 - **Tags:** mcp, security, web, infra, chat
 
 ## Context and Problem Statement
 
-Issue #345 is the first architecture and feasibility gate for the planned Penge chat surface in parent issue #341. The product goal is a private, explanation-first assistant that can answer household-finance questions using only the Penge MCP tool layer and must never read raw statements, credentials, or account data directly.
+Issue #345 is the architecture and feasibility gate for the private Ask Penge
+feature in parent issue #341.
+Penge needs an explanation-first chat service without weakening ADR-0005's
+MCP-only data boundary or ADR-0023's process-local stdio transport.
 
-The architecture must satisfy several simultaneous constraints:
-
-- separate GitHub and Copilot identities per operator;
-- an explicit session-level enablement gate for any production chat feature;
-- a local MCP boundary over stdio with an allowlist of read-only tools only;
-- no ambient shell, filesystem, or default tool access;
-- no fallback model if `PENGE_CHAT_MODEL=hydrafusion` is requested; and
-- a way to prove the SDK shape and stream contract without exposing tokens or financial data.
-
-The current repository already enforces the stronger design direction in ADR-0005 (LLM access via MCP only) and ADR-0023 (local stdio MCP server). This ADR sits on top of that foundation and addresses the app-level chat runtime and security boundary.
+The service eventually implemented by issue #346 must support two household
+members.
+Each Penge actor links and uses that person's own GitHub account, Copilot
+entitlement, OAuth credentials, quota, and session.
+The service must never share one household account or credential between actors.
+Copilot entitlement belongs to the linked GitHub identity; this decision does
+not incorrectly require one person to have different GitHub and Copilot login
+names.
 
 ## Decision Drivers
 
-- Security: raw financial data must never leave the operator-controlled process.
-- Privacy: separate GitHub and Copilot accounts are mandatory, and no shared household credentials are supported.
-- Determinism: no LLM may invent numbers or bypass the typed tool surface.
-- Auditability: every tool call and streamed event must be traceable and redacted.
-- Simplicity: the first production chat surface is intentionally disabled until external entitlement is proven.
-- Compatibility: the implementation matches the official current `@github/copilot-sdk` backend-services guidance for `mode: "empty"` and per-session user identity and tokens.
+- Raw finance rows, statements, credentials, and arbitrary SQL must remain
+  unavailable to the model.
+- Every SDK session must have one pseudonymous Penge actor and one matching
+  user-scoped token provider.
+- The exact `hydrafusion` model must be available to that linked user.
+  There is no model fallback.
+- Runtime defaults, shell, filesystem, web fetch, skills, extensions, and
+  custom tools must be absent.
+- MCP remains a child process over stdio and must not gain HTTP or SSE
+  transport.
+- Tests must use synthetic identities, tokens, events, and finance arguments.
 
 ## Considered Options
 
-1. **Server-side Copilot SDK with `mode: "empty"`, local stdio MCP allowlist, and feature-disabled default** — chosen.
-2. **Shared GitHub/Copilot account with an ambient default tool set** — rejected.
-3. **HTTP MCP transport or direct agent access to Postgres/DuckDB** — rejected.
-4. **Fallback model path for HydraFusion requests** — rejected.
+1. **Loopback chat service using empty-mode Copilot SDK sessions and local Penge
+   MCP** — chosen.
+2. **Shared household Copilot identity or ambient logged-in runtime identity** —
+   rejected.
+3. **HTTP/SSE MCP or direct database access from the chat service** — rejected.
+4. **Fallback model when HydraFusion is unavailable** — rejected.
 
 ## Decision
 
-We chose **Option 1**: the production chat feature is implemented as a strict SDK session contract anchored to the official backend-services pattern. The runtime requires:
+Issue #346 will own a loopback-only `apps/chat` service.
+The WebUI may call that service through the authenticated reverse proxy, but no
+MCP, Copilot runtime, database, or raw tool endpoint is exposed.
+The chat service spawns `@penge/mcp` as a local stdio child and selects tools by
+an explicit, versioned contract.
 
-- `@github/copilot-sdk@1.0.16` pinned exactly in `apps/mcp/package.json`;
-- a session created with `mode: "empty"` and a per-user `gitHubToken` bound to the correct GitHub/Copilot identity pair;
-- a local stdio MCP connection with an explicit tool allowlist; and
-- an explicit production gate that rejects the feature until the correct HydraFusion entitlement is verified.
+Every production SDK client and session must preserve the executable contract
+in `apps/chat-feasibility`:
 
-The app-level config contract is intentionally strict:
+- `CopilotClient` uses `mode: "empty"`, an actor-isolated `baseDirectory`,
+  `useLoggedInUser: false`, and error-only SDK logging.
+- The session sets `model` and `allowedModels` to exactly `hydrafusion`, enables
+  streaming, disables session-store/config discovery, and includes no built-in
+  skills, canvases, or extensions.
+- A session-scoped `gitHubTokenProvider` is owned by the same pseudonymous actor
+  as the request.
+  Ambient machine credentials are never used in production.
+- `availableTools` contains only source-qualified
+  `mcp:penge-<tool-name>` entries.
+  `excludedTools` denies every `builtin:*` and `custom:*` source, and every
+  permission request is rejected.
+- The only MCP server configuration has `type: "stdio"` and a bounded `tools`
+  array.
+  An HTTP/SSE URL is structurally absent.
+- MCP OAuth token storage is in memory.
+  Chat transcript content is not retained after the bounded session lifetime.
+  Audits contain only pseudonymous actor/session identifiers, tool/status/
+  duration, and redacted arguments.
 
-- `PENGE_CHAT_MODEL=hydrafusion` is accepted only as the requested model name in the application config;
-- `PENGE_CHAT_FALLBACK_MODEL` must be completely unset;
-- `PENGE_CHAT_ENABLE_PRODUCTION` must be explicitly `1` before any production session is allowed;
-- `PENGE_CHAT_GITHUB_LOGIN` and `PENGE_CHAT_COPILOT_LOGIN` must differ; a shared account is rejected;
-- the ambient tool list is fixed to `shell`, `filesystem`, and `default` and must be denied;
-- no HTTP-based MCP transport is introduced.
+`PENGE_CHAT_MODEL=hydrafusion` is mandatory.
+`PENGE_CHAT_FALLBACK_MODEL` must be unset.
+Both `PENGE_CHAT_ENABLE_PRODUCTION=1` and
+`PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED=1` are required.
+The second flag records a successful user-scoped `listModels()` check for the
+linked identity; it is not inferred from documentation or another user.
 
-In the current environment we cannot safely prove real HydraFusion entitlement without exposing or logging user tokens, so production activation remains disabled until that external gate is confirmed by the authenticated user and their Copilot plan. The repository therefore ships the contract, the synthetic harness, and the disable-by-default runtime checks without enabling the live feature.
+### Dependency ownership and pin
+
+The proof package pins `@github/copilot-sdk@1.0.16` exactly.
+On 2026-10-04, `1.0.16` was the current npm release and declared Node
+`^20.19.0 || >=22.12.0`.
+Its published types are the evidence for empty-mode storage, required
+`availableTools`, `ToolSet` source-qualified filters, session-scoped token
+providers, streaming events, model listing, and local stdio MCP configuration.
+An exact pin prevents SDK/runtime behavior from drifting during review.
+
+`@penge/mcp` intentionally does not depend on the Copilot SDK.
+The temporary `@penge/chat-feasibility` package owns the pin for #345, and
+issue #346 must move the same reviewed pin into production `apps/chat` when it
+replaces the proof package.
+
+### Tool-contract seam
+
+`issue-345-v1-provisional` names only MCP tools that exist at this decision.
+It does **not** claim complete source coverage.
+Issue #344 must publish a new contract version and final typed names for source
+coverage, bounded transaction search/detail, classification/taxonomy, PayPal
+links, and merchant-reference status/search.
+Issue #346 must reject unknown versions rather than silently widening the tool
+set.
+
+### Feasibility and entitlement evidence
+
+The synthetic harness type-checks the actual `1.0.16` client/session objects,
+local stdio server config, `ToolSet` filters, user-token ownership guard,
+official stream event names, and typed unavailable-model error.
+It makes no model call and is not live acceptance.
+
+The token-safe check on 2026-10-04 called only `listModels()` for the currently
+authenticated user, logged at error level, and emitted only the exact-ID result:
+
+```json
+{ "exactModel": "hydrafusion", "entitled": false, "matchCount": 0 }
+```
+
+No token, identity, prompt, or finance data was printed or persisted.
+Therefore real entitlement is unproven, the production feature remains
+disabled, and no other model may substitute.
 
 ## Consequences
 
 ### Positive
 
-- No raw household-finance data leaves the local process boundary.
-- The runtime matches the official backend pattern for multi-user server deployments.
-- Tool access is explicit and auditable.
-- The feature remains safe even when the exact HydraFusion entitlement is not yet available.
-- The synthetic harness proves the stream contract and policy checks without using any real financial data.
+- The existing MCP privacy boundary remains intact.
+- Actor/token isolation and deny-by-default tools are executable contracts.
+- Downstream work has versioned seams instead of inferred tool names.
+- Missing HydraFusion entitlement fails explicitly.
 
 ### Negative
 
-- The live HydraFusion feature stays disabled until the external entitlement check succeeds.
-- The exact HydraFusion model ID is not a stable public contract in the backend SDK docs we can safely rely on from this environment.
-- More setup work is required for every new session and tool.
+- Live chat cannot ship until each authorized user independently passes the
+  exact model check.
+- Issue #344 must finalize the tool contract before #346 can claim complete
+  source grounding.
+- Per-user OAuth, cancellation, cleanup, and retention enforcement remain
+  implementation work for #346.
 
 ### Neutral
 
-- The product surface remains explanation-first and deterministic, rather than autonomous.
-- The MCP tool registry stays the trusted source of data truth.
+- Deterministic reports remain the product truth; chat only explains bounded
+  tool evidence.
 
-## Alternatives in detail
+## Downstream Contracts
 
-### Option 1: server-side SDK + `mode: "empty"`
-
-This matches the official GitHub backend-services documentation: the SDK client runs in a shared process, the session holds user credentials per call, and tool access is explicitly allowed. It is the correct pattern for multi-user enterprise backends and avoids shared-account risk.
-
-### Option 2: shared GitHub/Copilot account
-
-Rejected because it violates the issue requirement and creates privacy and audit ambiguity. A single household account cannot represent two separate identities.
-
-### Option 3: HTTP MCP or direct DB access
-
-Rejected because the repository policy in ADR-0005 is explicit: raw data is accessed through the MCP layer only. Exposing an HTTP MCP port or any agent access path to Postgres/DuckDB would create a material privacy boundary break.
-
-### Option 4: fallback model path
-
-Rejected because the issue explicitly forbids fallback when `PENGE_CHAT_MODEL=hydrafusion` is requested. This would silently degrade the trust boundary and create model-selection drift.
+| PBI  | Contract provided by this decision                                                                                                                                                                                                         |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| #344 | Replace `issue-345-v1-provisional`; declare final names, schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields.                                                                                                |
+| #346 | Own `apps/chat` and the SDK pin; preserve empty mode, actor-scoped token provider, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup.                   |
+| #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                           |
+| #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists. |
 
 ## Links
 
-- ADR-0005 — LLM access exclusively via MCP server with typed tools
-- ADR-0023 — MCP server architecture (TypeScript skeleton)
-- `apps/mcp/src/chat.ts`
-- `apps/mcp/tests/chat.test.ts`
-- Official GitHub Docs: backend services setup with `mode: "empty"` and per-user tokens
-- Official GitHub Docs: GitHub Copilot SDK (`@github/copilot-sdk`)
+- [ADR-0005](0005-llm-access-via-mcp-only.md)
+- [ADR-0023](0023-mcp-server-architecture.md)
+- [Ask Penge product brief](../web/ask-penge-product-brief.md)
+- [Chat safety runbook](../runbook/chat.md)
+- [Copilot SDK Node.js package documentation](https://github.com/github/copilot-sdk/tree/main/nodejs)
+- [Copilot SDK getting started and streaming documentation](https://github.com/github/copilot-sdk/blob/main/docs/getting-started.md)

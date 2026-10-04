@@ -1,41 +1,62 @@
-# Chat safety gate and feature-disable runbook
+# Chat architecture proof and production gate
 
-This runbook covers the first architecture-proof layer for the Penge chat surface. It is intentionally conservative: the feature stays disabled unless the exact external gate is proven for the authenticated user and Copilot plan.
+Issue #345 supplies a synthetic architecture proof, not a live chat service.
+Production remains disabled because the currently authenticated user's
+`listModels()` response did not contain the exact `hydrafusion` ID.
 
-## Required contract
-
-The runtime must enforce the following:
-
-- `mode: "empty"`
-- `PENGE_CHAT_MODEL=hydrafusion`
-- no `PENGE_CHAT_FALLBACK_MODEL`
-- `PENGE_CHAT_ENABLE_PRODUCTION=1` before production use
-- separate GitHub and Copilot identity values
-- local stdio MCP only with `allowlist` entries for the Penge tools
-- blocked ambient tools: `shell`, `filesystem`, and `default`
-
-## Safety checks
-
-Before enabling the feature in production, confirm all of the following:
-
-1. The authenticated GitHub account and the Copilot account are distinct identities.
-2. The user has the correct Copilot plan and HydraFusion entitlement.
-3. The model selection matches the documented app contract and not a fallback model.
-4. The session is created with `mode: "empty"` and user-scoped tokens.
-5. The MCP server is still the single data-access layer; no raw database or shell access is exposed.
-
-If any check fails, keep the feature off and return to the synthetic, disabled-by-default contract in `apps/mcp/src/chat.ts`.
-
-## Local validation
+## Validate the synthetic proof
 
 ```bash
-just mcp-chat-proof
+just chat-feasibility
 ```
 
-This runs the synthetic harness that proves the empty-mode contract, the stream event shapes, the tool allowlist, blocked ambient tools, and the no-fallback policy. The harness intentionally uses synthetic fixtures only.
+The recipe builds, tests, and lints `@penge/chat-feasibility`.
+It proves the pinned SDK configuration shape, empty mode, streaming event
+schemas, local stdio MCP config, explicit provisional allowlist, ambient-tool
+denial, actor/token ownership, and typed unavailable-model errors.
+It uses synthetic values and makes no external model call.
 
-## External gate
+## Run the token-safe entitlement check
 
-The exact HydraFusion entitlement check is outside the repository boundary. The SDK docs describe backend server mode and per-user tokens, but they do not provide a stable server-side model ID we can safely query without exposing the authenticated user's token or financial data. Because of that, the repository keeps the feature disabled unless the user proves the entitlement externally and configures the production gate explicitly.
+```bash
+just chat-entitlement-check
+```
 
-This is the safe default for a private household-finance application.
+The command uses the currently authenticated Copilot identity and calls only
+`listModels()`.
+It creates an isolated temporary SDK directory, uses error-only logging, prints
+only `exactModel`, `entitled`, and `matchCount`, then deletes the directory.
+It never prints a token, login, prompt, or financial data.
+Exit status `2` means the exact ID is unavailable.
+
+The 2026-10-04 result was:
+
+```json
+{ "exactModel": "hydrafusion", "entitled": false, "matchCount": 0 }
+```
+
+Do not set the entitlement flag from documentation, a different account, a
+display name, or a similar model ID.
+Never ask for or use another household member's credentials to run this check.
+
+## Production enablement checklist
+
+Issue #346 may enable a linked actor only after all checks pass:
+
+1. The actor uses that person's own GitHub account, Copilot entitlement, OAuth
+   credential, quota, and isolated SDK storage.
+2. `listModels()` for that actor contains exactly `hydrafusion`.
+3. `PENGE_CHAT_MODEL=hydrafusion`,
+   `PENGE_CHAT_ENABLE_PRODUCTION=1`, and
+   `PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED=1` are set.
+4. `PENGE_CHAT_FALLBACK_MODEL` is unset.
+5. The accepted #344 tool-contract version is configured.
+6. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
+   permission request, and starts only the local stdio Penge MCP server.
+7. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
+   reachable.
+8. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted
+   audits, token encryption/rotation, backup, and rollback tests pass.
+
+If any check fails, keep chat disabled and return a typed unavailable or
+disabled error.

@@ -208,9 +208,17 @@ mcp-dev:
 mcp-test:
     pnpm --filter @penge/mcp test
 
-# Run the HydraFusion safety proof harness and contract tests.
-mcp-chat-proof:
-    pnpm --filter @penge/mcp test -- --runInBand
+# Build, test, and lint the bounded HydraFusion architecture proof.
+chat-feasibility:
+    pnpm --filter @penge/chat-feasibility build
+    pnpm --filter @penge/chat-feasibility test
+    pnpm --filter @penge/chat-feasibility lint
+
+# Query only model IDs for the currently authenticated Copilot user.
+# Exit 2 means the exact `hydrafusion` ID is unavailable; no token is printed.
+chat-entitlement-check:
+    pnpm --filter @penge/chat-feasibility build
+    pnpm --filter @penge/chat-feasibility check:entitlement
 
 # Lint + format-check the MCP TS package.
 mcp-lint:

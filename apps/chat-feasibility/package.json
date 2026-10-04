@@ -1,0 +1,26 @@
+{
+  "name": "@penge/chat-feasibility",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Bounded Copilot SDK architecture proof for issue #345; replaced by apps/chat in issue #346.",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check:entitlement": "node dist/check-entitlement.js",
+    "test": "vitest run",
+    "lint": "eslint . && prettier --check ."
+  },
+  "dependencies": {
+    "@github/copilot-sdk": "1.0.16",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.3",
+    "eslint": "10.11.0",
+    "prettier": "3.9.9",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.70.1",
+    "vite": "8.3.1",
+    "vitest": "5.0.2"
+  }
+}

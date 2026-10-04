@@ -111,6 +111,31 @@ const syntheticTransactions: readonly ReviewTransaction[] = [
   },
 ];
 
+const syntheticMerchants: readonly HouseholdMerchant[] = [
+  {
+    id: "merchant-market",
+    name: "Example Market",
+    identityKind: "stable",
+    confirmed: true,
+    archived: false,
+    revision: 2,
+    referenceSource: null,
+    referenceKey: null,
+    referenceVersion: null,
+  },
+  {
+    id: "merchant-processor",
+    name: "Example Processor",
+    identityKind: "processor",
+    confirmed: true,
+    archived: false,
+    revision: 1,
+    referenceSource: null,
+    referenceKey: null,
+    referenceVersion: null,
+  },
+];
+
 describe("HouseholdFilters", () => {
   it("updates one filter while retaining all other selected filters", async () => {
     const user = userEvent.setup();
@@ -296,6 +321,7 @@ describe("TransactionReviewList", () => {
     expect(screen.queryByText("Example Utility")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox", { name: "Select Synthetic card payment 1" }));
+    expect(screen.getByText(/never confirm a new merchant identity/i)).toBeInTheDocument();
     const categorySelect = screen.getByRole("combobox", { name: "Assign category" });
     await user.click(categorySelect);
     await user.click(screen.getByRole("option", { name: "Housing" }));
@@ -410,6 +436,10 @@ describe("TransactionDetailPanel", () => {
       },
       accountLabel: "Synthetic checking",
       entityLabel: "Member one",
+      provider: "synthetic-bank",
+      sourceCounterparty: "EXAMPLE MARKET 004",
+      merchantId: "merchant-market",
+      identityConfirmed: true,
       treatment: "expense",
       classificationRevision: 3,
       provenance: "manual",
@@ -440,7 +470,9 @@ describe("TransactionDetailPanel", () => {
         audit={[]}
         auditLoading={false}
         categories={syntheticCategories}
+        merchants={syntheticMerchants}
         saving={false}
+        onManageMerchants={vi.fn()}
         onClose={vi.fn()}
         onSaveCorrection={vi.fn()}
         onSaveSplits={vi.fn()}
@@ -493,6 +525,125 @@ describe("TransactionDetailPanel", () => {
       { detailId: "detail-1", detailRevision: 5, bankAmount: "-20.00" },
       { detailId: "detail-2", detailRevision: 1, bankAmount: "-22.30" },
     ]);
+  });
+
+  it("confirms a first merchant identity with keyboard controls before saving learning evidence", async () => {
+    const user = userEvent.setup();
+    const onSaveCorrection = vi.fn();
+    const onManageMerchants = vi.fn();
+    const detail: HouseholdTransactionDetail = {
+      transaction: {
+        ...syntheticTransactions[0]!,
+        merchant: "EXAMPLE MARKET 004",
+      },
+      accountLabel: "Synthetic checking",
+      entityLabel: "Member one",
+      provider: "synthetic-bank",
+      sourceCounterparty: "EXAMPLE MARKET 004",
+      merchantId: null,
+      identityConfirmed: false,
+      treatment: "expense",
+      classificationRevision: 0,
+      provenance: "none",
+      ruleId: null,
+      explanation: null,
+      sourceChanged: false,
+      detailChanged: false,
+      splits: [],
+      paymentDetails: [],
+    };
+
+    renderWithTheme(
+      <TransactionDetailPanel
+        detail={detail}
+        audit={[]}
+        auditLoading={false}
+        categories={syntheticCategories}
+        merchants={syntheticMerchants}
+        saving={false}
+        onManageMerchants={onManageMerchants}
+        onClose={vi.fn()}
+        onSaveCorrection={onSaveCorrection}
+        onSaveSplits={vi.fn()}
+        onUndoOverride={vi.fn()}
+        onDisableRule={vi.fn()}
+        unmatchedPaymentDetails={[]}
+        onApprovePaymentDetails={vi.fn()}
+      />,
+    );
+
+    const merchantSelect = screen.getByRole("combobox", { name: "Household merchant" });
+    merchantSelect.focus();
+    await user.keyboard("{ArrowDown}");
+    await user.click(await screen.findByRole("option", { name: "Example Market" }));
+    const identityConfirmation = screen.getByRole("checkbox", {
+      name: "I confirm this transaction is from the selected merchant",
+    });
+    expect(identityConfirmation).toBeEnabled();
+    await user.click(identityConfirmation);
+    await user.click(screen.getByRole("combobox", { name: "Category" }));
+    await user.click(await screen.findByRole("option", { name: "Housing" }));
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+
+    expect(onSaveCorrection).toHaveBeenCalledWith({
+      treatment: "expense",
+      categoryId: "housing",
+      merchantId: "merchant-market",
+      identityConfirmed: true,
+    });
+    expect(screen.getByText(/Existing transactions remain unchanged/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Manage merchants" }));
+    expect(onManageMerchants).toHaveBeenCalledOnce();
+  });
+
+  it("does not allow processor identities to become learning evidence", async () => {
+    const user = userEvent.setup();
+    const detail: HouseholdTransactionDetail = {
+      transaction: syntheticTransactions[0]!,
+      accountLabel: "Synthetic checking",
+      entityLabel: "Member one",
+      provider: "synthetic-bank",
+      sourceCounterparty: "EXAMPLE PROCESSOR",
+      merchantId: null,
+      identityConfirmed: false,
+      treatment: "expense",
+      classificationRevision: 0,
+      provenance: "none",
+      ruleId: null,
+      explanation: null,
+      sourceChanged: false,
+      detailChanged: false,
+      splits: [],
+      paymentDetails: [],
+    };
+
+    renderWithTheme(
+      <TransactionDetailPanel
+        detail={detail}
+        audit={[]}
+        auditLoading={false}
+        categories={syntheticCategories}
+        merchants={syntheticMerchants}
+        saving={false}
+        onManageMerchants={vi.fn()}
+        onClose={vi.fn()}
+        onSaveCorrection={vi.fn()}
+        onSaveSplits={vi.fn()}
+        onUndoOverride={vi.fn()}
+        onDisableRule={vi.fn()}
+        unmatchedPaymentDetails={[]}
+        onApprovePaymentDetails={vi.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("combobox", { name: "Household merchant" }));
+    await user.click(await screen.findByRole("option", { name: "Example Processor (processor)" }));
+    expect(
+      screen.getByRole("checkbox", {
+        name: "I confirm this transaction is from the selected merchant",
+      }),
+    ).toBeDisabled();
+    expect(screen.getByText(/not a stable identity/i)).toBeInTheDocument();
   });
 
   describe("RuleManagementPanel", () => {

@@ -26,6 +26,8 @@ contract_dir="$config_home/penge"
 approved_dir="$contract_dir/approved"
 contract_env="$contract_dir/private-ask-chat.contract.env"
 approval="$contract_dir/private-ask-chat.approval.manifest"
+approval_signature="$approval.sig"
+trusted_reviewers="/etc/penge/private-ask-chat-reviewers.allowed_signers"
 target="$unit_dir/penge-chat.container"
 
 runtime_uid="$(id -u)"
@@ -58,6 +60,16 @@ sha256_file() {
 
 validate_private_file "$contract_env" "contract environment"
 validate_private_file "$approval" "approval manifest"
+validate_private_file "$approval_signature" "approval signature"
+if [[ ! -f $trusted_reviewers || -L $trusted_reviewers || ! -r $trusted_reviewers ]]; then
+  echo "deployment blocked: trusted reviewer keys must be a readable regular file" >&2
+  exit 1
+fi
+read -r trusted_owner trusted_mode < <(stat -c '%u %a' "$trusted_reviewers")
+if [[ $trusted_owner != "0" || ($trusted_mode != "444" && $trusted_mode != "644") ]]; then
+  echo "deployment blocked: trusted reviewer keys must be root-owned mode 0444 or 0644" >&2
+  exit 1
+fi
 
 declare -A approved=()
 while IFS='=' read -r key value || [[ -n $key$value ]]; do
@@ -112,6 +124,14 @@ if [[ ! ${approved[review_reference]} =~ ^https://github\.com/autoditac/Penge/pu
 fi
 if [[ ${approved[image_digest]} != "$1" ]]; then
   echo "deployment blocked: image digest is not approved" >&2
+  exit 1
+fi
+if ! ssh-keygen -Y verify \
+  -f "$trusted_reviewers" \
+  -I "${approved[reviewed_by]}" \
+  -n "penge-private-ask-chat-approval" \
+  -s "$approval_signature" <"$approval"; then
+  echo "deployment blocked: approval manifest lacks a trusted reviewer signature" >&2
   exit 1
 fi
 

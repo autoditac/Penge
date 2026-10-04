@@ -108,11 +108,14 @@ The installer only renders and reloads the user service; it does not enable or s
 
 ### Reviewed approval manifest
 
-Both `private-ask-chat.contract.env` and `private-ask-chat.approval.manifest` must:
+The contract environment, approval manifest, and detached `private-ask-chat.approval.manifest.sig` must:
 
 - be regular files, not symlinks;
 - be owned by the dedicated rootless service UID; and
 - use exactly mode `0400` or `0600`.
+
+`/etc/penge/private-ask-chat-reviewers.allowed_signers` is a separate root-owned trust root with mode `0444` or `0644`.
+It maps approved reviewer identities to their SSH signing keys and is never writable by the service account.
 
 The version-1 manifest contains exactly one value for each field:
 
@@ -131,6 +134,16 @@ contract_env_template_sha256=<sha256>
 ```
 
 The reviewer calculates the hashes from the exact files and rendered Quadlet they reviewed.
+The identified reviewer signs the complete manifest with the `penge-private-ask-chat-approval` SSH signature namespace.
+The installer verifies that detached signature against the root-owned allowed-signers file and the manifest's `reviewed_by` principal.
+
+```bash
+ssh-keygen -Y sign \
+  -f /secure/reviewer-key \
+  -n penge-private-ask-chat-approval \
+  ~/.config/penge/private-ask-chat.approval.manifest
+```
+
 The installer rejects missing, duplicate, unknown, empty, malformed, or mismatched fields.
 The private environment file must match the fully resolved, reviewed environment template byte for byte; missing, duplicate, reordered, or additional assignments are rejected even when their file hash appears in the manifest.
 It copies the approved environment to a private hash-addressed path, and the rendered Quadlet references only that snapshot.
@@ -233,12 +246,13 @@ It does not prefix-match `/askevil`.
 The candidate route template:
 
 - uses the existing Google oauth2-proxy `auth_request` boundary;
-- overwrites user, email, and client-identity headers from oauth2-proxy values;
-- never trusts client-supplied identity headers;
-- limits routing to exact `/ask` and bounded `/ask/`;
+- leaves `/ask` and all frontend routing with the web SPA;
+- proxies only bounded `/ask/api/` to the loopback chat service and strips that prefix;
+- overwrites only the trusted issuer, immutable subject, and mounted proxy-secret headers;
+- does not forward mutable user, email, login, or client-ID identity;
 - contains no `script-src 'unsafe-inline'`;
 - disables caching of private responses; and
-- leaves base-path and streaming behavior unresolved until #343 and #346 publish exact semantics.
+- leaves immutable-subject extraction, proxy-secret loading, and streaming values unresolved until #346 and #349 publish matching tests.
 
 Do not copy the candidate into the live nginx config while any token remains.
 Validate with `nginx -t` before every reload.
@@ -298,7 +312,9 @@ journalctl --user -u penge-chat.service -g 'digest=' --no-pager
 Rollback is an explicit re-render of the last known-good digest.
 There is no tag-based auto-update.
 Before restart, verify that the old image is compatible with the current database schema, environment contract, and keyring versions.
-Keep both the previous image digest and compatible secret versions through the rollback window.
+Keep the previous image digest, compatible secret versions, complete signed approval manifest, detached signature, approved environment, and exact bound deployment-template checkout through the rollback window.
+Restore that complete reviewed artifact set before invoking the installer; a digest alone cannot satisfy approval.
+If current compatible artifacts differ, obtain a new detached reviewer signature approving the old digest and every current artifact hash instead of reusing the old manifest.
 
 ```bash
 deploy/nas/install-private-ask-chat-quadlet.sh \

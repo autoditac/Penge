@@ -127,6 +127,14 @@ if grep -Eiq \
   <<<"$sql_body"; then
   fail "chat database template exceeds the OAuth-only privilege boundary"
 fi
+grant_count="$(grep -Eic '^[[:space:]]*GRANT[[:space:]]' <<<"$sql_body")"
+revoke_count="$(grep -Eic '^[[:space:]]*REVOKE[[:space:]]' <<<"$sql_body")"
+[[ $grant_count -eq 5 && $revoke_count -eq 4 ]] \
+  || fail "chat database template has an unexpected GRANT or REVOKE shape"
+[[ $(grep -Eic '^[[:space:]]*ON TABLE([[:space:]]|$)' <<<"$sql_body") -eq 2 ]] \
+  || fail "chat database template must grant exactly two table groups"
+[[ $(grep -Eic '^[[:space:]]*ON SEQUENCE([[:space:]]|$)' <<<"$sql_body") -eq 1 ]] \
+  || fail "chat database template must grant exactly one sequence"
 grep -q 'REVOKE ALL ON SCHEMA public FROM PUBLIC;' "$db_template"
 if grep -q '@@DATABASE_IDENTIFIER@@' "$db_template"; then
   fail "chat database template uses an unguarded database identifier"
@@ -174,6 +182,62 @@ unresolved="$(
 if [[ -n $unresolved ]]; then
   printf 'deployment blocked by unresolved contracts:\n%s\n' "$unresolved" >&2
   exit 1
+fi
+if ! uv run --no-project python - "$contract_env_template" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+lines = path.read_text().splitlines()
+expected_markers = {
+    "copilot-mode": "empty",
+    "model-fallback": "false",
+    "hydrafusion-entitlement-required": "true",
+    "source-coverage-required": "true",
+    "mcp-transport": "stdio",
+    "default-tools-enabled": "false",
+    "transcript-persistence": "false",
+    "structured-logging": "redacted",
+    "metrics": "private",
+}
+assignments: dict[str, str] = {}
+marker_assignments: dict[str, tuple[str, str]] = {}
+pending_marker: str | None = None
+for line in lines:
+    stripped = line.strip()
+    marker = re.fullmatch(r"# security-contract: ([a-z-]+)=([a-z]+)", stripped)
+    if marker:
+        name, documented_value = marker.groups()
+        if name not in expected_markers or documented_value != expected_markers[name]:
+            raise SystemExit(f"invalid security marker: {stripped}")
+        if name in marker_assignments or pending_marker is not None:
+            raise SystemExit(f"duplicate or unbound security marker: {name}")
+        pending_marker = name
+        continue
+    if not stripped or stripped.startswith("#"):
+        continue
+    if "=" not in stripped:
+        raise SystemExit(f"invalid environment assignment: {stripped}")
+    key, value = stripped.split("=", 1)
+    if not re.fullmatch(r"[A-Z][A-Z0-9_]*", key) or key in assignments:
+        raise SystemExit(f"invalid or duplicate environment key: {key}")
+    assignments[key] = value
+    if pending_marker is not None:
+        marker_assignments[pending_marker] = (key, value)
+        pending_marker = None
+if pending_marker is not None:
+    raise SystemExit(f"unbound security marker: {pending_marker}")
+if set(marker_assignments) != set(expected_markers):
+    raise SystemExit("security contract assignments are incomplete")
+for marker_name, (_, value) in marker_assignments.items():
+    if value != expected_markers[marker_name]:
+        raise SystemExit(
+            f"unsafe {marker_name} value: expected {expected_markers[marker_name]}"
+        )
+PY
+then
+  fail "resolved security assignments violate the fixed architecture contract"
 fi
 
 [[ ${publish_lines[0]} =~ ^PublishPort=127\.0\.0\.1:8123:[0-9]{1,5}$ ]] \
@@ -280,6 +344,15 @@ connect_role="$(
 )"
 [[ -n $connect_role && $created_role == "$connect_role" ]] \
   || fail "created chat role and database grant target differ"
+mapfile -t privilege_roles < <(
+  sed -n 's/.* TO \([a-z_][a-z0-9_]*\);/\1/p' "$db_template"
+)
+[[ ${#privilege_roles[@]} -eq 5 ]] \
+  || fail "chat database privilege targets are incomplete"
+for privilege_role in "${privilege_roles[@]}"; do
+  [[ $privilege_role == "$created_role" ]] \
+    || fail "chat database privilege target differs from the created role"
+done
 
 for path in "$root/apps/chat/package.json" "$root/apps/chat/Containerfile"; do
   [[ -r $path ]] || fail "missing backend packaging contract $path"
@@ -328,6 +401,65 @@ PY
 fi
 [[ $sdk_version == "1.0.16" ]] \
   || fail "chat package.json must pin @github/copilot-sdk exactly to 1.0.16"
+if ! uv run --no-project python - "$root/pnpm-lock.yaml" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+lines = Path(sys.argv[1]).read_text().splitlines()
+try:
+    importers_index = lines.index("importers:")
+except ValueError as error:
+    raise SystemExit("pnpm lockfile has no importers section") from error
+
+app_index = next(
+    (
+        index
+        for index in range(importers_index + 1, len(lines))
+        if lines[index] == "  apps/chat:"
+    ),
+    None,
+)
+if app_index is None:
+    raise SystemExit("pnpm lockfile has no apps/chat importer")
+
+app_end = next(
+    (
+        index
+        for index in range(app_index + 1, len(lines))
+        if lines[index]
+        and not lines[index].startswith("    ")
+    ),
+    len(lines),
+)
+app_block = "\n".join(lines[app_index + 1 : app_end])
+dependency = re.search(
+    r"(?m)^    dependencies:\s*$"
+    r"(?:(?:\n      .*)*)"
+    r"\n      ['\"]?@github/copilot-sdk['\"]?:\s*$"
+    r"(?P<body>(?:\n        .*)+)",
+    app_block,
+)
+if dependency is None:
+    raise SystemExit("apps/chat importer has no Copilot SDK dependency")
+body = dependency.group("body")
+specifier = re.search(r"(?m)^        specifier: (.+)$", body)
+version = re.search(r"(?m)^        version: (.+)$", body)
+if specifier is None or specifier.group(1).strip("'\"") != "1.0.16":
+    raise SystemExit("Copilot SDK lockfile specifier is not exactly 1.0.16")
+if version is None or not re.fullmatch(
+    r"1\.0\.16(?:\([^)]*\))?", version.group(1).strip("'\"")
+):
+    raise SystemExit("Copilot SDK lockfile resolution is not 1.0.16")
+package_entry = re.compile(
+    r"^  ['\"]?@github/copilot-sdk@1\.0\.16(?:\([^)]*\))?['\"]?:"
+)
+if not any(package_entry.match(line) for line in lines):
+    raise SystemExit("pnpm lockfile has no Copilot SDK 1.0.16 package resolution")
+PY
+then
+  fail "pnpm lockfile does not freeze the apps/chat Copilot SDK dependency"
+fi
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/ci.yml"
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/release.yml"
 echo "private Ask deployment contracts are resolved and packaging is ready"

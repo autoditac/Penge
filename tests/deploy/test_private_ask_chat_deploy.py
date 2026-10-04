@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
 NAS = ROOT / "deploy" / "nas"
+SSH_KEYGEN = Path("/usr/bin/ssh-keygen")
 CHAT_APP_PRESENT = (ROOT / "apps" / "chat" / "package.json").exists()
 CONTRACT_TEMPLATES = (
     "penge-chat.container.in",
@@ -363,7 +364,18 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     (nas / "private-ask-chat.contract.env.in").write_text(_resolved_contract_environment())
 
     (chat / "package.json").write_text('{"dependencies":{"@github/copilot-sdk":"1.0.16"}}\n')
-    (repo / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\n")
+    (repo / "pnpm-lock.yaml").write_text(
+        """lockfileVersion: '9.0'
+importers:
+  apps/chat:
+    dependencies:
+      '@github/copilot-sdk':
+        specifier: 1.0.16
+        version: 1.0.16
+packages:
+  '@github/copilot-sdk@1.0.16': {}
+"""
+    )
     (chat / "Containerfile").write_text(
         "\n".join(
             (
@@ -453,6 +465,28 @@ def test_ready_validator_rejects_mismatched_database_privilege_target(
 
     assert mismatched.returncode != 0
     assert "database guard and privilege target differ" in mismatched.stderr
+
+
+def test_ready_validator_rejects_additional_database_grant(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    database.write_text(
+        database.read_text().replace(
+            "COMMIT;",
+            "GRANT SELECT ON TABLE oauth.other_table TO penge_chat_oauth;\n\nCOMMIT;",
+        )
+    )
+
+    excessive = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert excessive.returncode != 0
+    assert "unexpected GRANT or REVOKE shape" in excessive.stderr
 
 
 def test_ready_validator_rejects_host_network_and_privileged_role(
@@ -574,6 +608,30 @@ def test_ready_validator_requires_external_https_api_base_with_trailing_slash(
     assert "must preserve the /ask/api/ callback prefix" in invalid_base.stderr
 
 
+def test_ready_validator_rejects_unsafe_resolved_security_assignment(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    contract = validator.parent / "private-ask-chat.contract.env.in"
+    contract.write_text(
+        contract.read_text().replace(
+            "PENGE_MODEL_FALLBACK=false",
+            "PENGE_MODEL_FALLBACK=true",
+        )
+    )
+
+    unsafe = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert unsafe.returncode != 0
+    assert "resolved security assignments violate" in unsafe.stderr
+
+
 def test_ready_validator_parses_effective_sdk_dependency_and_instructions(
     tmp_path: Path,
 ) -> None:
@@ -612,6 +670,23 @@ def test_ready_validator_parses_effective_sdk_dependency_and_instructions(
     assert "must pin @github/copilot-sdk exactly to 1.0.16" in mutable_sdk.stderr
     assert commented_packaging.returncode != 0
     assert "does not COPY pnpm-lock.yaml" in commented_packaging.stderr
+
+
+def test_ready_validator_rejects_missing_sdk_lock_entries(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    lockfile = validator.parents[2] / "pnpm-lock.yaml"
+    lockfile.write_text("lockfileVersion: '9.0'\nimporters: {}\n")
+
+    stale_lock = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert stale_lock.returncode != 0
+    assert "does not freeze the apps/chat Copilot SDK dependency" in stale_lock.stderr
 
 
 def _sha256(path: Path) -> str:
@@ -655,6 +730,24 @@ def _write_approval_manifest(repo: Path, home: Path, digest: str) -> Path:
         )
     )
     approval.chmod(0o600)
+    signature = approval.with_suffix(f"{approval.suffix}.sig")
+    signature.unlink(missing_ok=True)
+    subprocess.run(  # noqa: S603  # Fixed system SSH signing binary under test.
+        [
+            SSH_KEYGEN,
+            "-Y",
+            "sign",
+            "-f",
+            str(repo / "synthetic-reviewer"),
+            "-n",
+            "penge-private-ask-chat-approval",
+            str(approval),
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    signature.chmod(0o600)
     return approval
 
 
@@ -676,6 +769,23 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
     ):
         shutil.copy2(NAS / name, nas / name)
     installer = nas / "install-private-ask-chat-quadlet.sh"
+    reviewer_key = repo / "synthetic-reviewer"
+    subprocess.run(  # noqa: S603  # Fixed system SSH key generator for synthetic data.
+        [SSH_KEYGEN, "-q", "-t", "ed25519", "-N", "", "-f", reviewer_key],
+        capture_output=True,
+        check=True,
+        text=True,
+    )
+    trusted_reviewers = tmp_path / "private-ask-chat-reviewers.allowed_signers"
+    trusted_reviewers.write_text(
+        f"synthetic-reviewer {reviewer_key.with_suffix('.pub').read_text()}"
+    )
+    installer.write_text(
+        installer.read_text().replace(
+            "/etc/penge/private-ask-chat-reviewers.allowed_signers",
+            str(trusted_reviewers),
+        )
+    )
     template = _read("penge-chat.container.in")
     if resolved:
         replacements = {
@@ -739,6 +849,10 @@ exit 0
     _write_executable(
         fake_bin / "stat",
         """#!/bin/sh
+if [ "$3" = "$TRUSTED_REVIEWERS_FILE" ] && [ "$1 $2" = "-c %u %a" ]; then
+  printf "0 644\\n"
+  exit 0
+fi
 if [ -n "${FAKE_STAT_OWNER:-}" ] && [ "$1 $2" = "-c %u %a" ]; then
   mode=$(/usr/bin/stat -c %a "$3")
   printf "%s %s\\n" "$FAKE_STAT_OWNER" "$mode"
@@ -752,6 +866,7 @@ exec /usr/bin/stat "$@"
         "HOME": str(home),
         "PATH": f"{fake_bin}:{os.environ['PATH']}",
         "SYSTEMCTL_LOG": str(tmp_path / "systemctl.log"),
+        "TRUSTED_REVIEWERS_FILE": str(trusted_reviewers),
     }
     return installer, env
 
@@ -841,6 +956,51 @@ def test_installer_requires_exact_resolved_environment_contract(tmp_path: Path) 
 
     assert incomplete.returncode != 0
     assert "contract environment is not the exact reviewed template" in incomplete.stderr
+
+
+def test_installer_rejects_locally_rehashed_unsigned_approval(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    digest = "a" * 64
+    repo = installer.parents[2]
+    home = Path(env["HOME"])
+    contract = home / ".config" / "penge" / "private-ask-chat.contract.env"
+    contract_template = repo / "deploy" / "nas" / "private-ask-chat.contract.env.in"
+    approval = home / ".config" / "penge" / "private-ask-chat.approval.manifest"
+    changed_contract = f"{contract.read_text()}PENGE_SYNTHETIC_REVIEW_BYPASS=true\n"
+    contract.write_text(changed_contract)
+    contract_template.write_text(changed_contract)
+    contract_hash = _sha256(contract)
+    quadlet = repo / "deploy" / "nas" / "penge-chat.container.in"
+    rendered = (
+        quadlet.read_text()
+        .replace("@@CHAT_IMAGE_DIGEST@@", digest)
+        .replace("@@CONTRACT_ENV_SHA256@@", contract_hash)
+    )
+    manifest = approval.read_text()
+    replacements = {
+        "contract_env_sha256": contract_hash,
+        "contract_env_template_sha256": _sha256(contract_template),
+        "rendered_quadlet_sha256": hashlib.sha256(rendered.encode()).hexdigest(),
+    }
+    for key, value in replacements.items():
+        manifest = re.sub(
+            rf"^{key}=.*$",
+            f"{key}={value}",
+            manifest,
+            flags=re.MULTILINE,
+        )
+    approval.write_text(manifest)
+
+    forged = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert forged.returncode != 0
+    assert "lacks a trusted reviewer signature" in forged.stderr
 
 
 def test_installer_rejects_approved_host_network_or_migration_secret(

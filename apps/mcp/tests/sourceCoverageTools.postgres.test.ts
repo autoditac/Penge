@@ -12,7 +12,10 @@ import pg from "pg";
 
 import { connect } from "../src/db.js";
 import { getHouseholdTransactionDetailTool } from "../src/tools/getHouseholdTransactionDetail.js";
-import { getSourceCoverageTool } from "../src/tools/getSourceCoverage.js";
+import {
+  getSourceCoverageTool,
+  type GetSourceCoverageOutput,
+} from "../src/tools/getSourceCoverage.js";
 import { MCP_READ_ONLY_TOOL_ALLOWLIST } from "../src/sources.js";
 import { queryNetWorthTool } from "../src/tools/queryNetWorth.js";
 import { searchHouseholdTransactionsTool } from "../src/tools/searchHouseholdTransactions.js";
@@ -24,10 +27,87 @@ const SYNTHETIC_INSTRUMENT_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const SYNTHETIC_HOLDING_ID = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
 
 async function cleanSyntheticFacts(pool: pg.Pool): Promise<void> {
-  await pool.query("DELETE FROM holding_snapshot WHERE id = $1::uuid", [SYNTHETIC_HOLDING_ID]);
-  await pool.query("DELETE FROM account WHERE id = $1::uuid", [SYNTHETIC_ACCOUNT_ID]);
-  await pool.query("DELETE FROM instrument WHERE id = $1::uuid", [SYNTHETIC_INSTRUMENT_ID]);
-  await pool.query("DELETE FROM entity WHERE id = $1::uuid", [SYNTHETIC_ENTITY_ID]);
+  await pool.query(
+    `DELETE FROM public.holding_snapshot
+     WHERE id = $1::uuid OR account_id = $2::uuid OR instrument_id = $3::uuid`,
+    [SYNTHETIC_HOLDING_ID, SYNTHETIC_ACCOUNT_ID, SYNTHETIC_INSTRUMENT_ID],
+  );
+  await pool.query("DELETE FROM public.account WHERE id = $1::uuid", [SYNTHETIC_ACCOUNT_ID]);
+  await pool.query("DELETE FROM public.instrument WHERE id = $1::uuid", [SYNTHETIC_INSTRUMENT_ID]);
+  await pool.query("DELETE FROM public.entity WHERE id = $1::uuid", [SYNTHETIC_ENTITY_ID]);
+}
+
+async function isolateCoverageFacts(
+  client: pg.PoolClient,
+  transactionId: string,
+  accountId: string,
+): Promise<void> {
+  await client.query(
+    `CREATE TEMP TABLE account AS
+     SELECT *
+     FROM public.account
+     WHERE id IN ($1::uuid, $2::uuid)`,
+    [accountId, SYNTHETIC_ACCOUNT_ID],
+  );
+  await client.query(
+    `CREATE TEMP TABLE transaction AS
+     SELECT *
+     FROM public.transaction
+     WHERE id = $1::uuid`,
+    [transactionId],
+  );
+  await client.query(
+    `CREATE TEMP TABLE holding_snapshot AS
+     SELECT *
+     FROM public.holding_snapshot
+     WHERE id = $1::uuid`,
+    [SYNTHETIC_HOLDING_ID],
+  );
+  await client.query(
+    `CREATE TEMP TABLE fx_rate AS
+     SELECT *
+     FROM public.fx_rate
+     WHERE base_ccy = 'EUR' AND quote_ccy = 'DKK'
+     ORDER BY as_of DESC
+     LIMIT 1`,
+  );
+  await client.query(
+    `CREATE TEMP TABLE household_classification AS
+     SELECT *
+     FROM public.household_classification
+     ORDER BY transaction_id
+     LIMIT 1`,
+  );
+  await client.query(
+    `CREATE TEMP TABLE household_allocation AS
+     SELECT *
+     FROM public.household_allocation
+     ORDER BY transaction_id, category_id
+     LIMIT 1`,
+  );
+  await client.query(
+    `CREATE TEMP TABLE household_audit AS
+     SELECT *
+     FROM public.household_audit
+     ORDER BY created_at DESC
+     LIMIT 1`,
+  );
+  await client.query(
+    `CREATE TEMP TABLE household_payment_detail AS
+     SELECT *
+     FROM public.household_payment_detail
+     WHERE provider = 'paypal'
+     ORDER BY last_seen_at DESC
+     LIMIT 1`,
+  );
+  await client.query(
+    `CREATE TEMP TABLE merchant_reference_generation AS
+     SELECT *
+     FROM public.merchant_reference_generation
+     WHERE status = 'active' AND source_id = 'name-suggestion-index'
+     ORDER BY completed_at DESC
+     LIMIT 1`,
+  );
 }
 
 describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () => {
@@ -207,25 +287,44 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
           expect(record.transaction.stable_id).toBe(transactionId);
           expect(record.ledger_semantics).toBe("single_source_ledger");
 
-          const coverage = getSourceCoverageTool({ runner: client });
-          const matrix = await coverage.handler(
-            {
-              source_ids: [
-                "gls",
-                "manual_facts",
-                "household_classification",
-                "paypal",
-                "ecb_fx",
-                "pfa",
-              ],
-            },
-            context,
-          );
-          coverage.outputSchema.parse(matrix);
+          const accountId = page.items[0]?.account_id;
+          if (!accountId) throw new Error("Synthetic GLS account fixture is missing");
+          const coverageClient = await fixturePool.connect();
+          let matrix: GetSourceCoverageOutput;
+          try {
+            await isolateCoverageFacts(coverageClient, transactionId, accountId);
+            await coverageClient.query("BEGIN TRANSACTION READ ONLY");
+            const coverage = getSourceCoverageTool({ runner: coverageClient });
+            try {
+              matrix = await coverage.handler(
+                {
+                  source_ids: [
+                    "gls",
+                    "manual_facts",
+                    "household_classification",
+                    "paypal",
+                    "ecb_fx",
+                    "pfa",
+                  ],
+                },
+                context,
+              );
+              coverage.outputSchema.parse(matrix);
+              await coverageClient.query("COMMIT");
+            } catch (error) {
+              await coverageClient.query("ROLLBACK");
+              throw error;
+            }
+          } finally {
+            coverageClient.release();
+          }
           expect(matrix.sources).toHaveLength(6);
           expect(matrix.sources.find((source) => source.id === "gls")?.coverage.account_count).toBe(
             1,
           );
+          expect(
+            matrix.sources.find((source) => source.id === "gls")?.coverage.transaction_count,
+          ).toBe(1);
           const manual = matrix.sources.find((source) => source.id === "manual_facts")?.coverage;
           expect(manual?.account_count).toBe(1);
           expect(manual?.holding_count).toBe(1);

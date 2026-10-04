@@ -1795,6 +1795,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#bootstrapping-a-merchant-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrapping a merchant rule
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3639,6 +3650,17 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#bootstrapping-a-merchant-rule" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bootstrapping a merchant rule
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -3812,6 +3834,16 @@ Component tests already cover archived choices, category hierarchy controls,
 decimal precision, missing-FX presentation, preview review guards, and vendor states.
 API/service tests cover source reimports, stale previews/details, deterministic
 learning conflicts, audit/undo, and public generation failure/privacy behavior.</p>
+<h3 id="bootstrapping-a-merchant-rule">Bootstrapping a merchant rule<a class="headerlink" href="#bootstrapping-a-merchant-rule" title="Permanent link">&para;</a></h3>
+<p>Create or verify a confirmed <code>stable</code> household merchant under <strong>Merchants</strong> first, then create a confirmed provider-scoped alias for the bank counterparty label.
+Open one transaction, select that merchant under <strong>Merchant identity</strong>, check the explicit transaction confirmation, choose one expense or income category, and save the correction.
+This single revision-checked write supplies the human-confirmed evidence required for deterministic learning.
+The alias supplies the exact local match required for future bank sync and historical preview candidates; merchant confirmation alone does not match another transaction.
+Split, refund, processor, marketplace, mixed, unknown, archived, or unconfirmed identities remain non-learning evidence.</p>
+<p>Bulk category correction never confirms a new merchant identity.
+It preserves only identity evidence already confirmed on each transaction, so bulk selection cannot turn a shared label into a merchant identity.
+An active rule can classify only newly inserted eligible movements during sync.
+For existing history, create a persisted rule preview under <strong>Rules</strong>, review the candidates, and explicitly approve it; manual overrides and reconciled transactions remain protected.</p>
 <h2 id="outstanding-acceptance-gates">Outstanding acceptance gates<a class="headerlink" href="#outstanding-acceptance-gates" title="Permanent link">&para;</a></h2>
 <p>The <code>just household-test</code> recipe requires a separately authorized disposable
 PostgreSQL database and destructive-test opt-in.

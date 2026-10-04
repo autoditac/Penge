@@ -208,6 +208,10 @@ mcp-dev:
 mcp-test:
     pnpm --filter @penge/mcp test
 
+# Run the HydraFusion safety proof harness and contract tests.
+mcp-chat-proof:
+    pnpm --filter @penge/mcp test -- --runInBand
+
 # Lint + format-check the MCP TS package.
 mcp-lint:
     pnpm --filter @penge/mcp lint

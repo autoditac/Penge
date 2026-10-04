@@ -152,6 +152,17 @@ The stable boundary is MCP.
 The WebUI can call MCP tools through a backend wrapper, and a future GitHub
 Copilot SDK agent can use those same typed tools for multi-step workflows.
 
+### Chat product truth and feature gate
+
+Penge does not expose a free-form finance chat to the public, and the first
+HydraFusion chat layer remains intentionally disabled until the exact external
+entitlement gate is proven. The product contract is: explanation-first,
+read-only, typed-tool-backed answers only; no ambient shell/filesystem/default
+access; no fallback model when `PENGE_CHAT_MODEL=hydrafusion` is requested;
+separate GitHub and Copilot identities; and no direct reads of raw statement
+or account data. Any enabled service must route all financial data through
+local stdio MCP plus explicit allowlisted tools only.
+
 Good first AI features:
 
 - explain the current dashboard;

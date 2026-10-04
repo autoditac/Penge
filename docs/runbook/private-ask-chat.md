@@ -63,6 +63,17 @@ Integrate the exact dependent contracts instead.
 
 The chat is deliberately different from the existing root-managed API and WebUI Quadlets.
 It runs as a dedicated unprivileged NAS account and is managed with `systemctl --user` and rootless `podman`.
+The installer deliberately uses `$HOME/.config` for both rendered files and Quadlet `%h/.config` references; it does not honor `XDG_CONFIG_HOME`.
+
+A root administrator must enable and verify lingering once for the dedicated account so its user manager starts at boot and survives logout:
+
+```bash
+sudo loginctl enable-linger penge-chat
+loginctl show-user penge-chat --property=Linger --value
+```
+
+The verification output must be exactly `yes`.
+This is host provisioning, not an action performed by this PR.
 
 The final rendered unit belongs at:
 
@@ -221,10 +232,12 @@ Use pseudonymous actor and session identifiers only.
 
 The dedicated chat OAuth database requires its own encrypted logical backup.
 The existing finance-database backup does not include it.
-Use the established backup tooling with the dedicated database URL after #346 adds a collision-safe chat backup label/path:
+Store its URL in the NAS secret manager or an encrypted systemd credential readable only by the backup service account.
+Use that mechanism to launch a restricted backup shell with `DATABASE_URL` already loaded for the child process; never type, paste, or interpolate the URL at the prompt.
+After #346 adds a collision-safe chat backup label/path, the visible command is only:
 
 ```bash
-DATABASE_URL=<dedicated-chat-oauth-url> just backup --label chat-oauth-pre-change
+just backup --label chat-oauth-pre-change
 ```
 
 The AES-GCM keyring is not useful inside the database backup and must be backed up separately through the approved encrypted secret channel.
@@ -325,6 +338,7 @@ Do not create the approval manifest until every item is true.
 - [ ] Versioned rootless secrets exist and encrypted backups are verified.
 - [ ] Nginx exact/bounded routes pass `nginx -t` behind oauth2-proxy.
 - [ ] Container runs rootless with loopback-only publishing and default SELinux confinement.
+- [ ] `loginctl show-user penge-chat --property=Linger --value` returns `yes`.
 - [ ] Liveness/readiness, logs, and metrics meet the privacy contract.
 - [ ] Synthetic two-user, OAuth failure, streaming, cancel, reconnect, and cleanup tests pass.
 - [ ] Authorized two-user acceptance is recorded without private content.

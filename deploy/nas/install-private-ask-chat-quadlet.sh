@@ -20,7 +20,7 @@ template="$root/deploy/nas/penge-chat.container.in"
 nginx_template="$root/deploy/nas/penge-chat.nginx.conf.in"
 database_template="$root/deploy/nas/penge-chat-db-role.sql.in"
 contract_env_template="$root/deploy/nas/private-ask-chat.contract.env.in"
-config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+config_home="$HOME/.config"
 unit_dir="$config_home/containers/systemd"
 contract_dir="$config_home/penge"
 approved_dir="$contract_dir/approved"
@@ -106,7 +106,7 @@ if [[ ! ${approved[reviewed_by]} =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,38}$ ]]; then
   echo "deployment blocked: invalid approval reviewer" >&2
   exit 1
 fi
-if [[ ! ${approved[review_reference]} =~ ^https://github\.com/autoditac/Penge/(pull|issues)/[0-9]+([#?].*)?$ ]]; then
+if [[ ! ${approved[review_reference]} =~ ^https://github\.com/autoditac/Penge/pull/[0-9]+#pullrequestreview-[0-9]+$ ]]; then
   echo "deployment blocked: invalid approval review reference" >&2
   exit 1
 fi

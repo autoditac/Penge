@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[2]
 NAS = ROOT / "deploy" / "nas"
+CHAT_APP_PRESENT = (ROOT / "apps" / "chat" / "package.json").exists()
 
 
 def _read(name: str) -> str:
@@ -40,7 +41,7 @@ def test_unresolved_chat_contract_is_non_deployable() -> None:
         text=True,
     )
 
-    if (ROOT / "apps" / "chat" / "package.json").exists():
+    if CHAT_APP_PRESENT:
         assert seam.returncode != 0
         assert contracted.returncode == 0, contracted.stderr
     else:
@@ -62,9 +63,12 @@ def test_quadlet_template_is_rootless_immutable_and_loopback_only() -> None:
     assert ":main" not in quadlet
     assert ":latest" not in quadlet
     assert len(re.findall(r"^Image=", quadlet, re.MULTILINE)) == 1
-    assert re.findall(r"^PublishPort=(.+)$", quadlet, re.MULTILINE) == [
-        "127.0.0.1:8123:@@CHAT_HTTP_PORT@@"
-    ]
+    published = re.findall(r"^PublishPort=(.+)$", quadlet, re.MULTILINE)
+    assert len(published) == 1
+    if CHAT_APP_PRESENT:
+        assert re.fullmatch(r"127\.0\.0\.1:8123:[0-9]{1,5}", published[0])
+    else:
+        assert published == ["127.0.0.1:8123:@@CHAT_HTTP_PORT@@"]
     assert "SecurityLabelDisable" not in quadlet
     assert "ReadOnly=true" in quadlet
     assert "NoNewPrivileges=true" in quadlet
@@ -86,12 +90,17 @@ def test_quadlet_has_only_versioned_secrets_and_no_transcript_volume() -> None:
 
     secrets = re.findall(r"^Secret=(.+)$", quadlet, re.MULTILINE)
     assert len(secrets) == 3
-    assert all("_SECRET_VERSION@@" in secret for secret in secrets)
-    assert all(",type=mount,target=@@" in secret for secret in secrets)
+    if CHAT_APP_PRESENT:
+        assert all("@@" not in secret for secret in secrets)
+    else:
+        assert all("_SECRET_VERSION@@" in secret for secret in secrets)
+        assert all(",type=mount,target=@@" in secret for secret in secrets)
     assert "Volume=/var/lib/penge/chat" not in quadlet
-    assert re.findall(r"^Volume=(.+)$", quadlet, re.MULTILINE) == [
-        "@@MCP_READ_ONLY_SOURCE@@:@@MCP_READ_ONLY_TARGET@@:ro"
-    ]
+    volumes = re.findall(r"^Volume=(.+)$", quadlet, re.MULTILINE)
+    assert len(volumes) == 1
+    assert volumes[0].endswith(":ro")
+    if not CHAT_APP_PRESENT:
+        assert volumes == ["@@MCP_READ_ONLY_SOURCE@@:@@MCP_READ_ONLY_TARGET@@:ro"]
 
 
 def test_live_nginx_fails_closed_on_only_bounded_ask_paths() -> None:
@@ -115,7 +124,10 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     assert "X-Forwarded-Client-Id $email" in nginx
     assert "script-src 'self'" in nginx
     assert "script-src 'self' 'unsafe-inline'" not in nginx
-    assert "@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@" in nginx
+    if CHAT_APP_PRESENT:
+        assert "@@" not in nginx
+    else:
+        assert "@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@" in nginx
     assert "proxy_pass http://127.0.0.1:8123" not in nginx
 
 
@@ -125,20 +137,24 @@ def test_database_template_cannot_grant_non_oauth_data_access() -> None:
         line for line in sql.splitlines() if not line.lstrip().startswith("--")
     ).lower()
 
-    assert "@@oauth_link_tables_only@@" in executable_sql
     assert "grant select, insert, update, delete" in executable_sql
     assert "grant all" not in executable_sql
     assert "default privileges" not in executable_sql
     assert "analytics" not in executable_sql
     assert "finance" not in executable_sql
     assert "transcript" not in executable_sql
-    assert "current_database() <> '@@chat_oauth_database_name@@'" in executable_sql
-    assert (
-        "revoke all on database @@chat_oauth_database_identifier@@ from public;" in executable_sql
-    )
+    if CHAT_APP_PRESENT:
+        assert "@@" not in executable_sql
+    else:
+        assert "@@oauth_link_tables_only@@" in executable_sql
+        assert "current_database() <> '@@chat_oauth_database_name@@'" in executable_sql
+        assert (
+            'revoke all on database "@@chat_oauth_database_name@@" from public;' in executable_sql
+        )
     assert "revoke all on schema public from public;" in executable_sql
     assert "@@database_identifier@@" not in executable_sql
-    assert "penge" not in executable_sql
+    assert 'database "penge"' not in executable_sql
+    assert "current_database() <> 'penge'" not in executable_sql
     assert "alter role" not in executable_sql
     assert "grant create" not in executable_sql
 
@@ -147,13 +163,16 @@ def test_architecture_contract_is_exact_but_activation_remains_unresolved() -> N
     contract = _read("private-ask-chat.contract.env.in")
 
     assert "PENGE_CHAT_MODEL=hydrafusion" in contract
-    assert "@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@" in contract
-    assert "@@MODEL_FALLBACK_DISABLED_ENV_ASSIGNMENT@@" in contract
-    assert "@@HYDRAFUSION_ENTITLEMENT_REQUIRED_ENV_ASSIGNMENT@@" in contract
-    assert "@@SOURCE_COVERAGE_STARTUP_GATE_ENV_ASSIGNMENT@@" in contract
-    assert "@@PROCESS_LOCAL_STDIO_MCP_ENV_ASSIGNMENT@@" in contract
-    assert "@@DEFAULT_TOOLS_DISABLED_ENV_ASSIGNMENT@@" in contract
-    assert "@@TRANSCRIPT_PERSISTENCE_DISABLED_ENV_ASSIGNMENT@@" in contract
+    if CHAT_APP_PRESENT:
+        assert "@@" not in contract
+    else:
+        assert "@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@" in contract
+        assert "@@MODEL_FALLBACK_DISABLED_ENV_ASSIGNMENT@@" in contract
+        assert "@@HYDRAFUSION_ENTITLEMENT_REQUIRED_ENV_ASSIGNMENT@@" in contract
+        assert "@@SOURCE_COVERAGE_STARTUP_GATE_ENV_ASSIGNMENT@@" in contract
+        assert "@@PROCESS_LOCAL_STDIO_MCP_ENV_ASSIGNMENT@@" in contract
+        assert "@@DEFAULT_TOOLS_DISABLED_ENV_ASSIGNMENT@@" in contract
+        assert "@@TRANSCRIPT_PERSISTENCE_DISABLED_ENV_ASSIGNMENT@@" in contract
 
 
 def test_no_chat_mcp_or_runtime_listener_is_publicly_configured() -> None:
@@ -166,7 +185,8 @@ def test_no_chat_mcp_or_runtime_listener_is_publicly_configured() -> None:
     )
 
     published = re.findall(r"^PublishPort=(.+)$", public_config, re.MULTILINE)
-    assert published == ["127.0.0.1:8123:@@CHAT_HTTP_PORT@@"]
+    assert len(published) == 1
+    assert published[0].startswith("127.0.0.1:8123:")
     assert "0.0.0.0:" not in public_config
     assert "[::]:" not in public_config
     assert "mcp_pass" not in public_config.lower()
@@ -176,6 +196,180 @@ def test_no_chat_mcp_or_runtime_listener_is_publicly_configured() -> None:
 def _write_executable(path: Path, content: str) -> None:
     path.write_text(content)
     path.chmod(path.stat().st_mode | stat.S_IXUSR)
+
+
+def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
+    repo = tmp_path / "ready-repo"
+    nas = repo / "deploy" / "nas"
+    chat = repo / "apps" / "chat"
+    workflows = repo / ".github" / "workflows"
+    nas.mkdir(parents=True)
+    chat.mkdir(parents=True)
+    workflows.mkdir(parents=True)
+
+    for name in (
+        "validate-private-ask-chat.sh",
+        "install-private-ask-chat-quadlet.sh",
+        "penge.eigmueller.de.conf",
+    ):
+        shutil.copy2(NAS / name, nas / name)
+
+    quadlet = _read("penge-chat.container.in")
+    quadlet_replacements = {
+        "@@CHAT_CONTAINER_GID@@": "1000",
+        "@@CHAT_CONTAINER_UID@@": "1000",
+        "@@CHAT_HEALTH_COMMAND@@": "/usr/bin/true",
+        "@@CHAT_HEALTH_START_PERIOD@@": "10s",
+        "@@CHAT_HTTP_PORT@@": "3000",
+        "@@CHAT_ROOTLESS_NETWORK@@": "private-ask",
+        "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/database-url",
+        "@@DATABASE_URL_SECRET_VERSION@@": "v1",
+        "@@GITHUB_OAUTH_SECRET_TARGET@@": "/run/secrets/github-oauth",
+        "@@GITHUB_OAUTH_SECRET_VERSION@@": "v1",
+        "@@MCP_READ_ONLY_SOURCE@@": "/srv/penge/mcp",
+        "@@MCP_READ_ONLY_TARGET@@": "/app/mcp",
+        "@@TOKEN_KEYRING_SECRET_TARGET@@": "/run/secrets/token-keyring",
+        "@@TOKEN_KEYRING_SECRET_VERSION@@": "v1",
+    }
+    for token, value in quadlet_replacements.items():
+        quadlet = quadlet.replace(token, value)
+    (nas / "penge-chat.container.in").write_text(quadlet)
+
+    nginx = _read("penge-chat.nginx.conf.in")
+    nginx_replacements = {
+        "@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@": ("http://127.0.0.1:8123/"),
+        "@@EXACT_ASK_HANDLER@@": "return 308 /ask/;",
+        "@@STREAMING_READ_TIMEOUT@@": "300s",
+        "@@STREAMING_REQUEST_BUFFERING@@": "off",
+        "@@STREAMING_RESPONSE_BUFFERING@@": "off",
+        "@@STREAMING_SEND_TIMEOUT@@": "300s",
+    }
+    for token, value in nginx_replacements.items():
+        nginx = nginx.replace(token, value)
+    (nas / "penge-chat.nginx.conf.in").write_text(nginx)
+
+    database = _read("penge-chat-db-role.sql.in")
+    database_replacements = {
+        "@@CHAT_DATABASE_ROLE@@": "penge_chat_oauth",
+        "@@CHAT_OAUTH_DATABASE_NAME@@": "penge_chat_oauth",
+        "@@CREATE_DEDICATED_CHAT_ROLE_WITH_SECRET_MANAGED_LOGIN@@": (
+            "CREATE ROLE penge_chat_oauth LOGIN NOINHERIT;"
+        ),
+        "@@OAUTH_LINK_SCHEMA@@": "oauth",
+        "@@OAUTH_LINK_TABLES_ONLY@@": '"oauth"."links"',
+    }
+    for token, value in database_replacements.items():
+        database = database.replace(token, value)
+    (nas / "penge-chat-db-role.sql.in").write_text(database)
+
+    contract = _read("private-ask-chat.contract.env.in")
+    contract_replacements = {
+        "@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@": "PENGE_COPILOT_MODE=empty",
+        "@@DEFAULT_TOOLS_DISABLED_ENV_ASSIGNMENT@@": "PENGE_DEFAULT_TOOLS=false",
+        "@@HYDRAFUSION_ENTITLEMENT_REQUIRED_ENV_ASSIGNMENT@@": ("PENGE_REQUIRE_HYDRAFUSION=true"),
+        "@@MODEL_FALLBACK_DISABLED_ENV_ASSIGNMENT@@": "PENGE_MODEL_FALLBACK=false",
+        "@@PRIVACY_SAFE_METRICS_ENV_ASSIGNMENT@@": "PENGE_METRICS_MODE=private",
+        "@@PRIVACY_SAFE_STRUCTURED_LOGGING_ENV_ASSIGNMENT@@": "PENGE_LOG_MODE=redacted",
+        "@@PROCESS_LOCAL_STDIO_MCP_ENV_ASSIGNMENT@@": "PENGE_MCP_TRANSPORT=stdio",
+        "@@SOURCE_COVERAGE_STARTUP_GATE_ENV_ASSIGNMENT@@": ("PENGE_REQUIRE_SOURCE_COVERAGE=true"),
+        "@@TRANSCRIPT_PERSISTENCE_DISABLED_ENV_ASSIGNMENT@@": (
+            "PENGE_TRANSCRIPT_PERSISTENCE=false"
+        ),
+    }
+    for token, value in contract_replacements.items():
+        contract = contract.replace(token, value)
+    (nas / "private-ask-chat.contract.env.in").write_text(contract)
+
+    (chat / "package.json").write_text('{"dependencies":{"@github/copilot-sdk":"1.0.16"}}\n')
+    (chat / "Containerfile").write_text(
+        "\n".join(
+            (
+                f"FROM node@sha256:{'a' * 64} AS build",
+                "COPY pnpm-lock.yaml ./",
+                "RUN pnpm install --frozen-lockfile",
+                "FROM build AS runtime",
+                "",
+            )
+        )
+    )
+    for name in ("ci.yml", "release.yml"):
+        (workflows / name).write_text("matrix:\n  app: [web, api, chat]\n")
+
+    return nas / "validate-private-ask-chat.sh", {
+        **os.environ,
+        "PENGE_CHAT_IMAGE_DIGEST": "b" * 64,
+    }
+
+
+def test_ready_validator_accepts_resolved_contracts_and_all_pinned_bases(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+
+    ready = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    containerfile = validator.parents[2] / "apps" / "chat" / "Containerfile"
+    containerfile.write_text(f"{containerfile.read_text()}FROM alpine:3.22 AS unsafe\n")
+    mutable = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert ready.returncode == 0, ready.stderr
+    assert "packaging is ready" in ready.stdout
+    assert mutable.returncode != 0
+    assert "external base image is not digest-pinned: alpine:3.22" in mutable.stderr
+
+
+def test_ready_validator_rejects_malformed_containerfile_from(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    containerfile = validator.parents[2] / "apps" / "chat" / "Containerfile"
+    containerfile.write_text(f"{containerfile.read_text()}FROM --platform=linux/amd64\n")
+
+    malformed = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert malformed.returncode != 0
+    assert "chat Containerfile has a malformed FROM directive" in malformed.stderr
+
+
+def test_ready_validator_rejects_mismatched_database_privilege_target(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    database.write_text(
+        database.read_text().replace(
+            'REVOKE ALL ON DATABASE "penge_chat_oauth" FROM penge_chat_oauth;',
+            'REVOKE ALL ON DATABASE "penge_finance" FROM penge_chat_oauth;',
+        )
+    )
+
+    mismatched = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert mismatched.returncode != 0
+    assert "database guard and privilege target differ" in mismatched.stderr
 
 
 def _sha256(path: Path) -> str:
@@ -407,6 +601,36 @@ def test_installer_rejects_unsafe_contract_and_manifest_metadata(tmp_path: Path)
     assert "contract environment must be owned by uid 1000" in wrong_owner.stderr
 
 
+def test_installer_requires_concrete_approving_review_url(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    digest = "a" * 64
+    approval = Path(env["HOME"]) / ".config" / "penge" / "private-ask-chat.approval.manifest"
+    original = approval.read_text()
+
+    for invalid_reference in (
+        "https://github.com/autoditac/Penge/issues/342",
+        "https://github.com/autoditac/Penge/pull/347",
+        "https://github.com/autoditac/Penge/pull/347#arbitrary",
+    ):
+        approval.write_text(
+            re.sub(
+                r"^review_reference=.*$",
+                f"review_reference={invalid_reference}",
+                original,
+                flags=re.MULTILINE,
+            )
+        )
+        rejected = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+            [installer, digest],
+            capture_output=True,
+            check=False,
+            env=env,
+            text=True,
+        )
+        assert rejected.returncode != 0
+        assert "invalid approval review reference" in rejected.stderr
+
+
 def test_installer_invalidates_stale_artifact_and_digest_approval(tmp_path: Path) -> None:
     installer, env = _installer_fixture(tmp_path, resolved=True)
     digest = "a" * 64
@@ -460,7 +684,7 @@ def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -
         [installer, digest],
         capture_output=True,
         check=False,
-        env=env,
+        env={**env, "XDG_CONFIG_HOME": str(tmp_path / "custom-xdg")},
         text=True,
     )
 
@@ -476,6 +700,7 @@ def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -
     assert len(approved_contracts) == 1
     assert approved_contracts[0].stat().st_mode & 0o777 == 0o600
     assert _sha256(approved_contracts[0]) in unit.read_text()
+    assert not (tmp_path / "custom-xdg").exists()
     assert unit.read_text().count("Image=") == 1
     assert f"@sha256:{digest}" in unit.read_text()
     assert (tmp_path / "systemctl.log").read_text().strip() == "--user daemon-reload"

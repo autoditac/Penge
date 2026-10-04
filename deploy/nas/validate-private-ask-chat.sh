@@ -14,34 +14,71 @@ db_template="$root/deploy/nas/penge-chat-db-role.sql.in"
 contract_env_template="$root/deploy/nas/private-ask-chat.contract.env.in"
 nginx_live="$root/deploy/nas/penge.eigmueller.de.conf"
 
+fail() {
+  echo "deployment blocked: $*" >&2
+  exit 1
+}
+
+validate_containerfile_bases() {
+  local containerfile=$1
+  local line source stage i
+  local -a fields
+  local source_index from_count=0
+  declare -A stages=()
+
+  while IFS= read -r line; do
+    read -r -a fields <<<"$line"
+    ((${#fields[@]} >= 2)) || fail "chat Containerfile has a malformed FROM directive"
+    source_index=1
+    while ((source_index < ${#fields[@]})) \
+      && [[ ${fields[$source_index]} == --* ]]; do
+      ((source_index += 1))
+    done
+    ((source_index < ${#fields[@]})) \
+      || fail "chat Containerfile has a malformed FROM directive"
+    source="${fields[$source_index]}"
+    ((from_count += 1))
+    if [[ $source != "scratch" && -z ${stages[$source]+present} ]] \
+      && [[ ! $source =~ @sha256:[0-9a-f]{64}$ ]]; then
+      fail "external base image is not digest-pinned: $source"
+    fi
+    stage=""
+    for ((i = source_index + 1; i < ${#fields[@]}; i += 1)); do
+      if [[ ${fields[$i],,} == "as" && $((i + 1)) -lt ${#fields[@]} ]]; then
+        stage="${fields[$((i + 1))]}"
+        break
+      fi
+    done
+    if [[ -n $stage ]]; then
+      stages[$stage]=1
+    fi
+  done < <(grep -Ei '^[[:space:]]*FROM[[:space:]]+' "$containerfile" || true)
+
+  ((from_count > 0)) || fail "chat Containerfile has no FROM directive"
+}
+
 for path in \
   "$quadlet" \
   "$nginx_template" \
   "$db_template" \
   "$contract_env_template" \
   "$nginx_live"; do
-  [[ -r $path ]] || {
-    echo "missing deployment seam: $path" >&2
-    exit 1
-  }
+  [[ -r $path ]] || fail "missing deployment seam $path"
 done
 
-[[ ! -e "$root/deploy/nas/penge-chat.container" ]] || {
-  echo "deployable chat Quadlet must not exist before contracts are resolved" >&2
-  exit 1
-}
+[[ ! -e "$root/deploy/nas/penge-chat.container" ]] \
+  || fail "deployable chat Quadlet must not be tracked"
 
 if grep -Eq 'Image=.*:(main|latest)([[:space:]]|$)|AutoUpdate=registry' "$quadlet"; then
-  echo "chat image must be immutable and must not auto-update by tag" >&2
-  exit 1
+  fail "chat image must be immutable and must not auto-update by tag"
 fi
 mapfile -t image_lines < <(grep '^Image=' "$quadlet" || true)
-[[ ${#image_lines[@]} -eq 1 ]]
+[[ ${#image_lines[@]} -eq 1 ]] || fail "exactly one chat image directive is required"
 [[ ${image_lines[0]} == \
-  "Image=ghcr.io/autoditac/penge/chat@sha256:@@CHAT_IMAGE_DIGEST@@" ]]
+  "Image=ghcr.io/autoditac/penge/chat@sha256:@@CHAT_IMAGE_DIGEST@@" ]] \
+  || fail "chat image template is not the immutable GHCR reference"
 mapfile -t publish_lines < <(grep '^PublishPort=' "$quadlet" || true)
-[[ ${#publish_lines[@]} -eq 1 ]]
-[[ ${publish_lines[0]} == "PublishPort=127.0.0.1:8123:@@CHAT_HTTP_PORT@@" ]]
+[[ ${#publish_lines[@]} -eq 1 ]] || fail "exactly one chat publish directive is required"
 ! grep -q 'SecurityLabelDisable' "$quadlet"
 ! grep -Eq '^Volume=.*chat.*:rw([,:]|$)' "$quadlet"
 grep -q '^WantedBy=default.target$' "$quadlet"
@@ -63,10 +100,6 @@ grep -q 'proxy_set_header X-Forwarded-Client-Id $email;' "$nginx_template"
 sql_body="$(sed '/^[[:space:]]*--/d' "$db_template")"
 ! grep -Eiq 'grant[[:space:]]+all|analytics|finance|transcript|default privileges' \
   <<<"$sql_body"
-grep -q 'OAUTH_LINK_TABLES_ONLY' "$db_template"
-grep -q 'current_database() <> .@@CHAT_OAUTH_DATABASE_NAME@@' "$db_template"
-grep -q 'REVOKE ALL ON DATABASE @@CHAT_OAUTH_DATABASE_IDENTIFIER@@ FROM PUBLIC;' \
-  "$db_template"
 grep -q 'REVOKE ALL ON SCHEMA public FROM PUBLIC;' "$db_template"
 ! grep -q '@@DATABASE_IDENTIFIER@@' "$db_template"
 grep -q '^PENGE_CHAT_MODEL=hydrafusion$' "$contract_env_template"
@@ -79,20 +112,25 @@ unresolved="$(
     "$contract_env_template" \
     | sort -u || true
 )"
+
 if [[ $mode == "--seam" ]]; then
-  [[ -n $unresolved ]] || {
-    echo "seam mode requires fail-closed unresolved contracts" >&2
-    exit 1
-  }
+  [[ ${publish_lines[0]} == "PublishPort=127.0.0.1:8123:@@CHAT_HTTP_PORT@@" ]] \
+    || fail "unresolved seam publish contract changed unexpectedly"
+  grep -q '@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@' "$nginx_template"
+  grep -q "current_database() <> '@@CHAT_OAUTH_DATABASE_NAME@@'" "$db_template"
+  grep -q \
+    'REVOKE ALL ON DATABASE "@@CHAT_OAUTH_DATABASE_NAME@@" FROM PUBLIC;' \
+    "$db_template"
+  grep -q '@@OAUTH_LINK_TABLES_ONLY@@' "$db_template"
+  grep -q '@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@' "$contract_env_template"
+  [[ -n $unresolved ]] || fail "seam mode requires fail-closed unresolved contracts"
   echo "private Ask deployment seam is fail-closed; deployment is not ready"
   exit 0
 fi
 
 image_digest="${PENGE_CHAT_IMAGE_DIGEST:-}"
-if [[ ! $image_digest =~ ^[0-9a-f]{64}$ ]]; then
-  echo "deployment blocked: PENGE_CHAT_IMAGE_DIGEST must be an exact 64-character digest" >&2
-  exit 1
-fi
+[[ $image_digest =~ ^[0-9a-f]{64}$ ]] \
+  || fail "PENGE_CHAT_IMAGE_DIGEST must be an exact 64-character digest"
 
 unresolved="$(
   grep -v -E '^@@(CHAT_IMAGE_DIGEST|CONTRACT_ENV_SHA256)@@$' <<<"$unresolved" || true
@@ -102,15 +140,43 @@ if [[ -n $unresolved ]]; then
   exit 1
 fi
 
+[[ ${publish_lines[0]} =~ ^PublishPort=127\.0\.0\.1:8123:[0-9]{1,5}$ ]] \
+  || fail "resolved publish must remain loopback-only with a numeric container port"
+container_port="${publish_lines[0]##*:}"
+((container_port >= 1 && container_port <= 65535)) \
+  || fail "resolved container port is outside the valid range"
+
+guard_name="$(
+  sed -n "s/.*current_database() <> '\\([^']*\\)'.*/\\1/p" "$db_template"
+)"
+mapfile -t public_revoke_names < <(
+  sed -n 's/^REVOKE ALL ON DATABASE "\([^"]*\)" FROM PUBLIC;/\1/p' "$db_template"
+)
+[[ -n $guard_name && ${#public_revoke_names[@]} -eq 1 ]] \
+  || fail "dedicated OAuth database guard or PUBLIC revoke is missing"
+[[ ${public_revoke_names[0]} == "$guard_name" ]] \
+  || fail "database guard and PUBLIC revoke target differ"
+[[ $guard_name =~ ^[a-z_][a-z0-9_]*$ ]] \
+  || fail "dedicated OAuth database name is not a safe identifier"
+mapfile -t database_statement_names < <(
+  sed -n \
+    -e 's/^REVOKE ALL ON DATABASE "\([^"]*\)" FROM .*/\1/p' \
+    -e 's/^GRANT CONNECT ON DATABASE "\([^"]*\)" TO .*/\1/p' \
+    "$db_template"
+)
+[[ ${#database_statement_names[@]} -eq 3 ]] \
+  || fail "dedicated OAuth database privilege statements are incomplete"
+for database_name in "${database_statement_names[@]}"; do
+  [[ $database_name == "$guard_name" ]] \
+    || fail "database guard and privilege target differ"
+done
+
 for path in "$root/apps/chat/package.json" "$root/apps/chat/Containerfile"; do
-  [[ -r $path ]] || {
-    echo "deployment blocked: missing backend packaging contract $path" >&2
-    exit 1
-  }
+  [[ -r $path ]] || fail "missing backend packaging contract $path"
 done
 
 containerfile="$root/apps/chat/Containerfile"
-grep -Eq '^FROM .+@sha256:[0-9a-f]{64}' "$containerfile"
+validate_containerfile_bases "$containerfile"
 grep -q 'pnpm-lock.yaml' "$containerfile"
 grep -q -- '--frozen-lockfile' "$containerfile"
 grep -Eq \

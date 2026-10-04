@@ -72,6 +72,9 @@ describe("Ask Penge live client", () => {
     expect(
       resolveSameOriginBaseUrl("/chat?ignored=true#fragment", currentLocation).toString(),
     ).toBe("https://penge.example/chat/");
+    expect(resolveSameOriginBaseUrl("/ask/api/", currentLocation).toString()).toBe(
+      "https://penge.example/ask/api/",
+    );
     expect(() =>
       resolveSameOriginBaseUrl("https://attacker.example/chat", currentLocation),
     ).toThrowError(AskChatClientError);

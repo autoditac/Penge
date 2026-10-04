@@ -9,9 +9,17 @@ owner-only regular file capped at 16 KiB.
 The direct `PENGE_DB_URL` form is retained for local CLI and test use, and
 configuring both is rejected.
 
-## Authoritative stdio tool allowlist
+## Exact read-only registration contract reference
 
-`get_source_coverage.tool_allowlist` is the authoritative list that the chat backend must enforce:
+The table below is the exact Penge-only registration and chat allowlist that
+PBI #346 must pin independently in the chat backend.
+MCP stdio `tools/list` and `get_source_coverage.tool_allowlist` are
+server-reported evidence only; neither value is authoritative for the chat
+security boundary.
+At startup, PBI #346 must compare `tools/list` against its pinned set.
+It must also compare every returned `get_source_coverage.tool_allowlist`
+against that same independently pinned set and fail closed on any missing,
+additional, or changed tool.
 
 | Tool                               | Evidence class                                                 |
 | ---------------------------------- | -------------------------------------------------------------- |
@@ -196,8 +204,9 @@ The chat service must not put prompts, transcripts, identities, OAuth tokens, or
 
 - Spawn a local stdio MCP process; never connect to or expose a network MCP endpoint.
 - Generate per-person and per-session opaque audit IDs and pass them only through the two environment variables above.
-- Compare MCP discovery with `tool_allowlist` and deny startup or calls on any mismatch.
-- Allow only the exact tools listed above and validate every tool result against its MCP schema.
+- Independently pin the exact registration and chat allowlist shown above; never derive the trusted set from MCP output.
+- Compare stdio `tools/list` and every returned `get_source_coverage.tool_allowlist` separately against that pinned set, failing startup or the call closed on any mismatch.
+- Allow only the independently pinned tools and validate every tool result against its MCP schema.
 - Prefer MCP `structuredContent` over reparsing model-facing text.
 - Consume object-output evidence fields directly; unwrap `structuredContent.result` only for tools whose Zod output is a top-level array or scalar.
 - Treat `source_allowlist`, source IDs, stable transaction IDs, freshness, and completeness as opaque typed evidence.

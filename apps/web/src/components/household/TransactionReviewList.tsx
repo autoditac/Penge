@@ -160,6 +160,12 @@ export function TransactionReviewList({
           </Button>
         </Stack>
       </Stack>
+      {selectedIds.size > 0 ? (
+        <Typography color="text.secondary" variant="body2" aria-live="polite">
+          Bulk category changes preserve existing merchant identity evidence but never confirm a new
+          merchant identity.
+        </Typography>
+      ) : null}
       {visibleTransactions.length === 0 ? (
         <EmptyState label={transactions.length === 0 ? "transactions" : "matching transactions"} />
       ) : (

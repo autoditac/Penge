@@ -81,7 +81,7 @@ describe("Ask Penge live client", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(statusResponse())
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+      .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }));
     const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
 
     await expect(client.getStatus()).resolves.toMatchObject({
@@ -309,6 +309,71 @@ describe("Ask Penge live client", () => {
     streamController?.close();
   });
 
+  it("uses the response session header to stop before the first event", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(new ReadableStream<Uint8Array>({}), {
+          headers: { "X-Penge-Chat-Session-Id": "header-session" },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "cancelling" }, 202));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    session.subscribe(() => undefined);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+
+    await session.stop();
+
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ sessionId: "header-session" }),
+    });
+  });
+
+  it("rejects a stream session that differs from the response session header", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "event-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+            controller.close();
+          },
+        }),
+        { headers: { "X-Penge-Chat-Session-Id": "header-session" } },
+      ),
+    );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const received: unknown[] = [];
+
+    await new Promise<void>((resolve) => {
+      session.subscribe((event) => {
+        received.push(event);
+        if (received.length === 2) {
+          resolve();
+        }
+      });
+    });
+
+    expect(received[1]).toEqual({
+      sessionIdMismatch: { expected: "header-session", received: "event-session" },
+    });
+  });
+
   it("passes malformed SSE data to the strict UI boundary", async () => {
     const fetchMock = vi.fn().mockResolvedValue(streamResponse(["data: {not-json}\n\n"]));
     const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
@@ -390,7 +455,7 @@ describe("Ask Penge live page", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(statusResponse({ login: "synthetic-user" }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }))
       .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
     render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
 

@@ -32,6 +32,8 @@ export const askAuthStatusSchema = z
   })
   .strict();
 
+const unlinkResponseSchema = z.object({ status: z.literal("unlinked") }).strict();
+
 export type AskAuthStatus = z.infer<typeof askAuthStatusSchema>;
 export type FetchLike = typeof fetch;
 
@@ -82,6 +84,7 @@ export function createAskChatClient(
       if (!response.ok) {
         throw httpError("github_unlink_failed", "Could not unlink the GitHub account.", response);
       }
+      unlinkResponseSchema.parse(await response.json());
     },
     transport: createFetchAskTransport(baseUrl, fetchFn),
   };
@@ -233,6 +236,16 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
           close();
           return false;
         }
+        if (sessionId !== null && parsed.data.sessionId !== sessionId) {
+          emit({
+            sessionIdMismatch: {
+              expected: sessionId,
+              received: parsed.data.sessionId,
+            },
+          });
+          close();
+          return false;
+        }
 
         sessionId = parsed.data.sessionId;
         nextSequence = parsed.data.sequence + 1;
@@ -256,6 +269,10 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
             const mapped = await mapChatHttpError(response);
             emitClientError(mapped.code, mapped.message, mapped.retryable);
             return;
+          }
+          const responseSessionId = response.headers.get("X-Penge-Chat-Session-Id")?.trim();
+          if (responseSessionId) {
+            sessionId = responseSessionId;
           }
           if (response.body === null) {
             emitClientError(

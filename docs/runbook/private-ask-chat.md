@@ -15,6 +15,8 @@ Do not deploy the chat from this branch.
 - The active nginx configuration returns `404` for exactly `/ask` and the bounded `/ask/` prefix.
 - `deploy/nas/validate-private-ask-chat.sh --ready` must fail while any `@@...@@` token remains.
 - #346 still owes final OAuth, SSE, status-route, mounted-secret, and environment names; do not resolve the loopback/public-origin, immutable issuer/subject headers, proxy-secret header, identity-pepper, OAuth, AES-GCM, chat-database, or finance-MCP credential contracts early.
+- The agreed external API base is `/ask/api`, with `VITE_PENGE_CHAT_BASE_URL=/ask/api`; internal routes are `GET /v1/auth/status`, `GET /oauth/github/start`, `DELETE /v1/auth/github`, `POST /v1/chat` (SSE), `POST /v1/chat/stop`, and quota-free `/health`.
+- The external OAuth callback must remain `/ask/api/oauth/github/callback`, and nginx must overwrite the immutable auth and mounted proxy-secret headers. Keep the route/header tokens unresolved until #346 and #349 publish matching tests.
 - No NAS deployment, real account linking, HydraFusion call, or two-account acceptance has been performed.
 
 The secure seam check is available through the repository task runner:

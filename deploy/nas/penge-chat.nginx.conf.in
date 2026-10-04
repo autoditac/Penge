@@ -1,8 +1,9 @@
 # Non-loadable nginx route template.
 #
-# Keep this separate from penge.eigmueller.de.conf until the backend and WebUI
-# define exact base-path, OAuth callback, and streaming semantics.  Deployment
-# validation rejects every unresolved @@...@@ token.
+# Keep this separate from penge.eigmueller.de.conf until #346 and #349 publish
+# matching tests for the agreed /ask/api base path, OAuth callback, immutable
+# identity/proxy-secret headers, and streaming semantics. Deployment validation
+# rejects every unresolved @@...@@ token.
 
 location = /ask {
     auth_request /oauth2/auth;

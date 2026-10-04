@@ -84,6 +84,11 @@ The tracked `deploy/nas/penge.eigmueller.de.conf` routes household API
 children (for example `/household/transactions`) and `/vendors` endpoints to
 the API upstream while keeping bare `/household` and `/household/` on the SPA.
 Both upstreams retain the same OAuth authentication gate.
+Household tab URLs overlap API endpoints.
+Requests accepting `text/html` select the SPA so direct tab navigation and
+reload work; JSON fetches select the API.
+This content negotiation applies only to household children, not legacy API
+or vendor paths.
 An HTTP 200 with `text/html` from a household API request indicates SPA fallback,
 not a valid API response.
 After installing the tracked configuration, validate with `nginx -t` before

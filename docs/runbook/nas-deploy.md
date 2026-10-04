@@ -78,6 +78,19 @@ exact deployed image digest. No credentials belong in the tracked units.
 `PENGE_REFRESH_STATE_DIR=/var/lib/penge-refresh` aligns API syncs, legacy bank
 sync CLIs, and the scheduled worker with the same lock and pending marker.
 
+## Household proxy routing
+
+The tracked `deploy/nas/penge.eigmueller.de.conf` routes household API
+children (for example `/household/transactions`) and `/vendors` endpoints to
+the API upstream while keeping bare `/household` and `/household/` on the SPA.
+Both upstreams retain the same OAuth authentication gate.
+An HTTP 200 with `text/html` from a household API request indicates SPA fallback,
+not a valid API response.
+After installing the tracked configuration, validate with `nginx -t` before
+reloading nginx and verify Transactions through the authenticated browser.
+Keep a copy of the previous host configuration for rollback.
+Direct loopback API checks alone do not verify public proxy routing.
+
 ## Scheduled public merchant-reference refresh
 
 The public-only NSI refresh uses a separate daily systemd timer and runs inside

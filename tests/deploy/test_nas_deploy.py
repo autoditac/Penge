@@ -1,4 +1,7 @@
+import re
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).parents[2]
 
@@ -150,6 +153,37 @@ def test_nas_nginx_routes_spa_to_web_container_and_api_separately() -> None:
     assert "proxy_pass http://127.0.0.1:8082;" in nginx
     assert "proxy_pass http://127.0.0.1:8001;" in nginx
     assert "root  /var/www/penge;" not in nginx
+
+
+@pytest.mark.parametrize(
+    ("path", "is_api"),
+    [
+        ("/household", False),
+        ("/household/", False),
+        ("/household/transactions", True),
+        ("/household/transactions/synthetic-id/classification", True),
+        ("/household/categories", True),
+        ("/household/merchants", True),
+        ("/household/rules", True),
+        ("/household/reports/summary", True),
+        ("/household/payment-details", True),
+        ("/vendors/reference-index/status", True),
+        ("/vendors/reference-index/records", True),
+        ("/meta/freshness", True),
+        ("/connections", True),
+        ("/household-other", False),
+        ("/vendors-other", False),
+        ("/", False),
+    ],
+)
+def test_nas_nginx_routes_household_api_without_shadowing_spa(path: str, is_api: bool) -> None:
+    nginx = (ROOT / "deploy/nas/penge.eigmueller.de.conf").read_text()
+    location = re.search(r"location ~ (\S+) \{([^}]+)\}", nginx)
+    assert location is not None
+    assert bool(re.search(location.group(1), path)) is is_api
+    api_block = location.group(2)
+    assert "auth_request /oauth2/auth;" in api_block
+    assert "proxy_pass http://127.0.0.1:8001;" in api_block
 
 
 def test_web_image_targets_the_production_api_origin() -> None:

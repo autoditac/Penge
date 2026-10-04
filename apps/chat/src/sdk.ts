@@ -52,6 +52,35 @@ interface CopilotClientLike {
 
 export type CopilotClientFactory = (options: CopilotClientOptions) => CopilotClientLike;
 
+let stderrSuppressionUsers = 0;
+let originalStderrWrite: typeof process.stderr.write | undefined;
+
+function suppressCopilotStderr(): () => void {
+  if (stderrSuppressionUsers === 0) {
+    originalStderrWrite = process.stderr.write.bind(process.stderr);
+    process.stderr.write = ((chunk, encodingOrCallback, callback) => {
+      const text = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString();
+      if (text.startsWith("[CLI subprocess]")) {
+        const done = typeof encodingOrCallback === "function" ? encodingOrCallback : callback;
+        done?.();
+        return true;
+      }
+      return originalStderrWrite?.(chunk, encodingOrCallback, callback) ?? true;
+    }) as typeof process.stderr.write;
+  }
+  stderrSuppressionUsers += 1;
+  let restored = false;
+  return () => {
+    if (restored) return;
+    restored = true;
+    stderrSuppressionUsers -= 1;
+    if (stderrSuppressionUsers === 0 && originalStderrWrite !== undefined) {
+      process.stderr.write = originalStderrWrite;
+      originalStderrWrite = undefined;
+    }
+  };
+}
+
 function safeRuntimeEnvironment(): Record<string, string | undefined> {
   return {
     PATH: process.env.PATH,
@@ -83,6 +112,7 @@ export function buildSessionConfig(
     requestCanvasRenderer: false,
     requestExtensions: false,
     mcpOAuthTokenStorage: "in-memory",
+    largeOutput: { enabled: false },
     gitHubTokenProvider: tokenProvider,
     availableTools,
     excludedTools: new ToolSet().addBuiltIn("*").addCustom("*"),
@@ -192,10 +222,11 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       },
       workingDirectory: this.config.mcpWorkingDirectory,
       useLoggedInUser: false,
-      logLevel: "error",
+      logLevel: "none",
       env: safeRuntimeEnvironment(),
     });
 
+    const restoreCopilotStderr = suppressCopilotStderr();
     let session: CopilotSessionLike | undefined;
     let unsubscribe: (() => void) | undefined;
     let closed = false;
@@ -218,7 +249,11 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       }
       unsubscribe = session.on((event) => options.sink.onEvent(event));
     } catch (error) {
-      await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
+      try {
+        await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
+      } finally {
+        restoreCopilotStderr();
+      }
       throw error;
     }
 
@@ -264,6 +299,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
             );
           }
         }
+        restoreCopilotStderr();
         if (cleanupErrors.length > 0) {
           throw new CopilotRuntimeError(
             "chat/copilot_cleanup",

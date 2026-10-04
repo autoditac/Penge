@@ -28,6 +28,7 @@ describe("Copilot SDK policy", () => {
       requestCanvasRenderer: false,
       requestExtensions: false,
       mcpOAuthTokenStorage: "in-memory",
+      largeOutput: { enabled: false },
     });
     expect(session.mcpServers?.penge).toMatchObject({
       type: "stdio",
@@ -60,6 +61,59 @@ describe("Copilot SDK policy", () => {
     await expect(fullMemoryFs.writeFile("/sessions/extra", "x")).rejects.toThrow(
       /memory is exhausted/,
     );
+  });
+
+  it("disables Copilot child diagnostics and large-output file spilling", () => {
+    const session = buildSessionConfig(syntheticConfig(), "actor-1", "session-1", provider);
+    expect(session.largeOutput).toEqual({ enabled: false });
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), (options) => {
+      expect(options.logLevel).toBe("none");
+      return {
+        start: async () => undefined,
+        createSession: async () => {
+          throw new Error("stop setup");
+        },
+        stop: async () => [],
+        forceStop: async () => undefined,
+      };
+    });
+    return expect(
+      runtime.createRun({
+        actorId: "actor-a",
+        sessionId: "session-a",
+        tokenProvider: provider,
+        sink: { onEvent: () => undefined },
+      }),
+    ).rejects.toThrow("stop setup");
+  });
+
+  it("discards sensitive child stderr without suppressing unrelated service logs", async () => {
+    const stderrWrite = vi.spyOn(process.stderr, "write");
+    try {
+      const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
+        start: async () => {
+          process.stderr.write("[CLI subprocess] synthetic-sensitive-marker\n");
+        },
+        createSession: async () => {
+          throw new Error("stop setup");
+        },
+        stop: async () => [],
+        forceStop: async () => undefined,
+      }));
+      await expect(
+        runtime.createRun({
+          actorId: "actor-a",
+          sessionId: "session-a",
+          tokenProvider: provider,
+          sink: { onEvent: () => undefined },
+        }),
+      ).rejects.toThrow("stop setup");
+      expect(stderrWrite).not.toHaveBeenCalledWith(
+        expect.stringContaining("synthetic-sensitive-marker"),
+      );
+    } finally {
+      stderrWrite.mockRestore();
+    }
   });
 
   it("fails before process creation while HydraFusion is feature-disabled", async () => {

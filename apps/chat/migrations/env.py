@@ -41,9 +41,12 @@ class MigrationSettings(BaseModel):
         if hasattr(os, "getuid") and stat.st_uid != os.getuid():
             raise RuntimeError("chat migration database URL file must be process-owned")
         try:
-            return str(PostgresDsn(path.read_text(encoding="utf-8").strip()))
+            database_url = str(PostgresDsn(path.read_text(encoding="utf-8").strip()))
         except ValidationError as error:
             raise RuntimeError("chat migration database URL is invalid") from error
+        if database_url.startswith("postgresql://"):
+            return "postgresql+psycopg://" + database_url.removeprefix("postgresql://")
+        return database_url
 
 
 config.set_main_option(

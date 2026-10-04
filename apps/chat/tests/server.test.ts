@@ -531,4 +531,71 @@ describe("loopback HTTP service", () => {
       await server.close();
     }
   });
+
+  it("disconnects a paused reader instead of retaining unbounded stream output", async () => {
+    const disconnect = vi.fn(async () => undefined);
+    const server = await startChatServer(syntheticConfig({ httpRequestTimeoutMs: 25 }), {
+      runtime: {
+        start: async (_actorId, _question, sink) => {
+          setImmediate(() => {
+            for (let sequence = 0; sequence < 2_000; sequence += 1) {
+              sink({
+                version: "1.0",
+                sessionId: "00000000-0000-4000-8000-000000000001",
+                id: `event-${sequence}`,
+                sequence,
+                type: "tool",
+                name: "synthetic",
+                status: "running",
+                detail: "x".repeat(1_024),
+              });
+            }
+          });
+          return "00000000-0000-4000-8000-000000000001";
+        },
+        cancel: async () => undefined,
+        disconnect,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => true,
+        ensureModelAvailable: async () => true,
+        invalidateActor: async () => undefined,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async () => "synthetic-user",
+        status: async () => ({ state: "linked" as const, login: "synthetic-user" }),
+        unlink: async () => undefined,
+      },
+    });
+    const target = new URL(server.origin);
+    const socket = createConnection(Number(target.port), target.hostname);
+    try {
+      await new Promise<void>((resolve, reject) => {
+        socket.once("error", reject);
+        socket.once("connect", () => {
+          socket.write(
+            [
+              "POST /v1/chat HTTP/1.1",
+              `Host: ${target.host}`,
+              "Content-Type: application/json",
+              `Origin: ${headers.origin}`,
+              `x-penge-proxy-secret: ${headers["x-penge-proxy-secret"]}`,
+              `x-penge-auth-issuer: ${headers["x-penge-auth-issuer"]}`,
+              `x-penge-auth-subject: ${headers["x-penge-auth-subject"]}`,
+              "Content-Length: 28",
+              "Connection: keep-alive",
+              "",
+              '{"question":"Safe question"}',
+            ].join("\r\n"),
+          );
+          resolve();
+        });
+      });
+      await vi.waitFor(() => expect(disconnect).toHaveBeenCalledOnce(), { timeout: 1_000 });
+    } finally {
+      socket.destroy();
+      await server.close();
+    }
+  });
 });

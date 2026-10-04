@@ -68,6 +68,8 @@ export interface RunningChatServer {
   close(): Promise<void>;
 }
 
+const MAX_SSE_BUFFER_BYTES = 1_024 * 1_024;
+
 async function readJson(request: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -286,25 +288,94 @@ export async function startChatServer(
         }
         const connection: { sessionId?: string } = {};
         const pending: StreamEvent[] = [];
+        let pendingBytes = 0;
+        const outbound: Array<{ payload: string; terminal: boolean; bytes: number }> = [];
+        let outboundBytes = 0;
+        let deliveryTimer: NodeJS.Timeout | undefined;
         let streaming = false;
         let ended = false;
+        let disconnectObserved = false;
+        let terminalPending = false;
+        const disconnect = (): void => {
+          if (disconnectObserved || connection.sessionId === undefined) return;
+          disconnectObserved = true;
+          observe(dependencies.runtime.disconnect(actorId, connection.sessionId), "disconnect");
+        };
+        const failDelivery = (): void => {
+          if (ended) return;
+          ended = true;
+          if (deliveryTimer !== undefined) clearTimeout(deliveryTimer);
+          response.destroy();
+          disconnect();
+        };
+        const armDeliveryDeadline = (): void => {
+          if (deliveryTimer !== undefined) return;
+          deliveryTimer = setTimeout(failDelivery, config.httpRequestTimeoutMs);
+          deliveryTimer.unref();
+        };
+        const flushOutbound = (): void => {
+          while (outbound.length > 0 && !response.destroyed) {
+            const item = outbound.shift();
+            if (item === undefined) return;
+            outboundBytes -= item.bytes;
+            const writable = response.write(item.payload);
+            if (!writable) {
+              if (item.terminal) terminalPending = true;
+              armDeliveryDeadline();
+              return;
+            }
+            if (item.terminal) {
+              ended = true;
+              response.end();
+              return;
+            }
+          }
+          if (terminalPending && !response.destroyed) {
+            terminalPending = false;
+            ended = true;
+            response.end();
+          } else if (outbound.length === 0 && deliveryTimer !== undefined) {
+            clearTimeout(deliveryTimer);
+            deliveryTimer = undefined;
+          }
+        };
+        const enqueue = (event: StreamEvent): void => {
+          const payload = `data: ${JSON.stringify(event)}\n\n`;
+          const bytes = Buffer.byteLength(payload);
+          if (
+            bytes > MAX_SSE_BUFFER_BYTES ||
+            outboundBytes + response.writableLength + bytes > MAX_SSE_BUFFER_BYTES
+          ) {
+            failDelivery();
+            return;
+          }
+          outbound.push({
+            payload,
+            terminal: event.type === "completion" || event.type === "error",
+            bytes,
+          });
+          outboundBytes += bytes;
+          flushOutbound();
+        };
         const sink = (event: StreamEvent): void => {
           if (ended || response.destroyed) return;
           if (!streaming) {
+            const bytes = Buffer.byteLength(JSON.stringify(event));
+            if (pendingBytes + bytes > MAX_SSE_BUFFER_BYTES) {
+              failDelivery();
+              return;
+            }
             pending.push(event);
+            pendingBytes += bytes;
             return;
           }
-          response.write(`data: ${JSON.stringify(event)}\n\n`);
-          if (event.type === "completion" || event.type === "error") {
-            ended = true;
-            response.end();
-          }
+          enqueue(event);
         };
         response.on("close", () => {
-          if (!ended && connection.sessionId !== undefined) {
-            observe(dependencies.runtime.disconnect(actorId, connection.sessionId), "disconnect");
-          }
+          if (deliveryTimer !== undefined) clearTimeout(deliveryTimer);
+          if (!ended) disconnect();
         });
+        response.on("drain", flushOutbound);
         connection.sessionId = await dependencies.runtime.start(actorId, input.question, sink);
         if (response.destroyed) {
           await dependencies.runtime.disconnect(actorId, connection.sessionId);
@@ -323,6 +394,8 @@ export async function startChatServer(
         for (const event of pending) {
           sink(event);
         }
+        pending.length = 0;
+        pendingBytes = 0;
         return;
       }
 

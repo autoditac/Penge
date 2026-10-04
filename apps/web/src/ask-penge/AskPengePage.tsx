@@ -22,7 +22,6 @@ import type {
   AskStreamErrorEvent,
   AskStreamEvent,
   AskStreamEvidenceEvent,
-  AskStreamTextEvent,
   AskStreamToolEvent,
   AskTransport,
   AskTransportSession,
@@ -46,6 +45,8 @@ const FILTER_TABS: ReadonlyArray<{ value: FilterValue; label: string }> = [
   { value: "fresh", label: "Fresh" },
   { value: "attention", label: "Needs attention" },
 ] as const;
+
+const ANSWER_BUFFER_MS = 120;
 
 const toolTone: Record<AskStreamToolEvent["status"], Tone> = {
   started: "info",
@@ -119,6 +120,7 @@ function AskPengeWorkbench({
   onUnlinkGitHub,
 }: AskPengeWorkbenchProps): React.JSX.Element {
   const [events, setEvents] = useState<readonly AskStreamEvent[]>([]);
+  const [answer, setAnswer] = useState<string>("");
   const [draft, setDraft] = useState<string>(
     "Which balances and tax-check items need a fresh review before the next quarter?",
   );
@@ -130,6 +132,9 @@ function AskPengeWorkbench({
   const [contractError, setContractError] = useState<string | null>(null);
   const sessionRef = useRef<AskTransportSession | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const answerRef = useRef<string>("");
+  const answerBufferRef = useRef<string>("");
+  const answerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const canAsk = transport !== undefined && authState === "linked" && modelAvailable;
@@ -138,11 +143,36 @@ function AskPengeWorkbench({
     return () => {
       sessionRef.current?.stop();
       unsubscribeRef.current?.();
+      flushBufferedAnswer(false);
     };
   }, []);
 
+  function flushBufferedAnswer(publish = true): void {
+    if (answerTimerRef.current !== null) {
+      clearTimeout(answerTimerRef.current);
+      answerTimerRef.current = null;
+    }
+    if (answerBufferRef.current.length === 0) {
+      return;
+    }
+
+    answerRef.current += answerBufferRef.current;
+    answerBufferRef.current = "";
+    if (publish) {
+      setAnswer(answerRef.current);
+    }
+  }
+
+  function bufferAnswerDelta(delta: string): void {
+    answerBufferRef.current += delta;
+    if (answerTimerRef.current === null) {
+      answerTimerRef.current = setTimeout(flushBufferedAnswer, ANSWER_BUFFER_MS);
+    }
+  }
+
   function stopSession(): void {
     sessionRef.current?.stop();
+    flushBufferedAnswer();
     setStreamState("cancelled");
     if (unsubscribeRef.current !== null) {
       unsubscribeRef.current();
@@ -165,19 +195,31 @@ function AskPengeWorkbench({
     const nextSession = transport.start({ question: question.trim() });
     const validateEvent = createAskStreamValidator();
     sessionRef.current = nextSession;
+    flushBufferedAnswer(false);
+    answerRef.current = "";
+    answerBufferRef.current = "";
+    setAnswer("");
     setEvents([]);
     setStreamState("streaming");
     setStreamError(null);
     setContractError(null);
 
     let unsubscribe = (): void => undefined;
+    const unsubscribeAfterDispatch = (): void => {
+      queueMicrotask(() => {
+        unsubscribe();
+        if (unsubscribeRef.current === unsubscribe) {
+          unsubscribeRef.current = null;
+        }
+      });
+    };
     unsubscribe = nextSession.subscribe((candidate) => {
       let event: AskStreamEvent;
       try {
         event = validateEvent(candidate);
       } catch {
         nextSession.stop();
-        queueMicrotask(unsubscribe);
+        unsubscribeAfterDispatch();
         setContractError(
           "The answer stream did not match Ask Penge protocol 1.0. Reconnect after the backend contract is updated.",
         );
@@ -185,17 +227,24 @@ function AskPengeWorkbench({
         return;
       }
 
+      if (event.type === "text") {
+        bufferAnswerDelta(event.delta);
+        return;
+      }
+
       setEvents((previous) => [...previous, event]);
       if (event.type === "error") {
+        flushBufferedAnswer();
         setStreamError(event);
         setStreamState(event.code === "session_interrupted" ? "disconnected" : "error");
         nextSession.stop();
-        queueMicrotask(unsubscribe);
+        unsubscribeAfterDispatch();
       }
       if (event.type === "completion") {
+        flushBufferedAnswer();
         setStreamState(event.finishReason === "cancelled" ? "cancelled" : "complete");
         nextSession.stop();
-        queueMicrotask(unsubscribe);
+        unsubscribeAfterDispatch();
       }
     });
     unsubscribeRef.current = unsubscribe;
@@ -213,11 +262,6 @@ function AskPengeWorkbench({
     [events],
   );
 
-  const textEvents = useMemo(
-    () => events.filter((event): event is AskStreamTextEvent => event.type === "text"),
-    [events],
-  );
-
   const completion = useMemo(
     () =>
       events
@@ -225,8 +269,6 @@ function AskPengeWorkbench({
         .at(-1),
     [events],
   );
-
-  const answer = useMemo(() => textEvents.map((event) => event.delta).join(""), [textEvents]);
 
   const visibleEvidence = useMemo(() => {
     if (activeFilter === "all") {
@@ -623,6 +665,10 @@ function AskPengeWorkbench({
                     </Alert>
                   ) : null}
 
+                  {completion?.assumptions.length ? (
+                    <AssumptionsList assumptions={completion.assumptions} />
+                  ) : null}
+
                   <Box
                     sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 1.25 }}
                   >
@@ -741,10 +787,39 @@ function AskPengeWorkbench({
                 {completion.summary}
               </Alert>
             ) : null}
+            {completion?.assumptions.length ? (
+              <AssumptionsList assumptions={completion.assumptions} />
+            ) : null}
           </Stack>
         </Box>
       </Drawer>
     </>
+  );
+}
+
+function AssumptionsList({
+  assumptions,
+}: {
+  readonly assumptions: readonly string[];
+}): React.JSX.Element {
+  return (
+    <Box component="section" aria-labelledby="ask-penge-assumptions">
+      <Typography id="ask-penge-assumptions" variant="subtitle2" sx={{ fontWeight: 700 }}>
+        Assumptions and limits
+      </Typography>
+      <List dense disablePadding sx={{ mt: 0.5 }}>
+        {assumptions.map((assumption) => (
+          <ListItem key={assumption} disableGutters sx={{ alignItems: "flex-start", py: 0.25 }}>
+            <Typography
+              color="text.secondary"
+              sx={{ overflowWrap: "anywhere", fontSize: "0.84rem" }}
+            >
+              • {assumption}
+            </Typography>
+          </ListItem>
+        ))}
+      </List>
+    </Box>
   );
 }
 

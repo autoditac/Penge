@@ -87,6 +87,8 @@ are recorded in ADR-0036.
   The route consumes a strict `1.0` zod-validated event envelope for ordered
   text, sanitized tool activity, evidence, completion, and typed errors behind
   an injectable transport.
+  Text deltas are buffered into bounded live-region updates, while terminal
+  completion flushes remaining text and exposes typed assumptions and limits.
   It keeps GitHub account linkage separate from model availability, rejects
   unknown major contracts and extra event fields, never persists transcripts,
   and does not call finance endpoints directly.

@@ -28,7 +28,7 @@ export default defineConfig({
       env: { PENGE_API_PORT: apiPort },
     },
     {
-      command: `pnpm exec vite preview --host 127.0.0.1 --port ${webPort}`,
+      command: `pnpm exec vite build --mode e2e && pnpm exec vite preview --host 127.0.0.1 --port ${webPort}`,
       url: `http://127.0.0.1:${webPort}`,
       reuseExistingServer: !process.env.CI,
       env: {

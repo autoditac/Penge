@@ -1,7 +1,7 @@
 /** Component tests for the Ask Penge workbench.
  * @vitest-environment jsdom
  */
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -61,6 +61,32 @@ function createTransport(events: ReadonlyArray<AskStreamEvent>): AskTransport {
           setTimeout(emitNext, 0);
           return () => {
             listeners.delete(callback);
+          };
+        },
+      };
+    },
+  };
+}
+
+function createImmediateTransport(events: ReadonlyArray<AskStreamEvent>): AskTransport {
+  return {
+    start() {
+      let active = true;
+      return {
+        stop: () => {
+          active = false;
+        },
+        subscribe: (callback) => {
+          if (active) {
+            for (const event of events) {
+              if (!active) {
+                break;
+              }
+              callback(event);
+            }
+          }
+          return () => {
+            active = false;
           };
         },
       };
@@ -190,6 +216,32 @@ describe("AskPengePage", () => {
     ).toThrow();
   });
 
+  it("stops and unsubscribes when a malformed runtime event crosses the adapter", async () => {
+    let stopped = false;
+    let unsubscribed = false;
+    const transport: AskTransport = {
+      start() {
+        return {
+          stop: () => {
+            stopped = true;
+          },
+          subscribe: (callback) => {
+            callback({ type: "text", version: "2.0" });
+            return () => {
+              unsubscribed = true;
+            };
+          },
+        };
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+
+    await startInjectedStream();
+    expect(await screen.findByText("Unsupported answer stream")).toBeInTheDocument();
+    await waitFor(() => expect(unsubscribed).toBe(true));
+    expect(stopped).toBe(true);
+  });
+
   it("collapses the desktop evidence rail without removing the transcript", async () => {
     useMediaQueryMock.mockReturnValue(false);
     render(<AskPengePage />);
@@ -227,6 +279,153 @@ describe("AskPengePage", () => {
       expect(screen.getByRole("button", { name: "Reconnect" })).toBeInTheDocument(),
     );
     expect(screen.getByText(/no transcript was persisted/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    ["auth_expired", "GitHub session expired"],
+    ["rate_limit", "Copilot rate limit reached"],
+    ["data_missing", "Required source data is missing"],
+    ["missing_fx", "EUR/DKK FX evidence is missing"],
+    ["tool_timeout", "Evidence lookup timed out"],
+  ] as const)("renders the %s recovery state", async (code, title) => {
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        transport={createImmediateTransport([
+          {
+            ...envelope(0),
+            type: "error",
+            id: `error-${code}`,
+            code,
+            message: `Synthetic ${code} recovery message.`,
+            retryable: true,
+          },
+        ])}
+      />,
+    );
+
+    await startInjectedStream();
+    expect(await screen.findByText(title)).toBeInTheDocument();
+    expect(screen.getByText(`Synthetic ${code} recovery message.`)).toBeInTheDocument();
+  });
+
+  it("buffers answer announcements and flushes them when cancelled", async () => {
+    vi.useFakeTimers();
+    try {
+      const { unmount } = render(
+        <AskPengePage
+          authState="linked"
+          modelAvailable
+          transport={createImmediateTransport([
+            {
+              ...envelope(0),
+              type: "text",
+              id: "buffered-1",
+              stream: "answer",
+              delta: "Buffered ",
+              source: "assistant",
+            },
+            {
+              ...envelope(1),
+              type: "text",
+              id: "buffered-2",
+              stream: "answer",
+              delta: "answer.",
+              source: "assistant",
+            },
+          ])}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(119));
+      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Stop" }));
+      expect(screen.getByRole("status")).toHaveTextContent("Buffered answer.");
+      expect(vi.getTimerCount()).toBe(0);
+      unmount();
+
+      const timed = render(
+        <AskPengePage
+          authState="linked"
+          modelAvailable
+          transport={createImmediateTransport([
+            {
+              ...envelope(0),
+              type: "text",
+              id: "timed-buffer",
+              stream: "answer",
+              delta: "Timed flush.",
+              source: "assistant",
+            },
+          ])}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      act(() => vi.advanceTimersByTime(120));
+      expect(screen.getByRole("status")).toHaveTextContent("Timed flush.");
+      timed.unmount();
+
+      const pending = render(
+        <AskPengePage
+          authState="linked"
+          modelAvailable
+          transport={createImmediateTransport([
+            {
+              ...envelope(0),
+              type: "text",
+              id: "unmount-buffer",
+              stream: "answer",
+              delta: "Unmount flush.",
+              source: "assistant",
+            },
+          ])}
+        />,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      pending.unmount();
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flushes buffered text and renders typed assumptions on completion", async () => {
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        transport={createImmediateTransport([
+          {
+            ...envelope(0),
+            type: "text",
+            id: "terminal-text",
+            stream: "answer",
+            delta: "Terminal answer.",
+            source: "assistant",
+          },
+          {
+            ...envelope(1),
+            type: "completion",
+            id: "terminal-completion",
+            summary: "Synthetic answer complete.",
+            coverage: "partial",
+            freshness: "fresh",
+            finishReason: "completed",
+            assumptions: ["Synthetic timestamps are treated as current."],
+          },
+        ])}
+      />,
+    );
+
+    await startInjectedStream();
+    expect(screen.getByRole("status")).toHaveTextContent("Terminal answer.");
+    await userEvent.click(screen.getByRole("button", { name: /Open evidence sheet/i }));
+    expect(screen.getByText("Assumptions and limits")).toBeInTheDocument();
+    expect(screen.getByText(/Synthetic timestamps are treated as current/)).toBeInTheDocument();
   });
 
   it("fails closed without starting transport or simulating GitHub linkage", () => {
@@ -289,6 +488,7 @@ describe("AskPengePage", () => {
       coverage: "full",
       freshness: "fresh",
       finishReason: "completed",
+      assumptions: [],
     });
     expect(() => terminal({ ...text, sequence: 1 })).toThrow(/after the stream terminated/i);
   });

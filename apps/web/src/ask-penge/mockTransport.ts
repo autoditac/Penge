@@ -104,6 +104,10 @@ export const defaultAskStream: ReadonlyArray<AskStreamEvent> = [
     coverage: "partial",
     freshness: "fresh",
     finishReason: "completed",
+    assumptions: [
+      "Synthetic report timestamps are treated as current for this test-only transport.",
+      "No uncited value is used to fill a missing source.",
+    ],
   },
 ] as const satisfies ReadonlyArray<AskStreamEvent>;
 

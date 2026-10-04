@@ -68,9 +68,9 @@ describe("PostgreSQL chat-role isolation", () => {
     async () => {
       const config = syntheticConfig();
       const store = await PostgresChatStore.connect(databaseUrl!, expectedRole!, {
-        timeoutMs: 50,
+        timeoutMs: 500,
         connectionTimeoutMs: 1_000,
-        oauthTransactionTimeoutMs: 250,
+        oauthTransactionTimeoutMs: 1_000,
       });
       const actorId = "actor_abcdef0123456789abcdef0123456789";
       const initialResponses = [

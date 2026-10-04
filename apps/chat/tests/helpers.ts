@@ -95,6 +95,20 @@ export class MemoryChatStore implements ChatStore {
     }
   }
 
+  async withOAuthCallbackLock<T>(
+    actorId: string,
+    stateHash: string,
+    operation: (
+      stateEnvelope: EncryptedEnvelope | null,
+      lockedStore: LockedOAuthActorStore,
+    ) => Promise<T>,
+  ): Promise<T> {
+    return this.withOAuthActorLock(actorId, async (lockedStore) => {
+      const stateEnvelope = await lockedStore.consumeState(stateHash);
+      return operation(stateEnvelope, lockedStore);
+    });
+  }
+
   async putOAuthState(
     actorId: string,
     stateHash: string,

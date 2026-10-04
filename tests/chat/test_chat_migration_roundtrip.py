@@ -95,7 +95,7 @@ def _table_names(database_url: str) -> set[str]:
         engine.dispose()
 
 
-def _assert_column_grant_rejected(admin_url: str) -> None:
+def _run_store_postgres_tests(admin_url: str) -> None:
     chat_admin_url = _database_url(admin_url, CHAT_DATABASE)
     chat_admin_engine = sa.create_engine(chat_admin_url)
     try:
@@ -143,12 +143,34 @@ def _assert_column_grant_rejected(admin_url: str) -> None:
                 **os.environ,
                 "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
                 "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
+                "PENGE_CHAT_STORE_EXPECT_PRIVILEGE_REJECTION": "1",
             },
             text=True,
         )
         assert store_test.returncode == 0, store_test.stdout + store_test.stderr
         with chat_admin_engine.begin() as connection:
             connection.execute(sa.text("DROP TABLE finance_shadow"))
+        functional_test = subprocess.run(  # noqa: S603 - resolved executable, constant arguments
+            [
+                pnpm,
+                "--filter",
+                "@penge/chat",
+                "exec",
+                "vitest",
+                "run",
+                "tests/store.postgres.test.ts",
+            ],
+            check=False,
+            capture_output=True,
+            env={
+                **os.environ,
+                "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
+                "PENGE_CHAT_STORE_TEST_ADMIN_URL": chat_admin_url,
+                "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
+            },
+            text=True,
+        )
+        assert functional_test.returncode == 0, functional_test.stdout + functional_test.stderr
     finally:
         chat_admin_engine.dispose()
 
@@ -192,7 +214,7 @@ def test_dedicated_chat_migration_roundtrip(
         chat_engine.dispose()
     assert _table_names(finance_url) == finance_before
 
-    _assert_column_grant_rejected(admin_url)
+    _run_store_postgres_tests(admin_url)
 
     command.downgrade(chat_config, "base")
     assert _table_names(chat_url).isdisjoint(CHAT_TABLES)

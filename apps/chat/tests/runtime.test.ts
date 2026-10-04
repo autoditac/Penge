@@ -17,6 +17,7 @@ class FakeCopilotRuntime implements CopilotRuntime {
     }
   >();
   sendGate?: Promise<void>;
+  createGate?: Promise<void>;
   closeError?: Error;
   emitIdleOnAbort = false;
 
@@ -26,6 +27,7 @@ class FakeCopilotRuntime implements CopilotRuntime {
     tokenProvider: GitHubTokenProvider;
     sink: CopilotEventSink;
   }): Promise<ActiveCopilotRun> {
+    await this.createGate;
     const state = { sink: options.sink, aborted: false, closed: false };
     this.runs.set(options.sessionId, state);
     return {
@@ -199,6 +201,34 @@ describe("chat runtime isolation and lifecycle", () => {
     await expect(runtime.start("actor-c", "Third actor", () => undefined)).rejects.toThrow(
       /concurrency limit/,
     );
+  });
+
+  it("shares capacity atomically between readiness probes and chats", async () => {
+    let releaseCreate: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    copilot.createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessions: 1, maxConcurrentSessionsPerActor: 1 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const readiness = runtime.ensureModelAvailable("actor-a");
+    await expect(runtime.start("actor-a", "Overlapping chat", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+    await expect(runtime.start("actor-b", "Global overlap", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+    releaseCreate?.();
+    await expect(readiness).resolves.toBe(true);
+
+    const sessionId = await runtime.start("actor-a", "After readiness", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+    await runtime.cancel("actor-a", sessionId);
   });
 
   it("returns the session id before send admission and can cancel immediately", async () => {
@@ -406,6 +436,36 @@ describe("chat runtime isolation and lifecycle", () => {
     await vi.advanceTimersByTimeAsync(25);
     expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true });
     expect(runtime.activeSessionCount).toBe(0);
+  });
+
+  it("does not start the SDK after a timed-out audit insert returns", async () => {
+    let releaseAudit: (() => void) | undefined;
+    const auditGate = new Promise<void>((resolve) => {
+      releaseAudit = resolve;
+    });
+    class StalledAuditStore extends MemoryChatStore {
+      override async appendAudit(
+        event: Parameters<MemoryChatStore["appendAudit"]>[0],
+      ): Promise<void> {
+        if (event.status === "started") {
+          await auditGate;
+        }
+        await super.appendAudit(event);
+      }
+    }
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ requestTimeoutMs: 20 }),
+      copilot,
+      tokenService,
+      new StalledAuditStore(),
+    );
+
+    await runtime.start("actor-a", "Safe question", () => undefined);
+    await vi.waitFor(() => expect(runtime.activeSessionCount).toBe(0));
+    releaseAudit?.();
+    await runtime.close();
+    expect(copilot.runs.size).toBe(0);
   });
 
   it("drains every session when audit and run cleanup reject", async () => {

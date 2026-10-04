@@ -132,8 +132,7 @@ export class GitHubOAuthFlow {
 
   async complete(actorId: string, rawState: string, code: string): Promise<string> {
     const stateHash = hashOAuthState(rawState, this.config.identityPepper);
-    return this.store.withOAuthActorLock(actorId, async (lockedStore) => {
-      const envelope = await lockedStore.consumeState(stateHash);
+    return this.store.withOAuthCallbackLock(actorId, stateHash, async (envelope, lockedStore) => {
       if (envelope === null) {
         throw new AuthenticationError("OAuth state is invalid, expired, or already consumed");
       }

@@ -32,6 +32,7 @@ interface ActiveSession {
   sink: StreamSink;
   timeout: NodeJS.Timeout;
   terminal: boolean;
+  releaseCapacity: () => void;
   toolsByCallId: Map<string, McpToolName>;
   eventQueue: Promise<void>;
   evidence: Array<{
@@ -189,6 +190,8 @@ export class ChatRuntime {
   private readonly availableActors = new Set<string>();
   private readonly readinessTasks = new Map<string, Promise<boolean>>();
   private readonly actorGenerations = new Map<string, number>();
+  private reservedCapacity = 0;
+  private readonly actorCapacity = new Map<string, number>();
   private readonly backgroundTasks = new Set<Promise<void>>();
   private readonly backgroundErrors: unknown[] = [];
 
@@ -222,8 +225,10 @@ export class ChatRuntime {
     if (current !== undefined) {
       return current;
     }
+    const releaseCapacity = this.reserveCapacity(actorId);
     const generation = this.actorGenerations.get(actorId) ?? 0;
     const readiness = this.probeModelAvailability(actorId, generation).finally(() => {
+      releaseCapacity();
       if (this.readinessTasks.get(actorId) === readiness) {
         this.readinessTasks.delete(actorId);
       }
@@ -261,15 +266,7 @@ export class ChatRuntime {
       throw new FeatureDisabledError("Ask Penge is not enabled");
     }
     assertPromptIsSafe(question);
-    if (this.sessions.size >= this.config.maxConcurrentSessions) {
-      throw new SessionLimitError("chat concurrency limit reached");
-    }
-    const actorSessions = [...this.sessions.values()].filter(
-      (session) => session.actorId === actorId,
-    ).length;
-    if (actorSessions >= this.config.maxConcurrentSessionsPerActor) {
-      throw new SessionLimitError("per-actor chat concurrency limit reached");
-    }
+    const releaseCapacity = this.reserveCapacity(actorId);
 
     const sessionId = randomUUID();
     const startedAt = Date.now();
@@ -301,6 +298,7 @@ export class ChatRuntime {
       sink,
       timeout,
       terminal: false,
+      releaseCapacity,
       toolsByCallId: new Map(),
       eventQueue: Promise.resolve(),
       evidence: [],
@@ -392,6 +390,32 @@ export class ChatRuntime {
     this.backgroundTasks.add(tracked);
   }
 
+  private reserveCapacity(actorId: string): () => void {
+    if (this.reservedCapacity >= this.config.maxConcurrentSessions) {
+      throw new SessionLimitError("chat concurrency limit reached");
+    }
+    const actorReserved = this.actorCapacity.get(actorId) ?? 0;
+    if (actorReserved >= this.config.maxConcurrentSessionsPerActor) {
+      throw new SessionLimitError("per-actor chat concurrency limit reached");
+    }
+    this.reservedCapacity += 1;
+    this.actorCapacity.set(actorId, actorReserved + 1);
+    let released = false;
+    return () => {
+      if (released) {
+        return;
+      }
+      released = true;
+      this.reservedCapacity -= 1;
+      const remaining = (this.actorCapacity.get(actorId) ?? 1) - 1;
+      if (remaining === 0) {
+        this.actorCapacity.delete(actorId);
+      } else {
+        this.actorCapacity.set(actorId, remaining);
+      }
+    };
+  }
+
   private async probeModelAvailability(actorId: string, generation: number): Promise<boolean> {
     let run: ActiveCopilotRun | undefined;
     try {
@@ -429,6 +453,9 @@ export class ChatRuntime {
         durationMs: null,
         argumentKeys: [],
       });
+      if (session.terminal) {
+        return;
+      }
       const run = await this.copilot.createRun({
         actorId: session.actorId,
         sessionId: session.sessionId,
@@ -658,6 +685,7 @@ export class ChatRuntime {
     session.terminal = true;
     clearTimeout(session.timeout);
     this.sessions.delete(session.sessionId);
+    session.releaseCapacity();
 
     const failures: unknown[] = [];
     if (abort && session.run !== undefined) {

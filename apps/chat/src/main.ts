@@ -14,7 +14,22 @@ import { PostgresChatStore } from "./store.js";
 async function main(): Promise<void> {
   const config = loadConfig();
   const logger = pino({ level: "info" });
-  const store = await PostgresChatStore.connect(config.databaseUrl, config.databaseRole);
+  let shutdown: ((reason: string) => Promise<void>) | undefined;
+  let poolFailed = false;
+  const store = await PostgresChatStore.connect(config.databaseUrl, config.databaseRole, {
+    timeoutMs: Math.min(config.requestTimeoutMs, 5_000),
+    onPoolError: (error) => {
+      poolFailed = true;
+      process.exitCode = 1;
+      logger.error(
+        { operation: "database_pool", errorType: error.name },
+        "chat database pool failed",
+      );
+      if (shutdown !== undefined) {
+        void shutdown("database_pool");
+      }
+    },
+  });
   try {
     if (config.productionEnabled) {
       await verifyMcpServerContract(config);
@@ -27,7 +42,7 @@ async function main(): Promise<void> {
       logger,
     });
     let shuttingDown = false;
-    const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+    shutdown = async (reason: string): Promise<void> => {
       if (shuttingDown) {
         return;
       }
@@ -38,7 +53,7 @@ async function main(): Promise<void> {
         logger.error(
           {
             operation: "shutdown",
-            signal,
+            reason,
             errorType: error instanceof Error ? error.name : "UnknownError",
           },
           "chat service shutdown failed",
@@ -47,11 +62,14 @@ async function main(): Promise<void> {
       }
     };
     process.once("SIGINT", () => {
-      void shutdown("SIGINT");
+      void shutdown?.("SIGINT");
     });
     process.once("SIGTERM", () => {
-      void shutdown("SIGTERM");
+      void shutdown?.("SIGTERM");
     });
+    if (poolFailed) {
+      void shutdown("database_pool");
+    }
   } catch (error) {
     try {
       await store.close();

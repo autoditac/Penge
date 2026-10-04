@@ -48,6 +48,14 @@ export interface ChatStore {
     actorId: string,
     operation: (lockedStore: LockedOAuthActorStore) => Promise<T>,
   ): Promise<T>;
+  withOAuthCallbackLock<T>(
+    actorId: string,
+    stateHash: string,
+    operation: (
+      stateEnvelope: EncryptedEnvelope | null,
+      lockedStore: LockedOAuthActorStore,
+    ) => Promise<T>,
+  ): Promise<T>;
   putOAuthState(
     actorId: string,
     stateHash: string,
@@ -78,14 +86,36 @@ interface Queryable {
   ): Promise<{ rows: Array<{ table_name: string; table_schema: string }> }>;
 }
 
+export interface PostgresChatStoreOptions {
+  timeoutMs?: number;
+  onPoolError?: (error: Error) => void;
+}
+
+function isDatabaseTimeout(error: unknown): boolean {
+  return error instanceof Error && /timeout|canceling statement/i.test(error.message);
+}
+
 export class PostgresChatStore implements ChatStore {
   private constructor(private readonly pool: pg.Pool) {}
 
-  static async connect(databaseUrl: string, expectedRole: string): Promise<PostgresChatStore> {
+  static async connect(
+    databaseUrl: string,
+    expectedRole: string,
+    options: PostgresChatStoreOptions = {},
+  ): Promise<PostgresChatStore> {
+    const timeoutMs = options.timeoutMs ?? 5_000;
     const pool = new Pool({
       connectionString: databaseUrl,
       max: 4,
       application_name: "penge-chat",
+      connectionTimeoutMillis: timeoutMs,
+      query_timeout: timeoutMs,
+      statement_timeout: timeoutMs,
+      lock_timeout: timeoutMs,
+      idle_in_transaction_session_timeout: timeoutMs,
+    });
+    pool.on("error", (error) => {
+      options.onPoolError?.(error);
     });
     try {
       const result = await pool.query<{ role: string }>("SELECT current_user::text AS role");
@@ -108,91 +138,149 @@ export class PostgresChatStore implements ChatStore {
     operation: (lockedStore: LockedOAuthActorStore) => Promise<T>,
   ): Promise<T> {
     const client = await this.pool.connect();
+    let discard = false;
     try {
       await client.query("BEGIN");
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [actorId]);
-      const result = await operation({
-        putState: async (stateHash, stateEnvelope, expiresAt) => {
-          await client.query("DELETE FROM chat_oauth_state WHERE expires_at <= now()");
-          await client.query(
-            `INSERT INTO chat_oauth_state
-               (state_hash, actor_id, state_envelope, expires_at)
-             VALUES ($1, $2, $3::jsonb, $4)
-             ON CONFLICT (actor_id) DO UPDATE SET
-               state_hash = EXCLUDED.state_hash,
-               state_envelope = EXCLUDED.state_envelope,
-               created_at = now(),
-               expires_at = EXCLUDED.expires_at`,
-            [stateHash, actorId, JSON.stringify(stateEnvelope), expiresAt],
-          );
-        },
-        consumeState: async (stateHash, now = new Date()) => {
-          const stateResult = await client.query<{
-            state_envelope: EncryptedEnvelope;
-            expires_at: Date;
-          }>(
-            `DELETE FROM chat_oauth_state
-             WHERE state_hash = $1 AND actor_id = $2
-             RETURNING state_envelope, expires_at`,
-            [stateHash, actorId],
-          );
-          const row = stateResult.rows[0];
-          if (row === undefined || row.expires_at.getTime() <= now.getTime()) {
-            return null;
-          }
-          return row.state_envelope;
-        },
-        deletePendingStates: async () => {
-          await client.query("DELETE FROM chat_oauth_state WHERE actor_id = $1", [actorId]);
-        },
-        getLink: async () => {
-          const result = await client.query<{
-            actor_id: string;
-            github_user_id: string;
-            github_login: string;
-            token_envelope: unknown;
-            updated_at: Date;
-          }>(
-            `SELECT actor_id, github_user_id, github_login, token_envelope, updated_at
-             FROM chat_oauth_link WHERE actor_id = $1`,
-            [actorId],
-          );
-          const row = result.rows[0];
-          return row === undefined
-            ? null
-            : OAuthLinkSchema.parse({
-                actorId: row.actor_id,
-                githubUserId: Number(row.github_user_id),
-                githubLogin: row.github_login,
-                tokenEnvelope: row.token_envelope,
-                updatedAt: row.updated_at.toISOString(),
-              });
-        },
-        upsertLink: async (githubUserId, githubLogin, tokenEnvelope) => {
-          await client.query(
-            `INSERT INTO chat_oauth_link
-               (actor_id, github_user_id, github_login, token_envelope)
-             VALUES ($1, $2, $3, $4::jsonb)
-             ON CONFLICT (actor_id) DO UPDATE SET
-               github_user_id = EXCLUDED.github_user_id,
-               github_login = EXCLUDED.github_login,
-               token_envelope = EXCLUDED.token_envelope,
-               updated_at = now()`,
-            [actorId, githubUserId, githubLogin, JSON.stringify(tokenEnvelope)],
-          );
-        },
-        deleteLink: async () => {
-          await client.query("DELETE FROM chat_oauth_link WHERE actor_id = $1", [actorId]);
-        },
-      });
+      const result = await operation(this.lockedActorStore(client, actorId));
       await client.query("COMMIT");
       return result;
     } catch (error) {
-      await client.query("ROLLBACK");
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
       throw error;
     } finally {
-      client.release();
+      client.release(discard);
     }
+  }
+
+  async withOAuthCallbackLock<T>(
+    actorId: string,
+    stateHash: string,
+    operation: (
+      stateEnvelope: EncryptedEnvelope | null,
+      lockedStore: LockedOAuthActorStore,
+    ) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect();
+    let locked = false;
+    let discard = false;
+    try {
+      await client.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [actorId]);
+      locked = true;
+      await client.query("BEGIN");
+      const stateResult = await client.query<{
+        state_envelope: EncryptedEnvelope;
+        expires_at: Date;
+      }>(
+        `DELETE FROM chat_oauth_state
+         WHERE state_hash = $1 AND actor_id = $2
+         RETURNING state_envelope, expires_at`,
+        [stateHash, actorId],
+      );
+      await client.query("COMMIT");
+      const row = stateResult.rows[0];
+      const stateEnvelope =
+        row === undefined || row.expires_at.getTime() <= Date.now() ? null : row.state_envelope;
+      return await operation(stateEnvelope, this.lockedActorStore(client, actorId));
+    } catch (error) {
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
+      throw error;
+    } finally {
+      if (locked) {
+        try {
+          await client.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [actorId]);
+        } catch {
+          discard = true;
+        }
+      }
+      client.release(discard);
+    }
+  }
+
+  private lockedActorStore(client: pg.PoolClient, actorId: string): LockedOAuthActorStore {
+    return {
+      putState: async (stateHash, stateEnvelope, expiresAt) => {
+        await client.query("DELETE FROM chat_oauth_state WHERE expires_at <= now()");
+        await client.query(
+          `INSERT INTO chat_oauth_state
+             (state_hash, actor_id, state_envelope, expires_at)
+           VALUES ($1, $2, $3::jsonb, $4)
+           ON CONFLICT (actor_id) DO UPDATE SET
+             state_hash = EXCLUDED.state_hash,
+             state_envelope = EXCLUDED.state_envelope,
+             created_at = now(),
+             expires_at = EXCLUDED.expires_at`,
+          [stateHash, actorId, JSON.stringify(stateEnvelope), expiresAt],
+        );
+      },
+      consumeState: async (stateHash, now = new Date()) => {
+        const stateResult = await client.query<{
+          state_envelope: EncryptedEnvelope;
+          expires_at: Date;
+        }>(
+          `DELETE FROM chat_oauth_state
+           WHERE state_hash = $1 AND actor_id = $2
+           RETURNING state_envelope, expires_at`,
+          [stateHash, actorId],
+        );
+        const row = stateResult.rows[0];
+        return row === undefined || row.expires_at.getTime() <= now.getTime()
+          ? null
+          : row.state_envelope;
+      },
+      deletePendingStates: async () => {
+        await client.query("DELETE FROM chat_oauth_state WHERE actor_id = $1", [actorId]);
+      },
+      getLink: async () => {
+        const result = await client.query<{
+          actor_id: string;
+          github_user_id: string;
+          github_login: string;
+          token_envelope: unknown;
+          updated_at: Date;
+        }>(
+          `SELECT actor_id, github_user_id, github_login, token_envelope, updated_at
+           FROM chat_oauth_link WHERE actor_id = $1`,
+          [actorId],
+        );
+        const row = result.rows[0];
+        return row === undefined
+          ? null
+          : OAuthLinkSchema.parse({
+              actorId: row.actor_id,
+              githubUserId: Number(row.github_user_id),
+              githubLogin: row.github_login,
+              tokenEnvelope: row.token_envelope,
+              updatedAt: row.updated_at.toISOString(),
+            });
+      },
+      upsertLink: async (githubUserId, githubLogin, tokenEnvelope) => {
+        await client.query(
+          `INSERT INTO chat_oauth_link
+             (actor_id, github_user_id, github_login, token_envelope)
+           VALUES ($1, $2, $3, $4::jsonb)
+           ON CONFLICT (actor_id) DO UPDATE SET
+             github_user_id = EXCLUDED.github_user_id,
+             github_login = EXCLUDED.github_login,
+             token_envelope = EXCLUDED.token_envelope,
+             updated_at = now()`,
+          [actorId, githubUserId, githubLogin, JSON.stringify(tokenEnvelope)],
+        );
+      },
+      deleteLink: async () => {
+        await client.query("DELETE FROM chat_oauth_link WHERE actor_id = $1", [actorId]);
+      },
+    };
   }
 
   async putOAuthState(
@@ -202,6 +290,7 @@ export class PostgresChatStore implements ChatStore {
     expiresAt: string,
   ): Promise<void> {
     const client = await this.pool.connect();
+    let discard = false;
     try {
       await client.query("BEGIN");
       await client.query(
@@ -221,10 +310,15 @@ export class PostgresChatStore implements ChatStore {
       );
       await client.query("COMMIT");
     } catch (error) {
-      await client.query("ROLLBACK");
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
       throw error;
     } finally {
-      client.release();
+      client.release(discard);
     }
   }
 
@@ -234,6 +328,7 @@ export class PostgresChatStore implements ChatStore {
     now = new Date(),
   ): Promise<EncryptedEnvelope | null> {
     const client = await this.pool.connect();
+    let discard = false;
     try {
       await client.query("BEGIN");
       const result = await client.query<{
@@ -252,10 +347,15 @@ export class PostgresChatStore implements ChatStore {
       }
       return row.state_envelope;
     } catch (error) {
-      await client.query("ROLLBACK");
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
       throw error;
     } finally {
-      client.release();
+      client.release(discard);
     }
   }
 

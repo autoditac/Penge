@@ -2,7 +2,7 @@ import { createConnection } from "node:net";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { FeatureDisabledError, PengeError } from "../src/errors.js";
+import { FeatureDisabledError, PengeError, SessionLimitError } from "../src/errors.js";
 import { startChatServer } from "../src/server.js";
 import type { StreamEvent } from "../src/stream.js";
 import { syntheticConfig } from "./helpers.js";
@@ -159,6 +159,39 @@ describe("loopback HTTP service", () => {
         github: { state: "not-linked", login: null },
         model: { id: "hydrafusion", available: false },
         featureEnabled: true,
+      });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("returns rate_limit when model readiness has no shared capacity", async () => {
+    const server = await startChatServer(syntheticConfig(), {
+      runtime: {
+        start: async () => "00000000-0000-4000-8000-000000000001",
+        cancel: async () => undefined,
+        disconnect: async () => undefined,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => false,
+        ensureModelAvailable: async () => {
+          throw new SessionLimitError("capacity is full");
+        },
+        invalidateActor: async () => undefined,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async () => "synthetic-user",
+        status: async () => ({ state: "linked" as const, login: "synthetic-user" }),
+        unlink: async () => undefined,
+      },
+    });
+    try {
+      const response = await fetch(`${server.origin}/v1/auth/status`, { headers });
+      expect(response.status).toBe(429);
+      expect(await response.json()).toEqual({
+        code: "rate_limit",
+        message: "The chat concurrency limit was reached.",
       });
     } finally {
       await server.close();

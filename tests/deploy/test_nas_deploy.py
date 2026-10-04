@@ -1,4 +1,7 @@
+import re
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).parents[2]
 
@@ -148,8 +151,75 @@ def test_nas_nginx_routes_spa_to_web_container_and_api_separately() -> None:
     nginx = (ROOT / "deploy/nas/penge.eigmueller.de.conf").read_text()
 
     assert "proxy_pass http://127.0.0.1:8082;" in nginx
-    assert "proxy_pass http://127.0.0.1:8001;" in nginx
+    assert "proxy_pass http://$penge_api_upstream;" in nginx
     assert "root  /var/www/penge;" not in nginx
+
+
+@pytest.mark.parametrize(
+    ("path", "is_api"),
+    [
+        ("/household", False),
+        ("/household/", False),
+        ("/household/transactions", True),
+        ("/household/transactions/synthetic-id/classification", True),
+        ("/household/categories", True),
+        ("/household/merchants", True),
+        ("/household/rules", True),
+        ("/household/reports/summary", True),
+        ("/household/payment-details", True),
+        ("/vendors/reference-index/status", True),
+        ("/vendors/reference-index/records", True),
+        ("/meta/freshness", True),
+        ("/connections", True),
+        ("/household-other", False),
+        ("/vendors-other", False),
+        ("/", False),
+    ],
+)
+def test_nas_nginx_routes_household_api_without_shadowing_spa(path: str, is_api: bool) -> None:
+    nginx = (ROOT / "deploy/nas/penge.eigmueller.de.conf").read_text()
+    location = re.search(r"location ~ (\S+) \{([^}]+)\}", nginx)
+    assert location is not None
+    assert bool(re.search(location.group(1), path)) is is_api
+    api_block = location.group(2)
+    assert "auth_request /oauth2/auth;" in api_block
+    assert "proxy_pass http://$penge_api_upstream;" in api_block
+    assert "add_header Vary Accept always;" in api_block
+
+
+@pytest.mark.parametrize("path", ["report", "categories", "merchants", "rules", "transactions"])
+@pytest.mark.parametrize(
+    "accept",
+    [
+        "text/html",
+        "text/html,application/xhtml+xml",
+        "application/json",
+        "",
+        "*/*",
+        "application/json,text/html",
+    ],
+)
+def test_nas_household_shared_urls_distinguish_document_and_api_requests(
+    path: str, accept: str
+) -> None:
+    nginx = (ROOT / "deploy/nas/penge.eigmueller.de.conf").read_text()
+    accept_map = re.search(r"map \$http_accept \$penge_household_upstream \{([^}]+)\}", nginx)
+    uri_map = re.search(r"map \$uri \$penge_api_upstream \{([^}]+)\}", nginx)
+    assert accept_map is not None
+    assert uri_map is not None
+    assert "default 127.0.0.1:8001;" in accept_map.group(1)
+    html_route = re.search(r"~\*(\S+) (127\.0\.0\.1:\d+);", accept_map.group(1))
+    household_route = re.search(r"~(\S+) \$penge_household_upstream;", uri_map.group(1))
+    assert html_route is not None
+    assert household_route is not None
+    assert re.search(household_route.group(1), f"/household/{path}")
+    upstream = (
+        html_route.group(2)
+        if re.search(html_route.group(1), accept, re.IGNORECASE)
+        else "127.0.0.1:8001"
+    )
+    assert upstream == ("127.0.0.1:8082" if "text/html" in accept else "127.0.0.1:8001")
+    assert "default 127.0.0.1:8001;" in uri_map.group(1)
 
 
 def test_web_image_targets_the_production_api_origin() -> None:

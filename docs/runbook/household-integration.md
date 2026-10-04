@@ -142,6 +142,19 @@ decimal precision, missing-FX presentation, preview review guards, and vendor st
 API/service tests cover source reimports, stale previews/details, deterministic
 learning conflicts, audit/undo, and public generation failure/privacy behavior.
 
+### Bootstrapping a merchant rule
+
+Create or verify a confirmed `stable` household merchant under **Merchants** first, then create a confirmed provider-scoped alias for the bank counterparty label.
+Open one transaction, select that merchant under **Merchant identity**, check the explicit transaction confirmation, choose one expense or income category, and save the correction.
+This single revision-checked write supplies the human-confirmed evidence required for deterministic learning.
+The alias supplies the exact local match required for future bank sync and historical preview candidates; merchant confirmation alone does not match another transaction.
+Split, refund, processor, marketplace, mixed, unknown, archived, or unconfirmed identities remain non-learning evidence.
+
+Bulk category correction never confirms a new merchant identity.
+It preserves only identity evidence already confirmed on each transaction, so bulk selection cannot turn a shared label into a merchant identity.
+An active rule can classify only newly inserted eligible movements during sync.
+For existing history, create a persisted rule preview under **Rules**, review the candidates, and explicitly approve it; manual overrides and reconciled transactions remain protected.
+
 ## Outstanding acceptance gates
 
 The `just household-test` recipe requires a separately authorized disposable

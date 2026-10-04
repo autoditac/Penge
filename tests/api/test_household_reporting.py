@@ -305,6 +305,35 @@ def test_transaction_drilldown_keeps_bank_amount_and_detail_as_sidecar(
     assert item["payment_details"][0]["event_kind"] == "unknown"
 
 
+def test_transaction_drilldown_keeps_positive_unclassified_credit_reportable(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _mock_household_data(monkeypatch)
+    credit = next(row for row in _facts() if row["transaction_id"] == "t3")
+    monkeypatch.setattr(
+        data,
+        "fetch_household_transaction_page",
+        lambda **kwargs: ([credit], 1),
+    )
+
+    response = client.get(
+        "/household/reports/transactions",
+        params={
+            "since": "2025-07-01",
+            "until": "2025-07-31",
+        },
+    )
+
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["treatment"] == "unclassified"
+    assert item["signed_amount_native"] == "25.00"
+    assert item["matching_split_amount_native"] == "25.00"
+    assert item["matching_split_amount_reporting"]["eur"]["amount"] == "25.00"
+    assert item["allocations"][0]["category_id"] is None
+
+
 def test_category_filtered_transaction_keeps_full_bank_amount_separate_from_split(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,

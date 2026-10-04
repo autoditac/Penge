@@ -46,7 +46,10 @@ class MigrationSettings(BaseModel):
             raise RuntimeError("chat migration database URL is invalid") from error
 
 
-config.set_main_option("sqlalchemy.url", MigrationSettings.from_environment().database_url())
+config.set_main_option(
+    "sqlalchemy.url",
+    MigrationSettings.from_environment().database_url().replace("%", "%%"),
+)
 target_metadata = None
 
 

@@ -187,6 +187,8 @@ export function summarizeEvidence(
 export class ChatRuntime {
   private readonly sessions = new Map<string, ActiveSession>();
   private readonly availableActors = new Set<string>();
+  private readonly readinessTasks = new Map<string, Promise<boolean>>();
+  private readonly actorGenerations = new Map<string, number>();
   private readonly backgroundTasks = new Set<Promise<void>>();
   private readonly backgroundErrors: unknown[] = [];
 
@@ -209,12 +211,48 @@ export class ChatRuntime {
     return this.availableActors.has(actorId);
   }
 
+  async ensureModelAvailable(actorId: string): Promise<boolean> {
+    if (!this.config.productionEnabled) {
+      return false;
+    }
+    if (this.availableActors.has(actorId)) {
+      return true;
+    }
+    const current = this.readinessTasks.get(actorId);
+    if (current !== undefined) {
+      return current;
+    }
+    const generation = this.actorGenerations.get(actorId) ?? 0;
+    const readiness = this.probeModelAvailability(actorId, generation).finally(() => {
+      if (this.readinessTasks.get(actorId) === readiness) {
+        this.readinessTasks.delete(actorId);
+      }
+    });
+    this.readinessTasks.set(actorId, readiness);
+    return readiness;
+  }
+
   async invalidateActor(actorId: string): Promise<void> {
+    this.actorGenerations.set(actorId, (this.actorGenerations.get(actorId) ?? 0) + 1);
     this.availableActors.delete(actorId);
     await Promise.all(
       [...this.sessions.values()]
         .filter((session) => session.actorId === actorId)
-        .map((session) => this.finish(session, "cancelled", undefined, true)),
+        .map((session) =>
+          this.finish(
+            session,
+            "cancelled",
+            {
+              type: "completion",
+              summary: "The linked GitHub identity changed.",
+              coverage: "partial",
+              freshness: "stale",
+              finishReason: "cancelled",
+              assumptions: [],
+            },
+            true,
+          ),
+        ),
     );
   }
 
@@ -318,6 +356,12 @@ export class ChatRuntime {
 
   async close(): Promise<void> {
     const failures: unknown[] = [];
+    const readinessResults = await Promise.allSettled([...this.readinessTasks.values()]);
+    for (const result of readinessResults) {
+      if (result.status === "rejected") {
+        failures.push(result.reason);
+      }
+    }
     const sessionResults = await Promise.allSettled(
       [...this.sessions.values()].map((session) =>
         this.finish(session, "cancelled", undefined, true),
@@ -346,6 +390,33 @@ export class ChatRuntime {
         this.backgroundTasks.delete(tracked);
       });
     this.backgroundTasks.add(tracked);
+  }
+
+  private async probeModelAvailability(actorId: string, generation: number): Promise<boolean> {
+    let run: ActiveCopilotRun | undefined;
+    try {
+      run = await this.copilot.createRun({
+        actorId,
+        sessionId: randomUUID(),
+        tokenProvider: this.tokenService.providerFor(actorId),
+        sink: { onEvent: () => undefined },
+      });
+      await run.close();
+      if ((this.actorGenerations.get(actorId) ?? 0) !== generation) {
+        return false;
+      }
+      this.availableActors.add(actorId);
+      return true;
+    } catch (error) {
+      this.availableActors.delete(actorId);
+      if (error instanceof HydraFusionUnavailableError) {
+        return false;
+      }
+      if (run !== undefined) {
+        await run.close().catch(() => undefined);
+      }
+      throw error;
+    }
   }
 
   private async launch(session: ActiveSession, question: string): Promise<void> {

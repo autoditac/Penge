@@ -39,10 +39,12 @@ The database stores only an HMAC state lookup and an encrypted versioned state e
 Access and refresh tokens use AES-256-GCM envelopes carrying a key ID.
 A mounted versioned keyring retains old keys for decryption while one current key encrypts new and refreshed credentials.
 Per-actor PostgreSQL advisory locks serialize refresh, relink, status, and unlink operations across service processes so rotating refresh tokens cannot be redeemed concurrently or overwrite a newer link.
+The same lock serializes OAuth state creation/consumption with unlink, which removes every pending state before it reports success.
 
 The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedInUser: false`, actor-isolated storage, exact `hydrafusion`, no fallback, no session store, no config discovery, no skills, extensions, canvases, built-in tools, or custom tools.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
 Exact-model session creation with that provider is the per-actor entitlement check; client-global unauthenticated model listing is not used.
+A bounded, immediately closed exact-model session lets authenticated status checks establish readiness before the browser submits its first question.
 The MCP server is a local stdio child with a minimal explicit environment, a mounted finance database URL file, and allowlisted read-only tools.
 Startup probes the production MCP child with `connect`, `listTools`, and `close`; missing or extra registrations and missing output schemas disable production.
 

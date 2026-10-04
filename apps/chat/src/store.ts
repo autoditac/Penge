@@ -31,6 +31,9 @@ export type OAuthLink = z.infer<typeof OAuthLinkSchema>;
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 
 export interface LockedOAuthActorStore {
+  putState(stateHash: string, stateEnvelope: EncryptedEnvelope, expiresAt: string): Promise<void>;
+  consumeState(stateHash: string, now?: Date): Promise<EncryptedEnvelope | null>;
+  deletePendingStates(): Promise<void>;
   getLink(): Promise<OAuthLink | null>;
   upsertLink(
     githubUserId: number,
@@ -109,6 +112,39 @@ export class PostgresChatStore implements ChatStore {
       await client.query("BEGIN");
       await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [actorId]);
       const result = await operation({
+        putState: async (stateHash, stateEnvelope, expiresAt) => {
+          await client.query("DELETE FROM chat_oauth_state WHERE expires_at <= now()");
+          await client.query(
+            `INSERT INTO chat_oauth_state
+               (state_hash, actor_id, state_envelope, expires_at)
+             VALUES ($1, $2, $3::jsonb, $4)
+             ON CONFLICT (actor_id) DO UPDATE SET
+               state_hash = EXCLUDED.state_hash,
+               state_envelope = EXCLUDED.state_envelope,
+               created_at = now(),
+               expires_at = EXCLUDED.expires_at`,
+            [stateHash, actorId, JSON.stringify(stateEnvelope), expiresAt],
+          );
+        },
+        consumeState: async (stateHash, now = new Date()) => {
+          const stateResult = await client.query<{
+            state_envelope: EncryptedEnvelope;
+            expires_at: Date;
+          }>(
+            `DELETE FROM chat_oauth_state
+             WHERE state_hash = $1 AND actor_id = $2
+             RETURNING state_envelope, expires_at`,
+            [stateHash, actorId],
+          );
+          const row = stateResult.rows[0];
+          if (row === undefined || row.expires_at.getTime() <= now.getTime()) {
+            return null;
+          }
+          return row.state_envelope;
+        },
+        deletePendingStates: async () => {
+          await client.query("DELETE FROM chat_oauth_state WHERE actor_id = $1", [actorId]);
+        },
         getLink: async () => {
           const result = await client.query<{
             actor_id: string;
@@ -301,10 +337,17 @@ export async function assertNoFinanceTableAccess(queryable: Queryable): Promise<
          table_schema = 'public'
          AND table_name = ANY($1::text[])
        )
-       AND has_table_privilege(
-         current_user,
-         format('%I.%I', table_schema, table_name),
-         'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+       AND (
+         has_table_privilege(
+           current_user,
+           format('%I.%I', table_schema, table_name),
+           'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+         )
+         OR has_any_column_privilege(
+           current_user,
+           format('%I.%I', table_schema, table_name),
+           'SELECT,INSERT,UPDATE,REFERENCES'
+         )
        )`,
     [["chat_oauth_state", "chat_oauth_link", "chat_audit_event"]],
   );

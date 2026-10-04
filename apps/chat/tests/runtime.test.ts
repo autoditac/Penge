@@ -85,6 +85,23 @@ afterEach(() => {
 });
 
 describe("chat runtime isolation and lifecycle", () => {
+  it("probes actor-authenticated model readiness with normal teardown", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    await expect(runtime.ensureModelAvailable("actor-a")).resolves.toBe(true);
+    expect(runtime.isModelAvailable("actor-a")).toBe(true);
+    expect(copilot.runs.size).toBe(1);
+    const run = [...copilot.runs.values()][0];
+    expect(run).toMatchObject({ aborted: false, closed: true });
+    expect(run?.prompt).toBeUndefined();
+  });
+
   it("isolates actors, propagates cancellation, and retains no transcript", async () => {
     const copilot = new FakeCopilotRuntime();
     const store = new MemoryChatStore();
@@ -351,6 +368,28 @@ describe("chat runtime isolation and lifecycle", () => {
 
     await runtime.cancel("actor-a", sessionId);
     expect(events.filter((event) => event.type === "completion")).toHaveLength(1);
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+
+  it("emits a cancelled completion when link invalidation stops an active run", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) => {
+      events.push(event);
+    });
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    await runtime.invalidateActor("actor-a");
+    expect(events.filter((event) => event.type === "completion")).toEqual([
+      expect.objectContaining({ finishReason: "cancelled" }),
+    ]);
+    expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true });
     expect(runtime.activeSessionCount).toBe(0);
   });
 

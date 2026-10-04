@@ -68,6 +68,17 @@ export class MemoryChatStore implements ChatStore {
     await previous;
     try {
       return await operation({
+        putState: async (stateHash, stateEnvelope, expiresAt) => {
+          await this.putOAuthState(actorId, stateHash, stateEnvelope, expiresAt);
+        },
+        consumeState: async (stateHash, now) => this.consumeOAuthState(actorId, stateHash, now),
+        deletePendingStates: async () => {
+          for (const [stateHash, state] of this.states) {
+            if (state.actorId === actorId) {
+              this.states.delete(stateHash);
+            }
+          }
+        },
         getLink: async () => this.getOAuthLink(actorId),
         upsertLink: async (githubUserId, githubLogin, tokenEnvelope) => {
           await this.upsertOAuthLink(actorId, githubUserId, githubLogin, tokenEnvelope);

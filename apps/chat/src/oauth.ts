@@ -124,30 +124,32 @@ export class GitHubOAuthFlow {
       currentEncryptionKey(this.config),
       this.config.tokenEncryptionKeyring.currentKeyId,
     );
-    await this.store.putOAuthState(actorId, stateHash, envelope, state.expiresAt);
+    await this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+      await lockedStore.putState(stateHash, envelope, state.expiresAt);
+    });
     return buildGitHubAuthorisationUrl(this.oauthConfig, state);
   }
 
   async complete(actorId: string, rawState: string, code: string): Promise<string> {
     const stateHash = hashOAuthState(rawState, this.config.identityPepper);
-    const envelope = await this.store.consumeOAuthState(actorId, stateHash);
-    if (envelope === null) {
-      throw new AuthenticationError("OAuth state is invalid, expired, or already consumed");
-    }
-    const state = decryptOAuthState(envelope, this.keyring);
-    if (state.actorId !== actorId || state.state !== rawState) {
-      throw new AuthenticationError("OAuth state is not bound to this actor");
-    }
-    const bundle = await exchangeGitHubCode(this.oauthConfig, code, state, this.fetcher);
-    const tokenEnvelope = encryptTokenBundle(
-      bundle,
-      currentEncryptionKey(this.config),
-      this.config.tokenEncryptionKeyring.currentKeyId,
-    );
-    await this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+    return this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+      const envelope = await lockedStore.consumeState(stateHash);
+      if (envelope === null) {
+        throw new AuthenticationError("OAuth state is invalid, expired, or already consumed");
+      }
+      const state = decryptOAuthState(envelope, this.keyring);
+      if (state.actorId !== actorId || state.state !== rawState) {
+        throw new AuthenticationError("OAuth state is not bound to this actor");
+      }
+      const bundle = await exchangeGitHubCode(this.oauthConfig, code, state, this.fetcher);
+      const tokenEnvelope = encryptTokenBundle(
+        bundle,
+        currentEncryptionKey(this.config),
+        this.config.tokenEncryptionKeyring.currentKeyId,
+      );
       await lockedStore.upsertLink(bundle.githubUserId, bundle.githubLogin, tokenEnvelope);
+      return bundle.githubLogin;
     });
-    return bundle.githubLogin;
   }
 
   async status(
@@ -176,6 +178,7 @@ export class GitHubOAuthFlow {
 
   async unlink(actorId: string): Promise<void> {
     await this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+      await lockedStore.deletePendingStates();
       await lockedStore.deleteLink();
     });
   }

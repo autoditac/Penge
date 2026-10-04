@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import subprocess
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -15,12 +17,31 @@ ADMIN_URL_ENV = "PENGE_CHAT_MIGRATION_TEST_ADMIN_URL"
 FINANCE_DATABASE = "penge_finance_migration_test"
 CHAT_DATABASE = "penge_chat_oauth_migration_test"
 EXTERNAL_ROLE = "penge_chat_oauth_migration_test"
+STORE_ROLE = "penge_chat_oauth_store_test"
 CHAT_TABLES = {"chat_oauth_link", "chat_oauth_state", "chat_audit_event"}
 
 
-def _database_url(admin_url: str, database: str) -> str:
+def _synthetic_password(suffix: str) -> str:
+    return f"synthetic@{suffix}"
+
+
+EXTERNAL_ROLE_PASSWORD = _synthetic_password("migration")
+STORE_ROLE_PASSWORD = _synthetic_password("store")
+
+
+def _database_url(
+    admin_url: str,
+    database: str,
+    *,
+    username: str | None = None,
+    password: str | None = None,
+) -> str:
     url = sa.engine.make_url(admin_url)
-    return url.set(database=database).render_as_string(hide_password=False)
+    return url.set(
+        database=database,
+        username=username or url.username,
+        password=password or url.password,
+    ).render_as_string(hide_password=False)
 
 
 @pytest.fixture
@@ -34,13 +55,27 @@ def isolated_databases() -> Iterator[tuple[str, str, str]]:
         connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{FINANCE_DATABASE}"'))
         connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{CHAT_DATABASE}"'))
         connection.execute(sa.text(f'DROP ROLE IF EXISTS "{EXTERNAL_ROLE}"'))
-        connection.execute(sa.text(f'CREATE ROLE "{EXTERNAL_ROLE}" NOLOGIN'))
+        connection.execute(sa.text(f'DROP ROLE IF EXISTS "{STORE_ROLE}"'))
+        connection.execute(
+            sa.text(
+                f"""CREATE ROLE "{EXTERNAL_ROLE}" LOGIN
+                PASSWORD '{EXTERNAL_ROLE_PASSWORD}'"""
+            )
+        )
+        connection.execute(
+            sa.text(f"""CREATE ROLE "{STORE_ROLE}" LOGIN PASSWORD '{STORE_ROLE_PASSWORD}'""")
+        )
         connection.execute(sa.text(f'CREATE DATABASE "{FINANCE_DATABASE}"'))
-        connection.execute(sa.text(f'CREATE DATABASE "{CHAT_DATABASE}"'))
+        connection.execute(sa.text(f'CREATE DATABASE "{CHAT_DATABASE}" OWNER "{EXTERNAL_ROLE}"'))
     try:
         yield (
             _database_url(admin_url, FINANCE_DATABASE),
-            _database_url(admin_url, CHAT_DATABASE),
+            _database_url(
+                admin_url,
+                CHAT_DATABASE,
+                username=EXTERNAL_ROLE,
+                password=EXTERNAL_ROLE_PASSWORD,
+            ),
             admin_url,
         )
     finally:
@@ -48,6 +83,7 @@ def isolated_databases() -> Iterator[tuple[str, str, str]]:
             connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{FINANCE_DATABASE}"'))
             connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{CHAT_DATABASE}"'))
             connection.execute(sa.text(f'DROP ROLE IF EXISTS "{EXTERNAL_ROLE}"'))
+            connection.execute(sa.text(f'DROP ROLE IF EXISTS "{STORE_ROLE}"'))
         engine.dispose()
 
 
@@ -59,6 +95,64 @@ def _table_names(database_url: str) -> set[str]:
         engine.dispose()
 
 
+def _assert_column_grant_rejected(admin_url: str) -> None:
+    chat_admin_url = _database_url(admin_url, CHAT_DATABASE)
+    chat_admin_engine = sa.create_engine(chat_admin_url)
+    try:
+        with chat_admin_engine.begin() as connection:
+            connection.execute(
+                sa.text("CREATE TABLE finance_shadow (id integer PRIMARY KEY, amount numeric)")
+            )
+            connection.execute(sa.text(f'GRANT USAGE ON SCHEMA public TO "{STORE_ROLE}"'))
+            connection.execute(
+                sa.text(
+                    f"GRANT SELECT, INSERT, UPDATE, DELETE ON "
+                    f'chat_oauth_link, chat_oauth_state TO "{STORE_ROLE}"'
+                )
+            )
+            connection.execute(sa.text(f'GRANT INSERT ON chat_audit_event TO "{STORE_ROLE}"'))
+            connection.execute(
+                sa.text(
+                    f'GRANT USAGE, SELECT ON SEQUENCE chat_audit_event_id_seq TO "{STORE_ROLE}"'
+                )
+            )
+            connection.execute(
+                sa.text(f'GRANT SELECT (amount) ON finance_shadow TO "{STORE_ROLE}"')
+            )
+        store_url = _database_url(
+            admin_url,
+            CHAT_DATABASE,
+            username=STORE_ROLE,
+            password=STORE_ROLE_PASSWORD,
+        )
+        pnpm = shutil.which("pnpm")
+        assert pnpm is not None
+        store_test = subprocess.run(  # noqa: S603 - resolved executable, constant arguments
+            [
+                pnpm,
+                "--filter",
+                "@penge/chat",
+                "exec",
+                "vitest",
+                "run",
+                "tests/store.postgres.test.ts",
+            ],
+            check=False,
+            capture_output=True,
+            env={
+                **os.environ,
+                "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
+                "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
+            },
+            text=True,
+        )
+        assert store_test.returncode == 0, store_test.stdout + store_test.stderr
+        with chat_admin_engine.begin() as connection:
+            connection.execute(sa.text("DROP TABLE finance_shadow"))
+    finally:
+        chat_admin_engine.dispose()
+
+
 def test_dedicated_chat_migration_roundtrip(
     isolated_databases: tuple[str, str, str],
     tmp_path: Path,
@@ -66,6 +160,7 @@ def test_dedicated_chat_migration_roundtrip(
 ) -> None:
     """Round-trip chat storage without touching finance schema or role lifecycle."""
     finance_url, chat_url, admin_url = isolated_databases
+    assert "%40" in chat_url
     finance_config = Config("alembic.ini")
     monkeypatch.setenv("DATABASE_URL", finance_url)
     command.upgrade(finance_config, "head")
@@ -96,6 +191,8 @@ def test_dedicated_chat_migration_roundtrip(
     finally:
         chat_engine.dispose()
     assert _table_names(finance_url) == finance_before
+
+    _assert_column_grant_rejected(admin_url)
 
     command.downgrade(chat_config, "base")
     assert _table_names(chat_url).isdisjoint(CHAT_TABLES)

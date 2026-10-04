@@ -150,19 +150,6 @@ describe("GitHub OAuth persistence", () => {
     const initialUrl = new URL(await initialFlow.begin(actorId));
     await initialFlow.complete(actorId, initialUrl.searchParams.get("state")!, "old-code");
 
-    let releaseRefresh = (_response: Response): void => undefined;
-    const refreshResponse = new Promise<Response>((resolve) => {
-      releaseRefresh = resolve;
-    });
-    const refreshFetcher = vi.fn(async () => refreshResponse) as typeof fetch;
-    const provider = new UserTokenService(config, store, refreshFetcher).providerFor(actorId);
-    const refresh = provider({
-      host: "github.com",
-      sessionId: "refresh-session",
-      reason: "refresh",
-    });
-    await vi.waitFor(() => expect(refreshFetcher).toHaveBeenCalledTimes(1));
-
     const relinkResponses = [
       new Response(
         JSON.stringify({
@@ -182,8 +169,23 @@ describe("GitHub OAuth persistence", () => {
     const relinkFetcher = vi.fn(async () => relinkResponses.shift()!) as typeof fetch;
     const relinkFlow = new GitHubOAuthFlow(config, store, relinkFetcher);
     const relinkUrl = new URL(await relinkFlow.begin(actorId));
+
+    let releaseRefresh = (_response: Response): void => undefined;
+    const refreshResponse = new Promise<Response>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const refreshFetcher = vi.fn(async () => refreshResponse) as typeof fetch;
+    const provider = new UserTokenService(config, store, refreshFetcher).providerFor(actorId);
+    const refresh = provider({
+      host: "github.com",
+      sessionId: "refresh-session",
+      reason: "refresh",
+    });
+    await vi.waitFor(() => expect(refreshFetcher).toHaveBeenCalledTimes(1));
+
     const relink = relinkFlow.complete(actorId, relinkUrl.searchParams.get("state")!, "new-code");
-    await vi.waitFor(() => expect(relinkFetcher).toHaveBeenCalledTimes(2));
+    await Promise.resolve();
+    expect(relinkFetcher).not.toHaveBeenCalled();
 
     releaseRefresh(
       new Response(
@@ -198,6 +200,7 @@ describe("GitHub OAuth persistence", () => {
       ),
     );
     await expect(refresh).resolves.toMatchObject({ accessToken: "rotated-old-access" });
+    await vi.waitFor(() => expect(relinkFetcher).toHaveBeenCalledTimes(2));
     await expect(relink).resolves.toBe("new-user");
     await expect(relinkFlow.status(actorId)).resolves.toEqual({
       state: "linked",
@@ -280,6 +283,66 @@ describe("GitHub OAuth persistence", () => {
     await expect(flow.status(actorId)).resolves.toEqual({
       state: "expired",
       login: "short-lived-user",
+    });
+  });
+
+  it("invalidates pending and in-flight callbacks when unlink completes", async () => {
+    const config = syntheticConfig();
+    const store = new MemoryChatStore();
+    const actorId = "actor_0123456789abcdef0123456789abcdef";
+    const pendingFlow = new GitHubOAuthFlow(config, store);
+    const pendingUrl = new URL(await pendingFlow.begin(actorId));
+    await pendingFlow.unlink(actorId);
+    await expect(
+      pendingFlow.complete(actorId, pendingUrl.searchParams.get("state")!, "pending-code"),
+    ).rejects.toThrow(/invalid, expired, or already consumed/);
+
+    let releaseExchange = (_response: Response): void => undefined;
+    const exchangeResponse = new Promise<Response>((resolve) => {
+      releaseExchange = resolve;
+    });
+    const fetcher = vi
+      .fn()
+      .mockImplementationOnce(async () => exchangeResponse)
+      .mockImplementationOnce(
+        async () =>
+          new Response(JSON.stringify({ id: 42, login: "synthetic-user" }), {
+            headers: { "content-type": "application/json" },
+          }),
+      ) as typeof fetch;
+    const flow = new GitHubOAuthFlow(config, store, fetcher);
+    const inflightUrl = new URL(await flow.begin(actorId));
+    const completion = flow.complete(
+      actorId,
+      inflightUrl.searchParams.get("state")!,
+      "inflight-code",
+    );
+    await vi.waitFor(() => expect(fetcher).toHaveBeenCalledTimes(1));
+    let unlinkCompleted = false;
+    const unlink = flow.unlink(actorId).then(() => {
+      unlinkCompleted = true;
+    });
+    await Promise.resolve();
+    expect(unlinkCompleted).toBe(false);
+
+    releaseExchange(
+      new Response(
+        JSON.stringify({
+          access_token: "synthetic-access",
+          refresh_token: "synthetic-refresh",
+          expires_in: 28_800,
+          refresh_token_expires_in: 100_000,
+          scope: "",
+          token_type: "bearer",
+        }),
+        { headers: { "content-type": "application/json" } },
+      ),
+    );
+    await expect(completion).resolves.toBe("synthetic-user");
+    await unlink;
+    await expect(flow.status(actorId)).resolves.toEqual({
+      state: "not-linked",
+      login: null,
     });
   });
 });

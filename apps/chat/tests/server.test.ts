@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { createConnection } from "node:net";
+
+import { describe, expect, it, vi } from "vitest";
 
 import { FeatureDisabledError, PengeError } from "../src/errors.js";
 import { startChatServer } from "../src/server.js";
@@ -35,6 +37,7 @@ describe("loopback HTTP service", () => {
       cleanupIdle: async () => 0,
       close: async () => undefined,
       isModelAvailable: () => true,
+      ensureModelAvailable: async () => true,
       invalidateActor: async () => undefined,
     };
     const server = await startChatServer(syntheticConfig(), {
@@ -78,6 +81,7 @@ describe("loopback HTTP service", () => {
         cleanupIdle: async () => 0,
         close: async () => undefined,
         isModelAvailable: () => false,
+        ensureModelAvailable: async () => false,
         invalidateActor: async () => undefined,
       },
       oauth: {
@@ -114,6 +118,7 @@ describe("loopback HTTP service", () => {
         cleanupIdle: async () => 0,
         close: async () => undefined,
         isModelAvailable: () => modelAvailable,
+        ensureModelAvailable: async () => modelAvailable,
         invalidateActor: async () => {
           modelAvailable = false;
         },
@@ -171,6 +176,7 @@ describe("loopback HTTP service", () => {
           throw new Error("synthetic runtime cleanup failure");
         },
         isModelAvailable: () => false,
+        ensureModelAvailable: async () => false,
         invalidateActor: async () => undefined,
       },
       oauth: {
@@ -195,6 +201,7 @@ describe("loopback HTTP service", () => {
         cleanupIdle: async () => 0,
         close: async () => undefined,
         isModelAvailable: () => false,
+        ensureModelAvailable: async () => false,
         invalidateActor: async () => undefined,
       },
       oauth: {
@@ -215,6 +222,162 @@ describe("loopback HTTP service", () => {
       expect(body).toContain("invalid_request");
       expect(body).not.toContain("synthetic secret diagnostic");
     } finally {
+      await server.close();
+    }
+  });
+
+  it("rejects malformed request targets without terminating the listener", async () => {
+    const server = await startChatServer(syntheticConfig(), {
+      runtime: {
+        start: async () => "00000000-0000-4000-8000-000000000001",
+        cancel: async () => undefined,
+        disconnect: async () => undefined,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => false,
+        ensureModelAvailable: async () => false,
+        invalidateActor: async () => undefined,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async () => "synthetic-user",
+        status: async () => ({ state: "not-linked" as const, login: null }),
+        unlink: async () => undefined,
+      },
+    });
+    try {
+      const target = new URL(server.origin);
+      const response = await new Promise<string>((resolve, reject) => {
+        const socket = createConnection(Number(target.port), target.hostname);
+        let received = "";
+        socket.setEncoding("utf8");
+        socket.once("error", reject);
+        socket.on("data", (chunk: string) => {
+          received += chunk;
+        });
+        socket.once("end", () => resolve(received));
+        socket.once("connect", () => {
+          socket.end(`GET //[ HTTP/1.1\r\nHost: ${target.host}\r\nConnection: close\r\n\r\n`);
+        });
+      });
+      expect(response).toContain("400 Bad Request");
+      expect(response).toContain('"code":"invalid_request"');
+      await expect(fetch(`${server.origin}/health`)).resolves.toMatchObject({ status: 200 });
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("probes exact-model readiness after linking before the first question", async () => {
+    let linked = false;
+    let probes = 0;
+    let starts = 0;
+    const server = await startChatServer(syntheticConfig(), {
+      runtime: {
+        start: async (_actorId, _question, sink) => {
+          starts += 1;
+          sink({
+            version: "1.0",
+            sessionId: "00000000-0000-4000-8000-000000000001",
+            id: "event-1",
+            sequence: 0,
+            type: "completion",
+            summary: "Synthetic completion",
+            coverage: "partial",
+            freshness: "stale",
+            finishReason: "completed",
+            assumptions: [],
+          });
+          return "00000000-0000-4000-8000-000000000001";
+        },
+        cancel: async () => undefined,
+        disconnect: async () => undefined,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => probes > 0,
+        ensureModelAvailable: async () => {
+          probes += 1;
+          return true;
+        },
+        invalidateActor: async () => undefined,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async () => {
+          linked = true;
+          return "synthetic-user";
+        },
+        status: async () =>
+          linked
+            ? { state: "linked" as const, login: "synthetic-user" }
+            : { state: "not-linked" as const, login: null },
+        unlink: async () => undefined,
+      },
+    });
+    try {
+      const callback = await fetch(
+        `${server.origin}/oauth/github/callback?state=synthetic-state&code=synthetic-code`,
+        { headers, redirect: "manual" },
+      );
+      expect(callback.status).toBe(302);
+      const status = await fetch(`${server.origin}/v1/auth/status`, { headers });
+      expect(await status.json()).toMatchObject({
+        github: { state: "linked" },
+        model: { id: "hydrafusion", available: true },
+      });
+      expect(probes).toBe(1);
+
+      const chat = await fetch(`${server.origin}/v1/chat`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ question: "First linked question" }),
+      });
+      expect(chat.status).toBe(200);
+      expect(starts).toBe(1);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("flushes the session id before the first stream event", async () => {
+    const disconnect = vi.fn(async () => undefined);
+    const server = await startChatServer(syntheticConfig(), {
+      runtime: {
+        start: async () => "00000000-0000-4000-8000-000000000001",
+        cancel: async () => undefined,
+        disconnect,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => true,
+        ensureModelAvailable: async () => true,
+        invalidateActor: async () => undefined,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async () => "synthetic-user",
+        status: async () => ({ state: "linked" as const, login: "synthetic-user" }),
+        unlink: async () => undefined,
+      },
+    });
+    const controller = new AbortController();
+    try {
+      const response = await Promise.race([
+        fetch(`${server.origin}/v1/chat`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ question: "Delayed first event" }),
+          signal: controller.signal,
+        }),
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(() => reject(new Error("session headers were not flushed")), 100),
+        ),
+      ]);
+      expect(response.headers.get("x-penge-chat-session-id")).toBe(
+        "00000000-0000-4000-8000-000000000001",
+      );
+    } finally {
+      controller.abort();
+      await vi.waitFor(() => expect(disconnect).toHaveBeenCalledOnce());
       await server.close();
     }
   });

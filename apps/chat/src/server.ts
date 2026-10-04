@@ -44,6 +44,7 @@ interface ChatServerRuntime {
   cleanupIdle(now?: number): Promise<number>;
   close(): Promise<void>;
   isModelAvailable(actorId: string): boolean;
+  ensureModelAvailable(actorId: string): Promise<boolean>;
   invalidateActor(actorId: string): Promise<void>;
 }
 
@@ -168,7 +169,17 @@ export async function startChatServer(
   };
 
   const server = createServer(async (request, response) => {
-    const url = new URL(request.url ?? "/", config.publicApiBase);
+    let url: URL;
+    try {
+      url = new URL(request.url ?? "/", config.publicApiBase);
+    } catch {
+      logger.warn(
+        { code: "chat/invalid_url", method: request.method, status: 400 },
+        "chat request target was invalid",
+      );
+      sendJson(response, 400, { code: "invalid_request", message: "The request was invalid." });
+      return;
+    }
     try {
       if (request.method === "GET" && url.pathname === "/health") {
         sendJson(response, 200, {
@@ -182,6 +193,10 @@ export async function startChatServer(
       const actorId = authenticate(request, config);
       if (request.method === "GET" && url.pathname === "/v1/auth/status") {
         const github = await dependencies.oauth.status(actorId);
+        const modelAvailable =
+          github.state === "linked"
+            ? await dependencies.runtime.ensureModelAvailable(actorId)
+            : false;
         sendJson(
           response,
           200,
@@ -189,8 +204,7 @@ export async function startChatServer(
             github,
             model: {
               id: "hydrafusion",
-              available:
-                github.state === "linked" && dependencies.runtime.isModelAvailable(actorId),
+              available: modelAvailable,
             },
             featureEnabled: config.productionEnabled,
           }),
@@ -268,6 +282,7 @@ export async function startChatServer(
           "x-content-type-options": "nosniff",
           "x-penge-chat-session-id": connection.sessionId,
         });
+        response.flushHeaders();
         streaming = true;
         for (const event of pending) {
           sink(event);
@@ -326,13 +341,6 @@ export async function startChatServer(
       clearInterval(idleTimer);
       const failures: unknown[] = [];
       try {
-        await dependencies.runtime.close();
-      } catch (error) {
-        failures.push(error);
-      }
-      await Promise.all([...backgroundTasks]);
-      failures.push(...backgroundErrors);
-      try {
         await new Promise<void>((resolve, reject) => {
           server.close((error) => (error === undefined ? resolve() : reject(error)));
           server.closeAllConnections();
@@ -340,6 +348,13 @@ export async function startChatServer(
       } catch (error) {
         failures.push(error);
       }
+      try {
+        await dependencies.runtime.close();
+      } catch (error) {
+        failures.push(error);
+      }
+      await Promise.all([...backgroundTasks]);
+      failures.push(...backgroundErrors);
       if (failures.length > 0) {
         throw new AggregateError(failures, "chat server cleanup failed");
       }

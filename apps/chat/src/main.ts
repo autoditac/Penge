@@ -3,6 +3,7 @@
 import pino from "pino";
 
 import { loadConfig } from "./config.js";
+import { closeServiceResources } from "./lifecycle.js";
 import { verifyMcpServerContract } from "./mcp.js";
 import { GitHubOAuthFlow, UserTokenService } from "./oauth.js";
 import { ChatRuntime } from "./runtime.js";
@@ -25,14 +26,38 @@ async function main(): Promise<void> {
       oauth: new GitHubOAuthFlow(config, store),
       logger,
     });
-    const shutdown = async (): Promise<void> => {
-      await server.close();
-      await store.close();
+    let shuttingDown = false;
+    const shutdown = async (signal: NodeJS.Signals): Promise<void> => {
+      if (shuttingDown) {
+        return;
+      }
+      shuttingDown = true;
+      try {
+        await closeServiceResources(server, store);
+      } catch (error) {
+        logger.error(
+          {
+            operation: "shutdown",
+            signal,
+            errorType: error instanceof Error ? error.name : "UnknownError",
+          },
+          "chat service shutdown failed",
+        );
+        process.exitCode = 1;
+      }
     };
-    process.once("SIGINT", () => void shutdown().then(() => process.exit(0)));
-    process.once("SIGTERM", () => void shutdown().then(() => process.exit(0)));
+    process.once("SIGINT", () => {
+      void shutdown("SIGINT");
+    });
+    process.once("SIGTERM", () => {
+      void shutdown("SIGTERM");
+    });
   } catch (error) {
-    await store.close();
+    try {
+      await store.close();
+    } catch (closeError) {
+      throw new AggregateError([error, closeError], "chat startup cleanup failed");
+    }
     throw error;
   }
 }

@@ -160,7 +160,6 @@ export function buildGitHubAuthorisationUrl(
     state: oauthState.state,
     code_challenge: oauthState.codeChallenge,
     code_challenge_method: "S256",
-    scope: "read:user user:email",
   }).toString();
   return url.toString();
 }

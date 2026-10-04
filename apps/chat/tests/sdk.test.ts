@@ -1,11 +1,7 @@
 import { ToolSet, type GitHubTokenProvider } from "@github/copilot-sdk";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import {
-  assertHydraFusionAvailable,
-  buildSessionConfig,
-  GitHubCopilotRuntime,
-} from "../src/sdk.js";
+import { buildSessionConfig, GitHubCopilotRuntime } from "../src/sdk.js";
 import { syntheticConfig } from "./helpers.js";
 
 const provider: GitHubTokenProvider = async () => ({
@@ -16,11 +12,7 @@ const provider: GitHubTokenProvider = async () => ({
 
 describe("Copilot SDK policy", () => {
   it("pins empty mode session semantics to exact HydraFusion with local stdio MCP", () => {
-    const session = buildSessionConfig(
-      syntheticConfig({ productionEnabled: true, entitlementVerified: true }),
-      "session-1",
-      provider,
-    );
+    const session = buildSessionConfig(syntheticConfig(), "session-1", provider);
     expect(session).toMatchObject({
       model: "hydrafusion",
       allowedModels: ["hydrafusion"],
@@ -49,7 +41,7 @@ describe("Copilot SDK policy", () => {
   });
 
   it("fails before process creation while HydraFusion is feature-disabled", async () => {
-    const runtime = new GitHubCopilotRuntime(syntheticConfig());
+    const runtime = new GitHubCopilotRuntime(syntheticConfig({ productionEnabled: false }));
     await expect(
       runtime.createRun({
         actorId: "actor-a",
@@ -60,13 +52,38 @@ describe("Copilot SDK policy", () => {
     ).rejects.toThrow(/disabled until/);
   });
 
-  it("fails closed when the exact experimental model is unavailable", () => {
-    expect(() => assertHydraFusionAvailable([{ id: "gpt-5.4" }])).toThrow(
-      /not entitled to hydrafusion/,
-    );
-    expect(() => assertHydraFusionAvailable([{ id: "hydrafusion-preview" }])).toThrow(
-      /not entitled to hydrafusion/,
-    );
-    expect(() => assertHydraFusionAvailable([{ id: "hydrafusion" }])).not.toThrow();
+  it("checks exact-model session creation with the linked actor token and never listModels", async () => {
+    const listModels = vi.fn();
+    const tokenProvider = vi.fn(provider);
+    const forceStop = vi.fn(async () => undefined);
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
+      start: async () => undefined,
+      listModels,
+      createSession: async (session) => {
+        await session.gitHubTokenProvider?.({
+          host: "github.com",
+          sessionId: "session-a",
+          reason: "initial",
+        });
+        throw {
+          code: "model_not_entitled",
+          message: "hydrafusion unavailable",
+        };
+      },
+      stop: async () => [],
+      forceStop,
+    }));
+
+    await expect(
+      runtime.createRun({
+        actorId: "actor-a",
+        sessionId: "session-a",
+        tokenProvider,
+        sink: { onEvent: () => undefined },
+      }),
+    ).rejects.toThrow(/exact hydrafusion session/);
+    expect(tokenProvider).toHaveBeenCalledOnce();
+    expect(listModels).not.toHaveBeenCalled();
+    expect(forceStop).toHaveBeenCalledOnce();
   });
 });

@@ -4,13 +4,14 @@ import { join } from "node:path";
 import {
   CopilotClient,
   ToolSet,
-  type CopilotSession,
+  type CopilotClientOptions,
   type GitHubTokenProvider,
   type SessionConfig,
   type SessionEvent,
 } from "@github/copilot-sdk";
+import { z } from "zod/v3";
 
-import { HYDRAFUSION_MODEL, MCP_TOOL_ALLOWLIST, type ChatConfig } from "./config.js";
+import { HYDRAFUSION_MODEL, MCP_CHAT_TOOL_ALLOWLIST, type ChatConfig } from "./config.js";
 import {
   CopilotRuntimeError,
   FeatureDisabledError,
@@ -37,6 +38,22 @@ export interface CopilotRuntime {
   }): Promise<ActiveCopilotRun>;
 }
 
+interface CopilotSessionLike {
+  send(options: { prompt: string }): Promise<unknown>;
+  abort(): Promise<void>;
+  disconnect(): Promise<void>;
+  on(handler: (event: SessionEvent) => void): () => void;
+}
+
+interface CopilotClientLike {
+  start(): Promise<void>;
+  createSession(config: SessionConfig): Promise<CopilotSessionLike>;
+  stop(): Promise<Error[]>;
+  forceStop(): Promise<void>;
+}
+
+export type CopilotClientFactory = (options: CopilotClientOptions) => CopilotClientLike;
+
 function safeRuntimeEnvironment(): Record<string, string | undefined> {
   return {
     PATH: process.env.PATH,
@@ -46,21 +63,13 @@ function safeRuntimeEnvironment(): Record<string, string | undefined> {
   };
 }
 
-export function assertHydraFusionAvailable(models: readonly { id: string }[]): void {
-  if (!models.some((model) => model.id === HYDRAFUSION_MODEL)) {
-    throw new HydraFusionUnavailableError(
-      `linked GitHub identity is not entitled to ${HYDRAFUSION_MODEL}`,
-    );
-  }
-}
-
 export function buildSessionConfig(
   config: ChatConfig,
   sessionId: string,
   tokenProvider: GitHubTokenProvider,
 ): SessionConfig {
   const availableTools = new ToolSet();
-  for (const tool of MCP_TOOL_ALLOWLIST) {
+  for (const tool of MCP_CHAT_TOOL_ALLOWLIST) {
     availableTools.addMcp(`penge-${tool}`);
   }
   return {
@@ -87,10 +96,9 @@ export function buildSessionConfig(
   };
 }
 
-async function stopClient(client: CopilotClient): Promise<void> {
+async function stopClient(client: CopilotClientLike): Promise<void> {
   const errors = await client.stop();
   if (errors.length > 0) {
-    await client.forceStop();
     throw new CopilotRuntimeError(
       "chat/copilot_cleanup",
       `Copilot runtime cleanup failed with ${errors.length} error(s)`,
@@ -122,8 +130,45 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise
   }
 }
 
+const SdkFailureSchema = z
+  .object({
+    code: z.string().optional(),
+    message: z.string().optional(),
+  })
+  .passthrough();
+
+const MODEL_FAILURE_CODES = new Set([
+  "model_not_found",
+  "model_not_supported",
+  "model_unavailable",
+  "model_access_denied",
+  "model_not_entitled",
+]);
+
+function classifySessionCreationError(error: unknown): unknown {
+  const parsed = SdkFailureSchema.safeParse(error);
+  if (!parsed.success) {
+    return error;
+  }
+  const code = parsed.data.code?.toLowerCase();
+  const message = parsed.data.message ?? "";
+  if (
+    (code !== undefined && MODEL_FAILURE_CODES.has(code)) ||
+    (/hydrafusion/i.test(message) &&
+      /\b(?:unavailable|unsupported|not found|not entitled|access denied)\b/i.test(message))
+  ) {
+    return new HydraFusionUnavailableError(
+      `linked GitHub identity cannot create an exact ${HYDRAFUSION_MODEL} session`,
+    );
+  }
+  return error;
+}
+
 export class GitHubCopilotRuntime implements CopilotRuntime {
-  constructor(private readonly config: ChatConfig) {}
+  constructor(
+    private readonly config: ChatConfig,
+    private readonly createClient: CopilotClientFactory = (options) => new CopilotClient(options),
+  ) {}
 
   async createRun(options: {
     actorId: string;
@@ -131,9 +176,9 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
     tokenProvider: GitHubTokenProvider;
     sink: CopilotEventSink;
   }): Promise<ActiveCopilotRun> {
-    if (!this.config.productionEnabled || !this.config.entitlementVerified) {
+    if (!this.config.productionEnabled) {
       throw new FeatureDisabledError(
-        "Ask Penge is disabled until the linked user passes the HydraFusion entitlement gate",
+        "Ask Penge is disabled until production is explicitly enabled",
       );
     }
 
@@ -143,7 +188,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       options.sessionId,
     );
     await mkdir(baseDirectory, { recursive: true, mode: 0o700 });
-    const client = new CopilotClient({
+    const client = this.createClient({
       mode: "empty",
       baseDirectory,
       workingDirectory: this.config.mcpWorkingDirectory,
@@ -152,23 +197,25 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       env: safeRuntimeEnvironment(),
     });
 
-    let session: CopilotSession | undefined;
+    let session: CopilotSessionLike | undefined;
     let unsubscribe: (() => void) | undefined;
     let closed = false;
     try {
       await withTimeout(client.start(), this.config.requestTimeoutMs);
-      const models = await withTimeout(client.listModels(), this.config.requestTimeoutMs);
-      assertHydraFusionAvailable(models);
-      session = await withTimeout(
-        client.createSession(
-          buildSessionConfig(this.config, options.sessionId, options.tokenProvider),
-        ),
-        this.config.requestTimeoutMs,
-      );
+      try {
+        session = await withTimeout(
+          client.createSession(
+            buildSessionConfig(this.config, options.sessionId, options.tokenProvider),
+          ),
+          this.config.requestTimeoutMs,
+        );
+      } catch (error) {
+        throw classifySessionCreationError(error);
+      }
       unsubscribe = session.on((event) => options.sink.onEvent(event));
     } catch (error) {
       try {
-        await client.forceStop();
+        await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
       } finally {
         await rm(baseDirectory, { recursive: true, force: true });
       }
@@ -178,10 +225,10 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
     const currentSession = session;
     return {
       send: async (question) => {
-        await currentSession.send({ prompt: question });
+        await withTimeout(currentSession.send({ prompt: question }), this.config.requestTimeoutMs);
       },
       abort: async () => {
-        await currentSession.abort();
+        await withTimeout(currentSession.abort(), this.config.requestTimeoutMs);
       },
       close: async () => {
         if (closed) {
@@ -192,7 +239,7 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
         const cleanupErrors: Error[] = [];
         try {
           try {
-            await currentSession.disconnect();
+            await withTimeout(currentSession.disconnect(), this.config.requestTimeoutMs);
           } catch (error) {
             cleanupErrors.push(
               error instanceof Error
@@ -201,13 +248,22 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
             );
           }
           try {
-            await stopClient(client);
+            await withTimeout(stopClient(client), this.config.requestTimeoutMs);
           } catch (error) {
             cleanupErrors.push(
               error instanceof Error
                 ? error
                 : new CopilotRuntimeError("chat/copilot_cleanup", "client cleanup failed"),
             );
+            try {
+              await withTimeout(client.forceStop(), this.config.requestTimeoutMs);
+            } catch (forceStopError) {
+              cleanupErrors.push(
+                forceStopError instanceof Error
+                  ? forceStopError
+                  : new CopilotRuntimeError("chat/copilot_cleanup", "client force cleanup failed"),
+              );
+            }
           }
         } finally {
           await rm(baseDirectory, { recursive: true, force: true });

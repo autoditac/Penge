@@ -3,8 +3,8 @@
 `@penge/chat` is the loopback-only multi-user Ask Penge backend from issue #346.
 It binds an immutable Google oauth2-proxy subject to a separate per-user GitHub OAuth grant, runs the Copilot SDK in `mode: "empty"` with exact model `hydrafusion`, and exposes only accepted read-only Penge MCP tools over a local stdio child.
 
-Production is deliberately unavailable unless both production gates are `1` and the linked user's `listModels()` response contains exactly `hydrafusion`.
-No fallback model is configured.
+Production is deliberately disabled unless `PENGE_CHAT_ENABLE_PRODUCTION=1`.
+Each actor's exact `hydrafusion` entitlement is checked by creating the SDK session with that actor's token provider; an unavailable-model failure is terminal and no fallback is configured.
 
 ## Trust boundaries
 
@@ -14,7 +14,8 @@ No fallback model is configured.
 - The browser never supplies an actor or household-member ID.
 - GitHub access and refresh tokens, OAuth state, and the PKCE verifier are encrypted with versioned AES-256-GCM envelopes.
 - Copilot, MCP, and HTTP teardown paths retain no prompt or transcript.
-- The `penge_chat_oauth` database role is checked at startup and may access only the three chat tables.
+- The `penge_chat_oauth` database role is checked at startup against the dedicated chat database and may access only the three chat tables.
+- The finance MCP child receives only `PENGE_DB_URL_FILE`; database credentials are never rematerialized into its environment.
 
 ## Mounted secrets
 
@@ -27,6 +28,8 @@ Podman mounts each secret as an owner-only (`0600`) regular file and supplies th
 | `PENGE_CHAT_PROXY_SHARED_SECRET_FILE`  | At least 32 random characters also injected by the trusted proxy |
 | `PENGE_CHAT_GITHUB_CLIENT_SECRET_FILE` | GitHub OAuth client secret                                       |
 | `PENGE_CHAT_TOKEN_KEYRING_FILE`        | Versioned JSON keyring shown below                               |
+| `PENGE_CHAT_DATABASE_URL_FILE`         | Dedicated OAuth database URL                                     |
+| `PENGE_DB_URL_FILE`                    | Finance MCP database URL passed by file path to the child        |
 
 ```json
 {
@@ -42,7 +45,25 @@ Rotate by adding the new key, changing `currentKeyId`, restarting, and retaining
 
 ## Non-secret configuration
 
-Required values include `PENGE_CHAT_MODEL=hydrafusion`, `PENGE_CHAT_PUBLIC_ORIGIN`, proxy issuer, GitHub client ID, chat and MCP database paths, MCP working/log/vault paths, Copilot base directory, and `PENGE_CHAT_MCP_TOOL_CONTRACT_VERSION=issue-344-v1`.
-`PENGE_CHAT_PUBLIC_ORIGIN` is the exact external HTTPS origin used for OAuth callbacks; it is intentionally separate from `PENGE_CHAT_HTTP_HOST`.
+Required values include `PENGE_CHAT_MODEL=hydrafusion`, proxy issuer, GitHub client ID, MCP working/log/vault paths, Copilot base directory, and `PENGE_CHAT_MCP_TOOL_CONTRACT_VERSION=issue-344-v1`.
+`PENGE_CHAT_PUBLIC_API_BASE` is the trailing-slash external HTTPS API base and may contain a proxy prefix such as `https://host/ask/api/`.
+`PENGE_CHAT_PUBLIC_APP_ORIGIN` contains only the external browser origin used to redirect to `/ask`.
+Both are intentionally separate from the loopback-only `PENGE_CHAT_HTTP_HOST`.
+
+## Browser API
+
+All routes except `/health` require the trusted proxy headers.
+
+| Method   | Route                    | Result                                                                                                                   |
+| -------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| `GET`    | `/v1/auth/status`        | `{github:{state,login},model:{id:"hydrafusion",available},featureEnabled}`                                               |
+| `GET`    | `/oauth/github/start`    | Redirect to GitHub OAuth with one-time state and S256 PKCE                                                               |
+| `GET`    | `/oauth/github/callback` | Consume state and redirect to `<PENGE_CHAT_PUBLIC_APP_ORIGIN>/ask?github=linked`                                         |
+| `DELETE` | `/v1/auth/github`        | Delete the actor's OAuth link and invalidate cached model availability                                                   |
+| `POST`   | `/v1/chat`               | Ask Penge `1.0` SSE; response header `X-Penge-Chat-Session-Id` identifies the immediately registered actor-owned session |
+| `POST`   | `/v1/chat/stop`          | Stop only the authenticated actor's session                                                                              |
+
+The schema-only chat migration has its own Alembic configuration at `apps/chat/alembic.ini`.
+Database and role creation, grants, backup, and restore remain deployment-owned; the global finance Alembic chain never creates chat tables or alters chat-role privileges.
 
 See [ADR-0055](../../docs/decisions/0055-isolated-multi-user-chat-runtime.md) and the [chat runtime runbook](../../docs/runbook/chat-runtime.md).

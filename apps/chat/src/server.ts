@@ -6,6 +6,7 @@ import { z } from "zod/v3";
 import type { ChatConfig } from "./config.js";
 import {
   AuthenticationError,
+  AuthorizationError,
   FeatureDisabledError,
   HydraFusionUnavailableError,
   PengeError,
@@ -18,6 +19,23 @@ import type { StreamEvent } from "./stream.js";
 
 const AskRequestSchema = z.object({ question: z.string().trim().min(1).max(8_000) }).strict();
 const StopRequestSchema = z.object({ sessionId: z.string().uuid() }).strict();
+const AuthStatusSchema = z
+  .object({
+    github: z
+      .object({
+        state: z.enum(["linked", "not-linked", "expired"]),
+        login: z.string().min(1).nullable(),
+      })
+      .strict(),
+    model: z
+      .object({
+        id: z.literal("hydrafusion"),
+        available: z.boolean(),
+      })
+      .strict(),
+    featureEnabled: z.boolean(),
+  })
+  .strict();
 
 interface ChatServerRuntime {
   start(actorId: string, question: string, sink: (event: StreamEvent) => void): Promise<string>;
@@ -25,11 +43,17 @@ interface ChatServerRuntime {
   disconnect(actorId: string, sessionId: string): Promise<void>;
   cleanupIdle(now?: number): Promise<number>;
   close(): Promise<void>;
+  isModelAvailable(actorId: string): boolean;
+  invalidateActor(actorId: string): Promise<void>;
 }
 
 interface OAuthFlow {
   begin(actorId: string): Promise<string>;
   complete(actorId: string, state: string, code: string): Promise<string>;
+  status(
+    actorId: string,
+  ): Promise<{ state: "linked" | "not-linked" | "expired"; login: string | null }>;
+  unlink(actorId: string): Promise<void>;
 }
 
 export interface ChatServerDependencies {
@@ -81,6 +105,7 @@ function authenticate(request: IncomingMessage, config: ChatConfig): string {
 
 function errorStatus(error: unknown): number {
   if (error instanceof AuthenticationError) return 401;
+  if (error instanceof AuthorizationError) return 404;
   if (error instanceof SessionLimitError) return 429;
   if (error instanceof FeatureDisabledError || error instanceof HydraFusionUnavailableError) {
     return 503;
@@ -103,8 +128,11 @@ function publicError(error: unknown): { code: string; message: string } {
   if (error instanceof SessionLimitError) {
     return { code: "rate_limit", message: "The chat concurrency limit was reached." };
   }
-  if (error instanceof PengeError) {
-    return { code: error.code, message: error.message };
+  if (error instanceof AuthorizationError) {
+    return { code: "not_found", message: "The requested chat session was not found." };
+  }
+  if (error instanceof z.ZodError || error instanceof PengeError) {
+    return { code: "invalid_request", message: "The request was invalid." };
   }
   return { code: "session_interrupted", message: "The request could not be completed." };
 }
@@ -122,9 +150,25 @@ export async function startChatServer(
         censor: "[REDACTED]",
       },
     });
+  const backgroundTasks = new Set<Promise<void>>();
+  const backgroundErrors: unknown[] = [];
+  const observe = (task: Promise<void>, operation: string): void => {
+    const tracked = task
+      .catch((error: unknown) => {
+        backgroundErrors.push(error);
+        logger.error(
+          { operation, errorType: error instanceof Error ? error.name : "UnknownError" },
+          "chat background operation failed",
+        );
+      })
+      .finally(() => {
+        backgroundTasks.delete(tracked);
+      });
+    backgroundTasks.add(tracked);
+  };
 
   const server = createServer(async (request, response) => {
-    const url = new URL(request.url ?? "/", config.publicOrigin);
+    const url = new URL(request.url ?? "/", config.publicApiBase);
     try {
       if (request.method === "GET" && url.pathname === "/health") {
         sendJson(response, 200, {
@@ -136,10 +180,33 @@ export async function startChatServer(
       }
 
       const actorId = authenticate(request, config);
+      if (request.method === "GET" && url.pathname === "/v1/auth/status") {
+        const github = await dependencies.oauth.status(actorId);
+        sendJson(
+          response,
+          200,
+          AuthStatusSchema.parse({
+            github,
+            model: {
+              id: "hydrafusion",
+              available:
+                github.state === "linked" && dependencies.runtime.isModelAvailable(actorId),
+            },
+            featureEnabled: config.productionEnabled,
+          }),
+        );
+        return;
+      }
       if (request.method === "GET" && url.pathname === "/oauth/github/start") {
         const location = await dependencies.oauth.begin(actorId);
         response.writeHead(302, { location, "cache-control": "no-store" });
         response.end();
+        return;
+      }
+      if (request.method === "DELETE" && url.pathname === "/v1/auth/github") {
+        await dependencies.oauth.unlink(actorId);
+        await dependencies.runtime.invalidateActor(actorId);
+        sendJson(response, 200, { status: "unlinked" });
         return;
       }
       if (request.method === "GET" && url.pathname === "/oauth/github/callback") {
@@ -149,7 +216,8 @@ export async function startChatServer(
           throw new AuthenticationError("GitHub OAuth callback is missing state or code");
         }
         await dependencies.oauth.complete(actorId, state, code);
-        const location = new URL("/ask-penge?github=linked", config.publicOrigin).toString();
+        await dependencies.runtime.invalidateActor(actorId);
+        const location = new URL("/ask?github=linked", config.publicAppOrigin).toString();
         response.writeHead(302, { location, "cache-control": "no-store" });
         response.end();
         return;
@@ -162,6 +230,10 @@ export async function startChatServer(
       }
       if (request.method === "POST" && url.pathname === "/v1/chat") {
         const input = AskRequestSchema.parse(await readJson(request));
+        const github = await dependencies.oauth.status(actorId);
+        if (github.state !== "linked") {
+          throw new AuthenticationError("linked GitHub identity is required");
+        }
         const connection: { sessionId?: string } = {};
         const pending: StreamEvent[] = [];
         let streaming = false;
@@ -180,7 +252,7 @@ export async function startChatServer(
         };
         response.on("close", () => {
           if (!ended && connection.sessionId !== undefined) {
-            void dependencies.runtime.disconnect(actorId, connection.sessionId);
+            observe(dependencies.runtime.disconnect(actorId, connection.sessionId), "disconnect");
           }
         });
         connection.sessionId = await dependencies.runtime.start(actorId, input.question, sink);
@@ -194,6 +266,7 @@ export async function startChatServer(
           "content-type": "text/event-stream; charset=utf-8",
           "x-accel-buffering": "no",
           "x-content-type-options": "nosniff",
+          "x-penge-chat-session-id": connection.sessionId,
         });
         streaming = true;
         for (const event of pending) {
@@ -220,6 +293,9 @@ export async function startChatServer(
       }
     }
   });
+  server.requestTimeout = config.httpRequestTimeoutMs;
+  server.headersTimeout = config.httpRequestTimeoutMs;
+  server.keepAliveTimeout = Math.min(config.httpRequestTimeoutMs, 5_000);
 
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
@@ -234,7 +310,10 @@ export async function startChatServer(
   }
   const idleTimer = setInterval(
     () => {
-      void dependencies.runtime.cleanupIdle();
+      observe(
+        dependencies.runtime.cleanupIdle().then(() => undefined),
+        "idle_cleanup",
+      );
     },
     Math.min(config.idleTimeoutMs, 30_000),
   );
@@ -245,11 +324,25 @@ export async function startChatServer(
     origin: `http://${address.address.includes(":") ? `[${address.address}]` : address.address}:${address.port}`,
     close: async () => {
       clearInterval(idleTimer);
-      await dependencies.runtime.close();
-      await new Promise<void>((resolve, reject) => {
-        server.close((error) => (error === undefined ? resolve() : reject(error)));
-        server.closeAllConnections();
-      });
+      const failures: unknown[] = [];
+      try {
+        await dependencies.runtime.close();
+      } catch (error) {
+        failures.push(error);
+      }
+      await Promise.all([...backgroundTasks]);
+      failures.push(...backgroundErrors);
+      try {
+        await new Promise<void>((resolve, reject) => {
+          server.close((error) => (error === undefined ? resolve() : reject(error)));
+          server.closeAllConnections();
+        });
+      } catch (error) {
+        failures.push(error);
+      }
+      if (failures.length > 0) {
+        throw new AggregateError(failures, "chat server cleanup failed");
+      }
     },
   };
 }

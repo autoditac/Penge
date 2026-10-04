@@ -49,6 +49,7 @@ export interface ChatStore {
     tokenEnvelope: EncryptedEnvelope,
   ): Promise<void>;
   getOAuthLink(actorId: string): Promise<OAuthLink | null>;
+  deleteOAuthLink(actorId: string): Promise<void>;
   appendAudit(event: AuditEvent): Promise<void>;
   close(): Promise<void>;
 }
@@ -90,12 +91,31 @@ export class PostgresChatStore implements ChatStore {
     stateEnvelope: EncryptedEnvelope,
     expiresAt: string,
   ): Promise<void> {
-    await this.pool.query(
-      `INSERT INTO chat_oauth_state
-         (state_hash, actor_id, state_envelope, expires_at)
-       VALUES ($1, $2, $3::jsonb, $4)`,
-      [stateHash, actorId, JSON.stringify(stateEnvelope), expiresAt],
-    );
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `DELETE FROM chat_oauth_state
+         WHERE expires_at <= now()`,
+      );
+      await client.query(
+        `INSERT INTO chat_oauth_state
+           (state_hash, actor_id, state_envelope, expires_at)
+         VALUES ($1, $2, $3::jsonb, $4)
+         ON CONFLICT (actor_id) DO UPDATE SET
+           state_hash = EXCLUDED.state_hash,
+           state_envelope = EXCLUDED.state_envelope,
+           created_at = now(),
+           expires_at = EXCLUDED.expires_at`,
+        [stateHash, actorId, JSON.stringify(stateEnvelope), expiresAt],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 
   async consumeOAuthState(
@@ -170,6 +190,10 @@ export class PostgresChatStore implements ChatStore {
           tokenEnvelope: row.token_envelope,
           updatedAt: row.updated_at.toISOString(),
         });
+  }
+
+  async deleteOAuthLink(actorId: string): Promise<void> {
+    await this.pool.query("DELETE FROM chat_oauth_link WHERE actor_id = $1", [actorId]);
   }
 
   async appendAudit(event: AuditEvent): Promise<void> {

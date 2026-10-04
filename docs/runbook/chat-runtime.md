@@ -8,19 +8,22 @@ It must not be enabled merely because configuration exists.
 For each linked household actor:
 
 1. Complete GitHub OAuth using that person's own GitHub identity.
-2. Verify the token-safe `listModels()` result contains the exact ID `hydrafusion`.
+2. Start a session with that actor's token provider and verify exact-model session creation succeeds for `hydrafusion`.
 3. Confirm issue #344's `issue-344-v1` MCP contract is installed.
-4. Run the package tests, build, lint, migration round trip, and process-cleanup checks.
-5. Set `PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED=1` and `PENGE_CHAT_ENABLE_PRODUCTION=1`.
+4. Confirm the MCP accepts file-only `PENGE_DB_URL_FILE` configuration.
+5. Run `just chat-check` and `just chat-migration-integration`, plus process-cleanup checks.
+6. Set `PENGE_CHAT_ENABLE_PRODUCTION=1`.
 
-If any step fails, keep both gates unset or `0`.
+If any step fails, keep the production gate unset or `0`.
 Never substitute another model.
 
 ## Readiness and failure behavior
 
 `GET /health` is quota-free and reports whether the feature is enabled.
-Production startup connects to a process-local Penge MCP child, verifies all accepted tool names with `listTools`, and closes the probe.
-Missing HydraFusion entitlement returns `hydrafusion_unavailable`; missing MCP tools fail startup.
+Production startup connects to a process-local Penge MCP child, verifies the exact registration set (including `_meta`) and every output schema with `listTools`, and closes the probe.
+The SDK exposes only the reviewed chat subset, never `_meta`.
+Missing or extra MCP tools fail startup.
+Per-actor model availability remains false until exact `hydrafusion` session creation succeeds with the linked actor token.
 
 ## Incident response
 
@@ -41,3 +44,19 @@ The infrastructure from issue #342 must remove client-supplied identity headers 
 
 The proxy routes the authenticated external HTTPS callback to the loopback listener.
 MCP, Copilot runtime, database, and raw tool ports remain unexposed.
+
+The proxy must preserve the configured trailing-slash `PENGE_CHAT_PUBLIC_API_BASE`, including any path prefix.
+The browser page redirect uses the separate path-free `PENGE_CHAT_PUBLIC_APP_ORIGIN`.
+
+## Dedicated database migration
+
+The chat OAuth schema is not part of the finance Alembic graph.
+Deployment creates the dedicated database and restricted login role, then an owner runs:
+
+```bash
+PENGE_CHAT_MIGRATION_DATABASE_URL_FILE=/run/secrets/chat-migration-db-url-v1 \
+  uv run --group db --group http alembic -c apps/chat/alembic.ini upgrade head
+```
+
+Downgrade removes only chat-owned tables.
+It never creates, drops, grants, or revokes cluster roles, databases, or finance privileges.

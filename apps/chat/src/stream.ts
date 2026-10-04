@@ -42,6 +42,7 @@ export const CompletionEventSchema = StreamEnvelopeSchema.extend({
   coverage: z.enum(["full", "partial"]),
   freshness: z.enum(["fresh", "stale"]),
   finishReason: z.enum(["completed", "cancelled"]),
+  assumptions: z.array(z.string().min(1)).max(8),
 }).strict();
 
 export const ErrorEventSchema = StreamEnvelopeSchema.extend({

@@ -31,6 +31,7 @@ The chat service must preserve [ADR-0005](0005-llm-access-via-mcp-only.md) and [
 
 `apps/chat` is a strict TypeScript service listening only on a configured loopback address.
 The authenticated external browser origin is separate from the listener and must use HTTPS outside local development.
+The external API base is a trailing-slash URL so reverse-proxy path prefixes survive OAuth callback construction; the path-free app origin independently owns the `/ask` redirect.
 The reverse proxy must overwrite and supply `X-Penge-Auth-Issuer`, immutable Google `X-Penge-Auth-Subject`, and a mounted-secret-backed `X-Penge-Proxy-Secret`; direct or ambiguous headers are rejected.
 
 Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE.
@@ -40,14 +41,17 @@ A mounted versioned keyring retains old keys for decryption while one current ke
 
 The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedInUser: false`, actor-isolated storage, exact `hydrafusion`, no fallback, no session store, no config discovery, no skills, extensions, canvases, built-in tools, or custom tools.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
-The MCP server is a local stdio child with a minimal explicit environment and allowlisted read-only tools.
-Startup probes the production MCP child with `connect`, `listTools`, and `close`; missing accepted-contract tools disable production.
+Exact-model session creation with that provider is the per-actor entitlement check; client-global unauthenticated model listing is not used.
+The MCP server is a local stdio child with a minimal explicit environment, a mounted finance database URL file, and allowlisted read-only tools.
+Startup probes the production MCP child with `connect`, `listTools`, and `close`; missing or extra registrations and missing output schemas disable production.
 
 The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.
 Events are zod-validated, ordered, session-bound, and terminal after completion or error.
 Prompt and transcript content are process-memory-only and removed when a bounded request ends.
 Audit storage contains only pseudonymous actor/session IDs, tool name, status, duration, and argument key names.
 
+OAuth/audit tables use a dedicated schema-only Alembic chain and database.
+Deployment owns database/role lifecycle and grants; the finance migration graph remains untouched.
 Postgres dependency `pg` is required for parameterized OAuth/audit persistence and startup privilege inspection.
 `pino` is required by the repository logging policy for structured redacted service logs.
 The official Copilot and MCP SDK dependencies are required to execute and verify their respective runtime protocols instead of maintaining incompatible local implementations.
@@ -63,13 +67,13 @@ The official Copilot and MCP SDK dependencies are required to execute and verify
 
 ### Negative
 
-- Chat remains feature-disabled until each linked user passes an exact `listModels()` entitlement check.
+- Chat remains unavailable to an actor until exact `hydrafusion` session creation succeeds with that actor's linked token.
 - Production requires coordinated reverse-proxy headers and mounted secrets from issue #342.
 - The accepted issue #344 MCP branch must land before the production readiness probe can pass.
 
 ### Neutral
 
-- The service role is created without a password; deployment supplies authentication using the existing Postgres secret mechanism.
+- Deployment creates the service role and supplies authentication using the versioned Postgres secret mechanism.
 
 ## Links
 

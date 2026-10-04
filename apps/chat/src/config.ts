@@ -6,7 +6,7 @@ import { ChatConfigError } from "./errors.js";
 export const HYDRAFUSION_MODEL = "hydrafusion" as const;
 export const MCP_TOOL_CONTRACT_VERSION = "issue-344-v1" as const;
 
-export const MCP_TOOL_ALLOWLIST = [
+export const MCP_CHAT_TOOL_ALLOWLIST = [
   "query_net_worth",
   "query_cashflow",
   "query_household_report",
@@ -24,6 +24,8 @@ export const MCP_TOOL_ALLOWLIST = [
   "get_merchant_reference_status",
   "search_merchant_reference",
 ] as const;
+
+export const MCP_REGISTRATION_ALLOWLIST = ["_meta", ...MCP_CHAT_TOOL_ALLOWLIST] as const;
 
 export const MCP_SOURCE_ALLOWLIST = [
   "gls",
@@ -73,7 +75,8 @@ export const ChatConfigSchema = z
   .object({
     httpHost: z.string().refine(isLoopbackHost, "must be a loopback host"),
     httpPort: z.number().int().positive().max(65535),
-    publicOrigin: z.string().url(),
+    publicApiBase: z.string().url(),
+    publicAppOrigin: z.string().url(),
     trustedProxyIssuer: z.string().min(1),
     identityPepper: z.string().min(32),
     proxySharedSecret: z.string().min(32),
@@ -86,12 +89,11 @@ export const ChatConfigSchema = z
     model: z.literal(HYDRAFUSION_MODEL),
     fallbackModel: z.undefined(),
     productionEnabled: z.boolean(),
-    entitlementVerified: z.boolean(),
     mcpToolContractVersion: z.literal(MCP_TOOL_CONTRACT_VERSION),
     mcpCommand: z.string().min(1),
     mcpArgs: z.array(z.string().min(1)).min(1),
     mcpWorkingDirectory: z.string().min(1),
-    mcpDatabaseUrl: z.string().url(),
+    mcpDatabaseUrlFile: z.string().min(1),
     mcpDuckdbPath: z.string().min(1),
     mcpVaultRoot: z.string().min(1),
     mcpLogDir: z.string().min(1),
@@ -108,22 +110,44 @@ export const ChatConfigSchema = z
       .int()
       .positive()
       .max(60 * 60_000),
+    httpRequestTimeoutMs: z.number().int().positive().max(60_000),
     maxConcurrentSessions: z.number().int().positive().max(16),
+    maxConcurrentSessionsPerActor: z.number().int().positive().max(4),
   })
   .superRefine((config, context) => {
-    const publicUrl = new URL(config.publicOrigin);
-    if (publicUrl.protocol !== "https:" && !isLoopbackHost(publicUrl.hostname)) {
+    for (const [path, value] of [
+      ["publicApiBase", config.publicApiBase],
+      ["publicAppOrigin", config.publicAppOrigin],
+    ] as const) {
+      const publicUrl = new URL(value);
+      if (publicUrl.protocol !== "https:" && !isLoopbackHost(publicUrl.hostname)) {
+        context.addIssue({
+          code: "custom",
+          path: [path],
+          message: "must use HTTPS unless it is a loopback development origin",
+        });
+      }
+    }
+    const appUrl = new URL(config.publicAppOrigin);
+    if (appUrl.pathname !== "/" || appUrl.search !== "" || appUrl.hash !== "") {
       context.addIssue({
         code: "custom",
-        path: ["publicOrigin"],
-        message: "must use HTTPS unless it is a loopback development origin",
+        path: ["publicAppOrigin"],
+        message: "must contain only the external app origin",
       });
     }
-    if (config.productionEnabled && !config.entitlementVerified) {
+    if (!config.publicApiBase.endsWith("/")) {
       context.addIssue({
         code: "custom",
-        path: ["entitlementVerified"],
-        message: "must be true before production can be enabled",
+        path: ["publicApiBase"],
+        message: "must end with a slash so proxy prefixes are preserved",
+      });
+    }
+    if (config.maxConcurrentSessionsPerActor > config.maxConcurrentSessions) {
+      context.addIssue({
+        code: "custom",
+        path: ["maxConcurrentSessionsPerActor"],
+        message: "must not exceed maxConcurrentSessions",
       });
     }
   });
@@ -138,7 +162,7 @@ function required(env: NodeJS.ProcessEnv, name: string): string {
   return value;
 }
 
-function secretFile(env: NodeJS.ProcessEnv, name: string): string {
+function secretFilePath(env: NodeJS.ProcessEnv, name: string): string {
   const path = required(env, `${name}_FILE`);
   const stat = statSync(path);
   const processUid = process.getuid?.();
@@ -151,7 +175,11 @@ function secretFile(env: NodeJS.ProcessEnv, name: string): string {
   if (processUid !== undefined && stat.uid !== processUid) {
     throw new ChatConfigError(`${name}_FILE must be owned by the chat process user`);
   }
-  return readFileSync(path, "utf8").trim();
+  return path;
+}
+
+function secretFile(env: NodeJS.ProcessEnv, name: string): string {
+  return readFileSync(secretFilePath(env, name), "utf8").trim();
 }
 
 function optionalFlag(env: NodeJS.ProcessEnv, name: string): boolean {
@@ -199,7 +227,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ChatConfig {
   const raw = {
     httpHost: env.PENGE_CHAT_HTTP_HOST ?? "127.0.0.1",
     httpPort: integer(env, "PENGE_CHAT_HTTP_PORT", 3000),
-    publicOrigin: required(env, "PENGE_CHAT_PUBLIC_ORIGIN"),
+    publicApiBase: required(env, "PENGE_CHAT_PUBLIC_API_BASE"),
+    publicAppOrigin: required(env, "PENGE_CHAT_PUBLIC_APP_ORIGIN"),
     trustedProxyIssuer: required(env, "PENGE_CHAT_TRUSTED_PROXY_ISSUER"),
     identityPepper: secretFile(env, "PENGE_CHAT_IDENTITY_PEPPER"),
     proxySharedSecret: secretFile(env, "PENGE_CHAT_PROXY_SHARED_SECRET"),
@@ -214,21 +243,22 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ChatConfig {
     model,
     fallbackModel: undefined,
     productionEnabled: optionalFlag(env, "PENGE_CHAT_ENABLE_PRODUCTION"),
-    entitlementVerified: optionalFlag(env, "PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED"),
     mcpToolContractVersion: env.PENGE_CHAT_MCP_TOOL_CONTRACT_VERSION ?? MCP_TOOL_CONTRACT_VERSION,
     mcpCommand: env.PENGE_CHAT_MCP_COMMAND ?? "pnpm",
     mcpArgs: (env.PENGE_CHAT_MCP_ARGS ?? "--filter,@penge/mcp,start").split(","),
     mcpWorkingDirectory: required(env, "PENGE_CHAT_MCP_WORKING_DIRECTORY"),
-    mcpDatabaseUrl: required(env, "PENGE_CHAT_MCP_DATABASE_URL"),
+    mcpDatabaseUrlFile: secretFilePath(env, "PENGE_DB_URL"),
     mcpDuckdbPath: required(env, "PENGE_CHAT_MCP_DUCKDB_PATH"),
     mcpVaultRoot: required(env, "PENGE_CHAT_MCP_VAULT_ROOT"),
     mcpLogDir: required(env, "PENGE_CHAT_MCP_LOG_DIR"),
-    databaseUrl: required(env, "PENGE_CHAT_DATABASE_URL"),
+    databaseUrl: secretFile(env, "PENGE_CHAT_DATABASE_URL"),
     databaseRole: env.PENGE_CHAT_DATABASE_ROLE ?? "penge_chat_oauth",
     copilotBaseDirectory: required(env, "PENGE_CHAT_COPILOT_BASE_DIRECTORY"),
     requestTimeoutMs: integer(env, "PENGE_CHAT_REQUEST_TIMEOUT_MS", 120_000),
     idleTimeoutMs: integer(env, "PENGE_CHAT_IDLE_TIMEOUT_MS", 180_000),
+    httpRequestTimeoutMs: integer(env, "PENGE_CHAT_HTTP_REQUEST_TIMEOUT_MS", 15_000),
     maxConcurrentSessions: integer(env, "PENGE_CHAT_MAX_CONCURRENT_SESSIONS", 2),
+    maxConcurrentSessionsPerActor: integer(env, "PENGE_CHAT_MAX_CONCURRENT_SESSIONS_PER_ACTOR", 1),
   };
 
   const parsed = ChatConfigSchema.safeParse(raw);

@@ -6,7 +6,8 @@ export function syntheticConfig(overrides: Partial<ChatConfig> = {}): ChatConfig
   return {
     httpHost: "127.0.0.1",
     httpPort: 0,
-    publicOrigin: "https://penge.example.test",
+    publicApiBase: "https://penge.example.test/api/",
+    publicAppOrigin: "https://penge.example.test",
     trustedProxyIssuer: "https://accounts.google.com",
     identityPepper: "i".repeat(32),
     proxySharedSecret: "p".repeat(32),
@@ -24,13 +25,12 @@ export function syntheticConfig(overrides: Partial<ChatConfig> = {}): ChatConfig
     githubApiUrl: "https://api.github.com",
     model: "hydrafusion",
     fallbackModel: undefined,
-    productionEnabled: false,
-    entitlementVerified: false,
+    productionEnabled: true,
     mcpToolContractVersion: "issue-344-v1",
     mcpCommand: "pnpm",
     mcpArgs: ["--filter", "@penge/mcp", "start"],
     mcpWorkingDirectory: "/srv/penge",
-    mcpDatabaseUrl: "postgresql://mcp@127.0.0.1:5432/penge",
+    mcpDatabaseUrlFile: "/run/secrets/penge-db-url-v1",
     mcpDuckdbPath: "/srv/penge/data/analytics.duckdb",
     mcpVaultRoot: "/srv/penge/data/vault",
     mcpLogDir: "/srv/penge/logs/mcp",
@@ -39,7 +39,9 @@ export function syntheticConfig(overrides: Partial<ChatConfig> = {}): ChatConfig
     copilotBaseDirectory: "/tmp/penge-chat-tests",
     requestTimeoutMs: 1_000,
     idleTimeoutMs: 500,
+    httpRequestTimeoutMs: 5_000,
     maxConcurrentSessions: 2,
+    maxConcurrentSessionsPerActor: 1,
     ...overrides,
   };
 }
@@ -58,6 +60,11 @@ export class MemoryChatStore implements ChatStore {
     stateEnvelope: EncryptedEnvelope,
     expiresAt: string,
   ): Promise<void> {
+    for (const [key, value] of this.states) {
+      if (value.actorId === actorId || new Date(value.expiresAt).getTime() <= Date.now()) {
+        this.states.delete(key);
+      }
+    }
     this.states.set(stateHash, { actorId, envelope: stateEnvelope, expiresAt });
   }
 
@@ -84,6 +91,12 @@ export class MemoryChatStore implements ChatStore {
     githubLogin: string,
     tokenEnvelope: EncryptedEnvelope,
   ): Promise<void> {
+    const conflictingActor = [...this.links.values()].find(
+      (link) => link.githubUserId === githubUserId && link.actorId !== actorId,
+    );
+    if (conflictingActor !== undefined) {
+      throw new Error("synthetic unique github_user_id violation");
+    }
     this.links.set(actorId, {
       actorId,
       githubUserId,
@@ -95,6 +108,10 @@ export class MemoryChatStore implements ChatStore {
 
   async getOAuthLink(actorId: string): Promise<OAuthLink | null> {
     return this.links.get(actorId) ?? null;
+  }
+
+  async deleteOAuthLink(actorId: string): Promise<void> {
+    this.links.delete(actorId);
   }
 
   async appendAudit(event: AuditEvent): Promise<void> {

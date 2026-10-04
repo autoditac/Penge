@@ -190,6 +190,37 @@ jobs:
       - name: Lint chat service
         run: pnpm --filter @penge/chat lint
 
+  chat-migrations:
+    name: Chat database migration round-trip
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:c7526c0f6c3f30260a563d7bcf8ad778effac59a44f8ffa86678c35418338609
+        env:
+          POSTGRES_USER: penge
+          POSTGRES_PASSWORD: penge
+          POSTGRES_DB: postgres
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U penge"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+          --tmpfs /var/lib/postgresql/data:rw,noexec,nosuid,size=1g
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+      - name: Install database test dependencies
+        run: uv sync --group db --group dev --group http --frozen
+      - name: Round-trip isolated chat database
+        env:
+          PENGE_CHAT_MIGRATION_TEST_ADMIN_URL: postgresql+psycopg://penge:penge@localhost:${{ job.services.postgres.ports['5432'] }}/postgres
+        run: just chat-migration-integration
+
   container-images:
     name: Container image build (${{ matrix.app }})
     runs-on: [self-hosted, linux, x64, penge]

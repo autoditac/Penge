@@ -48,6 +48,10 @@ chat-check:
     pnpm --filter @penge/chat build
     pnpm --filter @penge/chat lint
 
+# Run the dedicated chat OAuth migration integration test against disposable databases.
+chat-migration-integration:
+    uv run --group db --group dev --group http pytest tests/chat/test_chat_migration_roundtrip.py -q
+
 # --- Migrations ---------------------------------------------------------------
 
 # Apply all migrations against the local Postgres (compose must be up).

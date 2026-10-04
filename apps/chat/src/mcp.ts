@@ -5,13 +5,14 @@ import { z } from "zod/v3";
 
 import {
   MCP_SOURCE_ALLOWLIST,
-  MCP_TOOL_ALLOWLIST,
+  MCP_CHAT_TOOL_ALLOWLIST,
   MCP_TOOL_CONTRACT_VERSION,
+  MCP_REGISTRATION_ALLOWLIST,
   type ChatConfig,
 } from "./config.js";
 import { ToolPolicyError } from "./security.js";
 
-export const McpToolNameSchema = z.enum(MCP_TOOL_ALLOWLIST);
+export const McpToolNameSchema = z.enum(MCP_CHAT_TOOL_ALLOWLIST);
 export const McpSourceNameSchema = z.enum(MCP_SOURCE_ALLOWLIST);
 
 export type McpToolName = z.infer<typeof McpToolNameSchema>;
@@ -34,7 +35,7 @@ export function assertMcpToolAllowed(toolName: string): asserts toolName is McpT
   if (DENIED_NAME_PARTS.some((part) => normalized.includes(part))) {
     throw new ToolPolicyError(`tool ${toolName} is denied by policy`);
   }
-  if (!MCP_TOOL_ALLOWLIST.some((allowed) => allowed === normalized)) {
+  if (!MCP_CHAT_TOOL_ALLOWLIST.some((allowed) => allowed === normalized)) {
     throw new ToolPolicyError(`tool ${toolName} is not in contract ${MCP_TOOL_CONTRACT_VERSION}`);
   }
 }
@@ -51,16 +52,36 @@ export function buildMcpServerConfig(config: ChatConfig): MCPStdioServerConfig {
     command: config.mcpCommand,
     args: [...config.mcpArgs],
     workingDirectory: config.mcpWorkingDirectory,
-    tools: [...MCP_TOOL_ALLOWLIST],
+    tools: [...MCP_CHAT_TOOL_ALLOWLIST],
     timeout: config.requestTimeoutMs,
     env: {
       PATH: process.env.PATH ?? "",
-      PENGE_DB_URL: config.mcpDatabaseUrl,
+      PENGE_DB_URL_FILE: config.mcpDatabaseUrlFile,
       PENGE_DUCKDB_PATH: config.mcpDuckdbPath,
       PENGE_VAULT_ROOT: config.mcpVaultRoot,
       PENGE_MCP_LOG_DIR: config.mcpLogDir,
     },
   };
+}
+
+export function assertExactMcpRegistration(
+  tools: readonly { name: string; outputSchema?: unknown }[],
+): void {
+  const available = new Set(tools.map((tool) => tool.name));
+  const expected = new Set<string>(MCP_REGISTRATION_ALLOWLIST);
+  const missing = MCP_REGISTRATION_ALLOWLIST.filter((tool) => !available.has(tool));
+  const unexpected = [...available].filter((tool) => !expected.has(tool));
+  const missingOutputSchema = tools
+    .filter((tool) => expected.has(tool.name) && tool.outputSchema === undefined)
+    .map((tool) => tool.name);
+  if (missing.length > 0 || unexpected.length > 0 || missingOutputSchema.length > 0) {
+    throw new ToolPolicyError(
+      `MCP contract ${MCP_TOOL_CONTRACT_VERSION} differs: ` +
+        `missing=${missing.join(",") || "none"} ` +
+        `unexpected=${unexpected.join(",") || "none"} ` +
+        `missingOutputSchema=${missingOutputSchema.join(",") || "none"}`,
+    );
+  }
 }
 
 export async function verifyMcpServerContract(config: ChatConfig): Promise<void> {
@@ -78,13 +99,7 @@ export async function verifyMcpServerContract(config: ChatConfig): Promise<void>
   try {
     await client.connect(transport);
     const response = await client.listTools();
-    const available = new Set(response.tools.map((tool) => tool.name));
-    const missing = MCP_TOOL_ALLOWLIST.filter((tool) => !available.has(tool));
-    if (missing.length > 0) {
-      throw new ToolPolicyError(
-        `MCP contract ${MCP_TOOL_CONTRACT_VERSION} is missing tools: ${missing.join(", ")}`,
-      );
-    }
+    assertExactMcpRegistration(response.tools);
   } finally {
     await client.close().catch(() => undefined);
     await transport.close().catch(() => undefined);

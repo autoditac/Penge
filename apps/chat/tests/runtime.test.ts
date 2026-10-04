@@ -290,7 +290,25 @@ describe("chat runtime isolation and lifecycle", () => {
         result: {
           content: "redacted",
           structuredContent: {
-            complete: false,
+            tool_allowlist: [
+              "_meta",
+              "query_net_worth",
+              "query_cashflow",
+              "query_household_report",
+              "run_scenario",
+              "answer_planning_question",
+              "search_documents",
+              "suggest_import_mapping",
+              "compute_tax_year",
+              "get_source_coverage",
+              "search_household_transactions",
+              "get_household_transaction_detail",
+              "get_household_taxonomy_summary",
+              "get_household_rule_summary",
+              "get_household_merchant_summary",
+              "get_merchant_reference_status",
+              "search_merchant_reference",
+            ],
             sources: [
               {
                 id: "nordnet",

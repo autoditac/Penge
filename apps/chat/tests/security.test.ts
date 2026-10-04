@@ -7,6 +7,7 @@ import {
   assertMcpToolAllowed,
   buildMcpServerConfig,
 } from "../src/mcp.js";
+import { projectEvidence } from "../src/runtime.js";
 import { assertPromptIsSafe, redactedArgumentKeys } from "../src/security.js";
 import { syntheticConfig } from "./helpers.js";
 
@@ -34,13 +35,42 @@ describe("read-only MCP policy", () => {
       outputSchema: { type: "object" },
     }));
     expect(() => assertExactMcpRegistration(exact)).not.toThrow();
-    expect(() => assertExactMcpRegistration(exact.slice(1))).toThrow(/missing=_meta/);
+    expect(() => assertExactMcpRegistration(exact.slice(1))).toThrow(/missing=/);
     expect(() =>
       assertExactMcpRegistration([...exact, { name: "execute_sql", outputSchema: {} }]),
     ).toThrow(/unexpected=execute_sql/);
     expect(() => assertExactMcpRegistration(exact.map((tool) => ({ name: tool.name })))).toThrow(
       /missingOutputSchema/,
     );
+  });
+
+  it("requires exact get_source_coverage tool_allowlist equality and rejects drift", () => {
+    const ok = {
+      tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+      sources: [{ id: "nordnet", coverage: { completeness: "partial", freshness: "fresh" } }],
+    };
+    expect(() => projectEvidence("get_source_coverage", ok)).not.toThrow();
+
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...ok,
+        tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST.slice(1)],
+      }),
+    ).toThrow(/tool_allowlist differs/);
+
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...ok,
+        tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST, "execute_sql"],
+      }),
+    ).toThrow(/tool_allowlist differs/);
+
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...ok,
+        tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST, "_meta"],
+      }),
+    ).toThrow(/tool_allowlist differs/);
   });
 
   it("passes only mounted credential paths to the local MCP child", () => {

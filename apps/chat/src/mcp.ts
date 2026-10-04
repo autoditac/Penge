@@ -64,24 +64,62 @@ export function buildMcpServerConfig(config: ChatConfig): MCPStdioServerConfig {
   };
 }
 
+function assertExactRegistrationSequence(
+  actual: readonly string[],
+  expected: readonly string[],
+  label: string,
+): void {
+  if (actual.length !== expected.length) {
+    const missing = expected.filter((name) => !actual.includes(name));
+    const unexpected = actual.filter((name) => !expected.includes(name));
+    throw new ToolPolicyError(
+      `${label} differs: missing=${missing.join(",") || "none"} unexpected=${unexpected.join(",") || "none"}`,
+    );
+  }
+  const seen = new Set<string>();
+  for (let index = 0; index < actual.length; index += 1) {
+    const name = actual[index];
+    if (name === undefined) {
+      throw new ToolPolicyError(`${label} differs: undefined entry at index ${index}`);
+    }
+    if (seen.has(name)) {
+      throw new ToolPolicyError(`${label} differs: duplicate=${name}`);
+    }
+    seen.add(name);
+    if (name !== expected[index]) {
+      throw new ToolPolicyError(
+        `${label} differs: expected[${index}]=${expected[index]} actual[${index}]=${name}`,
+      );
+    }
+  }
+}
+
 export function assertExactMcpRegistration(
   tools: readonly { name: string; outputSchema?: unknown }[],
 ): void {
-  const available = new Set(tools.map((tool) => tool.name));
-  const expected = new Set<string>(MCP_REGISTRATION_ALLOWLIST);
-  const missing = MCP_REGISTRATION_ALLOWLIST.filter((tool) => !available.has(tool));
-  const unexpected = [...available].filter((tool) => !expected.has(tool));
+  const expected = [...MCP_REGISTRATION_ALLOWLIST] as string[];
+  const available = tools.map((tool) => tool.name);
+  assertExactRegistrationSequence(available, expected, `MCP contract ${MCP_TOOL_CONTRACT_VERSION}`);
   const missingOutputSchema = tools
-    .filter((tool) => expected.has(tool.name) && tool.outputSchema === undefined)
+    .filter((tool) => expected.includes(tool.name) && tool.outputSchema === undefined)
     .map((tool) => tool.name);
-  if (missing.length > 0 || unexpected.length > 0 || missingOutputSchema.length > 0) {
+  if (missingOutputSchema.length > 0) {
     throw new ToolPolicyError(
-      `MCP contract ${MCP_TOOL_CONTRACT_VERSION} differs: ` +
-        `missing=${missing.join(",") || "none"} ` +
-        `unexpected=${unexpected.join(",") || "none"} ` +
-        `missingOutputSchema=${missingOutputSchema.join(",") || "none"}`,
+      `MCP contract ${MCP_TOOL_CONTRACT_VERSION} differs: missingOutputSchema=${missingOutputSchema.join(",") || "none"}`,
     );
   }
+}
+
+export function assertExactToolAllowlist(toolAllowlist: unknown): void {
+  if (!Array.isArray(toolAllowlist)) {
+    throw new ToolPolicyError("get_source_coverage structuredContent is missing tool_allowlist");
+  }
+  const actual = toolAllowlist.map((name) => String(name));
+  assertExactRegistrationSequence(
+    actual,
+    [...MCP_REGISTRATION_ALLOWLIST],
+    "get_source_coverage tool_allowlist",
+  );
 }
 
 export async function verifyMcpServerContract(config: ChatConfig): Promise<void> {

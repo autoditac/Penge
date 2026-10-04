@@ -10,12 +10,6 @@ export const MCP_CHAT_TOOL_ALLOWLIST = [
   "query_net_worth",
   "query_cashflow",
   "query_household_report",
-  "run_scenario",
-  "answer_planning_question",
-  "search_documents",
-  "suggest_import_mapping",
-  "compute_tax_year",
-  "get_source_coverage",
   "search_household_transactions",
   "get_household_transaction_detail",
   "get_household_taxonomy_summary",
@@ -23,6 +17,12 @@ export const MCP_CHAT_TOOL_ALLOWLIST = [
   "get_household_merchant_summary",
   "get_merchant_reference_status",
   "search_merchant_reference",
+  "get_source_coverage",
+  "compute_tax_year",
+  "run_scenario",
+  "answer_planning_question",
+  "search_documents",
+  "suggest_import_mapping",
 ] as const;
 
 export const MCP_REGISTRATION_ALLOWLIST = ["_meta", ...MCP_CHAT_TOOL_ALLOWLIST] as const;

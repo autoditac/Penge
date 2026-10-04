@@ -264,7 +264,23 @@ describe("loopback HTTP service", () => {
   });
 
   it("rejects cross-origin mutations and non-JSON chat bodies", async () => {
-    const runtimeStart = vi.fn(async () => "00000000-0000-4000-8000-000000000001");
+    const runtimeStart = vi.fn(
+      async (_actorId: string, _question: string, sink: (event: StreamEvent) => void) => {
+        sink({
+          version: "1.0",
+          sessionId: "00000000-0000-4000-8000-000000000001",
+          id: "event-unicode",
+          sequence: 0,
+          type: "completion",
+          summary: "Synthetic completion",
+          coverage: "partial",
+          freshness: "stale",
+          finishReason: "completed",
+          assumptions: [],
+        });
+        return "00000000-0000-4000-8000-000000000001";
+      },
+    );
     const unlink = vi.fn(async () => undefined);
     const server = await startChatServer(syntheticConfig(), {
       runtime: {
@@ -306,6 +322,19 @@ describe("loopback HTTP service", () => {
       expect(formCompatible.status).toBe(415);
       expect(runtimeStart).not.toHaveBeenCalled();
       expect(unlink).not.toHaveBeenCalled();
+
+      const unicodeQuestion = "界".repeat(8_000);
+      const unicode = await fetch(`${server.origin}/v1/chat`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ question: unicodeQuestion }),
+      });
+      expect(unicode.status).toBe(200);
+      expect(runtimeStart).toHaveBeenCalledWith(
+        expect.any(String),
+        unicodeQuestion,
+        expect.any(Function),
+      );
     } finally {
       await server.close();
     }

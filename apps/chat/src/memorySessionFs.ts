@@ -159,6 +159,12 @@ export class BoundedMemorySessionFs implements SessionFsProvider {
   async rename(source: string, destination: string): Promise<void> {
     const from = normalizedPath(source);
     const to = normalizedPath(destination);
+    if (from === to) {
+      if (!(await this.exists(from))) {
+        throw fileSystemError("ENOENT", "session path does not exist");
+      }
+      return;
+    }
     const file = this.files.get(from);
     if (file !== undefined) {
       this.ensureParents(to);

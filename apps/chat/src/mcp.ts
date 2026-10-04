@@ -1,6 +1,7 @@
 import type { MCPStdioServerConfig } from "@github/copilot-sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { createHash } from "node:crypto";
 import { z } from "zod/v3";
 
 import {
@@ -17,6 +18,8 @@ export const McpSourceNameSchema = z.enum(MCP_SOURCE_ALLOWLIST);
 
 export type McpToolName = z.infer<typeof McpToolNameSchema>;
 export type McpSourceName = z.infer<typeof McpSourceNameSchema>;
+
+const CROCKFORD_BASE32 = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
 
 const DENIED_NAME_PARTS = [
   "shell",
@@ -46,7 +49,25 @@ export function assertMcpSourceAllowed(sourceName: string): asserts sourceName i
   }
 }
 
-export function buildMcpServerConfig(config: ChatConfig): MCPStdioServerConfig {
+function auditPseudonym(prefix: "actor" | "session", value: string): string {
+  const digest = createHash("sha256")
+    .update(`penge-mcp-audit-v1\0${prefix}\0${value}`)
+    .digest()
+    .subarray(0, 16);
+  let encoded = BigInt(`0x${digest.toString("hex")}`);
+  let ulid = "";
+  for (let index = 0; index < 26; index += 1) {
+    ulid = `${CROCKFORD_BASE32[Number(encoded & 31n)]}${ulid}`;
+    encoded >>= 5n;
+  }
+  return `${prefix}_${ulid}`;
+}
+
+export function buildMcpServerConfig(
+  config: ChatConfig,
+  actorId: string,
+  sessionId: string,
+): MCPStdioServerConfig {
   return {
     type: "stdio",
     command: config.mcpCommand,
@@ -60,6 +81,8 @@ export function buildMcpServerConfig(config: ChatConfig): MCPStdioServerConfig {
       PENGE_DUCKDB_PATH: config.mcpDuckdbPath,
       PENGE_VAULT_ROOT: config.mcpVaultRoot,
       PENGE_MCP_LOG_DIR: config.mcpLogDir,
+      PENGE_MCP_ACTOR_ID: auditPseudonym("actor", actorId),
+      PENGE_MCP_SESSION_ID: auditPseudonym("session", sessionId),
     },
   };
 }
@@ -126,7 +149,7 @@ export function assertExactToolAllowlist(toolAllowlist: unknown): void {
 }
 
 export async function verifyMcpServerContract(config: ChatConfig): Promise<void> {
-  const server = buildMcpServerConfig(config);
+  const server = buildMcpServerConfig(config, "contract-probe-actor", "contract-probe-session");
   const transport = new StdioClientTransport({
     command: server.command,
     args: server.args ?? [],

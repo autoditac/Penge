@@ -63,6 +63,7 @@ function safeRuntimeEnvironment(): Record<string, string | undefined> {
 
 export function buildSessionConfig(
   config: ChatConfig,
+  actorId: string,
   sessionId: string,
   tokenProvider: GitHubTokenProvider,
 ): SessionConfig {
@@ -90,7 +91,7 @@ export function buildSessionConfig(
       feedback: "Penge chat denies every ambient permission request",
     }),
     mcpServers: {
-      penge: buildMcpServerConfig(config),
+      penge: buildMcpServerConfig(config, actorId, sessionId),
     },
     createSessionFsProvider: () => new BoundedMemorySessionFs(),
   };
@@ -203,7 +204,12 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       try {
         session = await withTimeout(
           client.createSession(
-            buildSessionConfig(this.config, options.sessionId, options.tokenProvider),
+            buildSessionConfig(
+              this.config,
+              options.actorId,
+              options.sessionId,
+              options.tokenProvider,
+            ),
           ),
           this.config.requestTimeoutMs,
         );

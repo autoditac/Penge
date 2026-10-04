@@ -74,8 +74,8 @@ async function readJson(request: IncomingMessage): Promise<unknown> {
   for await (const chunk of request) {
     const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
     size += buffer.length;
-    if (size > 16_384) {
-      throw new PengeError("chat/request_too_large", "request body exceeds 16 KiB");
+    if (size > 48 * 1024) {
+      throw new PengeError("chat/request_too_large", "request body exceeds 48 KiB");
     }
     chunks.push(buffer);
   }

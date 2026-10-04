@@ -17,7 +17,7 @@ const provider: GitHubTokenProvider = async () => ({
 
 describe("Copilot SDK policy", () => {
   it("pins empty mode session semantics to exact HydraFusion with local stdio MCP", async () => {
-    const session = buildSessionConfig(syntheticConfig(), "session-1", provider);
+    const session = buildSessionConfig(syntheticConfig(), "actor-1", "session-1", provider);
     expect(session).toMatchObject({
       model: "hydrafusion",
       allowedModels: ["hydrafusion"],
@@ -53,6 +53,13 @@ describe("Copilot SDK policy", () => {
     await expect(
       memoryFs.writeFile("/sessions/too-large", "x".repeat(8 * 1024 * 1024 + 1)),
     ).rejects.toThrow(/memory is exhausted/);
+
+    const fullMemoryFs = new BoundedMemorySessionFs();
+    await fullMemoryFs.writeFile("/sessions/full", "x".repeat(8 * 1024 * 1024));
+    await fullMemoryFs.rename("/sessions/full", "/sessions/./full");
+    await expect(fullMemoryFs.writeFile("/sessions/extra", "x")).rejects.toThrow(
+      /memory is exhausted/,
+    );
   });
 
   it("fails before process creation while HydraFusion is feature-disabled", async () => {

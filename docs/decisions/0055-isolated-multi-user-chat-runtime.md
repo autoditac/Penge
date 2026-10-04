@@ -33,7 +33,7 @@ The chat service must preserve [ADR-0005](0005-llm-access-via-mcp-only.md) and [
 The authenticated external browser origin is separate from the listener and must use HTTPS outside local development.
 The external API base is a trailing-slash URL so reverse-proxy path prefixes survive OAuth callback construction; the path-free app origin independently owns the `/ask` redirect.
 The reverse proxy must overwrite and supply `X-Penge-Auth-Issuer`, immutable Google `X-Penge-Auth-Subject`, and a mounted-secret-backed `X-Penge-Proxy-Secret`; direct or ambiguous headers are rejected.
-State-changing requests additionally require the configured application origin, and chat/stop requests require `application/json`.
+State-changing requests additionally require the configured application origin, chat/stop requests require `application/json`, and request bodies remain byte-bounded while accommodating every valid 8,000-code-unit question.
 
 Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE.
 The database stores only an HMAC state lookup and an encrypted versioned state envelope, never raw state or a plaintext verifier.
@@ -51,8 +51,9 @@ Exact-model session creation with that provider is the per-actor entitlement che
 A bounded, immediately closed exact-model session lets authenticated status checks establish readiness before the browser submits its first question.
 Readiness probes and chats share the same atomic global and per-actor admission limits; a full status probe returns `429 rate_limit` and releases its reservation after teardown.
 The MCP server is a local stdio child with a minimal explicit environment, a mounted finance database URL file, and allowlisted read-only tools.
+Each child receives only derived `actor_<ULID>` and `session_<ULID>` audit pseudonyms; trusted identity claims and internal identifiers are never forwarded.
 Startup probes the production MCP child with `connect`, `listTools`, and `close`; missing or extra registrations and missing output schemas disable production.
-Every successful `get_source_coverage` result must independently report the same ordered registration allowlist, including `_meta`; missing, extra, reordered, or duplicate entries fail closed before evidence projection.
+The pinned registration order matches issue #350 exactly, and every successful `get_source_coverage` result must independently report that ordered allowlist, including `_meta`; missing, extra, reordered, or duplicate entries fail closed before evidence projection.
 
 The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.
 Events are zod-validated, ordered, session-bound, and terminal after completion or error.

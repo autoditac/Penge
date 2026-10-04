@@ -22,6 +22,7 @@ Each actor's exact `hydrafusion` entitlement is checked by creating the SDK sess
 - Audit and request logs use fixed identifiers only; model-controlled argument names, values, and request paths are not retained.
 - The `penge_chat_oauth` database role is checked at startup against the dedicated chat database and may access only the three chat tables.
 - The finance MCP child receives only `PENGE_DB_URL_FILE`; database credentials are never rematerialized into its environment.
+- MCP audit attribution uses derived `actor_<ULID>` and `session_<ULID>` pseudonyms, never trusted identity claims or internal IDs.
 
 ## Mounted secrets
 

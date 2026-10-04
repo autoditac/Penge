@@ -209,6 +209,15 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       McpContractUnavailableError,
     );
     expect(() => assertPlannedMcpContractAvailable(plannedPengeMcpRegisteredTools)).not.toThrow();
+    expect(() =>
+      assertPlannedMcpContractAvailable([...plannedPengeMcpRegisteredTools].reverse()),
+    ).not.toThrow();
+    expect(() =>
+      assertPlannedMcpContractAvailable([
+        ...plannedPengeMcpRegisteredTools.slice(0, -1),
+        plannedPengeMcpRegisteredTools[0]!,
+      ]),
+    ).toThrow(McpContractUnavailableError);
   });
 
   it("derives non-reusable actor SDK directories under a trusted root", () => {

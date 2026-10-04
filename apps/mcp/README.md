@@ -11,6 +11,11 @@ for the architectural decision and
 [`docs/decisions/0005-llm-access-via-mcp-only.md`](../../docs/decisions/0005-llm-access-via-mcp-only.md)
 for the policy.
 
+Every tool published by the stdio `tools/list` contract carries the MCP
+`annotations.readOnlyHint: true` annotation. Chat permission handlers use this
+wire-level declaration to distinguish the allowlisted read-only surface from
+all other calls.
+
 ## Run locally
 
 ```bash

@@ -241,9 +241,13 @@ export function sanitizeMcpEnvironment(source: unknown): McpChildEnvironment {
 }
 
 export function assertPlannedMcpContractAvailable(observedTools: readonly string[]): void {
+  const expectedTools = new Set(plannedPengeMcpRegisteredTools);
+  const observedToolSet = new Set(observedTools);
   if (
     observedTools.length !== plannedPengeMcpRegisteredTools.length ||
-    !plannedPengeMcpRegisteredTools.every((tool, index) => observedTools[index] === tool)
+    observedToolSet.size !== observedTools.length ||
+    observedToolSet.size !== expectedTools.size ||
+    !plannedPengeMcpRegisteredTools.every((tool) => observedToolSet.has(tool))
   ) {
     throw new McpContractUnavailableError(
       `${plannedChatToolContractVersion} requires independent stdio tools/list evidence`,

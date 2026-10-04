@@ -238,6 +238,27 @@ describe("Ask Penge live client", () => {
     });
   });
 
+  it("does not trust an oversized backend error body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(
+        {
+          code: "hydrafusion_unavailable",
+          message: "x".repeat(4_097),
+        },
+        503,
+      ),
+    );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({
+      type: "error",
+      code: "session_interrupted",
+    });
+  });
+
   it("reports disconnects before a terminal event but not local aborts", async () => {
     const fetchMock = vi.fn().mockResolvedValue(streamResponse([]));
     const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);

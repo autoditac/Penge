@@ -380,8 +380,9 @@ const publicChatErrorSchema = z
       "missing_fx",
       "tool_timeout",
     ]),
+    message: z.string().max(1_000),
   })
-  .passthrough();
+  .strict();
 
 async function mapChatHttpError(response: Response): Promise<{
   code: AskStreamErrorEvent["code"];
@@ -460,8 +461,27 @@ async function readPublicErrorCode(
   response: Response,
 ): Promise<AskStreamErrorEvent["code"] | null> {
   try {
-    const body = await response.text();
-    if (body.length === 0 || body.length > 4_096) {
+    if (response.body === null) {
+      return null;
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let body = "";
+    let byteLength = 0;
+    while (true) {
+      const result = await reader.read();
+      if (result.done) {
+        body += decoder.decode();
+        break;
+      }
+      byteLength += result.value.byteLength;
+      if (byteLength > 4_096) {
+        await reader.cancel();
+        return null;
+      }
+      body += decoder.decode(result.value, { stream: true });
+    }
+    if (body.length === 0) {
       return null;
     }
     const parsed = publicChatErrorSchema.safeParse(JSON.parse(body));

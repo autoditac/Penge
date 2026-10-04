@@ -16,6 +16,9 @@ Accounts, credentials, quota, sessions, and SDK storage are never shared.
 HydraFusion is experimental and has no fallback.
 When the exact `hydrafusion` model ID is unavailable to the current linked
 identity, the surface is disabled and explains the external entitlement gate.
+One household member's successful check never enables the other member:
+entitlement is keyed to the Penge actor, linked GitHub identity, and exact
+model ID.
 
 ## Surface
 

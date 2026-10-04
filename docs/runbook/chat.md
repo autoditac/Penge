@@ -35,8 +35,8 @@ The 2026-10-04 result was:
 { "exactModel": "hydrafusion", "entitled": false, "matchCount": 0 }
 ```
 
-Do not set the entitlement flag from documentation, a different account, a
-display name, or a similar model ID.
+Do not create an entitlement record from documentation, a different account,
+a display name, or a similar model ID.
 Never ask for or use another household member's credentials to run this check.
 
 ## Production enablement checklist
@@ -46,16 +46,19 @@ Issue #346 may enable a linked actor only after all checks pass:
 1. The actor uses that person's own GitHub account, Copilot entitlement, OAuth
    credential, quota, and isolated SDK storage.
 2. `listModels()` for that actor contains exactly `hydrafusion`.
-3. `PENGE_CHAT_MODEL=hydrafusion`,
-   `PENGE_CHAT_ENABLE_PRODUCTION=1`, and
-   `PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED=1` are set.
-4. `PENGE_CHAT_FALLBACK_MODEL` is unset.
-5. The accepted #344 tool-contract version is configured.
-6. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
+3. The successful check is persisted for exactly that actor, normalized linked
+   GitHub login, and `hydrafusion` model ID.
+   A record for another actor or linked identity is rejected.
+4. `PENGE_CHAT_MODEL=hydrafusion` and
+   `PENGE_CHAT_ENABLE_PRODUCTION=1` are set.
+   The deployment switch never substitutes for the actor-scoped record.
+5. `PENGE_CHAT_FALLBACK_MODEL` is unset.
+6. The accepted #344 tool-contract version is configured.
+7. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
    permission request, and starts only the local stdio Penge MCP server.
-7. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
+8. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
    reachable.
-8. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted
+9. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted
    audits, token encryption/rotation, backup, and rollback tests pass.
 
 If any check fails, keep chat disabled and return a typed unavailable or

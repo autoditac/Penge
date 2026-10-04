@@ -77,10 +77,15 @@ in `apps/chat-feasibility`:
 
 `PENGE_CHAT_MODEL=hydrafusion` is mandatory.
 `PENGE_CHAT_FALLBACK_MODEL` must be unset.
-Both `PENGE_CHAT_ENABLE_PRODUCTION=1` and
-`PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED=1` are required.
-The second flag records a successful user-scoped `listModels()` check for the
-linked identity; it is not inferred from documentation or another user.
+`PENGE_CHAT_ENABLE_PRODUCTION=1` is only a process-wide deployment switch and
+does not grant model access to any actor.
+There is deliberately no process-wide entitlement flag.
+Issue #346 must persist a successful `listModels()` verification keyed by the
+tuple `(actor ID, normalized linked GitHub login, exact model ID)` and pass that
+actor-scoped record into session configuration.
+The runtime rejects a record belonging to another actor or linked identity.
+Verification is never inferred from documentation, another user, or the
+deployment switch.
 
 ### Dependency ownership and pin
 
@@ -150,12 +155,12 @@ disabled, and no other model may substitute.
 
 ## Downstream Contracts
 
-| PBI  | Contract provided by this decision                                                                                                                                                                                                         |
-| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| #344 | Replace `issue-345-v1-provisional`; declare final names, schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields.                                                                                                |
-| #346 | Own `apps/chat` and the SDK pin; preserve empty mode, actor-scoped token provider, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup.                   |
-| #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                           |
-| #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists. |
+| PBI  | Contract provided by this decision                                                                                                                                                                                                                        |
+| ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #344 | Replace `issue-345-v1-provisional`; declare final names, schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields.                                                                                                               |
+| #346 | Own `apps/chat` and the SDK pin; preserve empty mode, actor/linked-identity-scoped entitlement and token providers, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
+| #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                                          |
+| #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists.                |
 
 ## Links
 

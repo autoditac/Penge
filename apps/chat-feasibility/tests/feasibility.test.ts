@@ -16,14 +16,24 @@ import {
 } from "../src/index.js";
 
 const actorId = "actor_0123456789abcdef";
+const githubLogin = "synthetic-user-a";
+const verifiedAt = "2026-10-04T08:00:00.000Z";
 
 function enabledRuntime() {
-  return resolveChatRuntimeConfig({
-    PENGE_CHAT_MODEL: hydraFusionModel,
-    PENGE_CHAT_ENABLE_PRODUCTION: "1",
-    PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED: "1",
-    PENGE_CHAT_ACTOR_ID: actorId,
-  });
+  return resolveChatRuntimeConfig(
+    {
+      PENGE_CHAT_MODEL: hydraFusionModel,
+      PENGE_CHAT_ENABLE_PRODUCTION: "1",
+      PENGE_CHAT_ACTOR_ID: actorId,
+      PENGE_CHAT_GITHUB_LOGIN: githubLogin,
+    },
+    {
+      actorId,
+      githubLogin,
+      model: hydraFusionModel,
+      verifiedAt,
+    },
+  );
 }
 
 describe("HydraFusion Copilot SDK feasibility proof", () => {
@@ -32,6 +42,7 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       runtime: enabledRuntime(),
       tokenProvider: {
         actorId,
+        githubLogin,
         acquire: async () => ({
           kind: "token",
           accessToken: "synthetic-token",
@@ -73,6 +84,7 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       runtime: enabledRuntime(),
       tokenProvider: {
         actorId,
+        githubLogin,
         acquire: async () => ({
           kind: "token",
           accessToken: "synthetic-token",
@@ -96,33 +108,95 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
     expect(excludedTools?.toArray()).toEqual(blockedToolSources);
   });
 
-  it("requires exact model configuration and both production gates", () => {
+  it("requires exact model configuration and the production gate", () => {
     expect(() =>
-      resolveChatRuntimeConfig({
-        PENGE_CHAT_MODEL: "gpt-5.4",
-        PENGE_CHAT_ENABLE_PRODUCTION: "1",
-        PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED: "1",
-        PENGE_CHAT_ACTOR_ID: actorId,
-      }),
+      resolveChatRuntimeConfig(
+        {
+          PENGE_CHAT_MODEL: "gpt-5.4",
+          PENGE_CHAT_ENABLE_PRODUCTION: "1",
+          PENGE_CHAT_ACTOR_ID: actorId,
+          PENGE_CHAT_GITHUB_LOGIN: githubLogin,
+        },
+        {
+          actorId,
+          githubLogin,
+          model: hydraFusionModel,
+          verifiedAt,
+        },
+      ),
     ).toThrow(ModelUnavailableError);
 
     expect(() =>
-      resolveChatRuntimeConfig({
-        PENGE_CHAT_MODEL: hydraFusionModel,
-        PENGE_CHAT_FALLBACK_MODEL: "gpt-5.4",
-        PENGE_CHAT_ENABLE_PRODUCTION: "1",
-        PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED: "1",
-        PENGE_CHAT_ACTOR_ID: actorId,
-      }),
+      resolveChatRuntimeConfig(
+        {
+          PENGE_CHAT_MODEL: hydraFusionModel,
+          PENGE_CHAT_FALLBACK_MODEL: "gpt-5.4",
+          PENGE_CHAT_ENABLE_PRODUCTION: "1",
+          PENGE_CHAT_ACTOR_ID: actorId,
+          PENGE_CHAT_GITHUB_LOGIN: githubLogin,
+        },
+        {
+          actorId,
+          githubLogin,
+          model: hydraFusionModel,
+          verifiedAt,
+        },
+      ),
     ).toThrow(ModelUnavailableError);
 
     expect(() =>
-      resolveChatRuntimeConfig({
-        PENGE_CHAT_MODEL: hydraFusionModel,
-        PENGE_CHAT_ENABLE_PRODUCTION: "1",
-        PENGE_CHAT_ACTOR_ID: actorId,
-      }),
+      resolveChatRuntimeConfig(
+        {
+          PENGE_CHAT_MODEL: hydraFusionModel,
+          PENGE_CHAT_ACTOR_ID: actorId,
+          PENGE_CHAT_GITHUB_LOGIN: githubLogin,
+        },
+        {
+          actorId,
+          githubLogin,
+          model: hydraFusionModel,
+          verifiedAt,
+        },
+      ),
     ).toThrow(ChatFeatureDisabledError);
+  });
+
+  it("rejects another actor using the first actor's entitlement verification", () => {
+    expect(() =>
+      resolveChatRuntimeConfig(
+        {
+          PENGE_CHAT_MODEL: hydraFusionModel,
+          PENGE_CHAT_ENABLE_PRODUCTION: "1",
+          PENGE_CHAT_ACTOR_ID: "actor_fedcba9876543210",
+          PENGE_CHAT_GITHUB_LOGIN: "synthetic-user-b",
+        },
+        {
+          actorId,
+          githubLogin,
+          model: hydraFusionModel,
+          verifiedAt,
+        },
+      ),
+    ).toThrow(UserCredentialScopeError);
+  });
+
+  it("rejects an entitlement verification for a different linked GitHub identity", () => {
+    expect(() =>
+      resolveChatRuntimeConfig(
+        {
+          PENGE_CHAT_MODEL: hydraFusionModel,
+          PENGE_CHAT_ENABLE_PRODUCTION: "1",
+          PENGE_CHAT_ACTOR_ID: actorId,
+          PENGE_CHAT_GITHUB_LOGIN: "synthetic-user-b",
+        },
+        {
+          actorId,
+          githubLogin,
+          model: hydraFusionModel,
+          verifiedAt,
+        },
+      ),
+    ).toThrow(UserCredentialScopeError);
   });
 
   it("returns a typed unavailable-model error from user-scoped model metadata", () => {
@@ -136,6 +210,7 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
         runtime: enabledRuntime(),
         tokenProvider: {
           actorId: "actor_fedcba9876543210",
+          githubLogin: "synthetic-user-b",
           acquire: async () => ({
             kind: "token",
             accessToken: "synthetic-token",

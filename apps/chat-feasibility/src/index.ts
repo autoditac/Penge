@@ -23,6 +23,7 @@ export const pengeMcpTools = [
 export const blockedToolSources = ["builtin:*", "custom:*"] as const;
 
 const actorIdSchema = z.string().regex(/^actor_[a-z0-9]{16,64}$/);
+const githubLoginSchema = z.string().regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38})$/);
 
 export class PengeError extends Error {
   override get name(): string {
@@ -68,12 +69,22 @@ export const ChatRuntimeConfigSchema = z.object({
   mode: z.literal("empty"),
   model: z.literal(hydraFusionModel),
   actorId: actorIdSchema,
+  githubLogin: githubLoginSchema,
   productionEnabled: z.literal(true),
-  entitlementVerified: z.literal(true),
+  entitlementVerifiedAt: z.string().datetime(),
   fallbackModel: z.undefined(),
 });
 
 export type ChatRuntimeConfig = z.infer<typeof ChatRuntimeConfigSchema>;
+
+export const ActorEntitlementVerificationSchema = z.object({
+  actorId: actorIdSchema,
+  githubLogin: githubLoginSchema,
+  model: z.literal(hydraFusionModel),
+  verifiedAt: z.string().datetime(),
+});
+
+export type ActorEntitlementVerification = z.infer<typeof ActorEntitlementVerificationSchema>;
 
 const CopilotEventMetadataSchema = z.object({
   id: z.string().uuid(),
@@ -120,6 +131,7 @@ export type CopilotStreamEvent = z.infer<typeof CopilotStreamEventSchema>;
 
 export interface UserScopedTokenProvider {
   actorId: string;
+  githubLogin: string;
   acquire: GitHubTokenProvider;
 }
 
@@ -133,7 +145,10 @@ function sdkMcpToolName(tool: (typeof pengeMcpTools)[number]): string {
   return `${pengeMcpServerName}-${tool}`;
 }
 
-export function resolveChatRuntimeConfig(env: NodeJS.ProcessEnv = process.env): ChatRuntimeConfig {
+export function resolveChatRuntimeConfig(
+  env: NodeJS.ProcessEnv,
+  rawVerification: unknown,
+): ChatRuntimeConfig {
   const requestedModel = env.PENGE_CHAT_MODEL;
   if (requestedModel !== hydraFusionModel) {
     throw new ModelUnavailableError(
@@ -146,18 +161,34 @@ export function resolveChatRuntimeConfig(env: NodeJS.ProcessEnv = process.env): 
   if (env.PENGE_CHAT_ENABLE_PRODUCTION !== "1") {
     throw new ChatFeatureDisabledError("PENGE_CHAT_ENABLE_PRODUCTION must be 1");
   }
-  if (env.PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED !== "1") {
-    throw new ChatFeatureDisabledError(
-      "PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED must be 1 after a user-scoped model check",
+
+  const identity = z
+    .object({
+      actorId: actorIdSchema,
+      githubLogin: githubLoginSchema,
+    })
+    .parse({
+      actorId: env.PENGE_CHAT_ACTOR_ID,
+      githubLogin: env.PENGE_CHAT_GITHUB_LOGIN,
+    });
+  const verification = ActorEntitlementVerificationSchema.parse(rawVerification);
+
+  if (
+    verification.actorId !== identity.actorId ||
+    verification.githubLogin.toLowerCase() !== identity.githubLogin.toLowerCase()
+  ) {
+    throw new UserCredentialScopeError(
+      "HydraFusion entitlement verification must match the current actor and linked GitHub identity",
     );
   }
 
   return ChatRuntimeConfigSchema.parse({
     mode: "empty",
     model: requestedModel,
-    actorId: env.PENGE_CHAT_ACTOR_ID,
+    actorId: identity.actorId,
+    githubLogin: identity.githubLogin,
     productionEnabled: true,
-    entitlementVerified: true,
+    entitlementVerifiedAt: verification.verifiedAt,
     fallbackModel: undefined,
   });
 }
@@ -176,9 +207,12 @@ export function buildCopilotSdkProof(options: {
   baseDirectory: string;
   workingDirectory: string;
 }): CopilotSdkProof {
-  if (options.tokenProvider.actorId !== options.runtime.actorId) {
+  if (
+    options.tokenProvider.actorId !== options.runtime.actorId ||
+    options.tokenProvider.githubLogin.toLowerCase() !== options.runtime.githubLogin.toLowerCase()
+  ) {
     throw new UserCredentialScopeError(
-      "the GitHub token provider must belong to the current Penge actor",
+      "the GitHub token provider must belong to the current Penge actor and linked GitHub identity",
     );
   }
 

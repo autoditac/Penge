@@ -184,6 +184,7 @@ def test_nas_nginx_routes_household_api_without_shadowing_spa(path: str, is_api:
     api_block = location.group(2)
     assert "auth_request /oauth2/auth;" in api_block
     assert "proxy_pass http://$penge_api_upstream;" in api_block
+    assert "add_header Vary Accept always;" in api_block
 
 
 @pytest.mark.parametrize("path", ["report", "categories", "merchants", "rules", "transactions"])

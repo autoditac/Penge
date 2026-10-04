@@ -89,6 +89,8 @@ Requests accepting `text/html` select the SPA so direct tab navigation and
 reload work; JSON fetches select the API.
 This content negotiation applies only to household children, not legacy API
 or vendor paths.
+The API routing block sends `Vary: Accept` on all responses, including 304,
+so caches cannot reuse a document response for a JSON fetch at the same URL.
 An HTTP 200 with `text/html` from a household API request indicates SPA fallback,
 not a valid API response.
 After installing the tracked configuration, validate with `nginx -t` before

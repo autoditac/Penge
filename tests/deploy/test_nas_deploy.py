@@ -188,7 +188,15 @@ def test_nas_nginx_routes_household_api_without_shadowing_spa(path: str, is_api:
 
 @pytest.mark.parametrize("path", ["report", "categories", "merchants", "rules", "transactions"])
 @pytest.mark.parametrize(
-    "accept", ["text/html", "text/html,application/xhtml+xml", "application/json"]
+    "accept",
+    [
+        "text/html",
+        "text/html,application/xhtml+xml",
+        "application/json",
+        "",
+        "*/*",
+        "application/json,text/html",
+    ],
 )
 def test_nas_household_shared_urls_distinguish_document_and_api_requests(
     path: str, accept: str

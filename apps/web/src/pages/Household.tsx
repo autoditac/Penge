@@ -727,7 +727,7 @@ function HouseholdReviewPage(): React.JSX.Element {
     return {
       expected_revision: current?.revision ?? 0,
       treatment,
-      merchant_id: identity?.merchantId ?? current?.merchant_id ?? null,
+      merchant_id: identity === undefined ? (current?.merchant_id ?? null) : identity.merchantId,
       identity_confirmed: identity?.confirmed ?? current?.identity_confirmed ?? false,
       allocations: [...allocations],
       links: [...(current?.links ?? [])] satisfies ReconciliationLink[],

@@ -144,9 +144,10 @@ learning conflicts, audit/undo, and public generation failure/privacy behavior.
 
 ### Bootstrapping a merchant rule
 
-Create or verify a confirmed `stable` household merchant under **Merchants** first.
+Create or verify a confirmed `stable` household merchant under **Merchants** first, then create a confirmed provider-scoped alias for the bank counterparty label.
 Open one transaction, select that merchant under **Merchant identity**, check the explicit transaction confirmation, choose one expense or income category, and save the correction.
 This single revision-checked write supplies the human-confirmed evidence required for deterministic learning.
+The alias supplies the exact local match required for future bank sync and historical preview candidates; merchant confirmation alone does not match another transaction.
 Split, refund, processor, marketplace, mixed, unknown, archived, or unconfirmed identities remain non-learning evidence.
 
 Bulk category correction never confirms a new merchant identity.

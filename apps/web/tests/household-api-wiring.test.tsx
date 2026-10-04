@@ -8,8 +8,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { HouseholdPage } from "../src/pages/Household";
 import { NotificationsProvider } from "../src/components/Notifications";
 import { fetchHouseholdReportSummary } from "../src/api/householdReportsClient";
+import type { components } from "../src/api/schema";
+import {
+  householdClassificationSchema,
+  type HouseholdTransactionResponse,
+} from "../src/api/schemas";
 import { reportCurrencyView } from "../src/household/reporting";
 import { renderWithTheme } from "./test-utils";
+
+type ClassificationWrite = components["schemas"]["ClassificationWrite"];
 
 vi.mock("../src/components/EChart", () => ({
   EChart: ({ ariaLabel }: { readonly ariaLabel: string }) => (
@@ -74,7 +81,7 @@ const merchant = {
   revision: 2,
   rule_version: 0,
 };
-const transaction = {
+const transaction: HouseholdTransactionResponse = {
   account_id: "account-1",
   amount: "-42.30",
   classification: null,
@@ -88,33 +95,37 @@ const transaction = {
   ts: "2026-10-03T12:00:00Z",
 };
 
-function classificationFromRequest(body: Record<string, unknown>) {
-  return {
-    allocations: body.allocations,
+function classificationFromRequest(
+  body: ClassificationWrite,
+  sourceTransaction: HouseholdTransactionResponse = transaction,
+) {
+  return householdClassificationSchema.parse({
+    allocations: body.allocations ?? [],
     detail_changed: false,
-    detail_links: body.detail_links,
+    detail_links: body.detail_links ?? [],
     explanation: body.explanation,
-    identity_confirmed: body.identity_confirmed,
-    links: body.links,
-    merchant_id: body.merchant_id,
+    identity_confirmed: body.identity_confirmed ?? false,
+    links: body.links ?? [],
+    merchant_id: body.merchant_id ?? null,
     provenance: "manual",
     review_state: "classified",
     revision: 1,
     rule_id: null,
-    source_amount: transaction.amount,
+    source_amount: sourceTransaction.amount,
     source_changed: false,
-    source_counterparty: transaction.counterparty,
-    source_currency: transaction.currency,
-    source_kind: transaction.kind,
-    source_ts: transaction.ts,
-    transaction_id: transaction.transaction_id,
+    source_counterparty: sourceTransaction.counterparty,
+    source_currency: sourceTransaction.currency,
+    source_kind: sourceTransaction.kind,
+    source_ts: sourceTransaction.ts,
+    transaction_id: sourceTransaction.transaction_id,
     treatment: body.treatment,
-  };
+  });
 }
 
 function installReviewApi(
   requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }>,
   patchStatus = 200,
+  sourceTransaction = transaction,
 ): void {
   vi.stubGlobal(
     "fetch",
@@ -138,11 +149,12 @@ function installReviewApi(
       ) {
         return new Response("[]", { status: 200 });
       }
-      if (url.pathname === `/household/transactions/${transaction.transaction_id}`) {
-        return new Response(JSON.stringify(transaction), { status: 200 });
+      if (url.pathname === `/household/transactions/${sourceTransaction.transaction_id}`) {
+        return new Response(JSON.stringify(sourceTransaction), { status: 200 });
       }
       if (
-        url.pathname === `/household/transactions/${transaction.transaction_id}/classification` &&
+        url.pathname ===
+          `/household/transactions/${sourceTransaction.transaction_id}/classification` &&
         init?.method === "PATCH"
       ) {
         if (patchStatus !== 200) {
@@ -150,11 +162,13 @@ function installReviewApi(
             status: patchStatus,
           });
         }
-        const body = JSON.parse(String(init.body)) as Record<string, unknown>;
-        return new Response(JSON.stringify(classificationFromRequest(body)), { status: 200 });
+        const body = JSON.parse(String(init.body)) as ClassificationWrite;
+        return new Response(JSON.stringify(classificationFromRequest(body, sourceTransaction)), {
+          status: 200,
+        });
       }
       if (url.pathname === "/household/transactions") {
-        return new Response(JSON.stringify([transaction]), { status: 200 });
+        return new Response(JSON.stringify([sourceTransaction]), { status: 200 });
       }
       throw new Error(`Unexpected API route ${url.pathname}`);
     }),
@@ -250,6 +264,50 @@ describe("household live API wiring", () => {
         init?.method === "PATCH",
     );
     expect(JSON.parse(String(write?.init?.body))).toMatchObject({
+      merchant_id: null,
+      identity_confirmed: false,
+    });
+  });
+
+  it("clears an existing merchant identity when the reviewer explicitly selects none", async () => {
+    const user = userEvent.setup();
+    const requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }> = [];
+    const classifiedTransaction = {
+      ...transaction,
+      classification: {
+        ...classificationFromRequest({
+          expected_revision: 0,
+          allocations: [{ category_id: category.id, amount: transaction.amount }],
+          detail_links: [],
+          explanation: "Previously confirmed synthetic merchant.",
+          identity_confirmed: true,
+          links: [],
+          merchant_id: merchant.id,
+          treatment: "expense",
+        }),
+        revision: 3,
+      },
+    };
+    installReviewApi(requests, 200, classifiedTransaction);
+
+    renderPage("/household");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Synthetic Grocer Synthetic card payment",
+      }),
+    );
+    await user.click(await screen.findByRole("combobox", { name: "Household merchant" }));
+    await user.click(await screen.findByRole("option", { name: "No merchant identity" }));
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+    expect(await screen.findByText("Transaction correction saved.")).toBeInTheDocument();
+
+    const write = requests.find(
+      ({ url, init }) =>
+        url.pathname === `/household/transactions/${transaction.transaction_id}/classification` &&
+        init?.method === "PATCH",
+    );
+    expect(JSON.parse(String(write?.init?.body))).toMatchObject({
+      expected_revision: 3,
       merchant_id: null,
       identity_confirmed: false,
     });

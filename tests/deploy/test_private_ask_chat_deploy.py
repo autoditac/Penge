@@ -9,6 +9,17 @@ from pathlib import Path
 ROOT = Path(__file__).parents[2]
 NAS = ROOT / "deploy" / "nas"
 CHAT_APP_PRESENT = (ROOT / "apps" / "chat" / "package.json").exists()
+CONTRACT_TEMPLATES = (
+    "penge-chat.container.in",
+    "penge-chat.nginx.conf.in",
+    "penge-chat-db-role.sql.in",
+    "private-ask-chat.contract.env.in",
+)
+DEPLOYMENT_TIME_TOKENS = {"@@CHAT_IMAGE_DIGEST@@", "@@CONTRACT_ENV_SHA256@@"}
+CONTRACTS_RESOLVED = not any(
+    set(re.findall(r"@@[A-Z0-9_]+@@", (NAS / name).read_text())) - DEPLOYMENT_TIME_TOKENS
+    for name in CONTRACT_TEMPLATES
+)
 CONTRACT_REPLACEMENTS = {
     "@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@": "PENGE_COPILOT_MODE=empty",
     "@@DEFAULT_TOOLS_DISABLED_ENV_ASSIGNMENT@@": "PENGE_DEFAULT_TOOLS=false",
@@ -59,9 +70,13 @@ def test_unresolved_chat_contract_is_non_deployable() -> None:
         text=True,
     )
 
-    if CHAT_APP_PRESENT:
+    if CONTRACTS_RESOLVED:
         assert seam.returncode != 0
-        assert contracted.returncode == 0, contracted.stderr
+        if CHAT_APP_PRESENT:
+            assert contracted.returncode == 0, contracted.stderr
+        else:
+            assert contracted.returncode != 0
+            assert "missing backend packaging contract" in contracted.stderr
     else:
         assert seam.returncode == 0, seam.stderr
         assert "fail-closed" in seam.stdout
@@ -83,7 +98,7 @@ def test_quadlet_template_is_rootless_immutable_and_loopback_only() -> None:
     assert len(re.findall(r"^Image=", quadlet, re.MULTILINE)) == 1
     published = re.findall(r"^PublishPort=(.+)$", quadlet, re.MULTILINE)
     assert len(published) == 1
-    if CHAT_APP_PRESENT:
+    if CONTRACTS_RESOLVED:
         assert re.fullmatch(r"127\.0\.0\.1:8123:[0-9]{1,5}", published[0])
     else:
         assert published == ["127.0.0.1:8123:@@CHAT_HTTP_PORT@@"]
@@ -108,7 +123,7 @@ def test_quadlet_has_only_versioned_secrets_and_no_transcript_volume() -> None:
 
     secrets = re.findall(r"^Secret=(.+)$", quadlet, re.MULTILINE)
     assert len(secrets) == 3
-    if CHAT_APP_PRESENT:
+    if CONTRACTS_RESOLVED:
         assert all("@@" not in secret for secret in secrets)
     else:
         assert all("_SECRET_VERSION@@" in secret for secret in secrets)
@@ -117,7 +132,7 @@ def test_quadlet_has_only_versioned_secrets_and_no_transcript_volume() -> None:
     volumes = re.findall(r"^Volume=(.+)$", quadlet, re.MULTILINE)
     assert len(volumes) == 1
     assert volumes[0].endswith(":ro")
-    if not CHAT_APP_PRESENT:
+    if not CONTRACTS_RESOLVED:
         assert volumes == ["@@MCP_READ_ONLY_SOURCE@@:@@MCP_READ_ONLY_TARGET@@:ro"]
 
 
@@ -142,7 +157,7 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     assert "X-Forwarded-Client-Id $email" in nginx
     assert "script-src 'self'" in nginx
     assert "script-src 'self' 'unsafe-inline'" not in nginx
-    if CHAT_APP_PRESENT:
+    if CONTRACTS_RESOLVED:
         assert "@@" not in nginx
     else:
         assert "@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@" in nginx
@@ -161,7 +176,7 @@ def test_database_template_cannot_grant_non_oauth_data_access() -> None:
     assert "analytics" not in executable_sql
     assert "finance" not in executable_sql
     assert "transcript" not in executable_sql
-    if CHAT_APP_PRESENT:
+    if CONTRACTS_RESOLVED:
         assert "@@" not in executable_sql
     else:
         assert "@@oauth_link_tables_only@@" in executable_sql
@@ -181,7 +196,7 @@ def test_architecture_contract_is_exact_but_activation_remains_unresolved() -> N
     contract = _read("private-ask-chat.contract.env.in")
 
     assert "PENGE_CHAT_MODEL=hydrafusion" in contract
-    if CHAT_APP_PRESENT:
+    if CONTRACTS_RESOLVED:
         assert "@@" not in contract
     else:
         assert "@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@" in contract
@@ -278,7 +293,8 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
         "@@CHAT_DATABASE_ROLE@@": "penge_chat_oauth",
         "@@CHAT_OAUTH_DATABASE_NAME@@": "penge_chat_oauth",
         "@@CREATE_DEDICATED_CHAT_ROLE_WITH_SECRET_MANAGED_LOGIN@@": (
-            "CREATE ROLE penge_chat_oauth LOGIN NOINHERIT;"
+            "CREATE ROLE penge_chat_oauth LOGIN NOSUPERUSER NOCREATEDB "
+            "NOCREATEROLE NOINHERIT NOBYPASSRLS;"
         ),
         "@@OAUTH_LINK_SCHEMA@@": "oauth",
         "@@OAUTH_LINK_TABLES_ONLY@@": '"oauth"."links"',
@@ -380,6 +396,63 @@ def test_ready_validator_rejects_mismatched_database_privilege_target(
 
     assert mismatched.returncode != 0
     assert "database guard and privilege target differ" in mismatched.stderr
+
+
+def test_ready_validator_rejects_host_network_and_privileged_role(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    quadlet = validator.parent / "penge-chat.container.in"
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    safe_database = database.read_text()
+
+    quadlet.write_text(quadlet.read_text().replace("Network=private-ask", "Network=host"))
+    host_network = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    quadlet.write_text(quadlet.read_text().replace("Network=host", "Network=private-ask"))
+    database.write_text(
+        safe_database.replace(
+            (
+                "CREATE ROLE penge_chat_oauth LOGIN NOSUPERUSER NOCREATEDB "
+                "NOCREATEROLE NOINHERIT NOBYPASSRLS;"
+            ),
+            "CREATE ROLE penge_chat_oauth LOGIN SUPERUSER;",
+        )
+    )
+    privileged_role = subprocess.run(  # noqa: S603
+        # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    database.write_text(
+        safe_database.replace(
+            "CREATE ROLE penge_chat_oauth LOGIN",
+            "CREATE ROLE another_chat_role LOGIN",
+        )
+    )
+    mismatched_role = subprocess.run(  # noqa: S603
+        # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert host_network.returncode != 0
+    assert "dedicated non-host rootless network" in host_network.stderr
+    assert privileged_role.returncode != 0
+    assert "explicitly deny privileged and inherited attributes" in privileged_role.stderr
+    assert mismatched_role.returncode != 0
+    assert "created chat role and database grant target differ" in mismatched_role.stderr
 
 
 def test_ready_validator_parses_effective_sdk_dependency_and_instructions(
@@ -522,6 +595,9 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
     _write_executable(
         fake_bin / "podman",
         """#!/bin/sh
+if [ "$1 $2" = "network exists" ]; then
+  exit 0
+fi
 if [ "$1 $2" != "secret exists" ]; then
   exit 99
 fi
@@ -640,6 +716,26 @@ def test_installer_requires_exact_resolved_environment_contract(tmp_path: Path) 
 
     assert incomplete.returncode != 0
     assert "contract environment is not the exact reviewed template" in incomplete.stderr
+
+
+def test_installer_rejects_approved_host_network(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    digest = "a" * 64
+    home = Path(env["HOME"])
+    quadlet = installer.parent / "penge-chat.container.in"
+    quadlet.write_text(quadlet.read_text().replace("Network=private-ask", "Network=host"))
+    _write_approval_manifest(installer.parents[2], home, digest)
+
+    host_network = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert host_network.returncode != 0
+    assert "dedicated non-host rootless network" in host_network.stderr
 
 
 def test_installer_rejects_unsafe_contract_and_manifest_metadata(tmp_path: Path) -> None:

@@ -170,6 +170,26 @@ if ((container_port < 1 || container_port > 65535)); then
   echo "deployment blocked: container port is outside the valid range" >&2
   exit 1
 fi
+mapfile -t network_lines < <(grep '^Network=' "$tmp" || true)
+if [[ ${#network_lines[@]} -ne 1 ]]; then
+  echo "deployment blocked: exactly one rootless chat network is required" >&2
+  exit 1
+fi
+network="${network_lines[0]#Network=}"
+if [[ ! $network =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$ ]]; then
+  echo "deployment blocked: invalid rootless chat network name" >&2
+  exit 1
+fi
+case "${network,,}" in
+  host | none | bridge | default | podman)
+    echo "deployment blocked: a dedicated non-host rootless network is required" >&2
+    exit 1
+    ;;
+esac
+if ! podman network exists "$network"; then
+  echo "deployment blocked: missing rootless Podman network $network" >&2
+  exit 1
+fi
 
 rendered_quadlet_sha256="$(sha256_file "$tmp")"
 if [[ ${approved[rendered_quadlet_sha256]} != "$rendered_quadlet_sha256" ]]; then

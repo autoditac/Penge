@@ -79,6 +79,8 @@ mapfile -t image_lines < <(grep '^Image=' "$quadlet" || true)
   || fail "chat image template is not the immutable GHCR reference"
 mapfile -t publish_lines < <(grep '^PublishPort=' "$quadlet" || true)
 [[ ${#publish_lines[@]} -eq 1 ]] || fail "exactly one chat publish directive is required"
+mapfile -t network_lines < <(grep '^Network=' "$quadlet" || true)
+[[ ${#network_lines[@]} -eq 1 ]] || fail "exactly one chat network directive is required"
 ! grep -q 'SecurityLabelDisable' "$quadlet"
 ! grep -Eq '^Volume=.*chat.*:rw([,:]|$)' "$quadlet"
 grep -q '^WantedBy=default.target$' "$quadlet"
@@ -116,6 +118,8 @@ unresolved="$(
 if [[ $mode == "--seam" ]]; then
   [[ ${publish_lines[0]} == "PublishPort=127.0.0.1:8123:@@CHAT_HTTP_PORT@@" ]] \
     || fail "unresolved seam publish contract changed unexpectedly"
+  [[ ${network_lines[0]} == "Network=@@CHAT_ROOTLESS_NETWORK@@" ]] \
+    || fail "unresolved seam network contract changed unexpectedly"
   grep -q '@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@' "$nginx_template"
   grep -q "current_database() <> '@@CHAT_OAUTH_DATABASE_NAME@@'" "$db_template"
   grep -q \
@@ -145,6 +149,14 @@ fi
 container_port="${publish_lines[0]##*:}"
 ((container_port >= 1 && container_port <= 65535)) \
   || fail "resolved container port is outside the valid range"
+network="${network_lines[0]#Network=}"
+[[ $network =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$ ]] \
+  || fail "resolved rootless network name is invalid"
+case "${network,,}" in
+  host | none | bridge | default | podman)
+    fail "resolved chat network must be a dedicated non-host rootless network"
+    ;;
+esac
 
 guard_name="$(
   sed -n "s/.*current_database() <> '\\([^']*\\)'.*/\\1/p" "$db_template"
@@ -170,6 +182,22 @@ for database_name in "${database_statement_names[@]}"; do
   [[ $database_name == "$guard_name" ]] \
     || fail "database guard and privilege target differ"
 done
+mapfile -t role_creation_lines < <(
+  grep -Ei '^CREATE[[:space:]]+ROLE[[:space:]]+' "$db_template" || true
+)
+[[ ${#role_creation_lines[@]} -eq 1 ]] \
+  || fail "exactly one explicit chat role creation statement is required"
+role_creation="${role_creation_lines[0]}"
+if [[ ! $role_creation =~ ^CREATE[[:space:]]+ROLE[[:space:]]+([a-z_][a-z0-9_]*)[[:space:]]+LOGIN[[:space:]]+NOSUPERUSER[[:space:]]+NOCREATEDB[[:space:]]+NOCREATEROLE[[:space:]]+NOINHERIT[[:space:]]+NOBYPASSRLS([[:space:]]+PASSWORD[[:space:]]+[^[:space:]\;]+)?\;$ ]]; then
+  fail "chat role creation must explicitly deny privileged and inherited attributes"
+fi
+created_role="${BASH_REMATCH[1]}"
+connect_role="$(
+  sed -n 's/^GRANT CONNECT ON DATABASE "[^"]*" TO \([a-z_][a-z0-9_]*\);/\1/p' \
+    "$db_template"
+)"
+[[ -n $connect_role && $created_role == "$connect_role" ]] \
+  || fail "created chat role and database grant target differ"
 
 for path in "$root/apps/chat/package.json" "$root/apps/chat/Containerfile"; do
   [[ -r $path ]] || fail "missing backend packaging contract $path"

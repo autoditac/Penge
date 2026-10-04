@@ -14,6 +14,7 @@ Do not deploy the chat from this branch.
 - `deploy/nas/penge-chat-db-role.sql.in` is intentionally non-executable.
 - The active nginx configuration returns `404` for exactly `/ask` and the bounded `/ask/` prefix.
 - `deploy/nas/validate-private-ask-chat.sh --ready` must fail while any `@@...@@` token remains.
+- #346 still owes final OAuth, SSE, status-route, mounted-secret, and environment names; do not resolve the loopback/public-origin, immutable issuer/subject headers, proxy-secret header, identity-pepper, OAuth, AES-GCM, chat-database, or finance-MCP credential contracts early.
 - No NAS deployment, real account linking, HydraFusion call, or two-account acceptance has been performed.
 
 The secure seam check is available through the repository task runner:
@@ -84,6 +85,8 @@ The final rendered unit belongs at:
 ```
 
 The template publishes only `127.0.0.1:8123`.
+It requires exactly one reviewed, dedicated rootless Podman network; host, none, default, bridge, and the shared Podman network names are rejected.
+Create and verify that network as the rootless service account before installation.
 It has no public MCP, Copilot runtime, database, raw-tool, health, or metrics port.
 It uses a read-only root filesystem, a bounded temporary filesystem, default SELinux confinement, no new privileges, and no Linux capabilities.
 There is no persistent chat volume while the backend storage contract is unknown.
@@ -189,8 +192,10 @@ The resolved SQL may grant only:
 - `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the explicit OAuth-link tables.
 
 It must not grant schema creation, default privileges, sequence-wide access, finance or analytics reads, transcript storage, MCP access, ownership, role inheritance, or superuser capabilities.
+The resolved role creation must target the same role that receives `CONNECT` and explicitly specify `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`.
 Its `PUBLIC` revocations apply only inside that dedicated database.
 Chat deployment must not change the shared Penge finance database or any API, dbt, ingestion, migration, backup, or maintenance role privileges.
+Provision, migrate, back up, restore, and roll back this dedicated OAuth database outside the finance Alembic chain.
 
 If #346 instead mandates same-database storage, remove this provisioning template and place the exact grants in its reversible migration.
 Do not adapt this deployment seam to revoke shared-database privileges.

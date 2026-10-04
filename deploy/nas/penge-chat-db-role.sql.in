@@ -8,6 +8,14 @@
 
 BEGIN;
 
+-- PUBLIC membership is implicit and cannot be removed from a login role.
+-- Revoke the default database TEMP/CONNECT and public-schema privileges, then
+-- restore every required non-chat role explicitly before creating the chat
+-- role.  Resolve the compatibility-grant token from a privilege audit.
+REVOKE ALL ON DATABASE @@DATABASE_IDENTIFIER@@ FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+@@RESTORE_REQUIRED_NON_CHAT_ROLE_PRIVILEGES_EXPLICITLY@@
+
 @@CREATE_OR_ALTER_CHAT_ROLE_WITH_SECRET_MANAGED_LOGIN@@
 
 REVOKE ALL ON DATABASE @@DATABASE_IDENTIFIER@@ FROM @@CHAT_DATABASE_ROLE@@;

@@ -142,6 +142,9 @@ The resolved SQL may grant only:
 - `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the explicit OAuth-link tables.
 
 It must not grant schema creation, default privileges, sequence-wide access, finance or analytics reads, transcript storage, MCP access, ownership, role inheritance, or superuser capabilities.
+Because every PostgreSQL login implicitly belongs to `PUBLIC`, revoking privileges only from the chat role is insufficient.
+The SQL template first revokes database and `public`-schema privileges from `PUBLIC`, then requires explicit compatibility grants for every existing non-chat role before creating the chat role.
+Audit the current grants and test API, ingestion, dbt, migration, backup, and administration roles in an isolated restore before applying that database-wide baseline.
 Apply it through the reviewed database administration path only after `--ready` passes, then query PostgreSQL privileges and attach the redacted result to the acceptance record.
 
 ## Nginx trust boundary

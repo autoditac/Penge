@@ -35,9 +35,13 @@ if grep -Eq 'Image=.*:(main|latest)([[:space:]]|$)|AutoUpdate=registry' "$quadle
   echo "chat image must be immutable and must not auto-update by tag" >&2
   exit 1
 fi
-grep -q '^Image=.*@sha256:@@CHAT_IMAGE_DIGEST@@$' "$quadlet"
-grep -q '^PublishPort=127\.0\.0\.1:8123:' "$quadlet"
-! grep -Eq '^PublishPort=(0\.0\.0\.0:|\[::\]:)' "$quadlet"
+mapfile -t image_lines < <(grep '^Image=' "$quadlet" || true)
+[[ ${#image_lines[@]} -eq 1 ]]
+[[ ${image_lines[0]} == \
+  "Image=ghcr.io/autoditac/penge/chat@sha256:@@CHAT_IMAGE_DIGEST@@" ]]
+mapfile -t publish_lines < <(grep '^PublishPort=' "$quadlet" || true)
+[[ ${#publish_lines[@]} -eq 1 ]]
+[[ ${publish_lines[0]} == "PublishPort=127.0.0.1:8123:@@CHAT_HTTP_PORT@@" ]]
 ! grep -q 'SecurityLabelDisable' "$quadlet"
 ! grep -Eq '^Volume=.*chat.*:rw([,:]|$)' "$quadlet"
 grep -q '^WantedBy=default.target$' "$quadlet"
@@ -60,6 +64,8 @@ sql_body="$(sed '/^[[:space:]]*--/d' "$db_template")"
 ! grep -Eiq 'grant[[:space:]]+all|analytics|finance|transcript|default privileges' \
   <<<"$sql_body"
 grep -q 'OAUTH_LINK_TABLES_ONLY' "$db_template"
+grep -q 'REVOKE ALL ON DATABASE @@DATABASE_IDENTIFIER@@ FROM PUBLIC;' "$db_template"
+grep -q 'REVOKE ALL ON SCHEMA public FROM PUBLIC;' "$db_template"
 grep -q '^PENGE_CHAT_MODEL=hydrafusion$' "$contract_env_template"
 
 unresolved="$(

@@ -29,6 +29,11 @@ if [[ ! -r $contract_env || ! -r $approval ]]; then
   exit 1
 fi
 
+if grep -n '@@[A-Z0-9_]\+@@' "$contract_env" >&2; then
+  echo "deployment blocked: unresolved private Ask environment tokens" >&2
+  exit 1
+fi
+
 umask 077
 tmp="$(mktemp)"
 trap 'rm -f "$tmp"' EXIT
@@ -39,9 +44,22 @@ if grep -n '@@[A-Z0-9_]\+@@' "$tmp" >&2; then
   exit 1
 fi
 
-if grep -Eq 'Image=.*:(main|latest)([[:space:]]|$)' "$tmp" \
-  || ! grep -q '^PublishPort=127\.0\.0\.1:8123:' "$tmp"; then
-  echo "deployment blocked: mutable image or non-loopback publish detected" >&2
+mapfile -t image_lines < <(grep '^Image=' "$tmp" || true)
+expected_image="Image=ghcr.io/autoditac/penge/chat@sha256:$1"
+if [[ ${#image_lines[@]} -ne 1 || ${image_lines[0]} != "$expected_image" ]]; then
+  echo "deployment blocked: exactly one immutable chat image is required" >&2
+  exit 1
+fi
+
+mapfile -t publish_lines < <(grep '^PublishPort=' "$tmp" || true)
+if [[ ${#publish_lines[@]} -ne 1 ]] \
+  || [[ ! ${publish_lines[0]} =~ ^PublishPort=127\.0\.0\.1:8123:[0-9]{1,5}$ ]]; then
+  echo "deployment blocked: exactly one loopback-only publish is required" >&2
+  exit 1
+fi
+container_port="${publish_lines[0]##*:}"
+if ((container_port < 1 || container_port > 65535)); then
+  echo "deployment blocked: container port is outside the valid range" >&2
   exit 1
 fi
 

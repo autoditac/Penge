@@ -387,15 +387,15 @@ describe("Ask Penge live client", () => {
     await new Promise<void>((resolve) => {
       session.subscribe((event) => {
         received.push(event);
-        if (received.length === 2) {
-          resolve();
-        }
+        resolve();
       });
     });
 
-    expect(received[1]).toEqual({
-      sessionIdMismatch: { expected: "header-session", received: "event-session" },
-    });
+    expect(received).toEqual([
+      {
+        sessionIdMismatch: { expected: "header-session", received: "event-session" },
+      },
+    ]);
   });
 
   it("passes malformed SSE data to the strict UI boundary", async () => {

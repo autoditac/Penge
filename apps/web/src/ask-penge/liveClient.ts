@@ -231,8 +231,8 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
         }
 
         const parsed = askStreamEventSchema.safeParse(candidateEvent);
-        emit(candidateEvent);
         if (!parsed.success) {
+          emit(candidateEvent);
           close();
           return false;
         }
@@ -247,6 +247,7 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
           return false;
         }
 
+        emit(parsed.data);
         sessionId = parsed.data.sessionId;
         nextSequence = parsed.data.sequence + 1;
         terminal = parsed.data.type === "completion" || parsed.data.type === "error";

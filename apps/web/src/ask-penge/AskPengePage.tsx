@@ -203,6 +203,14 @@ function AskPengeWorkbench({
 
   async function stopSession(): Promise<void> {
     const session = sessionRef.current;
+    const unsubscribe = unsubscribeRef.current;
+    if (sessionRef.current === session) {
+      sessionRef.current = null;
+    }
+    if (unsubscribeRef.current === unsubscribe) {
+      unsubscribeRef.current = null;
+    }
+    unsubscribe?.();
     flushBufferedAnswer();
     setStreamState("cancelled");
     try {
@@ -214,11 +222,6 @@ function AskPengeWorkbench({
       setStreamState("disconnected");
     } finally {
       session?.close();
-      sessionRef.current = null;
-      if (unsubscribeRef.current !== null) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
     }
   }
 
@@ -325,10 +328,10 @@ function AskPengeWorkbench({
       return evidenceItems.filter((item) => item.freshness === "fresh");
     }
 
-    return evidenceItems.filter((item) => item.currency === "mixed" || item.coverage === "partial");
+    return evidenceItems.filter((item) => item.coverage !== "full" || item.freshness !== "fresh");
   }, [activeFilter, evidenceItems]);
 
-  const selectedEvidence = visibleEvidence.length > 0 ? visibleEvidence : evidenceItems;
+  const selectedEvidence = visibleEvidence;
 
   const submitQuestion = (event: React.FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
@@ -668,6 +671,7 @@ function AskPengeWorkbench({
                         clickable
                         color={activeFilter === tab.value ? "primary" : "default"}
                         variant={activeFilter === tab.value ? "filled" : "outlined"}
+                        aria-pressed={activeFilter === tab.value}
                         onClick={() => setActiveFilter(tab.value)}
                       />
                     ))}
@@ -827,6 +831,7 @@ function AskPengeWorkbench({
                   clickable
                   color={activeFilter === tab.value ? "primary" : "default"}
                   variant={activeFilter === tab.value ? "filled" : "outlined"}
+                  aria-pressed={activeFilter === tab.value}
                   onClick={() => setActiveFilter(tab.value)}
                 />
               ))}
@@ -871,6 +876,11 @@ function AskPengeWorkbench({
                   <Typography color="text.secondary" sx={{ fontSize: "0.82rem", mt: 0.5 }}>
                     {event.source}
                   </Typography>
+                  <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
+                    <Pill tone={evidenceTone[event.coverage]}>{event.coverage}</Pill>
+                    <Pill tone={freshnessTone[event.freshness]}>{event.freshness}</Pill>
+                    <Pill tone="info">{event.currency}</Pill>
+                  </Stack>
                   <Typography sx={{ mt: 1 }}>{event.summary}</Typography>
                 </Box>
               ))

@@ -156,6 +156,9 @@ describe("AskPengePage", () => {
     await user.click(screen.getByRole("button", { name: /Open evidence sheet/i }));
     expect(screen.getByText("Synthetic Penge report lookup")).toBeInTheDocument();
     expect(screen.getByText(/Synthetic DKK 1\.42M and EUR 194k/i)).toBeInTheDocument();
+    expect(screen.getByText("full")).toBeInTheDocument();
+    expect(screen.getByText("fresh")).toBeInTheDocument();
+    expect(screen.getByText("mixed")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close evidence sheet" }));
     await waitFor(() =>
       expect(
@@ -166,6 +169,139 @@ describe("AskPengePage", () => {
     await user.click(screen.getByRole("button", { name: "Stop" }));
     expect(screen.getByText(/Answer cancelled/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+  });
+
+  it("does not let a completed stop clean up a retried session", async () => {
+    let resolveFirstStop: (() => void) | undefined;
+    const firstUnsubscribe = vi.fn();
+    const secondUnsubscribe = vi.fn();
+    const firstClose = vi.fn();
+    const secondClose = vi.fn();
+    let starts = 0;
+    const transport: AskTransport = {
+      start() {
+        starts += 1;
+        const isFirst = starts === 1;
+        return {
+          stop: isFirst
+            ? () =>
+                new Promise<void>((resolve) => {
+                  resolveFirstStop = resolve;
+                })
+            : async () => undefined,
+          close: isFirst ? firstClose : secondClose,
+          subscribe: () => (isFirst ? firstUnsubscribe : secondUnsubscribe),
+        };
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(starts).toBe(2);
+
+    await act(async () => {
+      resolveFirstStop?.();
+      await Promise.resolve();
+    });
+
+    expect(firstClose).toHaveBeenCalledOnce();
+    expect(firstUnsubscribe).toHaveBeenCalledOnce();
+    expect(secondClose).not.toHaveBeenCalled();
+    expect(secondUnsubscribe).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
+  it("exposes pressed evidence filters and preserves empty filtered results", async () => {
+    useMediaQueryMock.mockReturnValue(false);
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        transport={createImmediateTransport([
+          {
+            ...envelope(0),
+            type: "evidence",
+            id: "fresh-full",
+            title: "Fresh full source",
+            source: "Synthetic Penge source",
+            coverage: "full",
+            freshness: "fresh",
+            currency: "EUR",
+            summary: "Synthetic fresh evidence.",
+          },
+          {
+            ...envelope(1),
+            type: "evidence",
+            id: "stale-full",
+            title: "Stale full source",
+            source: "Synthetic Penge source",
+            coverage: "full",
+            freshness: "stale",
+            currency: "DKK",
+            summary: "Synthetic stale evidence.",
+          },
+          {
+            ...envelope(2),
+            type: "completion",
+            id: "complete",
+            summary: "Synthetic answer complete.",
+            coverage: "full",
+            freshness: "fresh",
+            finishReason: "completed",
+            assumptions: [],
+          },
+        ])}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    const allFilter = screen.getByRole("button", { name: "All" });
+    const attentionFilter = screen.getByRole("button", { name: "Needs attention" });
+    expect(allFilter).toHaveAttribute("aria-pressed", "true");
+    expect(attentionFilter).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(attentionFilter);
+    expect(attentionFilter).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByText("Fresh full source")).not.toBeInTheDocument();
+    expect(screen.getByText("Stale full source")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Fresh" }));
+    expect(screen.getByText("Fresh full source")).toBeInTheDocument();
+    expect(screen.queryByText("Stale full source")).not.toBeInTheDocument();
+  });
+
+  it("shows an empty result instead of falling back to all evidence", async () => {
+    useMediaQueryMock.mockReturnValue(false);
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        transport={createImmediateTransport([
+          {
+            ...envelope(0),
+            type: "evidence",
+            id: "fresh-full",
+            title: "Only fresh full source",
+            source: "Synthetic Penge source",
+            coverage: "full",
+            freshness: "fresh",
+            currency: "EUR",
+            summary: "Synthetic fresh evidence.",
+          },
+        ])}
+      />,
+    );
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await user.click(screen.getByRole("button", { name: "Needs attention" }));
+
+    expect(screen.getByText("No evidence records yet.")).toBeInTheDocument();
+    expect(screen.queryByText("Only fresh full source")).not.toBeInTheDocument();
   });
 
   it("surfaces exact-model failures without inventing a complete answer", async () => {

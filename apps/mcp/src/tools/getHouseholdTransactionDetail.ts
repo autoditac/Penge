@@ -1,7 +1,7 @@
 import { z } from "zod/v3";
 
 import { ToolDataError, ToolNotFoundError } from "../errors.js";
-import { redactText } from "../redact.js";
+import { redactTextBounded } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 import { type HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
@@ -275,8 +275,8 @@ export function getHouseholdTransactionDetailTool(
           fee: row.fee,
           tax: row.tax,
           currency: row.currency,
-          description: row.description === null ? null : redactText(row.description),
-          counterparty: row.counterparty === null ? null : redactText(row.counterparty),
+          description: row.description === null ? null : redactTextBounded(row.description, 240),
+          counterparty: row.counterparty === null ? null : redactTextBounded(row.counterparty, 240),
         },
         classification:
           row.treatment === null ||
@@ -290,16 +290,17 @@ export function getHouseholdTransactionDetailTool(
                 treatment: row.treatment,
                 review_state: row.review_state,
                 merchant_id: row.merchant_id,
-                merchant_name: row.merchant_name === null ? null : redactText(row.merchant_name),
+                merchant_name:
+                  row.merchant_name === null ? null : redactTextBounded(row.merchant_name, 200),
                 identity_confirmed: row.identity_confirmed,
                 provenance: row.provenance,
                 rule_id: row.rule_id,
                 revision: row.revision,
-                explanation: redactText(row.explanation),
+                explanation: redactTextBounded(row.explanation, 1000),
               },
         allocations: allocations.map((allocation) => ({
           category_id: allocation.category_id,
-          category_name: redactText(allocation.category_name),
+          category_name: redactTextBounded(allocation.category_name, 200),
           category_kind: allocation.category_kind,
           amount: allocation.amount,
           currency: allocation.currency,
@@ -316,8 +317,9 @@ export function getHouseholdTransactionDetailTool(
           occurred_at: instant(detail.occurred_at),
           amount: detail.amount,
           currency: detail.currency,
-          merchant_name: detail.merchant_name === null ? null : redactText(detail.merchant_name),
-          reference: detail.reference === null ? null : redactText(detail.reference),
+          merchant_name:
+            detail.merchant_name === null ? null : redactTextBounded(detail.merchant_name, 240),
+          reference: detail.reference === null ? null : redactTextBounded(detail.reference, 240),
           event_kind: detail.event_kind,
           detail_revision: detail.detail_revision,
           approved_detail_revision: detail.approved_detail_revision,

@@ -1,7 +1,7 @@
 import { z } from "zod/v3";
 
 import { ToolDataError } from "../errors.js";
-import { redactText } from "../redact.js";
+import { redactTextBounded } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -223,8 +223,8 @@ export function searchHouseholdTransactionsTool(
             row.transaction_date instanceof Date
               ? row.transaction_date.toISOString().slice(0, 10)
               : row.transaction_date.slice(0, 10),
-          description: row.description === null ? null : redactText(row.description),
-          counterparty: row.counterparty === null ? null : redactText(row.counterparty),
+          description: row.description === null ? null : redactTextBounded(row.description, 240),
+          counterparty: row.counterparty === null ? null : redactTextBounded(row.counterparty, 240),
           amount: row.amount,
           currency: row.currency,
           classification:

@@ -174,9 +174,12 @@ function completeness(sourceId: SourceId, row: z.infer<typeof ObservationRowSche
     return "partial" as const;
   }
   if (
-    (["nordnet", "pfa", "growney", "manual_facts"] as SourceId[]).includes(sourceId) &&
-    (row.account_count === 0 || row.holding_count === 0)
+    (["nordnet", "pfa", "growney"] as SourceId[]).includes(sourceId) &&
+    (row.account_count === 0 || row.transaction_count === 0 || row.holding_count === 0)
   ) {
+    return "partial" as const;
+  }
+  if (sourceId === "manual_facts" && (row.account_count === 0 || row.holding_count === 0)) {
     return "partial" as const;
   }
   if (

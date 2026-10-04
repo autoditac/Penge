@@ -67,6 +67,9 @@ Adding a value to `SourceIdSchema` requires a catalog entry at compile time.
 The contract test also rejects any supported source without a data-bearing evidence path.
 `query_net_worth` fails closed when any selected row lacks the requested EUR
 or DKK valuation; null aggregates never become false zero balances.
+Nordnet, PFA, and Growney are complete only when account, transaction, and
+holding evidence are all observed; manual facts require account and holding
+evidence.
 
 ## New tool schemas
 
@@ -131,6 +134,7 @@ Input:
 
 Output contains `generated_at`, paging metadata, total count, and at most 50 rows.
 Each row contains a stable transaction UUID, source, opaque account UUID, date, value-pattern-redacted bounded description/counterparty, exact decimal-string amount, EUR/DKK currency, current classification summary, and latest audit-event reference.
+All value-pattern redaction is applied before the final wire-length bound.
 It never contains `transaction.raw`, external account IDs, IBANs, or provider payloads.
 
 ### `get_household_transaction_detail`

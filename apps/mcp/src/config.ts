@@ -4,7 +4,7 @@ import { z } from "zod/v3";
 
 import { PengeError } from "./errors.js";
 
-const ULID = "[0-9A-HJKMNP-TV-Z]{26}";
+const ULID = "[0-7][0-9A-HJKMNP-TV-Z]{25}";
 const ActorIdSchema = z.string().regex(new RegExp(`^actor_${ULID}$`));
 const SessionIdSchema = z.string().regex(new RegExp(`^session_${ULID}$`));
 const MAX_SECRET_FILE_BYTES = 16 * 1024;

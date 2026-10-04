@@ -112,6 +112,14 @@ describe("source coverage tools", () => {
       expected: "partial",
     },
     {
+      source_id: "nordnet" as const,
+      account_count: 1,
+      transaction_count: 0,
+      holding_count: 1,
+      evidence_count: 1,
+      expected: "partial",
+    },
+    {
       source_id: "manual_facts" as const,
       account_count: 1,
       transaction_count: 0,

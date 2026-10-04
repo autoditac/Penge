@@ -115,4 +115,14 @@ describe("loadConfig", () => {
       }),
     ).toThrow(ConfigError);
   });
+
+  it("rejects Crockford identifiers outside the ULID timestamp range", () => {
+    expect(() =>
+      loadConfig({
+        PENGE_DB_URL: new URL("http://localhost").toString(),
+        PENGE_DUCKDB_PATH: "x.duckdb",
+        PENGE_MCP_ACTOR_ID: "actor_ZZZZZZZZZZZZZZZZZZZZZZZZZZ",
+      }),
+    ).toThrow(ConfigError);
+  });
 });

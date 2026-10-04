@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { MCP_REGISTRATION_ALLOWLIST } from "../src/config.js";
+import { MCP_CHAT_TOOL_ALLOWLIST, MCP_REGISTRATION_ALLOWLIST } from "../src/config.js";
 import {
   assertExactMcpRegistration,
   assertMcpSourceAllowed,
@@ -53,10 +53,16 @@ describe("read-only MCP policy", () => {
 
     expect(() =>
       projectEvidence("get_source_coverage", {
-        ...ok,
-        tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST.slice(1)],
+        sources: ok.sources,
       }),
-    ).toThrow(/tool_allowlist differs/);
+    ).toThrow(/structuredContent is malformed/);
+
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...ok,
+        tool_allowlist: [...MCP_CHAT_TOOL_ALLOWLIST],
+      }),
+    ).toThrow(/missing=_meta/);
 
     expect(() =>
       projectEvidence("get_source_coverage", {
@@ -70,7 +76,16 @@ describe("read-only MCP policy", () => {
         ...ok,
         tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST, "_meta"],
       }),
-    ).toThrow(/tool_allowlist differs/);
+    ).toThrow(/duplicate=_meta/);
+
+    const reordered = [...MCP_REGISTRATION_ALLOWLIST];
+    [reordered[0], reordered[1]] = [reordered[1]!, reordered[0]!];
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...ok,
+        tool_allowlist: reordered,
+      }),
+    ).toThrow(/expected\[0\]=_meta/);
   });
 
   it("passes only mounted credential paths to the local MCP child", () => {

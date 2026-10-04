@@ -69,6 +69,13 @@ function assertExactRegistrationSequence(
   expected: readonly string[],
   label: string,
 ): void {
+  const seen = new Set<string>();
+  for (const name of actual) {
+    if (seen.has(name)) {
+      throw new ToolPolicyError(`${label} differs: duplicate=${name}`);
+    }
+    seen.add(name);
+  }
   if (actual.length !== expected.length) {
     const missing = expected.filter((name) => !actual.includes(name));
     const unexpected = actual.filter((name) => !expected.includes(name));
@@ -76,16 +83,11 @@ function assertExactRegistrationSequence(
       `${label} differs: missing=${missing.join(",") || "none"} unexpected=${unexpected.join(",") || "none"}`,
     );
   }
-  const seen = new Set<string>();
   for (let index = 0; index < actual.length; index += 1) {
     const name = actual[index];
     if (name === undefined) {
       throw new ToolPolicyError(`${label} differs: undefined entry at index ${index}`);
     }
-    if (seen.has(name)) {
-      throw new ToolPolicyError(`${label} differs: duplicate=${name}`);
-    }
-    seen.add(name);
     if (name !== expected[index]) {
       throw new ToolPolicyError(
         `${label} differs: expected[${index}]=${expected[index]} actual[${index}]=${name}`,
@@ -111,12 +113,13 @@ export function assertExactMcpRegistration(
 }
 
 export function assertExactToolAllowlist(toolAllowlist: unknown): void {
-  if (!Array.isArray(toolAllowlist)) {
-    throw new ToolPolicyError("get_source_coverage structuredContent is missing tool_allowlist");
+  if (!Array.isArray(toolAllowlist) || !toolAllowlist.every((name) => typeof name === "string")) {
+    throw new ToolPolicyError(
+      "get_source_coverage structuredContent has missing or malformed tool_allowlist",
+    );
   }
-  const actual = toolAllowlist.map((name) => String(name));
   assertExactRegistrationSequence(
-    actual,
+    toolAllowlist,
     [...MCP_REGISTRATION_ALLOWLIST],
     "get_source_coverage tool_allowlist",
   );

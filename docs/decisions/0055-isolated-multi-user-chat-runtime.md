@@ -50,6 +50,7 @@ A bounded, immediately closed exact-model session lets authenticated status chec
 Readiness probes and chats share the same atomic global and per-actor admission limits; a full status probe returns `429 rate_limit` and releases its reservation after teardown.
 The MCP server is a local stdio child with a minimal explicit environment, a mounted finance database URL file, and allowlisted read-only tools.
 Startup probes the production MCP child with `connect`, `listTools`, and `close`; missing or extra registrations and missing output schemas disable production.
+Every successful `get_source_coverage` result must independently report the same ordered registration allowlist, including `_meta`; missing, extra, reordered, or duplicate entries fail closed before evidence projection.
 
 The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.
 Events are zod-validated, ordered, session-bound, and terminal after completion or error.

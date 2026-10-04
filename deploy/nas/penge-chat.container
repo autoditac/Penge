@@ -1,0 +1,42 @@
+# Tracked source of truth for /etc/containers/systemd/penge-chat.container on
+# the NAS (penge.eigmueller.de). The Ask Penge chat stays on loopback only and
+# is fronted by host-level oauth2-proxy + nginx; it never exposes its MCP or
+# Copilot runtime ports directly to the network.
+
+[Unit]
+Description=Penge private Ask chat
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=ghcr.io/autoditac/penge/chat:main
+AutoUpdate=registry
+ContainerName=penge-chat
+SecurityLabelDisable=true
+Network=penge
+Secret=penge-github-oauth,type=mount,target=/run/secrets/penge-github-oauth,mode=0400,uid=1000,gid=1000
+Secret=penge-chat-token-key,type=mount,target=/run/secrets/penge-chat-token-key,mode=0400,uid=1000,gid=1000
+Volume=/var/lib/penge/chat:/var/lib/penge/chat:Z
+Volume=/var/lib/penge/mcp:/var/lib/penge/mcp:ro,Z
+PublishPort=127.0.0.1:8123:3000
+Environment=ASK_PENGE_MODEL=hydrafusion
+Environment=ASK_PENGE_MODE=empty
+Environment=ASK_PENGE_DISABLE_FALLBACK=true
+Environment=ASK_PENGE_GITHUB_OAUTH_FILE=/run/secrets/penge-github-oauth
+Environment=ASK_PENGE_TOKEN_KEY_FILE=/run/secrets/penge-chat-token-key
+Environment=ASK_PENGE_MCP_ROOT=/var/lib/penge/mcp
+Environment=ASK_PENGE_MCP_READONLY=true
+Environment=ASK_PENGE_REQUIRE_SOURCE_COVERAGE=true
+HealthCmd=python -c "import json, sys, urllib.request; req = urllib.request.Request('http://127.0.0.1:3000/readyz', headers={'User-Agent':'penge-chat-healthcheck'}); data = urllib.request.urlopen(req, timeout=3); sys.exit(0 if data.status == 200 else 1)"
+HealthInterval=30s
+HealthRetries=3
+HealthStartPeriod=20s
+Notify=healthy
+
+[Service]
+Restart=always
+TimeoutStartSec=120
+ExecStartPost=/bin/sh -c 'set -e; image_id=$(podman inspect penge-chat --format "{{.Image}}" ); [ -n "$image_id" ]; digest=$(podman image inspect "$image_id" --format "{{.Digest}}" ); [ -n "$digest" ]; echo "penge-chat deploy: $(date -Iseconds) digest=$digest"'
+
+[Install]
+WantedBy=multi-user.target default.target

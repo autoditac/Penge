@@ -1,49 +1,52 @@
 import { describe, expect, it } from "vitest";
 
-import { parseEvent, validateOrderedSequence } from "../src/stream.js";
+import { createEventFactory, createStreamValidator, parseStreamEvent } from "../src/stream.js";
 
-const sampleEvent = {
-  type: "text" as const,
-  version: 1 as const,
-  eventId: "evt-1",
-  sessionId: "session-1",
-  actorId: "actor-1",
-  seq: 1,
-  ts: "2026-02-01T00:00:00.000Z",
-  text: "hello",
-};
-
-describe("stream contract", () => {
-  it("parses a valid stream event", () => {
-    const parsed = parseEvent(sampleEvent);
-    expect(parsed.type).toBe("text");
-    if (parsed.type !== "text") {
-      throw new Error("expected a text event");
-    }
-    expect(parsed.text).toBe("hello");
+describe("versioned stream protocol", () => {
+  it("matches the Ask Penge 1.0 contract and orders events", () => {
+    let id = 0;
+    const emit = createEventFactory("session-1", () => `event-${++id}`);
+    const validate = createStreamValidator();
+    const text = emit({
+      type: "text",
+      stream: "answer",
+      delta: "Grounded answer",
+      source: "assistant",
+    });
+    const completion = emit({
+      type: "completion",
+      summary: "Done",
+      coverage: "partial",
+      freshness: "fresh",
+      finishReason: "completed",
+    });
+    expect(validate(text).sequence).toBe(0);
+    expect(validate(completion).sequence).toBe(1);
+    expect(() => validate(text)).toThrow(/after stream termination/);
   });
 
-  it("rejects malformed event versioning", () => {
+  it("rejects malformed, cross-session, and out-of-order events", () => {
     expect(() =>
-      parseEvent({
-        ...sampleEvent,
-        type: "tool",
-        tool: "query_net_worth",
-        args: { account: "secret" },
-        version: 2,
+      parseStreamEvent({
+        version: "1.0",
+        sessionId: "session",
+        id: "event",
+        sequence: 0,
+        type: "text",
+        delta: "missing strict fields",
       }),
     ).toThrow();
-  });
-
-  it("requires strictly increasing sequence numbers", () => {
-    const second = {
-      ...sampleEvent,
-      type: "text" as const,
-      eventId: "evt-2",
-      seq: 1,
-      text: "later",
+    const validate = createStreamValidator();
+    const event = {
+      version: "1.0",
+      sessionId: "other",
+      id: "event",
+      sequence: 1,
+      type: "error",
+      code: "session_interrupted",
+      message: "failed",
+      retryable: true,
     };
-
-    expect(() => validateOrderedSequence([sampleEvent, second])).toThrow();
+    expect(() => validate(event)).toThrow(/expected sequence 0/);
   });
 });

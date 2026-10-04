@@ -42,6 +42,12 @@ lint:
 test:
     uv run pytest tests/ -q
 
+# Validate the isolated chat package without starting external services.
+chat-check:
+    pnpm --filter @penge/chat test
+    pnpm --filter @penge/chat build
+    pnpm --filter @penge/chat lint
+
 # --- Migrations ---------------------------------------------------------------
 
 # Apply all migrations against the local Postgres (compose must be up).

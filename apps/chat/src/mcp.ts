@@ -1,79 +1,92 @@
+import type { MCPStdioServerConfig } from "@github/copilot-sdk";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { z } from "zod/v3";
 
-import { assertToolAllowed, createToolPolicy, type ToolExecutionPolicy } from "./security.js";
+import {
+  MCP_SOURCE_ALLOWLIST,
+  MCP_TOOL_ALLOWLIST,
+  MCP_TOOL_CONTRACT_VERSION,
+  type ChatConfig,
+} from "./config.js";
+import { ToolPolicyError } from "./security.js";
 
-export const DEFAULT_MCP_ALLOWLIST = [
-  "query_net_worth",
-  "query_cashflow",
-  "query_household_report",
-  "run_scenario",
-  "search_documents",
-  "compute_tax_year",
+export const McpToolNameSchema = z.enum(MCP_TOOL_ALLOWLIST);
+export const McpSourceNameSchema = z.enum(MCP_SOURCE_ALLOWLIST);
+
+export type McpToolName = z.infer<typeof McpToolNameSchema>;
+export type McpSourceName = z.infer<typeof McpSourceNameSchema>;
+
+const DENIED_NAME_PARTS = [
+  "shell",
+  "filesystem",
+  "browser",
+  "web",
+  "sql",
+  "exec",
+  "write",
+  "delete",
+  "mutation",
 ] as const;
 
-export const McpRequestSchema = z.object({
-  tool: z.string().min(1),
-  arguments: z.record(z.unknown()).default({}),
-});
+export function assertMcpToolAllowed(toolName: string): asserts toolName is McpToolName {
+  const normalized = toolName.trim().toLowerCase();
+  if (DENIED_NAME_PARTS.some((part) => normalized.includes(part))) {
+    throw new ToolPolicyError(`tool ${toolName} is denied by policy`);
+  }
+  if (!MCP_TOOL_ALLOWLIST.some((allowed) => allowed === normalized)) {
+    throw new ToolPolicyError(`tool ${toolName} is not in contract ${MCP_TOOL_CONTRACT_VERSION}`);
+  }
+}
 
-export type McpRequest = z.infer<typeof McpRequestSchema>;
+export function assertMcpSourceAllowed(sourceName: string): asserts sourceName is McpSourceName {
+  if (!MCP_SOURCE_ALLOWLIST.some((allowed) => allowed === sourceName)) {
+    throw new ToolPolicyError(`source ${sourceName} is not in the MCP source allowlist`);
+  }
+}
 
-export type McpProcess = {
-  client: Client;
-  policy: ToolExecutionPolicy;
-  close: () => Promise<void>;
-};
-
-export function createProcessLocalMcpClient(options: {
-  command: string;
-  args: readonly string[];
-  cwd?: string;
-  env?: Record<string, string | undefined>;
-  allowlist?: readonly string[];
-  sourceAllowlist?: readonly string[];
-}): McpProcess {
-  const policy = createToolPolicy(
-    options.allowlist ?? [...DEFAULT_MCP_ALLOWLIST],
-    options.sourceAllowlist ?? [],
-  );
-  const serverEnv: Record<string, string> = Object.fromEntries(
-    Object.entries({ ...process.env, ...options.env }).flatMap(([key, value]) =>
-      value === undefined ? [] : [[key, value]],
-    ),
-  );
-  const transport = new StdioClientTransport({
-    command: options.command,
-    args: [...options.args],
-    env: serverEnv,
-    cwd: options.cwd ?? process.cwd(),
-  });
-
-  const client = new Client(
-    { name: "penge-chat-local-mcp", version: "0.0.0" },
-    {
-      capabilities: {},
-    },
-  );
-
+export function buildMcpServerConfig(config: ChatConfig): MCPStdioServerConfig {
   return {
-    client,
-    policy,
-    close: async () => {
-      await client.close();
-      await transport.close();
+    type: "stdio",
+    command: config.mcpCommand,
+    args: [...config.mcpArgs],
+    workingDirectory: config.mcpWorkingDirectory,
+    tools: [...MCP_TOOL_ALLOWLIST],
+    timeout: config.requestTimeoutMs,
+    env: {
+      PATH: process.env.PATH ?? "",
+      PENGE_DB_URL: config.mcpDatabaseUrl,
+      PENGE_DUCKDB_PATH: config.mcpDuckdbPath,
+      PENGE_VAULT_ROOT: config.mcpVaultRoot,
+      PENGE_MCP_LOG_DIR: config.mcpLogDir,
     },
   };
 }
 
-export async function callAllowedTool(
-  client: Client,
-  toolName: string,
-  args: Record<string, unknown>,
-  policy: ToolExecutionPolicy,
-): Promise<unknown> {
-  assertToolAllowed(toolName, policy);
-  const parsed = McpRequestSchema.parse({ tool: toolName, arguments: args });
-  return client.callTool({ name: parsed.tool, arguments: parsed.arguments });
+export async function verifyMcpServerContract(config: ChatConfig): Promise<void> {
+  const server = buildMcpServerConfig(config);
+  const transport = new StdioClientTransport({
+    command: server.command,
+    args: server.args ?? [],
+    cwd: server.workingDirectory ?? process.cwd(),
+    env: server.env ?? {},
+  });
+  const client = new Client(
+    { name: "penge-chat-contract-check", version: "0.0.0" },
+    { capabilities: {} },
+  );
+  try {
+    await client.connect(transport);
+    const response = await client.listTools();
+    const available = new Set(response.tools.map((tool) => tool.name));
+    const missing = MCP_TOOL_ALLOWLIST.filter((tool) => !available.has(tool));
+    if (missing.length > 0) {
+      throw new ToolPolicyError(
+        `MCP contract ${MCP_TOOL_CONTRACT_VERSION} is missing tools: ${missing.join(", ")}`,
+      );
+    }
+  } finally {
+    await client.close().catch(() => undefined);
+    await transport.close().catch(() => undefined);
+  }
 }

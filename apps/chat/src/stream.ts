@@ -1,47 +1,63 @@
 import { z } from "zod/v3";
 
-export const StreamBaseEventSchema = z.object({
-  type: z.enum(["text", "tool", "evidence", "completion", "error", "cancel"]),
-  version: z.literal(1),
-  eventId: z.string().min(1),
-  sessionId: z.string().min(1),
-  actorId: z.string().min(1),
-  seq: z.number().int().nonnegative(),
-  ts: z.string().datetime(),
-});
+export const STREAM_PROTOCOL_VERSION = "1.0" as const;
 
-export const TextEventSchema = StreamBaseEventSchema.extend({
+const StreamEnvelopeSchema = z
+  .object({
+    version: z.literal(STREAM_PROTOCOL_VERSION),
+    sessionId: z.string().min(1),
+    id: z.string().min(1),
+    sequence: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const TextEventSchema = StreamEnvelopeSchema.extend({
   type: z.literal("text"),
-  text: z.string().min(1),
-});
+  stream: z.literal("answer"),
+  delta: z.string(),
+  source: z.literal("assistant"),
+}).strict();
 
-export const ToolEventSchema = StreamBaseEventSchema.extend({
+export const ToolEventSchema = StreamEnvelopeSchema.extend({
   type: z.literal("tool"),
-  tool: z.string().min(1),
-  args: z.record(z.unknown()).default({}),
-});
+  name: z.string().min(1),
+  status: z.enum(["started", "running", "complete", "failed"]),
+  detail: z.string(),
+  startedAt: z.string().datetime().optional(),
+}).strict();
 
-export const EvidenceEventSchema = StreamBaseEventSchema.extend({
+export const EvidenceEventSchema = StreamEnvelopeSchema.extend({
   type: z.literal("evidence"),
+  title: z.string().min(1),
   source: z.string().min(1),
-  snippet: z.string().min(1),
-});
+  coverage: z.enum(["full", "partial", "missing"]),
+  freshness: z.enum(["fresh", "stale", "missing"]),
+  currency: z.enum(["EUR", "DKK", "mixed"]),
+  summary: z.string(),
+}).strict();
 
-export const CompletionEventSchema = StreamBaseEventSchema.extend({
+export const CompletionEventSchema = StreamEnvelopeSchema.extend({
   type: z.literal("completion"),
-  finalText: z.string().min(1),
-});
+  summary: z.string(),
+  coverage: z.enum(["full", "partial"]),
+  freshness: z.enum(["fresh", "stale"]),
+  finishReason: z.enum(["completed", "cancelled"]),
+}).strict();
 
-export const ErrorEventSchema = StreamBaseEventSchema.extend({
+export const ErrorEventSchema = StreamEnvelopeSchema.extend({
   type: z.literal("error"),
-  code: z.string().min(1),
-  message: z.string().min(1),
-});
-
-export const CancelEventSchema = StreamBaseEventSchema.extend({
-  type: z.literal("cancel"),
-  reason: z.string().min(1),
-});
+  code: z.enum([
+    "auth_expired",
+    "hydrafusion_unavailable",
+    "rate_limit",
+    "session_interrupted",
+    "data_missing",
+    "missing_fx",
+    "tool_timeout",
+  ]),
+  message: z.string(),
+  retryable: z.boolean(),
+}).strict();
 
 export const StreamEventSchema = z.discriminatedUnion("type", [
   TextEventSchema,
@@ -49,23 +65,63 @@ export const StreamEventSchema = z.discriminatedUnion("type", [
   EvidenceEventSchema,
   CompletionEventSchema,
   ErrorEventSchema,
-  CancelEventSchema,
 ]);
 
 export type StreamEvent = z.infer<typeof StreamEventSchema>;
+export type StreamEventInput = StreamEvent extends infer Event
+  ? Event extends StreamEvent
+    ? Omit<Event, "version" | "sessionId" | "id" | "sequence">
+    : never
+  : never;
 
-export function parseEvent(input: unknown): StreamEvent {
+export class StreamProtocolError extends Error {
+  readonly code = "chat/stream_protocol";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "StreamProtocolError";
+  }
+}
+
+export function parseStreamEvent(input: unknown): StreamEvent {
   return StreamEventSchema.parse(input);
 }
 
-export function validateOrderedSequence(events: readonly unknown[]): StreamEvent[] {
-  const parsed = events.map((event) => parseEvent(event));
-  let last = -1;
-  for (const event of parsed) {
-    if (event.seq <= last) {
-      throw new Error(`stream sequence must increase strictly; saw ${event.seq} after ${last}`);
+export function createStreamValidator(): (input: unknown) => StreamEvent {
+  let sessionId: string | undefined;
+  let nextSequence = 0;
+  let terminal = false;
+  return (input) => {
+    if (terminal) {
+      throw new StreamProtocolError("received an event after stream termination");
     }
-    last = event.seq;
-  }
-  return parsed;
+    const event = parseStreamEvent(input);
+    if (sessionId !== undefined && event.sessionId !== sessionId) {
+      throw new StreamProtocolError("received an event for a different session");
+    }
+    if (event.sequence !== nextSequence) {
+      throw new StreamProtocolError(
+        `expected sequence ${nextSequence}, received ${event.sequence}`,
+      );
+    }
+    sessionId = event.sessionId;
+    nextSequence += 1;
+    terminal = event.type === "completion" || event.type === "error";
+    return event;
+  };
+}
+
+export function createEventFactory(
+  sessionId: string,
+  createId: () => string,
+): (input: StreamEventInput) => StreamEvent {
+  let sequence = 0;
+  return (input) =>
+    StreamEventSchema.parse({
+      ...input,
+      version: STREAM_PROTOCOL_VERSION,
+      sessionId,
+      id: createId(),
+      sequence: sequence++,
+    });
 }

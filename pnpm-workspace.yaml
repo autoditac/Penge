@@ -3,6 +3,9 @@ packages:
 
 allowBuilds:
   esbuild: true
+  # Copilot SDK resolves Koffi's pinned prebuilt optional package; never compile
+  # downloaded native sources during workspace installation.
+  koffi: false
 
 # pnpm 10+ promotes ignored build scripts to a hard error in CI. We only need
 # the binary that esbuild's lifecycle script downloads (Vite/Vitest load TS

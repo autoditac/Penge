@@ -1,167 +1,234 @@
 import { z } from "zod/v3";
+import { readFileSync, statSync } from "node:fs";
 
-export class PengeError extends Error {
-  code: string;
+import { ChatConfigError } from "./errors.js";
 
-  constructor(message = "penge error") {
-    super(message);
-    this.name = "PengeError";
-    this.code = "penge/error";
-  }
-}
+export const HYDRAFUSION_MODEL = "hydrafusion" as const;
+export const MCP_TOOL_CONTRACT_VERSION = "issue-344-v1" as const;
 
-export class ChatConfigError extends PengeError {
-  override code: string;
-
-  constructor(message = "invalid chat config") {
-    super(message);
-    this.name = "ChatConfigError";
-    this.code = "chat/config";
-  }
-}
-
-export function parseBoolean(value: string | undefined, fallback: boolean): boolean {
-  if (value === undefined) {
-    return fallback;
-  }
-  const normalized = value.trim().toLowerCase();
-  return !["0", "false", "no", "off"].includes(normalized);
-}
-
-export function parseInteger(value: string | undefined, fallback: number): number {
-  if (value === undefined || value.trim() === "") {
-    return fallback;
-  }
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isNaN(parsed)) {
-    return fallback;
-  }
-  return parsed;
-}
-
-export const DEFAULT_MCP_ALLOWLIST = [
+export const MCP_TOOL_ALLOWLIST = [
   "query_net_worth",
   "query_cashflow",
   "query_household_report",
   "run_scenario",
+  "answer_planning_question",
   "search_documents",
+  "suggest_import_mapping",
   "compute_tax_year",
+  "get_source_coverage",
+  "search_household_transactions",
+  "get_household_transaction_detail",
+  "get_household_taxonomy_summary",
+  "get_household_rule_summary",
+  "get_household_merchant_summary",
+  "get_merchant_reference_status",
+  "search_merchant_reference",
 ] as const;
 
-export const DEFAULT_ALLOWED_DB_TABLES = [
+export const MCP_SOURCE_ALLOWLIST = [
+  "gls",
+  "ebank",
+  "lunar",
+  "enable_banking",
+  "nordnet",
+  "pfa",
+  "growney",
+  "ecb_fx",
+  "manual_facts",
+  "household_classification",
+  "paypal",
+  "nsi_merchant_reference",
+] as const;
+
+export const OAUTH_TABLE_ALLOWLIST = [
   "chat_oauth_state",
   "chat_oauth_link",
-  "chat_oauth_nonce",
+  "chat_audit_event",
 ] as const;
-
-export function normalizeMcpAllowlist(raw: string | undefined): string[] {
-  const values = (raw ?? DEFAULT_MCP_ALLOWLIST.join(",")).split(",");
-  const normalized = values.map((tool) => tool.trim()).filter(Boolean);
-  return [...new Set(normalized)];
-}
 
 export function isLoopbackHost(hostname: string): boolean {
   const normalized = hostname
     .trim()
     .toLowerCase()
     .replace(/^\[|\]$/g, "");
-  return ["127.0.0.1", "localhost", "::1"].includes(normalized);
+  return normalized === "127.0.0.1" || normalized === "localhost" || normalized === "::1";
 }
 
-export function assertLoopbackOnlyConfig(config: {
-  httpHost: string;
-  loopbackOnly: boolean;
-  oauth2ProxyIssuer: string;
-}): void {
-  if (!config.loopbackOnly) {
-    throw new ChatConfigError("loopbackOnly must be enabled for the chat runtime");
-  }
-  if (!isLoopbackHost(config.httpHost)) {
-    throw new ChatConfigError("httpHost must be loopback-only when loopbackOnly=true");
-  }
+const Base64KeySchema = z
+  .string()
+  .transform((value) => Buffer.from(value, "base64"))
+  .refine((value) => value.length === 32, "must decode to exactly 32 bytes");
 
-  const issuer = new URL(config.oauth2ProxyIssuer);
-  if (!isLoopbackHost(issuer.hostname)) {
-    throw new ChatConfigError("oauth2ProxyIssuer must resolve to a loopback-only local address");
-  }
-}
+const KeyringFileSchema = z
+  .object({
+    currentKeyId: z.string().regex(/^[a-zA-Z0-9._-]{1,64}$/),
+    keys: z.record(z.string().regex(/^[a-zA-Z0-9._-]{1,64}$/), Base64KeySchema),
+  })
+  .strict()
+  .refine((value) => value.keys[value.currentKeyId] !== undefined, {
+    message: "currentKeyId must exist in keys",
+  });
 
-const AllowedDbTablesSchema = z.array(z.enum(DEFAULT_ALLOWED_DB_TABLES)).nonempty();
-
-export const ChatConfigSchema = z.object({
-  httpHost: z
-    .string()
-    .min(1)
-    .refine((value) => isLoopbackHost(value), {
-      message: "httpHost must be localhost or a loopback address",
-    }),
-  httpPort: z.number().int().positive().max(65535),
-  loopbackOnly: z.literal(true),
-  sessionSecret: z.string().min(32),
-  tokenEncryptionKey: z.string().min(32),
-  oauth2ProxyIssuer: z
-    .string()
-    .url()
-    .refine((value) => isLoopbackHost(new URL(value).hostname), {
-      message: "oauth2ProxyIssuer must be a loopback-only URL",
-    }),
-  githubClientId: z.string().min(1),
-  githubClientSecret: z.string().min(1),
-  githubAppId: z.string().min(1),
-  githubAppPrivateKey: z.string().min(1),
-  model: z.literal("hydrafusion"),
-  disableFallback: z.literal(true),
-  mcpAllowlist: z.array(z.string().min(1)).nonempty(),
-  dbUrl: z.string().url(),
-  dbRole: z
-    .string()
-    .min(1)
-    .refine((value) => !value.toLowerCase().includes("finance"), {
-      message: "dbRole must not grant finance-table access",
-    }),
-  dbAllowedTables: AllowedDbTablesSchema,
-  idleTimeoutMs: z.number().int().positive(),
-  noTranscriptPersistence: z.literal(true),
-});
+export const ChatConfigSchema = z
+  .object({
+    httpHost: z.string().refine(isLoopbackHost, "must be a loopback host"),
+    httpPort: z.number().int().positive().max(65535),
+    publicOrigin: z.string().url(),
+    trustedProxyIssuer: z.string().min(1),
+    identityPepper: z.string().min(32),
+    proxySharedSecret: z.string().min(32),
+    tokenEncryptionKeyring: KeyringFileSchema,
+    githubClientId: z.string().min(1),
+    githubClientSecret: z.string().min(1),
+    githubOAuthAuthorizeUrl: z.string().url(),
+    githubOAuthTokenUrl: z.string().url(),
+    githubApiUrl: z.string().url(),
+    model: z.literal(HYDRAFUSION_MODEL),
+    fallbackModel: z.undefined(),
+    productionEnabled: z.boolean(),
+    entitlementVerified: z.boolean(),
+    mcpToolContractVersion: z.literal(MCP_TOOL_CONTRACT_VERSION),
+    mcpCommand: z.string().min(1),
+    mcpArgs: z.array(z.string().min(1)).min(1),
+    mcpWorkingDirectory: z.string().min(1),
+    mcpDatabaseUrl: z.string().url(),
+    mcpDuckdbPath: z.string().min(1),
+    mcpVaultRoot: z.string().min(1),
+    mcpLogDir: z.string().min(1),
+    databaseUrl: z.string().url(),
+    databaseRole: z.literal("penge_chat_oauth"),
+    copilotBaseDirectory: z.string().min(1),
+    requestTimeoutMs: z
+      .number()
+      .int()
+      .positive()
+      .max(10 * 60_000),
+    idleTimeoutMs: z
+      .number()
+      .int()
+      .positive()
+      .max(60 * 60_000),
+    maxConcurrentSessions: z.number().int().positive().max(16),
+  })
+  .superRefine((config, context) => {
+    const publicUrl = new URL(config.publicOrigin);
+    if (publicUrl.protocol !== "https:" && !isLoopbackHost(publicUrl.hostname)) {
+      context.addIssue({
+        code: "custom",
+        path: ["publicOrigin"],
+        message: "must use HTTPS unless it is a loopback development origin",
+      });
+    }
+    if (config.productionEnabled && !config.entitlementVerified) {
+      context.addIssue({
+        code: "custom",
+        path: ["entitlementVerified"],
+        message: "must be true before production can be enabled",
+      });
+    }
+  });
 
 export type ChatConfig = z.infer<typeof ChatConfigSchema>;
 
-function requireEnv(env: NodeJS.ProcessEnv, key: string): string {
-  const value = env[key];
+function required(env: NodeJS.ProcessEnv, name: string): string {
+  const value = env[name];
   if (value === undefined || value.trim() === "") {
-    throw new ChatConfigError(`missing required environment variable: ${key}`);
+    throw new ChatConfigError(`missing required environment variable: ${name}`);
   }
   return value;
 }
 
+function secretFile(env: NodeJS.ProcessEnv, name: string): string {
+  const path = required(env, `${name}_FILE`);
+  const stat = statSync(path);
+  const processUid = process.getuid?.();
+  if (!stat.isFile() || stat.size < 1 || stat.size > 65_536) {
+    throw new ChatConfigError(`${name}_FILE must be a non-empty regular file under 64 KiB`);
+  }
+  if ((stat.mode & 0o077) !== 0) {
+    throw new ChatConfigError(`${name}_FILE must not be group- or world-accessible`);
+  }
+  if (processUid !== undefined && stat.uid !== processUid) {
+    throw new ChatConfigError(`${name}_FILE must be owned by the chat process user`);
+  }
+  return readFileSync(path, "utf8").trim();
+}
+
+function optionalFlag(env: NodeJS.ProcessEnv, name: string): boolean {
+  const value = env[name];
+  if (value === undefined || value === "0") {
+    return false;
+  }
+  if (value === "1") {
+    return true;
+  }
+  throw new ChatConfigError(`${name} must be 0, 1, or unset`);
+}
+
+function keyringFile(env: NodeJS.ProcessEnv): unknown {
+  try {
+    return JSON.parse(secretFile(env, "PENGE_CHAT_TOKEN_KEYRING")) as unknown;
+  } catch (error) {
+    if (error instanceof ChatConfigError) {
+      throw error;
+    }
+    throw new ChatConfigError("PENGE_CHAT_TOKEN_KEYRING_FILE must contain valid JSON");
+  }
+}
+
+function integer(env: NodeJS.ProcessEnv, name: string, fallback: number): number {
+  const value = env[name];
+  if (value === undefined) {
+    return fallback;
+  }
+  if (!/^\d+$/.test(value)) {
+    throw new ChatConfigError(`${name} must be an integer`);
+  }
+  return Number(value);
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ChatConfig {
-  const allowlist = normalizeMcpAllowlist(env.PENGE_CHAT_MCP_ALLOWLIST);
+  const model = env.PENGE_CHAT_MODEL;
+  if (model !== HYDRAFUSION_MODEL) {
+    throw new ChatConfigError(`PENGE_CHAT_MODEL must be exactly ${HYDRAFUSION_MODEL}`);
+  }
+  if (env.PENGE_CHAT_FALLBACK_MODEL !== undefined) {
+    throw new ChatConfigError("PENGE_CHAT_FALLBACK_MODEL must be unset");
+  }
 
   const raw = {
     httpHost: env.PENGE_CHAT_HTTP_HOST ?? "127.0.0.1",
-    httpPort: parseInteger(env.PENGE_CHAT_HTTP_PORT, 3000),
-    loopbackOnly: parseBoolean(env.PENGE_CHAT_LOOPBACK_ONLY, true),
-    sessionSecret: env.PENGE_CHAT_SESSION_SECRET ?? requireEnv(env, "PENGE_CHAT_SESSION_SECRET"),
-    tokenEncryptionKey:
-      env.PENGE_CHAT_TOKEN_ENCRYPTION_KEY ?? requireEnv(env, "PENGE_CHAT_TOKEN_ENCRYPTION_KEY"),
-    oauth2ProxyIssuer: env.PENGE_CHAT_GOOGLE_PROXY_ISSUER ?? "http://127.0.0.1:4180",
-    githubClientId:
-      env.PENGE_CHAT_GITHUB_CLIENT_ID ?? requireEnv(env, "PENGE_CHAT_GITHUB_CLIENT_ID"),
-    githubClientSecret:
-      env.PENGE_CHAT_GITHUB_CLIENT_SECRET ?? requireEnv(env, "PENGE_CHAT_GITHUB_CLIENT_SECRET"),
-    githubAppId: env.PENGE_CHAT_GITHUB_APP_ID ?? requireEnv(env, "PENGE_CHAT_GITHUB_APP_ID"),
-    githubAppPrivateKey:
-      env.PENGE_CHAT_GITHUB_APP_PRIVATE_KEY ?? requireEnv(env, "PENGE_CHAT_GITHUB_APP_PRIVATE_KEY"),
-    model: (env.PENGE_CHAT_MODEL ?? "hydrafusion") as "hydrafusion",
-    disableFallback: true,
-    mcpAllowlist: allowlist,
-    dbUrl: env.PENGE_CHAT_DB_URL ?? requireEnv(env, "PENGE_CHAT_DB_URL"),
-    dbRole: env.PENGE_CHAT_DB_ROLE ?? requireEnv(env, "PENGE_CHAT_DB_ROLE"),
-    dbAllowedTables: normalizeMcpAllowlist(
-      env.PENGE_CHAT_DB_ALLOWED_TABLES ?? DEFAULT_ALLOWED_DB_TABLES.join(","),
-    ),
-    idleTimeoutMs: parseInteger(env.PENGE_CHAT_IDLE_TIMEOUT_MS, 180_000),
-    noTranscriptPersistence: true,
+    httpPort: integer(env, "PENGE_CHAT_HTTP_PORT", 3000),
+    publicOrigin: required(env, "PENGE_CHAT_PUBLIC_ORIGIN"),
+    trustedProxyIssuer: required(env, "PENGE_CHAT_TRUSTED_PROXY_ISSUER"),
+    identityPepper: secretFile(env, "PENGE_CHAT_IDENTITY_PEPPER"),
+    proxySharedSecret: secretFile(env, "PENGE_CHAT_PROXY_SHARED_SECRET"),
+    tokenEncryptionKeyring: keyringFile(env),
+    githubClientId: required(env, "PENGE_CHAT_GITHUB_CLIENT_ID"),
+    githubClientSecret: secretFile(env, "PENGE_CHAT_GITHUB_CLIENT_SECRET"),
+    githubOAuthAuthorizeUrl:
+      env.PENGE_CHAT_GITHUB_AUTHORIZE_URL ?? "https://github.com/login/oauth/authorize",
+    githubOAuthTokenUrl:
+      env.PENGE_CHAT_GITHUB_TOKEN_URL ?? "https://github.com/login/oauth/access_token",
+    githubApiUrl: env.PENGE_CHAT_GITHUB_API_URL ?? "https://api.github.com",
+    model,
+    fallbackModel: undefined,
+    productionEnabled: optionalFlag(env, "PENGE_CHAT_ENABLE_PRODUCTION"),
+    entitlementVerified: optionalFlag(env, "PENGE_CHAT_HYDRAFUSION_ENTITLEMENT_VERIFIED"),
+    mcpToolContractVersion: env.PENGE_CHAT_MCP_TOOL_CONTRACT_VERSION ?? MCP_TOOL_CONTRACT_VERSION,
+    mcpCommand: env.PENGE_CHAT_MCP_COMMAND ?? "pnpm",
+    mcpArgs: (env.PENGE_CHAT_MCP_ARGS ?? "--filter,@penge/mcp,start").split(","),
+    mcpWorkingDirectory: required(env, "PENGE_CHAT_MCP_WORKING_DIRECTORY"),
+    mcpDatabaseUrl: required(env, "PENGE_CHAT_MCP_DATABASE_URL"),
+    mcpDuckdbPath: required(env, "PENGE_CHAT_MCP_DUCKDB_PATH"),
+    mcpVaultRoot: required(env, "PENGE_CHAT_MCP_VAULT_ROOT"),
+    mcpLogDir: required(env, "PENGE_CHAT_MCP_LOG_DIR"),
+    databaseUrl: required(env, "PENGE_CHAT_DATABASE_URL"),
+    databaseRole: env.PENGE_CHAT_DATABASE_ROLE ?? "penge_chat_oauth",
+    copilotBaseDirectory: required(env, "PENGE_CHAT_COPILOT_BASE_DIRECTORY"),
+    requestTimeoutMs: integer(env, "PENGE_CHAT_REQUEST_TIMEOUT_MS", 120_000),
+    idleTimeoutMs: integer(env, "PENGE_CHAT_IDLE_TIMEOUT_MS", 180_000),
+    maxConcurrentSessions: integer(env, "PENGE_CHAT_MAX_CONCURRENT_SESSIONS", 2),
   };
 
   const parsed = ChatConfigSchema.safeParse(raw);
@@ -171,7 +238,5 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ChatConfig {
       .join("; ");
     throw new ChatConfigError(`invalid chat config: ${detail}`);
   }
-
-  assertLoopbackOnlyConfig(parsed.data);
   return parsed.data;
 }

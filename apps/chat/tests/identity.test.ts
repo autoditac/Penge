@@ -1,56 +1,136 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
-  bindIdentity,
-  buildGitHubAuthorisationUrl,
+  bindTrustedIdentity,
+  decryptOAuthState,
   decryptTokenBundle,
+  encryptOAuthState,
   encryptTokenBundle,
+  exchangeGitHubCode,
   generateOAuthState,
-  generatePkce,
+  refreshGitHubToken,
+  type TokenBundle,
 } from "../src/identity.js";
 
-describe("oauth identity helpers", () => {
-  it("derives a stable actor identity from Google and GitHub identity", () => {
-    const identity = bindIdentity("google-user-123", "octocat");
-    expect(identity.actorId).toMatch(/^[a-f0-9]{24}$/);
-    expect(identity.subjectId).toBe("google-user-123:octocat");
-  });
+const bundle: TokenBundle = {
+  accessToken: "synthetic-access",
+  refreshToken: "synthetic-refresh",
+  expiresAt: "2026-10-04T12:00:00.000Z",
+  refreshTokenExpiresAt: "2027-01-01T00:00:00.000Z",
+  scope: ["read:user"],
+  tokenType: "bearer",
+  githubUserId: 42,
+  githubLogin: "synthetic-user",
+};
 
-  it("generates PKCE and authorisation URLs with exact state and challenge", () => {
-    const { codeVerifier, codeChallenge } = generatePkce();
-    const state = generateOAuthState({
-      state: "state-1234567890",
-      codeVerifier,
-      codeChallenge,
-      redirectUri: "http://127.0.0.1:3000/oauth/callback",
-      provider: "github-app",
-      userId: "user-123",
-    });
-
-    const url = buildGitHubAuthorisationUrl(
-      "client-id",
-      state.redirectUri,
-      state.state,
-      state.codeChallenge,
-    );
-    expect(url).toContain("client_id=client-id");
-    expect(url).toContain(`state=${state.state}`);
-    expect(url).toContain(`code_challenge=${state.codeChallenge}`);
-    expect(codeVerifier.length).toBeGreaterThanOrEqual(32);
-    expect(codeChallenge.length).toBeGreaterThanOrEqual(32);
-  });
-
-  it("round-trips encrypted token metadata without exposing secrets", () => {
-    const bundle = {
-      accessToken: "gho_secret",
-      refreshToken: "refresh-secret",
-      expiresAt: new Date(Date.now() + 60_000).toISOString(),
-      scope: ["read:user", "user:email"],
+describe("identity and OAuth", () => {
+  it("binds only immutable proxy subjects accompanied by the shared proxy secret", () => {
+    const headers = {
+      "x-penge-proxy-secret": "p".repeat(32),
+      "x-penge-auth-issuer": "https://accounts.google.com",
+      "x-penge-auth-subject": "google-subject-123",
     };
-    const serialized = encryptTokenBundle(bundle, "12345678901234567890123456789012");
-    const decrypted = decryptTokenBundle(serialized, "12345678901234567890123456789012");
-    expect(decrypted.accessToken).toBe(bundle.accessToken);
-    expect(decrypted.refreshToken).toBe(bundle.refreshToken);
-    expect(decrypted.scope).toEqual(bundle.scope);
+    const identity = bindTrustedIdentity(
+      headers,
+      "https://accounts.google.com",
+      "i".repeat(32),
+      "p".repeat(32),
+    );
+    expect(identity.actorId).toMatch(/^actor_[a-f0-9]{32}$/);
+    expect(JSON.stringify(identity)).not.toContain("google-subject-123");
+    expect(() =>
+      bindTrustedIdentity(
+        { ...headers, "x-penge-proxy-secret": "x".repeat(32) },
+        "https://accounts.google.com",
+        "i".repeat(32),
+        "p".repeat(32),
+      ),
+    ).toThrow(/trusted reverse proxy/);
+  });
+
+  it("encrypts versioned token and PKCE state envelopes and decrypts old rotation keys", () => {
+    const oldKey = Buffer.alloc(32, 1);
+    const state = generateOAuthState(
+      "actor_0123456789abcdef0123456789abcdef",
+      "https://penge.example.test/cb",
+    );
+    const tokenEnvelope = encryptTokenBundle(bundle, oldKey, "old");
+    const stateEnvelope = encryptOAuthState(state, oldKey, "old");
+    const serialized = JSON.stringify({ tokenEnvelope, stateEnvelope });
+    expect(serialized).not.toContain(bundle.accessToken);
+    expect(serialized).not.toContain(state.codeVerifier);
+    const keyring = new Map([
+      ["old", oldKey],
+      ["current", Buffer.alloc(32, 2)],
+    ]);
+    expect(decryptTokenBundle(tokenEnvelope, keyring)).toEqual(bundle);
+    expect(decryptOAuthState(stateEnvelope, keyring)).toEqual(state);
+  });
+
+  it("sends PKCE verifier on exchange and rotates refresh credentials", async () => {
+    const responses = [
+      new Response(
+        JSON.stringify({
+          access_token: "access-1",
+          refresh_token: "refresh-1",
+          expires_in: 28_800,
+          refresh_token_expires_in: 100_000,
+          scope: "read:user",
+          token_type: "bearer",
+        }),
+        { headers: { "content-type": "application/json" } },
+      ),
+      new Response(JSON.stringify({ id: 42, login: "synthetic-user" }), {
+        headers: { "content-type": "application/json" },
+      }),
+    ];
+    let firstRequest: RequestInit | undefined;
+    const fetcher: typeof fetch = async (_input, init) => {
+      firstRequest ??= init;
+      return responses.shift()!;
+    };
+    const state = generateOAuthState(
+      "actor_0123456789abcdef0123456789abcdef",
+      "https://penge.example.test/oauth/github/callback",
+    );
+    const config = {
+      clientId: "client",
+      clientSecret: "secret",
+      authorizeUrl: "https://github.com/login/oauth/authorize",
+      tokenUrl: "https://github.com/login/oauth/access_token",
+      apiUrl: "https://api.github.com",
+    };
+    const exchanged = await exchangeGitHubCode(
+      config,
+      "code",
+      state,
+      fetcher,
+      Date.parse("2026-10-04T10:00:00.000Z"),
+    );
+    const exchangeBody = JSON.parse(String(firstRequest?.body)) as Record<string, unknown>;
+    expect(exchangeBody.code_verifier).toBe(state.codeVerifier);
+    expect(exchanged.githubUserId).toBe(42);
+
+    const refreshFetcher = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            access_token: "access-2",
+            refresh_token: "refresh-2",
+            expires_in: 28_800,
+            scope: "read:user",
+            token_type: "bearer",
+          }),
+          { headers: { "content-type": "application/json" } },
+        ),
+    );
+    const refreshed = await refreshGitHubToken(
+      config,
+      exchanged,
+      refreshFetcher as typeof fetch,
+      Date.parse("2026-10-04T11:00:00.000Z"),
+    );
+    expect(refreshed.accessToken).toBe("access-2");
+    expect(refreshed.refreshToken).toBe("refresh-2");
   });
 });

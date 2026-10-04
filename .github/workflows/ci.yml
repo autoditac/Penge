@@ -166,6 +166,30 @@ jobs:
       - name: Lint MCP server
         run: pnpm --filter @penge/mcp lint
 
+  chat:
+    name: Chat build, lint, test
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22.22.2"
+      - name: Enable corepack & pnpm
+        run: |
+          set -euo pipefail
+          corepack enable
+          corepack prepare pnpm@11.0.9 --activate
+          pnpm --version
+      - name: Install workspace deps
+        run: pnpm install --frozen-lockfile
+      - name: Test chat service
+        run: pnpm --filter @penge/chat test
+      - name: Build chat service
+        run: pnpm --filter @penge/chat build
+      - name: Lint chat service
+        run: pnpm --filter @penge/chat lint
+
   container-images:
     name: Container image build (${{ matrix.app }})
     runs-on: [self-hosted, linux, x64, penge]

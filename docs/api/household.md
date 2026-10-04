@@ -17,27 +17,27 @@ Financial category kind is immutable after creation.
 Fetch all paginated category pages before building a complete nested tree.
 Every list uses `limit` (maximum 500) and `offset`.
 
-| Method and path | Request / response |
-| --- | --- |
-| `GET /household/categories` | Flat `CategoryOut[]` with parent IDs, kind, order, archive and revision |
-| `POST /household/categories` | `CategoryWrite` with `expected_revision: 0` |
-| `PATCH /household/categories/{id}` | Full `CategoryWrite` with current expected revision |
-| `GET /household/merchants` | `MerchantOut[]` with identity type, confirmation and public provenance |
-| `POST /household/merchants` / `PATCH /household/merchants/{id}` | Full `MerchantWrite`, revision checked |
-| `GET /household/aliases` | `AliasOut[]`, optional `merchant_id` |
-| `POST /household/aliases` / `PATCH /household/aliases/{id}` | `AliasWrite`, exact provider/normalized-label identity |
-| `GET /household/rules` | All immutable `RuleOut` versions, optional `merchant_id` |
-| `PATCH /household/rules/{id}` | `expected_version`, `disabled`; enabling re-evaluates evidence, never forces a conflict active |
-| `GET /household/transactions` | Native bank facts and effective classification, browse/review filters |
-| `GET /household/transactions/{id}` | Source detail and effective allocation/explanation |
-| `GET /household/transactions/{id}/suggestion` | Confirmed exact identity rule and source-kind hint; no mutation |
-| `PATCH /household/transactions/{id}/classification` | `ClassificationWrite`, atomic splits and reconciliation references |
-| `POST /household/transactions/{id}/undo` | `expected_revision`, `audit_id`; restore prior snapshot as a new protected manual revision |
-| `GET /household/audit?subject_id={id}` | Append-only correction history |
-| `POST /household/rules/{id}/preview` | Persist eligible changes from a bounded chronological source page |
-| `GET /household/previews/{id}` | Persisted exact candidate source/alias/edit snapshots |
-| `POST /household/previews/{id}/apply` | `{"approve": true}`, all-or-nothing revision-checked historical application |
-| `GET /household/payment-details` | Detail-only provider records, optional `unmatched=true` |
+| Method and path                                                 | Request / response                                                                             |
+| --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `GET /household/categories`                                     | Flat `CategoryOut[]` with parent IDs, kind, order, archive and revision                        |
+| `POST /household/categories`                                    | `CategoryWrite` with `expected_revision: 0`                                                    |
+| `PATCH /household/categories/{id}`                              | Full `CategoryWrite` with current expected revision                                            |
+| `GET /household/merchants`                                      | `MerchantOut[]` with identity type, confirmation and public provenance                         |
+| `POST /household/merchants` / `PATCH /household/merchants/{id}` | Full `MerchantWrite`, revision checked                                                         |
+| `GET /household/aliases`                                        | `AliasOut[]`, optional `merchant_id`                                                           |
+| `POST /household/aliases` / `PATCH /household/aliases/{id}`     | `AliasWrite`, exact provider/normalized-label identity                                         |
+| `GET /household/rules`                                          | All immutable `RuleOut` versions, optional `merchant_id`                                       |
+| `PATCH /household/rules/{id}`                                   | `expected_version`, `disabled`; enabling re-evaluates evidence, never forces a conflict active |
+| `GET /household/transactions`                                   | Native bank facts and effective classification, browse/review filters                          |
+| `GET /household/transactions/{id}`                              | Source detail and effective allocation/explanation                                             |
+| `GET /household/transactions/{id}/suggestion`                   | Confirmed exact identity rule and source-kind hint; no mutation                                |
+| `PATCH /household/transactions/{id}/classification`             | `ClassificationWrite`, atomic splits and reconciliation references                             |
+| `POST /household/transactions/{id}/undo`                        | `expected_revision`, `audit_id`; restore prior snapshot as a new protected manual revision     |
+| `GET /household/audit?subject_id={id}`                          | Append-only correction history                                                                 |
+| `POST /household/rules/{id}/preview`                            | Persist eligible changes from a bounded chronological source page                              |
+| `GET /household/previews/{id}`                                  | Persisted exact candidate source/alias/edit snapshots                                          |
+| `POST /household/previews/{id}/apply`                           | `{"approve": true}`, all-or-nothing revision-checked historical application                    |
+| `GET /household/payment-details`                                | Detail-only provider records, optional `unmatched=true`                                        |
 
 Browse filters include account, provider, merchant, category, treatment, review state, source currency, date interval and text search.
 The native amount/currency/date are always returned alongside classification revision and `provenance: manual | rule`.
@@ -59,6 +59,8 @@ References do not infer FX rates or overwrite the referenced source facts.
 Both transfer legs must be excluded in downstream reporting; linked counterpart treatment must be reviewed where manual decisions conflict.
 
 Only a household-confirmed stable merchant and consistent single-category human evidence establish a reusable default.
+In the WebUI transaction review, select that merchant and explicitly confirm the transaction identity before saving the single-category expense or income correction.
+Bulk category changes never establish a new identity; they retain only identity evidence that was already confirmed transaction by transaction.
 Processor-only PayPal labels, marketplaces, mixed/split spending and conflicting corrections require review.
 Accepted source hints are explanations, never hard assignments.
 Alias corrections disable the former identity's rule; undo disables affected defaults.

@@ -76,6 +76,10 @@ export type HouseholdTransactionDetail = {
   readonly transaction: ReviewTransaction;
   readonly accountLabel: string;
   readonly entityLabel: string;
+  readonly provider: string;
+  readonly sourceCounterparty: string | null;
+  readonly merchantId: string | null;
+  readonly identityConfirmed: boolean;
   readonly treatment: HouseholdTreatment;
   readonly classificationRevision: number;
   readonly provenance: "manual" | "rule" | "none";

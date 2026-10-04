@@ -8,8 +8,15 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { HouseholdPage } from "../src/pages/Household";
 import { NotificationsProvider } from "../src/components/Notifications";
 import { fetchHouseholdReportSummary } from "../src/api/householdReportsClient";
+import type { components } from "../src/api/schema";
+import {
+  householdClassificationSchema,
+  type HouseholdTransactionResponse,
+} from "../src/api/schemas";
 import { reportCurrencyView } from "../src/household/reporting";
 import { renderWithTheme } from "./test-utils";
+
+type ClassificationWrite = components["schemas"]["ClassificationWrite"];
 
 vi.mock("../src/components/EChart", () => ({
   EChart: ({ ariaLabel }: { readonly ariaLabel: string }) => (
@@ -62,6 +69,111 @@ const category = {
   archived: false,
   revision: 1,
 };
+const merchant = {
+  archived: false,
+  confirmed: true,
+  id: "merchant-1",
+  identity_kind: "stable",
+  name: "Synthetic Grocer",
+  reference_key: null,
+  reference_source: null,
+  reference_version: null,
+  revision: 2,
+  rule_version: 0,
+};
+const transaction: HouseholdTransactionResponse = {
+  account_id: "account-1",
+  amount: "-42.30",
+  classification: null,
+  counterparty: "SYNTHETIC GROCER 004",
+  currency: "EUR",
+  description: "Synthetic card payment",
+  kind: "card",
+  provider: "synthetic-bank",
+  reporting_role: "bank_movement",
+  transaction_id: "transaction-1",
+  ts: "2026-10-03T12:00:00Z",
+};
+
+function classificationFromRequest(
+  body: ClassificationWrite,
+  sourceTransaction: HouseholdTransactionResponse = transaction,
+) {
+  return householdClassificationSchema.parse({
+    allocations: body.allocations ?? [],
+    detail_changed: false,
+    detail_links: body.detail_links ?? [],
+    explanation: body.explanation,
+    identity_confirmed: body.identity_confirmed ?? false,
+    links: body.links ?? [],
+    merchant_id: body.merchant_id ?? null,
+    provenance: "manual",
+    review_state: "classified",
+    revision: 1,
+    rule_id: null,
+    source_amount: sourceTransaction.amount,
+    source_changed: false,
+    source_counterparty: sourceTransaction.counterparty,
+    source_currency: sourceTransaction.currency,
+    source_kind: sourceTransaction.kind,
+    source_ts: sourceTransaction.ts,
+    transaction_id: sourceTransaction.transaction_id,
+    treatment: body.treatment,
+  });
+}
+
+function installReviewApi(
+  requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }>,
+  patchStatus = 200,
+  sourceTransaction = transaction,
+): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: URL, init?: RequestInit) => {
+      const url = new URL(input);
+      requests.push({ url, init });
+      if (url.pathname === "/accounts") {
+        return new Response("[]", { status: 200 });
+      }
+      if (url.pathname === "/household/categories") {
+        return new Response(JSON.stringify([category]), { status: 200 });
+      }
+      if (url.pathname === "/household/merchants") {
+        return new Response(JSON.stringify([merchant]), { status: 200 });
+      }
+      if (
+        url.pathname === "/household/aliases" ||
+        url.pathname === "/household/rules" ||
+        url.pathname === "/household/payment-details" ||
+        url.pathname === "/household/audit"
+      ) {
+        return new Response("[]", { status: 200 });
+      }
+      if (url.pathname === `/household/transactions/${sourceTransaction.transaction_id}`) {
+        return new Response(JSON.stringify(sourceTransaction), { status: 200 });
+      }
+      if (
+        url.pathname ===
+          `/household/transactions/${sourceTransaction.transaction_id}/classification` &&
+        init?.method === "PATCH"
+      ) {
+        if (patchStatus !== 200) {
+          return new Response(JSON.stringify({ detail: "stale revision; reload and retry" }), {
+            status: patchStatus,
+          });
+        }
+        const body = JSON.parse(String(init.body)) as ClassificationWrite;
+        return new Response(JSON.stringify(classificationFromRequest(body, sourceTransaction)), {
+          status: 200,
+        });
+      }
+      if (url.pathname === "/household/transactions") {
+        return new Response(JSON.stringify([sourceTransaction]), { status: 200 });
+      }
+      throw new Error(`Unexpected API route ${url.pathname}`);
+    }),
+  );
+}
 
 function filtersFromUrl(url: URL) {
   return {
@@ -92,6 +204,143 @@ function renderPage(path: string): void {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("household live API wiring", () => {
+  it("writes explicit first-time merchant confirmation with the category correction", async () => {
+    const user = userEvent.setup();
+    const requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }> = [];
+    installReviewApi(requests);
+
+    renderPage("/household");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "SYNTHETIC GROCER 004 Synthetic card payment",
+      }),
+    );
+    await user.click(await screen.findByRole("combobox", { name: "Household merchant" }));
+    await user.click(await screen.findByRole("option", { name: "Synthetic Grocer" }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I confirm this transaction is from the selected merchant",
+      }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Treatment" }));
+    await user.click(await screen.findByRole("option", { name: "Expense" }));
+    await user.click(screen.getByRole("combobox", { name: "Category" }));
+    await user.click(await screen.findByRole("option", { name: "Synthetic groceries" }));
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+    expect(await screen.findByText("Transaction correction saved.")).toBeInTheDocument();
+
+    const write = requests.find(
+      ({ url, init }) =>
+        url.pathname === `/household/transactions/${transaction.transaction_id}/classification` &&
+        init?.method === "PATCH",
+    );
+    expect(write).toBeDefined();
+    expect(JSON.parse(String(write?.init?.body))).toMatchObject({
+      expected_revision: 0,
+      treatment: "expense",
+      merchant_id: merchant.id,
+      identity_confirmed: true,
+      allocations: [{ category_id: category.id, amount: transaction.amount }],
+    });
+  });
+
+  it("keeps bulk categorization from confirming a first merchant identity", async () => {
+    const user = userEvent.setup();
+    const requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }> = [];
+    installReviewApi(requests);
+
+    renderPage("/household");
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Select Synthetic card payment" }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Assign category" }));
+    await user.click(await screen.findByRole("option", { name: "Synthetic groceries" }));
+    await user.click(screen.getByRole("button", { name: "Apply to selected" }));
+    expect(await screen.findByText("1 transaction correction saved.")).toBeInTheDocument();
+
+    const write = requests.find(
+      ({ url, init }) =>
+        url.pathname === `/household/transactions/${transaction.transaction_id}/classification` &&
+        init?.method === "PATCH",
+    );
+    expect(JSON.parse(String(write?.init?.body))).toMatchObject({
+      merchant_id: null,
+      identity_confirmed: false,
+    });
+  });
+
+  it("clears an existing merchant identity when the reviewer explicitly selects none", async () => {
+    const user = userEvent.setup();
+    const requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }> = [];
+    const classifiedTransaction = {
+      ...transaction,
+      classification: {
+        ...classificationFromRequest({
+          expected_revision: 0,
+          allocations: [{ category_id: category.id, amount: transaction.amount }],
+          detail_links: [],
+          explanation: "Previously confirmed synthetic merchant.",
+          identity_confirmed: true,
+          links: [],
+          merchant_id: merchant.id,
+          treatment: "expense",
+        }),
+        revision: 3,
+      },
+    };
+    installReviewApi(requests, 200, classifiedTransaction);
+
+    renderPage("/household");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Synthetic Grocer Synthetic card payment",
+      }),
+    );
+    await user.click(await screen.findByRole("combobox", { name: "Household merchant" }));
+    await user.click(await screen.findByRole("option", { name: "No merchant identity" }));
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+    expect(await screen.findByText("Transaction correction saved.")).toBeInTheDocument();
+
+    const write = requests.find(
+      ({ url, init }) =>
+        url.pathname === `/household/transactions/${transaction.transaction_id}/classification` &&
+        init?.method === "PATCH",
+    );
+    expect(JSON.parse(String(write?.init?.body))).toMatchObject({
+      expected_revision: 3,
+      merchant_id: null,
+      identity_confirmed: false,
+    });
+  });
+
+  it("surfaces a stale merchant-classification write without reporting success", async () => {
+    const user = userEvent.setup();
+    const requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }> = [];
+    installReviewApi(requests, 409);
+
+    renderPage("/household");
+    await user.click(
+      await screen.findByRole("button", {
+        name: "SYNTHETIC GROCER 004 Synthetic card payment",
+      }),
+    );
+    await user.click(await screen.findByRole("combobox", { name: "Household merchant" }));
+    await user.click(await screen.findByRole("option", { name: "Synthetic Grocer" }));
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: "I confirm this transaction is from the selected merchant",
+      }),
+    );
+    await user.click(screen.getByRole("combobox", { name: "Treatment" }));
+    await user.click(await screen.findByRole("option", { name: "Expense" }));
+    await user.click(screen.getByRole("combobox", { name: "Category" }));
+    await user.click(await screen.findByRole("option", { name: "Synthetic groceries" }));
+    await user.click(screen.getByRole("button", { name: "Save correction" }));
+
+    expect(await screen.findByText("stale revision; reload and retry")).toBeInTheDocument();
+    expect(screen.queryByText("Transaction correction saved.")).not.toBeInTheDocument();
+  });
+
   it("renders validated reports and keeps exact category drilldown filters", async () => {
     const requests: URL[] = [];
     vi.stubGlobal(
@@ -195,7 +444,7 @@ describe("household live API wiring", () => {
   it("loads local merchant-reference data and links explicit provenance to a selected merchant", async () => {
     const user = userEvent.setup();
     const requests: Array<{ readonly url: URL; readonly init: RequestInit | undefined }> = [];
-    const merchant = {
+    const referenceMerchant = {
       archived: false,
       confirmed: true,
       id: "merchant-1",
@@ -213,7 +462,7 @@ describe("household live API wiring", () => {
         const url = new URL(input);
         requests.push({ url, init });
         if (url.pathname === "/household/merchants") {
-          return new Response(JSON.stringify([merchant]), { status: 200 });
+          return new Response(JSON.stringify([referenceMerchant]), { status: 200 });
         }
         if (url.pathname === "/household/aliases") {
           return new Response("[]", { status: 200 });
@@ -274,7 +523,7 @@ describe("household live API wiring", () => {
         if (url.pathname === "/household/merchants/merchant-1" && init?.method === "PATCH") {
           return new Response(
             JSON.stringify({
-              ...merchant,
+              ...referenceMerchant,
               reference_key: "nsi-entity-42",
               reference_source: "name-suggestion-index",
               reference_version: "synthetic-v1",

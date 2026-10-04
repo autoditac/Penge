@@ -82,6 +82,24 @@ are recorded in ADR-0036.
   wizard says so and falls back to manual review.
 - **Planning** — labelled synthetic preview of the MCP
   `answer_planning_question` surface until live wiring lands.
+- **Ask Penge** — fail-closed evidence-first workbench for the pending private
+  chat backend in #346.
+  The route consumes a strict `1.0` zod-validated event envelope for ordered
+  text, sanitized tool activity, evidence, completion, and typed errors behind
+  an injectable transport.
+  It keeps GitHub account linkage separate from model availability, rejects
+  unknown major contracts and extra event fields, never persists transcripts,
+  and does not call finance endpoints directly.
+  Desktop uses a collapsible evidence rail; mobile moves tool and source details
+  into a bounded bottom sheet.
+  The current #345 entitlement probe did not expose the exact `hydrafusion`
+  model, so the production route starts no transport, exposes no simulated OAuth
+  success, and permits no model fallback.
+  Synthetic streams are available only through injected transports in tests.
+  Until #346 publishes a production schema, the frontend requires contiguous
+  per-session sequence numbers, stable session/event IDs, and no events after a
+  terminal completion/error; contract adaptation remains isolated in
+  `src/ask-penge/contract.ts`.
 
 ## Design system (ADR-0045)
 

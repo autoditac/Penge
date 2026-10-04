@@ -7,56 +7,72 @@
 
 import { z } from "zod";
 
-export const textEventSchema = z.object({
-  type: z.literal("text"),
-  id: z.string(),
-  stream: z.string(),
-  delta: z.string(),
-  source: z.enum(["assistant", "tool"]).default("assistant"),
+export const ASK_STREAM_PROTOCOL_VERSION = "1.0" as const;
+
+const eventEnvelopeSchema = z.object({
+  version: z.literal(ASK_STREAM_PROTOCOL_VERSION),
+  sessionId: z.string().min(1),
+  id: z.string().min(1),
+  sequence: z.number().int().nonnegative(),
 });
 
-export const toolEventSchema = z.object({
-  type: z.literal("tool"),
-  id: z.string(),
-  name: z.string(),
-  status: z.enum(["started", "running", "complete", "failed"]),
-  detail: z.string(),
-  startedAt: z.string().datetime().optional(),
-});
+export const textEventSchema = eventEnvelopeSchema
+  .extend({
+    type: z.literal("text"),
+    stream: z.literal("answer"),
+    delta: z.string(),
+    source: z.literal("assistant"),
+  })
+  .strict();
 
-export const evidenceEventSchema = z.object({
-  type: z.literal("evidence"),
-  id: z.string(),
-  title: z.string(),
-  source: z.string(),
-  coverage: z.enum(["full", "partial", "missing"]),
-  freshness: z.enum(["fresh", "stale", "missing"]),
-  currency: z.enum(["EUR", "DKK", "mixed"]),
-  summary: z.string(),
-});
+export const toolEventSchema = eventEnvelopeSchema
+  .extend({
+    type: z.literal("tool"),
+    name: z.string().min(1),
+    status: z.enum(["started", "running", "complete", "failed"]),
+    detail: z.string(),
+    startedAt: z.string().datetime().optional(),
+  })
+  .strict();
 
-export const completionEventSchema = z.object({
-  type: z.literal("completion"),
-  id: z.string(),
-  summary: z.string(),
-  coverage: z.enum(["full", "partial"]),
-  freshness: z.enum(["fresh", "stale"]),
-});
+export const evidenceEventSchema = eventEnvelopeSchema
+  .extend({
+    type: z.literal("evidence"),
+    title: z.string().min(1),
+    source: z.string().min(1),
+    coverage: z.enum(["full", "partial", "missing"]),
+    freshness: z.enum(["fresh", "stale", "missing"]),
+    currency: z.enum(["EUR", "DKK", "mixed"]),
+    summary: z.string(),
+  })
+  .strict();
 
-export const errorEventSchema = z.object({
-  type: z.literal("error"),
-  id: z.string(),
-  code: z.enum([
-    "auth_expired",
-    "hydrafusion_unavailable",
-    "rate_limit",
-    "session_interrupted",
-    "data_missing",
-    "tool_timeout",
-  ]),
-  message: z.string(),
-  retryable: z.boolean(),
-});
+export const completionEventSchema = eventEnvelopeSchema
+  .extend({
+    type: z.literal("completion"),
+    summary: z.string(),
+    coverage: z.enum(["full", "partial"]),
+    freshness: z.enum(["fresh", "stale"]),
+    finishReason: z.enum(["completed", "cancelled"]),
+  })
+  .strict();
+
+export const errorEventSchema = eventEnvelopeSchema
+  .extend({
+    type: z.literal("error"),
+    code: z.enum([
+      "auth_expired",
+      "hydrafusion_unavailable",
+      "rate_limit",
+      "session_interrupted",
+      "data_missing",
+      "missing_fx",
+      "tool_timeout",
+    ]),
+    message: z.string(),
+    retryable: z.boolean(),
+  })
+  .strict();
 
 export const askStreamEventSchema = z.discriminatedUnion("type", [
   textEventSchema,
@@ -73,19 +89,59 @@ export type AskStreamEvidenceEvent = z.infer<typeof evidenceEventSchema>;
 export type AskStreamCompletionEvent = z.infer<typeof completionEventSchema>;
 export type AskStreamErrorEvent = z.infer<typeof errorEventSchema>;
 
-export const askRequestSchema = z.object({
-  question: z.string().trim().min(1),
-  memberId: z.string().default("current-member"),
-});
+export const askRequestSchema = z
+  .object({
+    question: z.string().trim().min(1),
+  })
+  .strict();
 
 export type AskRequest = z.infer<typeof askRequestSchema>;
 
 export type AskTransportSession = {
   readonly stop: () => void;
-  readonly retry: () => void;
-  readonly subscribe: (callback: (event: AskStreamEvent) => void) => () => void;
+  readonly subscribe: (callback: (event: unknown) => void) => () => void;
 };
 
 export type AskTransport = {
   readonly start: (request: AskRequest) => AskTransportSession;
 };
+
+export function parseAskStreamEvent(event: unknown): AskStreamEvent {
+  return askStreamEventSchema.parse(event);
+}
+
+export class AskStreamProtocolError extends Error {
+  readonly code = "ask_stream_protocol_error";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "AskStreamProtocolError";
+  }
+}
+
+export function createAskStreamValidator(): (event: unknown) => AskStreamEvent {
+  let sessionId: string | null = null;
+  let expectedSequence = 0;
+  let terminal = false;
+
+  return (candidate: unknown): AskStreamEvent => {
+    if (terminal) {
+      throw new AskStreamProtocolError("Received an event after the stream terminated.");
+    }
+
+    const event = parseAskStreamEvent(candidate);
+    if (sessionId !== null && event.sessionId !== sessionId) {
+      throw new AskStreamProtocolError("Received an event for a different session.");
+    }
+    if (event.sequence !== expectedSequence) {
+      throw new AskStreamProtocolError(
+        `Expected stream sequence ${expectedSequence}, received ${event.sequence}.`,
+      );
+    }
+
+    sessionId = event.sessionId;
+    expectedSequence += 1;
+    terminal = event.type === "completion" || event.type === "error";
+    return event;
+  };
+}

@@ -3,23 +3,41 @@
  */
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AskPengePage } from "../src/ask-penge/AskPengePage";
-import { askStreamEventSchema } from "../src/ask-penge/contract";
-import type { AskStreamEvent, AskTransport } from "../src/ask-penge/contract";
+import {
+  ASK_STREAM_PROTOCOL_VERSION,
+  askStreamEventSchema,
+  createAskStreamValidator,
+} from "../src/ask-penge/contract";
+import type { AskRequest, AskStreamEvent, AskTransport } from "../src/ask-penge/contract";
+
+const useMediaQueryMock = vi.fn();
+
+vi.mock("@mui/material/useMediaQuery", () => ({
+  default: () => useMediaQueryMock(),
+}));
+
+function envelope(sequence: number): {
+  version: typeof ASK_STREAM_PROTOCOL_VERSION;
+  sessionId: string;
+  sequence: number;
+} {
+  return {
+    version: ASK_STREAM_PROTOCOL_VERSION,
+    sessionId: "synthetic-test-session",
+    sequence,
+  };
+}
 
 function createTransport(events: ReadonlyArray<AskStreamEvent>): AskTransport {
   return {
     start() {
       let index = 0;
-      const listeners = new Set<(event: AskStreamEvent) => void>();
+      const listeners = new Set<(event: unknown) => void>();
 
-      const emitNext = () => {
-        if (index >= events.length) {
-          return;
-        }
-
+      const emitNext = (): void => {
         const event = events[index];
         if (event === undefined) {
           return;
@@ -34,112 +52,244 @@ function createTransport(events: ReadonlyArray<AskStreamEvent>): AskTransport {
         }
       };
 
-      const session = {
+      return {
         stop: () => {
           index = events.length;
         },
-        retry: () => {
-          index = 0;
-          emitNext();
-        },
-        subscribe: (callback: (event: AskStreamEvent) => void) => {
+        subscribe: (callback) => {
           listeners.add(callback);
-          emitNext();
+          setTimeout(emitNext, 0);
           return () => {
             listeners.delete(callback);
           };
         },
       };
-
-      return session;
     },
   };
 }
 
+async function startInjectedStream(): Promise<void> {
+  const user = userEvent.setup();
+  await user.click(screen.getByRole("button", { name: "Ask" }));
+}
+
 describe("AskPengePage", () => {
-  it("renders the streamed evidence workbench and allows stopping the session", async () => {
+  beforeEach(() => {
+    useMediaQueryMock.mockReturnValue(true);
+  });
+
+  it("renders an injected stream and allows cancelling the bounded session", async () => {
     render(
       <AskPengePage
+        authState="linked"
+        modelAvailable
         transport={createTransport([
           {
+            ...envelope(0),
             type: "tool",
             id: "tool-1",
-            name: "HydraFusion exact review",
+            name: "Synthetic Penge report lookup",
             status: "started",
-            detail: "Confirming the exact data path and freshness window.",
-            startedAt: new Date().toISOString(),
+            detail: "Reading synthetic report metadata.",
+            startedAt: "2026-10-04T08:00:00.000Z",
           },
           {
+            ...envelope(1),
             type: "text",
             id: "text-1",
             stream: "answer",
-            delta: "The household balance looks stable.",
+            delta: "The synthetic household balance looks stable.",
             source: "assistant",
           },
           {
+            ...envelope(2),
             type: "evidence",
             id: "evidence-1",
             title: "Net worth snapshot",
-            source: "HydraFusion exact data",
+            source: "Synthetic Penge net-worth report",
             coverage: "full",
             freshness: "fresh",
             currency: "mixed",
-            summary: "DKK 1.42M and EUR 194k, refreshed 18 minutes ago.",
+            summary: "Synthetic DKK 1.42M and EUR 194k, refreshed 18 minutes ago.",
           },
         ])}
       />,
     );
 
+    await startInjectedStream();
     await waitFor(() =>
-      expect(screen.getByRole("heading", { name: "Ask Penge" })).toBeInTheDocument(),
+      expect(screen.getByRole("status")).toHaveTextContent("synthetic household balance"),
     );
-    expect(screen.getByText("GitHub account required")).toBeInTheDocument();
-    expect(screen.getByText("HydraFusion exact review")).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: /Open evidence sheet/i }));
+    expect(screen.getByText("Synthetic Penge report lookup")).toBeInTheDocument();
+    expect(screen.getByText(/Synthetic DKK 1\.42M and EUR 194k/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Close evidence sheet" }));
     await waitFor(() =>
-      expect(screen.getAllByText(/DKK 1\.42M and EUR 194k/i).length).toBeGreaterThan(0),
+      expect(
+        screen.queryByRole("region", { name: "Answer evidence sheet" }),
+      ).not.toBeInTheDocument(),
     );
 
-    const user = userEvent.setup();
-    await waitFor(() => expect(screen.getByRole("button", { name: /^Stop$/ })).toBeInTheDocument());
-    await user.click(screen.getByRole("button", { name: /^Stop$/ }));
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: /^Retry$/ })).toBeInTheDocument(),
-    );
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    expect(screen.getByText(/Answer cancelled/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
   });
 
-  it("surfaces hydration/auth failures without inventing a complete answer", async () => {
+  it("surfaces exact-model failures without inventing a complete answer", async () => {
     render(
       <AskPengePage
+        authState="linked"
+        modelAvailable
         transport={createTransport([
           {
+            ...envelope(0),
             type: "error",
             id: "error-1",
             code: "hydrafusion_unavailable",
-            message: "Exact HydraFusion data is unavailable for this household.",
+            message: "Exact HydraFusion is unavailable for this linked identity.",
             retryable: false,
           },
         ])}
       />,
     );
 
+    await startInjectedStream();
     await waitFor(() =>
       expect(screen.getByText("Exact HydraFusion data is unavailable")).toBeInTheDocument(),
     );
     expect(
-      screen.getByText("Exact HydraFusion data is unavailable for this household."),
+      screen.getByText("Exact HydraFusion is unavailable for this linked identity."),
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { name: "Ask Penge" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("rejects malformed events before they reach the render layer", () => {
+  it("rejects unknown protocol versions and extra event fields", () => {
     expect(() =>
       askStreamEventSchema.parse({
+        ...envelope(0),
+        version: "2.0",
         type: "text",
         id: "bad",
         stream: "answer",
-        delta: 42,
+        delta: "Synthetic",
         source: "assistant",
       }),
     ).toThrow();
+
+    expect(() =>
+      askStreamEventSchema.parse({
+        ...envelope(0),
+        type: "text",
+        id: "bad-extra-field",
+        stream: "answer",
+        delta: "Synthetic answer",
+        source: "assistant",
+        rawToolJson: { secret: true },
+      }),
+    ).toThrow();
+  });
+
+  it("collapses the desktop evidence rail without removing the transcript", async () => {
+    useMediaQueryMock.mockReturnValue(false);
+    render(<AskPengePage />);
+
+    const user = userEvent.setup();
+    expect(screen.getByRole("complementary", { name: "Answer evidence" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Collapse evidence rail" }));
+    expect(screen.getByRole("button", { name: "Expand evidence rail" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    expect(screen.getByLabelText("Conversation transcript")).toBeInTheDocument();
+  });
+
+  it("offers reconnect after an interrupted injected session", async () => {
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        transport={createTransport([
+          {
+            ...envelope(0),
+            type: "error",
+            id: "error-disconnected",
+            code: "session_interrupted",
+            message: "The bounded session disconnected.",
+            retryable: true,
+          },
+        ])}
+      />,
+    );
+
+    await startInjectedStream();
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: "Reconnect" })).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/no transcript was persisted/i)).toBeInTheDocument();
+  });
+
+  it("fails closed without starting transport or simulating GitHub linkage", () => {
+    const start = vi.fn((_request: AskRequest) =>
+      createTransport([]).start({ question: "unused" }),
+    );
+    const transport: AskTransport = { start };
+
+    render(<AskPengePage transport={transport} />);
+
+    expect(start).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "GitHub linking unavailable" })).toBeDisabled();
+    expect(screen.queryByText(/DKK 1\.42M/)).not.toBeInTheDocument();
+  });
+
+  it("never sends a browser-selected member identity", async () => {
+    let request: AskRequest | undefined;
+    const transport: AskTransport = {
+      start(nextRequest) {
+        request = nextRequest;
+        return createTransport([]).start(nextRequest);
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+
+    await startInjectedStream();
+
+    expect(request).toEqual({
+      question: "Which balances and tax-check items need a fresh review before the next quarter?",
+    });
+    expect(request).not.toHaveProperty("memberId");
+  });
+
+  it("rejects gaps, cross-session events, and events after a terminal event", () => {
+    const text = {
+      ...envelope(0),
+      type: "text" as const,
+      id: "text-ordered",
+      stream: "answer" as const,
+      delta: "Synthetic answer",
+      source: "assistant" as const,
+    };
+    const gap = createAskStreamValidator();
+    expect(gap(text)).toEqual(text);
+    expect(() => gap({ ...text, id: "gap", sequence: 2 })).toThrow(/sequence 1/i);
+
+    const crossSession = createAskStreamValidator();
+    crossSession(text);
+    expect(() =>
+      crossSession({ ...text, id: "cross-session", sequence: 1, sessionId: "other-session" }),
+    ).toThrow(/different session/i);
+
+    const terminal = createAskStreamValidator();
+    terminal({
+      ...envelope(0),
+      type: "completion",
+      id: "complete",
+      summary: "Done",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+    });
+    expect(() => terminal({ ...text, sequence: 1 })).toThrow(/after the stream terminated/i);
   });
 });

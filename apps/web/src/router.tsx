@@ -1,4 +1,4 @@
-/** Route table: app shell layout with the four reporting surfaces. */
+/** Route table for the reporting and evidence-first application surfaces. */
 
 import { createBrowserRouter } from "react-router";
 

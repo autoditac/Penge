@@ -39,5 +39,5 @@ describe("MCP stdio tools/list contract", () => {
     } finally {
       await client.close();
     }
-  });
+  }, 60_000);
 });

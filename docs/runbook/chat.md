@@ -12,14 +12,18 @@ just chat-feasibility
 
 The recipe builds, tests, and lints `@penge/chat-feasibility`.
 It proves the pinned SDK configuration shape, empty mode, streaming event
-schemas, local stdio MCP config, the exact `issue-344-v1` registration and
-chat-exposure sets, ambient-tool denial, actor/token ownership, and typed
-unavailable-model errors.
+schemas, local stdio MCP config for the eight currently implemented tools,
+ambient-tool denial, actor/token/storage ownership, sanitized child
+environments, and typed unavailable-model errors.
 It uses synthetic values and makes no external model call.
 
-The MCP server registers `_meta` plus 16 chat tools.
-The SDK allowlist and stdio session expose only the 16 chat tools; `_meta` is
-never model-accessible.
+The planned `issue-344-v1` MCP server registers `_meta` plus 16 chat tools.
+It is not implemented on this PR's current base: the real server still has
+`_meta` plus eight chat tools.
+Production remains blocked until #350 lands and an independent stdio
+`tools/list` test proves the exact 17-name registration set.
+Only the 16 chat tools may then enter the SDK allowlist; `_meta` remains
+protocol-only.
 
 ## Run the token-safe entitlement check
 
@@ -49,21 +53,23 @@ Never ask for or use another household member's credentials to run this check.
 Issue #346 may enable a linked actor only after all checks pass:
 
 1. The actor uses that person's own GitHub account, Copilot entitlement, OAuth
-   credential, quota, and isolated SDK storage.
+   credential, and quota.
+   SDK storage is derived from the actor ID below a trusted absolute root.
 2. `listModels()` for that actor contains exactly `hydrafusion`.
 3. The successful check is persisted for exactly that actor, normalized linked
    GitHub login, and `hydrafusion` model ID.
    A record for another actor or linked identity is rejected.
-4. `PENGE_CHAT_MODEL=hydrafusion` and
+4. SDK and MCP child environments exclude ambient authentication variables.
+5. Real stdio `tools/list` evidence matches `issue-344-v1`.
+6. `PENGE_CHAT_MODEL=hydrafusion` and
    `PENGE_CHAT_ENABLE_PRODUCTION=1` are set.
    The deployment switch never substitutes for the actor-scoped record.
-5. `PENGE_CHAT_FALLBACK_MODEL` is unset.
-6. The accepted #344 tool-contract version is configured.
-7. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
+7. `PENGE_CHAT_FALLBACK_MODEL` is unset.
+8. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
    permission request, and starts only the local stdio Penge MCP server.
-8. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
+9. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
    reachable.
-9. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted
+10. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted
    audits, token encryption/rotation, backup, and rollback tests pass.
 
 If any check fails, keep chat disabled and return a typed unavailable or

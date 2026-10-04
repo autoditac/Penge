@@ -74,6 +74,11 @@ in `apps/chat-feasibility`:
   Chat transcript content is not retained after the bounded session lifetime.
   Audits contain only pseudonymous actor/session identifiers, tool/status/
   duration, and redacted arguments.
+- SDK storage is derived as `<trusted absolute root>/<validated actor ID>`;
+  callers cannot supply a reusable actor directory.
+- The SDK runtime receives an allowlisted child environment without ambient
+  GitHub/Copilot authentication variables.
+  The MCP child receives only its explicit read-only data configuration.
 
 `PENGE_CHAT_MODEL=hydrafusion` is mandatory.
 `PENGE_CHAT_FALLBACK_MODEL` must be unset.
@@ -104,13 +109,20 @@ replaces the proof package.
 
 ### Tool-contract seam
 
-`issue-344-v1` is the accepted MCP contract from #344.
-The server registration set is `_meta` plus 16 chat tools covering the
+`issue-344-v1` is the accepted target MCP contract from #344.
+Its registration set is `_meta` plus 16 chat tools covering the
 existing eight capabilities, source coverage, bounded transaction
 search/detail, household taxonomy/rule/merchant summaries, and
 merchant-reference status/search.
 The model-facing allowlist contains only the 16 chat tools; `_meta` remains
 registered for MCP protocol discovery and is never exposed to the model.
+At this PR's current base, the real server registers `_meta` plus only the
+eight existing tools.
+The harness therefore configures only those eight and raises
+`chat/mcp_contract_unavailable` when that observed set is checked against
+`issue-344-v1`.
+Production cannot claim or enable the target contract until #350 is merged and
+an independent stdio `tools/list` integration test proves all 17 names.
 Issue #346 must reject unknown versions rather than silently widening the tool
 set.
 
@@ -145,6 +157,8 @@ disabled, and no other model may substitute.
 
 - Live chat cannot ship until each authorized user independently passes the
   exact model check.
+- Live chat cannot ship until the real stdio server's `tools/list` response
+  proves `issue-344-v1`.
 - Changes to the accepted #344 tool set require a new explicit contract
   version; registration alone never grants model access.
 - Per-user OAuth, cancellation, cleanup, and retention enforcement remain

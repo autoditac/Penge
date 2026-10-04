@@ -184,7 +184,10 @@ jobs:
       - name: Install workspace deps
         run: pnpm install --frozen-lockfile
       - name: Build, type-check tests, run tests, and lint proof
-        run: just chat-feasibility
+        run: |
+          pnpm --filter @penge/chat-feasibility build
+          pnpm --filter @penge/chat-feasibility test
+          pnpm --filter @penge/chat-feasibility lint
 
   container-images:
     name: Container image build (${{ matrix.app }})

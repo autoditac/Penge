@@ -3,24 +3,45 @@ import type { SessionEvent } from "@github/copilot-sdk";
 
 import {
   ChatFeatureDisabledError,
+  McpContractUnavailableError,
   ModelUnavailableError,
   SdkCleanupError,
   UserCredentialScopeError,
   assertHydraFusionAvailable,
+  assertPlannedMcpContractAvailable,
   assertSdkCleanupSucceeded,
   blockedToolSources,
   buildCopilotSdkProof,
-  chatToolContractVersion,
+  deriveActorBaseDirectory,
   hydraFusionModel,
-  pengeMcpChatTools,
-  pengeMcpRegisteredTools,
+  implementedChatToolContractVersion,
+  implementedPengeMcpChatTools,
+  implementedPengeMcpRegisteredTools,
+  plannedChatToolContractVersion,
+  plannedPengeMcpChatTools,
+  plannedPengeMcpRegisteredTools,
   resolveChatRuntimeConfig,
+  sanitizeMcpEnvironment,
   validateSyntheticCopilotStream,
 } from "../src/index.js";
 
 const actorId = "actor_0123456789abcdef";
 const githubLogin = "synthetic-user-a";
 const verifiedAt = "2026-10-04T08:00:00.000Z";
+const ambientEnvironment = {
+  PATH: "/usr/local/bin:/usr/bin:/bin",
+  LANG: "C.UTF-8",
+  GH_TOKEN: "ambient-gh-token-must-not-pass",
+  GITHUB_TOKEN: "ambient-github-token-must-not-pass",
+  COPILOT_GITHUB_TOKEN: "ambient-copilot-token-must-not-pass",
+};
+const mcpEnvironment = {
+  PATH: "/usr/local/bin:/usr/bin:/bin",
+  PENGE_DB_URL: "postgresql://synthetic:synthetic@localhost:5432/penge_synthetic",
+  PENGE_DUCKDB_PATH: "/srv/penge/data/synthetic.duckdb",
+  PENGE_MCP_LOG_DIR: "/var/log/penge/mcp",
+  PENGE_VAULT_ROOT: "/srv/penge/data/vault",
+};
 
 function enabledRuntime() {
   return resolveChatRuntimeConfig(
@@ -52,8 +73,10 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
           expiresIn: 300,
         }),
       },
-      baseDirectory: "/tmp/penge-copilot/actor_0123456789abcdef",
+      storageRoot: "/var/lib/penge/copilot",
       workingDirectory: "/srv/penge",
+      ambientEnvironment,
+      mcpEnvironment,
     });
 
     expect(proof.client).toMatchObject({
@@ -61,10 +84,15 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       useLoggedInUser: false,
       logLevel: "error",
     });
-    expect(proof.toolContractVersion).toBe(chatToolContractVersion);
-    expect(proof.registeredMcpTools).toEqual(["_meta", ...pengeMcpChatTools]);
-    expect(proof.chatExposedMcpTools).toEqual(pengeMcpChatTools);
+    expect(proof.toolContractVersion).toBe(implementedChatToolContractVersion);
+    expect(proof.registeredMcpTools).toEqual(["_meta", ...implementedPengeMcpChatTools]);
+    expect(proof.chatExposedMcpTools).toEqual(implementedPengeMcpChatTools);
     expect(proof.chatExposedMcpTools).not.toContain("_meta");
+    expect(proof.client.baseDirectory).toBe("/var/lib/penge/copilot/actor_0123456789abcdef");
+    expect(proof.client.env).toEqual({
+      PATH: "/usr/local/bin:/usr/bin:/bin",
+      LANG: "C.UTF-8",
+    });
     expect(proof.session).toMatchObject({
       model: hydraFusionModel,
       allowedModels: [hydraFusionModel],
@@ -79,7 +107,8 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
         command: "pnpm",
         args: ["--filter", "@penge/mcp", "start"],
         workingDirectory: "/srv/penge",
-        tools: pengeMcpChatTools,
+        env: mcpEnvironment,
+        tools: implementedPengeMcpChatTools,
       },
     });
     expect("url" in (proof.session.mcpServers?.penge ?? {})).toBe(false);
@@ -97,8 +126,10 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
           expiresIn: 300,
         }),
       },
-      baseDirectory: "/tmp/penge-copilot/actor_0123456789abcdef",
+      storageRoot: "/var/lib/penge/copilot",
       workingDirectory: "/srv/penge",
+      ambientEnvironment,
+      mcpEnvironment,
     });
 
     const availableTools = proof.session.availableTools;
@@ -110,13 +141,15 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       throw new Error("expected SDK ToolSet instances");
     }
 
-    expect(availableTools?.toArray()).toEqual(pengeMcpChatTools.map((tool) => `mcp:penge-${tool}`));
+    expect(availableTools?.toArray()).toEqual(
+      implementedPengeMcpChatTools.map((tool) => `mcp:penge-${tool}`),
+    );
     expect(excludedTools?.toArray()).toEqual(blockedToolSources);
   });
 
-  it("pins the final MCP registration and chat-exposure contract from issue 344", () => {
-    expect(chatToolContractVersion).toBe("issue-344-v1");
-    expect(pengeMcpRegisteredTools).toEqual([
+  it("gates the planned issue 344 contract until stdio tools/list proves it", () => {
+    expect(plannedChatToolContractVersion).toBe("issue-344-v1");
+    expect(plannedPengeMcpRegisteredTools).toEqual([
       "_meta",
       "query_net_worth",
       "query_cashflow",
@@ -135,7 +168,30 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       "get_merchant_reference_status",
       "search_merchant_reference",
     ]);
-    expect(pengeMcpChatTools).toEqual(pengeMcpRegisteredTools.slice(1));
+    expect(plannedPengeMcpChatTools).toEqual(plannedPengeMcpRegisteredTools.slice(1));
+    expect(() => assertPlannedMcpContractAvailable(implementedPengeMcpRegisteredTools)).toThrow(
+      McpContractUnavailableError,
+    );
+    expect(() => assertPlannedMcpContractAvailable(plannedPengeMcpRegisteredTools)).not.toThrow();
+  });
+
+  it("derives non-reusable actor SDK directories under a trusted root", () => {
+    const first = deriveActorBaseDirectory("/var/lib/penge/copilot", "actor_0123456789abcdef");
+    const second = deriveActorBaseDirectory("/var/lib/penge/copilot", "actor_fedcba9876543210");
+
+    expect(first).not.toBe(second);
+    expect(() =>
+      deriveActorBaseDirectory("relative/shared-root", "actor_0123456789abcdef"),
+    ).toThrow(UserCredentialScopeError);
+  });
+
+  it("rejects ambient authentication variables in the MCP child environment", () => {
+    expect(() =>
+      sanitizeMcpEnvironment({
+        ...mcpEnvironment,
+        GITHUB_TOKEN: "must-not-pass",
+      }),
+    ).toThrow();
   });
 
   it("requires exact model configuration and the production gate", () => {
@@ -254,8 +310,10 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
             expiresIn: 300,
           }),
         },
-        baseDirectory: "/tmp/penge-copilot/actor_0123456789abcdef",
+        storageRoot: "/var/lib/penge/copilot",
         workingDirectory: "/srv/penge",
+        ambientEnvironment,
+        mcpEnvironment,
       }),
     ).toThrow(UserCredentialScopeError);
   });

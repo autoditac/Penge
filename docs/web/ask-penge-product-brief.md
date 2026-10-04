@@ -57,8 +57,12 @@ At minimum it needs ordered delta, sanitized tool/evidence, completion,
 cancellation, and typed error events plus stable session/event identifiers.
 The UI must reject unknown major versions.
 
-The accepted `issue-344-v1` MCP contract registers `_meta` plus 16 chat tools.
-Only the 16 chat tools are model-accessible; `_meta` remains protocol-only.
+The accepted target `issue-344-v1` MCP contract registers `_meta` plus 16 chat
+tools.
+It is not yet present on this PR's base; the current server has `_meta` plus
+eight chat tools, so complete-source claims remain disabled until #350 lands
+and stdio `tools/list` proves the exact target set.
+Only the 16 chat tools will be model-accessible; `_meta` remains protocol-only.
 The UI may advertise complete Penge grounding only when the backend reports
 this exact contract version and renders the source-coverage evidence returned
 by `get_source_coverage`.

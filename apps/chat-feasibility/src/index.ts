@@ -5,12 +5,14 @@ import {
   type ModelInfo,
   type SessionConfig,
 } from "@github/copilot-sdk";
+import { isAbsolute, relative, resolve } from "node:path";
 import { z } from "zod/v3";
 
 export const hydraFusionModel = "hydrafusion" as const;
 export const pengeMcpServerName = "penge" as const;
-export const chatToolContractVersion = "issue-344-v1" as const;
-export const pengeMcpChatTools = [
+export const implementedChatToolContractVersion = "issue-345-current-v1" as const;
+export const plannedChatToolContractVersion = "issue-344-v1" as const;
+export const implementedPengeMcpChatTools = [
   "query_net_worth",
   "query_cashflow",
   "query_household_report",
@@ -19,6 +21,9 @@ export const pengeMcpChatTools = [
   "search_documents",
   "suggest_import_mapping",
   "compute_tax_year",
+] as const;
+export const plannedPengeMcpChatTools = [
+  ...implementedPengeMcpChatTools,
   "get_source_coverage",
   "search_household_transactions",
   "get_household_transaction_detail",
@@ -28,8 +33,21 @@ export const pengeMcpChatTools = [
   "get_merchant_reference_status",
   "search_merchant_reference",
 ] as const;
-export const pengeMcpRegisteredTools = ["_meta", ...pengeMcpChatTools] as const;
+export const implementedPengeMcpRegisteredTools = [
+  "_meta",
+  ...implementedPengeMcpChatTools,
+] as const;
+export const plannedPengeMcpRegisteredTools = ["_meta", ...plannedPengeMcpChatTools] as const;
 export const blockedToolSources = ["builtin:*", "custom:*"] as const;
+export const runtimeEnvironmentKeys = [
+  "PATH",
+  "LANG",
+  "LC_ALL",
+  "TMPDIR",
+  "SSL_CERT_FILE",
+  "SSL_CERT_DIR",
+  "NODE_EXTRA_CA_CERTS",
+] as const;
 
 const actorIdSchema = z.string().regex(/^actor_[a-z0-9]{16,64}$/);
 const githubLoginSchema = z.string().regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38})$/);
@@ -81,6 +99,16 @@ export class SdkCleanupError extends PengeError {
 
   override get code(): string {
     return "chat/sdk_cleanup_failed";
+  }
+}
+
+export class McpContractUnavailableError extends PengeError {
+  override get name(): string {
+    return "McpContractUnavailableError";
+  }
+
+  override get code(): string {
+    return "chat/mcp_contract_unavailable";
   }
 }
 
@@ -155,15 +183,71 @@ export interface UserScopedTokenProvider {
 }
 
 export interface CopilotSdkProof {
-  toolContractVersion: typeof chatToolContractVersion;
-  registeredMcpTools: typeof pengeMcpRegisteredTools;
-  chatExposedMcpTools: typeof pengeMcpChatTools;
+  toolContractVersion: typeof implementedChatToolContractVersion;
+  registeredMcpTools: typeof implementedPengeMcpRegisteredTools;
+  chatExposedMcpTools: typeof implementedPengeMcpChatTools;
   client: CopilotClientOptions;
   session: SessionConfig;
 }
 
-function sdkMcpToolName(tool: (typeof pengeMcpChatTools)[number]): string {
+const McpChildEnvironmentSchema = z
+  .object({
+    PATH: z.string().min(1),
+    PENGE_DB_URL: z.string().url(),
+    PENGE_DUCKDB_PATH: z.string().min(1),
+    PENGE_MCP_LOG_DIR: z.string().min(1),
+    PENGE_VAULT_ROOT: z.string().min(1),
+  })
+  .strict();
+
+export type McpChildEnvironment = z.infer<typeof McpChildEnvironmentSchema>;
+
+function sdkMcpToolName(tool: (typeof implementedPengeMcpChatTools)[number]): string {
   return `${pengeMcpServerName}-${tool}`;
+}
+
+export function deriveActorBaseDirectory(storageRoot: string, actorId: string): string {
+  if (!isAbsolute(storageRoot)) {
+    throw new UserCredentialScopeError("the trusted SDK storage root must be absolute");
+  }
+  const parsedActorId = actorIdSchema.parse(actorId);
+  const trustedRoot = resolve(storageRoot);
+  const actorDirectory = resolve(trustedRoot, parsedActorId);
+  const ownershipPath = relative(trustedRoot, actorDirectory);
+  if (ownershipPath === "" || ownershipPath.startsWith("..") || isAbsolute(ownershipPath)) {
+    throw new UserCredentialScopeError(
+      "the actor SDK directory must remain under the trusted root",
+    );
+  }
+  return actorDirectory;
+}
+
+export function sanitizeRuntimeEnvironment(
+  source: NodeJS.ProcessEnv,
+): Record<string, string | undefined> {
+  const path = z.string().min(1).parse(source.PATH);
+  const sanitized: Record<string, string | undefined> = { PATH: path };
+  for (const key of runtimeEnvironmentKeys.slice(1)) {
+    if (source[key] !== undefined) {
+      sanitized[key] = source[key];
+    }
+  }
+  return sanitized;
+}
+
+export function sanitizeMcpEnvironment(source: unknown): McpChildEnvironment {
+  return McpChildEnvironmentSchema.parse(source);
+}
+
+export function assertPlannedMcpContractAvailable(observedTools: readonly string[]): void {
+  if (
+    observedTools.length !== plannedPengeMcpRegisteredTools.length ||
+    !plannedPengeMcpRegisteredTools.every((tool, index) => observedTools[index] === tool)
+  ) {
+    throw new McpContractUnavailableError(
+      `${plannedChatToolContractVersion} requires independent stdio tools/list evidence`,
+    );
+  }
 }
 
 export function resolveChatRuntimeConfig(
@@ -233,8 +317,10 @@ export function assertSdkCleanupSucceeded(errors: readonly Error[]): void {
 export function buildCopilotSdkProof(options: {
   runtime: ChatRuntimeConfig;
   tokenProvider: UserScopedTokenProvider;
-  baseDirectory: string;
+  storageRoot: string;
   workingDirectory: string;
+  ambientEnvironment: NodeJS.ProcessEnv;
+  mcpEnvironment: unknown;
 }): CopilotSdkProof {
   if (
     options.tokenProvider.actorId !== options.runtime.actorId ||
@@ -246,22 +332,24 @@ export function buildCopilotSdkProof(options: {
   }
 
   const availableTools = new ToolSet();
-  for (const tool of pengeMcpChatTools) {
+  for (const tool of implementedPengeMcpChatTools) {
     availableTools.addMcp(sdkMcpToolName(tool));
   }
 
   const excludedTools = new ToolSet().addBuiltIn("*").addCustom("*");
+  const baseDirectory = deriveActorBaseDirectory(options.storageRoot, options.runtime.actorId);
 
   return {
-    toolContractVersion: chatToolContractVersion,
-    registeredMcpTools: pengeMcpRegisteredTools,
-    chatExposedMcpTools: pengeMcpChatTools,
+    toolContractVersion: implementedChatToolContractVersion,
+    registeredMcpTools: implementedPengeMcpRegisteredTools,
+    chatExposedMcpTools: implementedPengeMcpChatTools,
     client: {
       mode: "empty",
-      baseDirectory: options.baseDirectory,
+      baseDirectory,
       workingDirectory: options.workingDirectory,
       useLoggedInUser: false,
       logLevel: "error",
+      env: sanitizeRuntimeEnvironment(options.ambientEnvironment),
     },
     session: {
       model: hydraFusionModel,
@@ -286,7 +374,8 @@ export function buildCopilotSdkProof(options: {
           command: "pnpm",
           args: ["--filter", "@penge/mcp", "start"],
           workingDirectory: options.workingDirectory,
-          tools: [...pengeMcpChatTools],
+          env: sanitizeMcpEnvironment(options.mcpEnvironment),
+          tools: [...implementedPengeMcpChatTools],
         },
       },
     },

@@ -7,10 +7,12 @@ import { assertNoFinanceTableAccess } from "../src/store.js";
 describe("database isolation contract", () => {
   it("fails startup if the service role can access a finance table", async () => {
     const queryable = {
-      query: async () => ({ rows: [{ table_name: "raw_transaction" }] }),
+      query: async () => ({
+        rows: [{ table_schema: "analytics_marts", table_name: "mart_net_worth_daily" }],
+      }),
     };
     await expect(assertNoFinanceTableAccess(queryable)).rejects.toThrow(
-      /unexpected table access: raw_transaction/,
+      /unexpected table access: analytics_marts\.mart_net_worth_daily/,
     );
   });
 

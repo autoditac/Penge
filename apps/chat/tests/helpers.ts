@@ -1,6 +1,6 @@
 import type { ChatConfig } from "../src/config.js";
 import type { EncryptedEnvelope } from "../src/identity.js";
-import type { AuditEvent, ChatStore, OAuthLink } from "../src/store.js";
+import type { AuditEvent, ChatStore, LockedOAuthActorStore, OAuthLink } from "../src/store.js";
 
 export function syntheticConfig(overrides: Partial<ChatConfig> = {}): ChatConfig {
   return {
@@ -53,6 +53,36 @@ export class MemoryChatStore implements ChatStore {
   >();
   readonly links = new Map<string, OAuthLink>();
   readonly audits: AuditEvent[] = [];
+  private readonly oauthActorLocks = new Map<string, Promise<void>>();
+
+  async withOAuthActorLock<T>(
+    actorId: string,
+    operation: (lockedStore: LockedOAuthActorStore) => Promise<T>,
+  ): Promise<T> {
+    const previous = this.oauthActorLocks.get(actorId) ?? Promise.resolve();
+    let release = (): void => undefined;
+    const current = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    this.oauthActorLocks.set(actorId, current);
+    await previous;
+    try {
+      return await operation({
+        getLink: async () => this.getOAuthLink(actorId),
+        upsertLink: async (githubUserId, githubLogin, tokenEnvelope) => {
+          await this.upsertOAuthLink(actorId, githubUserId, githubLogin, tokenEnvelope);
+        },
+        deleteLink: async () => {
+          await this.deleteOAuthLink(actorId);
+        },
+      });
+    } finally {
+      release();
+      if (this.oauthActorLocks.get(actorId) === current) {
+        this.oauthActorLocks.delete(actorId);
+      }
+    }
+  }
 
   async putOAuthState(
     actorId: string,

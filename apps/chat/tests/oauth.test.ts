@@ -73,7 +73,7 @@ describe("GitHub OAuth persistence", () => {
     expect(store.states.size).toBe(1);
   });
 
-  it("refreshes expiring user tokens and persists the rotated envelope", async () => {
+  it("serializes concurrent refreshes and persists one rotated envelope", async () => {
     const config = syntheticConfig();
     const store = new MemoryChatStore();
     const actorId = "actor_0123456789abcdef0123456789abcdef";
@@ -109,13 +109,103 @@ describe("GitHub OAuth persistence", () => {
     await flow.complete(actorId, url.searchParams.get("state")!, "code");
     const before = JSON.stringify(store.links.get(actorId)?.tokenEnvelope);
 
-    const token = await new UserTokenService(config, store, fetcher).providerFor(actorId)({
+    const provider = new UserTokenService(config, store, fetcher).providerFor(actorId);
+    const request = {
       host: "github.com",
       sessionId: "session",
+      reason: "refresh" as const,
+    };
+    const [firstToken, secondToken] = await Promise.all([provider(request), provider(request)]);
+    expect(firstToken).toMatchObject({ kind: "token", accessToken: "rotated-access" });
+    expect(secondToken).toMatchObject({ kind: "token", accessToken: "rotated-access" });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(JSON.stringify(store.links.get(actorId)?.tokenEnvelope)).not.toBe(before);
+  });
+
+  it("does not let an overlapping refresh overwrite a newly linked account", async () => {
+    const config = syntheticConfig();
+    const store = new MemoryChatStore();
+    const actorId = "actor_0123456789abcdef0123456789abcdef";
+    const initialResponses = [
+      new Response(
+        JSON.stringify({
+          access_token: "old-access",
+          refresh_token: "old-refresh",
+          expires_in: 10,
+          refresh_token_expires_in: 100_000,
+          scope: "",
+          token_type: "bearer",
+        }),
+        { headers: { "content-type": "application/json" } },
+      ),
+      new Response(JSON.stringify({ id: 42, login: "old-user" }), {
+        headers: { "content-type": "application/json" },
+      }),
+    ];
+    const initialFlow = new GitHubOAuthFlow(
+      config,
+      store,
+      vi.fn(async () => initialResponses.shift()!) as typeof fetch,
+    );
+    const initialUrl = new URL(await initialFlow.begin(actorId));
+    await initialFlow.complete(actorId, initialUrl.searchParams.get("state")!, "old-code");
+
+    let releaseRefresh = (_response: Response): void => undefined;
+    const refreshResponse = new Promise<Response>((resolve) => {
+      releaseRefresh = resolve;
+    });
+    const refreshFetcher = vi.fn(async () => refreshResponse) as typeof fetch;
+    const provider = new UserTokenService(config, store, refreshFetcher).providerFor(actorId);
+    const refresh = provider({
+      host: "github.com",
+      sessionId: "refresh-session",
       reason: "refresh",
     });
-    expect(token).toMatchObject({ kind: "token", accessToken: "rotated-access" });
-    expect(JSON.stringify(store.links.get(actorId)?.tokenEnvelope)).not.toBe(before);
+    await vi.waitFor(() => expect(refreshFetcher).toHaveBeenCalledTimes(1));
+
+    const relinkResponses = [
+      new Response(
+        JSON.stringify({
+          access_token: "new-access",
+          refresh_token: "new-refresh",
+          expires_in: 28_800,
+          refresh_token_expires_in: 100_000,
+          scope: "",
+          token_type: "bearer",
+        }),
+        { headers: { "content-type": "application/json" } },
+      ),
+      new Response(JSON.stringify({ id: 84, login: "new-user" }), {
+        headers: { "content-type": "application/json" },
+      }),
+    ];
+    const relinkFetcher = vi.fn(async () => relinkResponses.shift()!) as typeof fetch;
+    const relinkFlow = new GitHubOAuthFlow(config, store, relinkFetcher);
+    const relinkUrl = new URL(await relinkFlow.begin(actorId));
+    const relink = relinkFlow.complete(actorId, relinkUrl.searchParams.get("state")!, "new-code");
+    await vi.waitFor(() => expect(relinkFetcher).toHaveBeenCalledTimes(2));
+
+    releaseRefresh(
+      new Response(
+        JSON.stringify({
+          access_token: "rotated-old-access",
+          refresh_token: "rotated-old-refresh",
+          expires_in: 28_800,
+          scope: "",
+          token_type: "bearer",
+        }),
+        { headers: { "content-type": "application/json" } },
+      ),
+    );
+    await expect(refresh).resolves.toMatchObject({ accessToken: "rotated-old-access" });
+    await expect(relink).resolves.toBe("new-user");
+    await expect(relinkFlow.status(actorId)).resolves.toEqual({
+      state: "linked",
+      login: "new-user",
+    });
+    await expect(
+      provider({ host: "github.com", sessionId: "next", reason: "refresh" }),
+    ).resolves.toMatchObject({ accessToken: "new-access" });
   });
 
   it("rejects mismatched link metadata and duplicate GitHub identities across actors", async () => {

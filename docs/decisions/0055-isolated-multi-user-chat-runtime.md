@@ -38,6 +38,7 @@ Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE
 The database stores only an HMAC state lookup and an encrypted versioned state envelope, never raw state or a plaintext verifier.
 Access and refresh tokens use AES-256-GCM envelopes carrying a key ID.
 A mounted versioned keyring retains old keys for decryption while one current key encrypts new and refreshed credentials.
+Per-actor PostgreSQL advisory locks serialize refresh, relink, status, and unlink operations across service processes so rotating refresh tokens cannot be redeemed concurrently or overwrite a newer link.
 
 The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedInUser: false`, actor-isolated storage, exact `hydrafusion`, no fallback, no session store, no config discovery, no skills, extensions, canvases, built-in tools, or custom tools.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.

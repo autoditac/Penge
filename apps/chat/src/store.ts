@@ -30,7 +30,21 @@ export const AuditEventSchema = z
 export type OAuthLink = z.infer<typeof OAuthLinkSchema>;
 export type AuditEvent = z.infer<typeof AuditEventSchema>;
 
+export interface LockedOAuthActorStore {
+  getLink(): Promise<OAuthLink | null>;
+  upsertLink(
+    githubUserId: number,
+    githubLogin: string,
+    tokenEnvelope: EncryptedEnvelope,
+  ): Promise<void>;
+  deleteLink(): Promise<void>;
+}
+
 export interface ChatStore {
+  withOAuthActorLock<T>(
+    actorId: string,
+    operation: (lockedStore: LockedOAuthActorStore) => Promise<T>,
+  ): Promise<T>;
   putOAuthState(
     actorId: string,
     stateHash: string,
@@ -58,7 +72,7 @@ interface Queryable {
   query(
     query: string,
     values?: readonly unknown[],
-  ): Promise<{ rows: Array<{ table_name: string }> }>;
+  ): Promise<{ rows: Array<{ table_name: string; table_schema: string }> }>;
 }
 
 export class PostgresChatStore implements ChatStore {
@@ -77,11 +91,71 @@ export class PostgresChatStore implements ChatStore {
           `chat database connection must use role ${expectedRole}, got ${result.rows[0]?.role ?? "unknown"}`,
         );
       }
+
       await assertNoFinanceTableAccess(pool);
       return new PostgresChatStore(pool);
     } catch (error) {
       await pool.end();
       throw error;
+    }
+  }
+
+  async withOAuthActorLock<T>(
+    actorId: string,
+    operation: (lockedStore: LockedOAuthActorStore) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [actorId]);
+      const result = await operation({
+        getLink: async () => {
+          const result = await client.query<{
+            actor_id: string;
+            github_user_id: string;
+            github_login: string;
+            token_envelope: unknown;
+            updated_at: Date;
+          }>(
+            `SELECT actor_id, github_user_id, github_login, token_envelope, updated_at
+             FROM chat_oauth_link WHERE actor_id = $1`,
+            [actorId],
+          );
+          const row = result.rows[0];
+          return row === undefined
+            ? null
+            : OAuthLinkSchema.parse({
+                actorId: row.actor_id,
+                githubUserId: Number(row.github_user_id),
+                githubLogin: row.github_login,
+                tokenEnvelope: row.token_envelope,
+                updatedAt: row.updated_at.toISOString(),
+              });
+        },
+        upsertLink: async (githubUserId, githubLogin, tokenEnvelope) => {
+          await client.query(
+            `INSERT INTO chat_oauth_link
+               (actor_id, github_user_id, github_login, token_envelope)
+             VALUES ($1, $2, $3, $4::jsonb)
+             ON CONFLICT (actor_id) DO UPDATE SET
+               github_user_id = EXCLUDED.github_user_id,
+               github_login = EXCLUDED.github_login,
+               token_envelope = EXCLUDED.token_envelope,
+               updated_at = now()`,
+            [actorId, githubUserId, githubLogin, JSON.stringify(tokenEnvelope)],
+          );
+        },
+        deleteLink: async () => {
+          await client.query("DELETE FROM chat_oauth_link WHERE actor_id = $1", [actorId]);
+        },
+      });
+      await client.query("COMMIT");
+      return result;
+    } catch (error) {
+      await client.query("ROLLBACK");
+      throw error;
+    } finally {
+      client.release();
     }
   }
 
@@ -220,10 +294,13 @@ export class PostgresChatStore implements ChatStore {
 
 export async function assertNoFinanceTableAccess(queryable: Queryable): Promise<void> {
   const result = await queryable.query(
-    `SELECT table_name
+    `SELECT table_schema, table_name
      FROM information_schema.tables
-     WHERE table_schema = 'public'
-       AND table_name <> ALL($1::text[])
+     WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+       AND NOT (
+         table_schema = 'public'
+         AND table_name = ANY($1::text[])
+       )
        AND has_table_privilege(
          current_user,
          format('%I.%I', table_schema, table_name),
@@ -234,7 +311,7 @@ export async function assertNoFinanceTableAccess(queryable: Queryable): Promise<
   if (result.rows.length > 0) {
     throw new DatabasePolicyError(
       `chat database role has unexpected table access: ${result.rows
-        .map((row) => row.table_name)
+        .map((row) => `${row.table_schema}.${row.table_name}`)
         .sort()
         .join(", ")}`,
     );

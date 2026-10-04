@@ -56,39 +56,35 @@ export class UserTokenService {
   }
 
   providerFor(actorId: string): GitHubTokenProvider {
-    return async () => {
-      const link = await this.store.getOAuthLink(actorId);
-      if (link === null) {
-        throw new AuthenticationError("linked GitHub identity is required");
-      }
-      let bundle = decryptTokenBundle(link.tokenEnvelope, this.keyring);
-      assertLinkMatchesEnvelope(link, bundle);
-      let expiresIn = remainingSeconds(bundle, Date.now());
-      if (expiresIn <= SDK_MINIMUM_LIFETIME_SECONDS) {
-        bundle = await refreshGitHubToken(this.oauthConfig, bundle, this.fetcher);
-        const envelope = encryptTokenBundle(
-          bundle,
-          currentEncryptionKey(this.config),
-          this.config.tokenEncryptionKeyring.currentKeyId,
-        );
-        await this.store.upsertOAuthLink(
-          actorId,
-          bundle.githubUserId,
-          bundle.githubLogin,
-          envelope,
-        );
-        expiresIn = remainingSeconds(bundle, Date.now());
-      }
-      if (expiresIn <= SDK_MINIMUM_LIFETIME_SECONDS) {
-        throw new AuthenticationError("refreshed GitHub token lifetime is too short");
-      }
-      return {
-        kind: "token",
-        accessToken: bundle.accessToken,
-        tokenType: bundle.tokenType,
-        expiresIn,
-      };
-    };
+    return async () =>
+      this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+        const link = await lockedStore.getLink();
+        if (link === null) {
+          throw new AuthenticationError("linked GitHub identity is required");
+        }
+        let bundle = decryptTokenBundle(link.tokenEnvelope, this.keyring);
+        assertLinkMatchesEnvelope(link, bundle);
+        let expiresIn = remainingSeconds(bundle, Date.now());
+        if (expiresIn <= SDK_MINIMUM_LIFETIME_SECONDS) {
+          bundle = await refreshGitHubToken(this.oauthConfig, bundle, this.fetcher);
+          const envelope = encryptTokenBundle(
+            bundle,
+            currentEncryptionKey(this.config),
+            this.config.tokenEncryptionKeyring.currentKeyId,
+          );
+          await lockedStore.upsertLink(bundle.githubUserId, bundle.githubLogin, envelope);
+          expiresIn = remainingSeconds(bundle, Date.now());
+        }
+        if (expiresIn <= SDK_MINIMUM_LIFETIME_SECONDS) {
+          throw new AuthenticationError("refreshed GitHub token lifetime is too short");
+        }
+        return {
+          kind: "token",
+          accessToken: bundle.accessToken,
+          tokenType: bundle.tokenType,
+          expiresIn,
+        };
+      });
   }
 }
 
@@ -148,12 +144,9 @@ export class GitHubOAuthFlow {
       currentEncryptionKey(this.config),
       this.config.tokenEncryptionKeyring.currentKeyId,
     );
-    await this.store.upsertOAuthLink(
-      actorId,
-      bundle.githubUserId,
-      bundle.githubLogin,
-      tokenEnvelope,
-    );
+    await this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+      await lockedStore.upsertLink(bundle.githubUserId, bundle.githubLogin, tokenEnvelope);
+    });
     return bundle.githubLogin;
   }
 
@@ -161,25 +154,29 @@ export class GitHubOAuthFlow {
     actorId: string,
     now = Date.now(),
   ): Promise<{ state: "linked" | "not-linked" | "expired"; login: string | null }> {
-    const link = await this.store.getOAuthLink(actorId);
-    if (link === null) {
-      return { state: "not-linked", login: null };
-    }
-    const bundle = decryptTokenBundle(link.tokenEnvelope, this.keyring);
-    assertLinkMatchesEnvelope(link, bundle);
-    const accessUnusable =
-      bundle.expiresAt !== null &&
-      Date.parse(bundle.expiresAt) <= now + SDK_MINIMUM_LIFETIME_SECONDS * 1_000;
-    const refreshUnusable =
-      bundle.refreshToken === null ||
-      (bundle.refreshTokenExpiresAt !== null && Date.parse(bundle.refreshTokenExpiresAt) <= now);
-    return {
-      state: accessUnusable && refreshUnusable ? "expired" : "linked",
-      login: bundle.githubLogin,
-    };
+    return this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+      const link = await lockedStore.getLink();
+      if (link === null) {
+        return { state: "not-linked", login: null };
+      }
+      const bundle = decryptTokenBundle(link.tokenEnvelope, this.keyring);
+      assertLinkMatchesEnvelope(link, bundle);
+      const accessUnusable =
+        bundle.expiresAt !== null &&
+        Date.parse(bundle.expiresAt) <= now + SDK_MINIMUM_LIFETIME_SECONDS * 1_000;
+      const refreshUnusable =
+        bundle.refreshToken === null ||
+        (bundle.refreshTokenExpiresAt !== null && Date.parse(bundle.refreshTokenExpiresAt) <= now);
+      return {
+        state: accessUnusable && refreshUnusable ? "expired" : "linked",
+        login: bundle.githubLogin,
+      };
+    });
   }
 
   async unlink(actorId: string): Promise<void> {
-    await this.store.deleteOAuthLink(actorId);
+    await this.store.withOAuthActorLock(actorId, async (lockedStore) => {
+      await lockedStore.deleteLink();
+    });
   }
 }

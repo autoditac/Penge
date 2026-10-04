@@ -65,6 +65,16 @@ export class UserCredentialScopeError extends PengeError {
   }
 }
 
+export class SdkCleanupError extends PengeError {
+  override get name(): string {
+    return "SdkCleanupError";
+  }
+
+  override get code(): string {
+    return "chat/sdk_cleanup_failed";
+  }
+}
+
 export const ChatRuntimeConfigSchema = z.object({
   mode: z.literal("empty"),
   model: z.literal(hydraFusionModel),
@@ -197,6 +207,14 @@ export function assertHydraFusionAvailable(models: readonly Pick<ModelInfo, "id"
   if (!models.some((model) => model.id === hydraFusionModel)) {
     throw new ModelUnavailableError(
       `authenticated Copilot identity is not entitled to model ${hydraFusionModel}`,
+    );
+  }
+}
+
+export function assertSdkCleanupSucceeded(errors: readonly Error[]): void {
+  if (errors.length > 0) {
+    throw new SdkCleanupError(
+      `Copilot SDK cleanup failed: ${errors.map((error) => error.message).join("; ")}`,
     );
   }
 }

@@ -4,8 +4,10 @@ import type { SessionEvent } from "@github/copilot-sdk";
 import {
   ChatFeatureDisabledError,
   ModelUnavailableError,
+  SdkCleanupError,
   UserCredentialScopeError,
   assertHydraFusionAvailable,
+  assertSdkCleanupSucceeded,
   blockedToolSources,
   buildCopilotSdkProof,
   chatToolContractVersion,
@@ -202,6 +204,13 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
   it("returns a typed unavailable-model error from user-scoped model metadata", () => {
     expect(() => assertHydraFusionAvailable([{ id: "gpt-5.4" }])).toThrow(ModelUnavailableError);
     expect(() => assertHydraFusionAvailable([{ id: hydraFusionModel }])).not.toThrow();
+  });
+
+  it("fails the entitlement probe when SDK cleanup returns errors", () => {
+    expect(() => assertSdkCleanupSucceeded([])).not.toThrow();
+    expect(() => assertSdkCleanupSucceeded([new Error("runtime did not terminate")])).toThrow(
+      SdkCleanupError,
+    );
   });
 
   it("rejects a token provider owned by another household actor", () => {

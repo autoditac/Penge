@@ -1991,6 +1991,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#household-proxy-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Household proxy routing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scheduled-public-merchant-reference-refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3760,6 +3771,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#household-proxy-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Household proxy routing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#scheduled-public-merchant-reference-refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3991,6 +4013,24 @@ therefore uses its database environment, <code>penge-eb-key</code> secret, netwo
 exact deployed image digest. No credentials belong in the tracked units.
 <code>PENGE_REFRESH_STATE_DIR=/var/lib/penge-refresh</code> aligns API syncs, legacy bank
 sync CLIs, and the scheduled worker with the same lock and pending marker.</p>
+<h2 id="household-proxy-routing">Household proxy routing<a class="headerlink" href="#household-proxy-routing" title="Permanent link">&para;</a></h2>
+<p>The tracked <code>deploy/nas/penge.eigmueller.de.conf</code> routes household API
+children (for example <code>/household/transactions</code>) and <code>/vendors</code> endpoints to
+the API upstream while keeping bare <code>/household</code> and <code>/household/</code> on the SPA.
+Both upstreams retain the same OAuth authentication gate.
+Household tab URLs overlap API endpoints.
+Requests accepting <code>text/html</code> select the SPA so direct tab navigation and
+reload work; JSON fetches select the API.
+This content negotiation applies only to household children, not legacy API
+or vendor paths.
+The API routing block sends <code>Vary: Accept</code> on all responses, including 304,
+so caches cannot reuse a document response for a JSON fetch at the same URL.
+An HTTP 200 with <code>text/html</code> from a household API request indicates SPA fallback,
+not a valid API response.
+After installing the tracked configuration, validate with <code>nginx -t</code> before
+reloading nginx and verify Transactions through the authenticated browser.
+Keep a copy of the previous host configuration for rollback.
+Direct loopback API checks alone do not verify public proxy routing.</p>
 <h2 id="scheduled-public-merchant-reference-refresh">Scheduled public merchant-reference refresh<a class="headerlink" href="#scheduled-public-merchant-reference-refresh" title="Permanent link">&para;</a></h2>
 <p>The public-only NSI refresh uses a separate daily systemd timer and runs inside
 the same health-gated API container:</p>

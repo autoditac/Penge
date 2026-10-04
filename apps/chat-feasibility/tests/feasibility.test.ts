@@ -12,7 +12,8 @@ import {
   buildCopilotSdkProof,
   chatToolContractVersion,
   hydraFusionModel,
-  pengeMcpTools,
+  pengeMcpChatTools,
+  pengeMcpRegisteredTools,
   resolveChatRuntimeConfig,
   validateSyntheticCopilotStream,
 } from "../src/index.js";
@@ -61,6 +62,9 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       logLevel: "error",
     });
     expect(proof.toolContractVersion).toBe(chatToolContractVersion);
+    expect(proof.registeredMcpTools).toEqual(["_meta", ...pengeMcpChatTools]);
+    expect(proof.chatExposedMcpTools).toEqual(pengeMcpChatTools);
+    expect(proof.chatExposedMcpTools).not.toContain("_meta");
     expect(proof.session).toMatchObject({
       model: hydraFusionModel,
       allowedModels: [hydraFusionModel],
@@ -75,7 +79,7 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
         command: "pnpm",
         args: ["--filter", "@penge/mcp", "start"],
         workingDirectory: "/srv/penge",
-        tools: pengeMcpTools,
+        tools: pengeMcpChatTools,
       },
     });
     expect("url" in (proof.session.mcpServers?.penge ?? {})).toBe(false);
@@ -106,8 +110,32 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       throw new Error("expected SDK ToolSet instances");
     }
 
-    expect(availableTools?.toArray()).toEqual(pengeMcpTools.map((tool) => `mcp:penge-${tool}`));
+    expect(availableTools?.toArray()).toEqual(pengeMcpChatTools.map((tool) => `mcp:penge-${tool}`));
     expect(excludedTools?.toArray()).toEqual(blockedToolSources);
+  });
+
+  it("pins the final MCP registration and chat-exposure contract from issue 344", () => {
+    expect(chatToolContractVersion).toBe("issue-344-v1");
+    expect(pengeMcpRegisteredTools).toEqual([
+      "_meta",
+      "query_net_worth",
+      "query_cashflow",
+      "query_household_report",
+      "run_scenario",
+      "answer_planning_question",
+      "search_documents",
+      "suggest_import_mapping",
+      "compute_tax_year",
+      "get_source_coverage",
+      "search_household_transactions",
+      "get_household_transaction_detail",
+      "get_household_taxonomy_summary",
+      "get_household_rule_summary",
+      "get_household_merchant_summary",
+      "get_merchant_reference_status",
+      "search_merchant_reference",
+    ]);
+    expect(pengeMcpChatTools).toEqual(pengeMcpRegisteredTools.slice(1));
   });
 
   it("requires exact model configuration and the production gate", () => {

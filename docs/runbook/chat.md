@@ -12,9 +12,14 @@ just chat-feasibility
 
 The recipe builds, tests, and lints `@penge/chat-feasibility`.
 It proves the pinned SDK configuration shape, empty mode, streaming event
-schemas, local stdio MCP config, explicit provisional allowlist, ambient-tool
-denial, actor/token ownership, and typed unavailable-model errors.
+schemas, local stdio MCP config, the exact `issue-344-v1` registration and
+chat-exposure sets, ambient-tool denial, actor/token ownership, and typed
+unavailable-model errors.
 It uses synthetic values and makes no external model call.
+
+The MCP server registers `_meta` plus 16 chat tools.
+The SDK allowlist and stdio session expose only the 16 chat tools; `_meta` is
+never model-accessible.
 
 ## Run the token-safe entitlement check
 

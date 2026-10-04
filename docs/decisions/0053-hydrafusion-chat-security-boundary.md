@@ -104,11 +104,13 @@ replaces the proof package.
 
 ### Tool-contract seam
 
-`issue-345-v1-provisional` names only MCP tools that exist at this decision.
-It does **not** claim complete source coverage.
-Issue #344 must publish a new contract version and final typed names for source
-coverage, bounded transaction search/detail, classification/taxonomy, PayPal
-links, and merchant-reference status/search.
+`issue-344-v1` is the accepted MCP contract from #344.
+The server registration set is `_meta` plus 16 chat tools covering the
+existing eight capabilities, source coverage, bounded transaction
+search/detail, household taxonomy/rule/merchant summaries, and
+merchant-reference status/search.
+The model-facing allowlist contains only the 16 chat tools; `_meta` remains
+registered for MCP protocol discovery and is never exposed to the model.
 Issue #346 must reject unknown versions rather than silently widening the tool
 set.
 
@@ -143,8 +145,8 @@ disabled, and no other model may substitute.
 
 - Live chat cannot ship until each authorized user independently passes the
   exact model check.
-- Issue #344 must finalize the tool contract before #346 can claim complete
-  source grounding.
+- Changes to the accepted #344 tool set require a new explicit contract
+  version; registration alone never grants model access.
 - Per-user OAuth, cancellation, cleanup, and retention enforcement remain
   implementation work for #346.
 
@@ -157,7 +159,7 @@ disabled, and no other model may substitute.
 
 | PBI  | Contract provided by this decision                                                                                                                                                                                                                        |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #344 | Replace `issue-345-v1-provisional`; declare final names, schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields.                                                                                                               |
+| #344 | Implement `issue-344-v1`: register `_meta` plus 16 chat tools, expose only the 16 chat tools to the model, and preserve declared schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields.                                      |
 | #346 | Own `apps/chat` and the SDK pin; preserve empty mode, actor/linked-identity-scoped entitlement and token providers, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
 | #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                                          |
 | #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists.                |

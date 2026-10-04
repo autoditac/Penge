@@ -9,8 +9,8 @@ import { z } from "zod/v3";
 
 export const hydraFusionModel = "hydrafusion" as const;
 export const pengeMcpServerName = "penge" as const;
-export const chatToolContractVersion = "issue-345-v1-provisional" as const;
-export const pengeMcpTools = [
+export const chatToolContractVersion = "issue-344-v1" as const;
+export const pengeMcpChatTools = [
   "query_net_worth",
   "query_cashflow",
   "query_household_report",
@@ -19,7 +19,16 @@ export const pengeMcpTools = [
   "search_documents",
   "suggest_import_mapping",
   "compute_tax_year",
+  "get_source_coverage",
+  "search_household_transactions",
+  "get_household_transaction_detail",
+  "get_household_taxonomy_summary",
+  "get_household_rule_summary",
+  "get_household_merchant_summary",
+  "get_merchant_reference_status",
+  "search_merchant_reference",
 ] as const;
+export const pengeMcpRegisteredTools = ["_meta", ...pengeMcpChatTools] as const;
 export const blockedToolSources = ["builtin:*", "custom:*"] as const;
 
 const actorIdSchema = z.string().regex(/^actor_[a-z0-9]{16,64}$/);
@@ -147,11 +156,13 @@ export interface UserScopedTokenProvider {
 
 export interface CopilotSdkProof {
   toolContractVersion: typeof chatToolContractVersion;
+  registeredMcpTools: typeof pengeMcpRegisteredTools;
+  chatExposedMcpTools: typeof pengeMcpChatTools;
   client: CopilotClientOptions;
   session: SessionConfig;
 }
 
-function sdkMcpToolName(tool: (typeof pengeMcpTools)[number]): string {
+function sdkMcpToolName(tool: (typeof pengeMcpChatTools)[number]): string {
   return `${pengeMcpServerName}-${tool}`;
 }
 
@@ -235,7 +246,7 @@ export function buildCopilotSdkProof(options: {
   }
 
   const availableTools = new ToolSet();
-  for (const tool of pengeMcpTools) {
+  for (const tool of pengeMcpChatTools) {
     availableTools.addMcp(sdkMcpToolName(tool));
   }
 
@@ -243,6 +254,8 @@ export function buildCopilotSdkProof(options: {
 
   return {
     toolContractVersion: chatToolContractVersion,
+    registeredMcpTools: pengeMcpRegisteredTools,
+    chatExposedMcpTools: pengeMcpChatTools,
     client: {
       mode: "empty",
       baseDirectory: options.baseDirectory,
@@ -273,7 +286,7 @@ export function buildCopilotSdkProof(options: {
           command: "pnpm",
           args: ["--filter", "@penge/mcp", "start"],
           workingDirectory: options.workingDirectory,
-          tools: [...pengeMcpTools],
+          tools: [...pengeMcpChatTools],
         },
       },
     },

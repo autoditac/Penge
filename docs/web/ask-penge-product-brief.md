@@ -57,10 +57,11 @@ At minimum it needs ordered delta, sanitized tool/evidence, completion,
 cancellation, and typed error events plus stable session/event identifiers.
 The UI must reject unknown major versions.
 
-The `issue-345-v1-provisional` MCP tool list is architecture evidence only.
-It is incomplete by design and cannot satisfy complete-source UI claims.
-Issue #344 must publish the accepted source/tool catalog before the backend and
-UI can advertise full Penge grounding.
+The accepted `issue-344-v1` MCP contract registers `_meta` plus 16 chat tools.
+Only the 16 chat tools are model-accessible; `_meta` remains protocol-only.
+The UI may advertise complete Penge grounding only when the backend reports
+this exact contract version and renders the source-coverage evidence returned
+by `get_source_coverage`.
 
 ## Current availability
 

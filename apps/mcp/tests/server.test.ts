@@ -3,7 +3,17 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 
 import type { AuditLogger } from "../src/audit.js";
+import { assertCoverageForSource, SOURCE_CATALOG } from "../src/sources.js";
 import { buildServer } from "../src/server.js";
+
+it("fails closed when a supported source lacks an MCP evidence path", () => {
+  for (const source of SOURCE_CATALOG) {
+    expect(
+      () => assertCoverageForSource(source.id),
+      `${source.id} must expose an evidence path`,
+    ).not.toThrow();
+  }
+});
 
 function createCollectingAudit(): AuditLogger & { entries: Array<Record<string, unknown>> } {
   const entries: Array<Record<string, unknown>> = [];

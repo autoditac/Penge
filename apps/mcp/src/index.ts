@@ -12,11 +12,19 @@ import { connect } from "./db.js";
 import { buildServer } from "./server.js";
 import { answerPlanningQuestionTool } from "./tools/answerPlanningQuestion.js";
 import { computeTaxYearTool } from "./tools/computeTaxYear.js";
+import { getHouseholdMerchantSummaryTool } from "./tools/getHouseholdMerchantSummary.js";
+import { getHouseholdRuleSummaryTool } from "./tools/getHouseholdRuleSummary.js";
+import { getHouseholdTaxonomySummaryTool } from "./tools/getHouseholdTaxonomySummary.js";
+import { getHouseholdTransactionDetailTool } from "./tools/getHouseholdTransactionDetail.js";
+import { getMerchantReferenceStatusTool } from "./tools/getMerchantReferenceStatus.js";
+import { getSourceCoverageTool } from "./tools/getSourceCoverage.js";
 import { queryCashflowTool } from "./tools/queryCashflow.js";
 import { queryHouseholdReportTool } from "./tools/queryHouseholdReport.js";
 import { queryNetWorthTool } from "./tools/queryNetWorth.js";
 import { runScenarioTool } from "./tools/runScenario.js";
 import { searchDocumentsTool } from "./tools/searchDocuments.js";
+import { searchHouseholdTransactionsTool } from "./tools/searchHouseholdTransactions.js";
+import { searchMerchantReferenceTool } from "./tools/searchMerchantReference.js";
 import { suggestImportMappingTool } from "./tools/suggestImportMapping.js";
 
 const SERVER_NAME = "penge-mcp";
@@ -71,6 +79,91 @@ async function main(): Promise<void> {
           },
         },
       }),
+      searchHouseholdTransactionsTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      getHouseholdTransactionDetailTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      getHouseholdTaxonomySummaryTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      getHouseholdRuleSummaryTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      getHouseholdMerchantSummaryTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      getMerchantReferenceStatusTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      searchMerchantReferenceTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      getSourceCoverageTool(),
       computeTaxYearTool(),
       runScenarioTool(),
       answerPlanningQuestionTool(),

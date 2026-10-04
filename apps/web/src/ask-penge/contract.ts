@@ -92,14 +92,15 @@ export type AskStreamErrorEvent = z.infer<typeof errorEventSchema>;
 
 export const askRequestSchema = z
   .object({
-    question: z.string().trim().min(1),
+    question: z.string().trim().min(1).max(8_000),
   })
   .strict();
 
 export type AskRequest = z.infer<typeof askRequestSchema>;
 
 export type AskTransportSession = {
-  readonly stop: () => void;
+  readonly stop: () => Promise<void>;
+  readonly close: () => void;
   readonly subscribe: (callback: (event: unknown) => void) => () => void;
 };
 

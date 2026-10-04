@@ -53,7 +53,10 @@ function createTransport(events: ReadonlyArray<AskStreamEvent>): AskTransport {
       };
 
       return {
-        stop: () => {
+        stop: async () => {
+          index = events.length;
+        },
+        close: () => {
           index = events.length;
         },
         subscribe: (callback) => {
@@ -73,7 +76,10 @@ function createImmediateTransport(events: ReadonlyArray<AskStreamEvent>): AskTra
     start() {
       let active = true;
       return {
-        stop: () => {
+        stop: async () => {
+          active = false;
+        },
+        close: () => {
           active = false;
         },
         subscribe: (callback) => {
@@ -222,7 +228,10 @@ describe("AskPengePage", () => {
     const transport: AskTransport = {
       start() {
         return {
-          stop: () => {
+          stop: async () => {
+            stopped = true;
+          },
+          close: () => {
             stopped = true;
           },
           subscribe: (callback) => {

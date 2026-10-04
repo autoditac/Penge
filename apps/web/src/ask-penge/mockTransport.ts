@@ -142,7 +142,13 @@ export function createMockAskTransport(
       };
 
       const session: AskTransportSession = {
-        stop: () => {
+        stop: async () => {
+          active = false;
+          if (timer !== null) {
+            clearTimeout(timer);
+          }
+        },
+        close: () => {
           active = false;
           if (timer !== null) {
             clearTimeout(timer);

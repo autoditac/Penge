@@ -31,13 +31,19 @@ import { createAskStreamValidator } from "./contract";
 type FilterValue = "all" | "fresh" | "attention";
 type AuthState = "linked" | "not-linked" | "expired" | "not-configured";
 type StreamState = "idle" | "streaming" | "complete" | "cancelled" | "error" | "disconnected";
+type ServiceState = "not-configured" | "loading" | "ready" | "error";
 
 type AskPengePageProps = {
   readonly transport?: AskTransport;
   readonly authState?: AuthState;
+  readonly githubLogin?: string | null;
   readonly modelAvailable?: boolean;
+  readonly featureEnabled?: boolean;
+  readonly serviceState?: ServiceState;
+  readonly serviceError?: string | null;
   readonly onLinkGitHub?: () => void;
   readonly onUnlinkGitHub?: () => void;
+  readonly onRetryStatus?: () => void;
 };
 
 const FILTER_TABS: ReadonlyArray<{ value: FilterValue; label: string }> = [
@@ -89,17 +95,27 @@ function streamErrorTitle(error: AskStreamErrorEvent): string {
 export function AskPengePage({
   transport,
   authState = "not-configured",
+  githubLogin = null,
   modelAvailable = false,
+  featureEnabled = transport !== undefined,
+  serviceState = transport === undefined ? "not-configured" : "ready",
+  serviceError = null,
   onLinkGitHub,
   onUnlinkGitHub,
+  onRetryStatus,
 }: AskPengePageProps): React.JSX.Element {
   return (
     <AskPengeWorkbench
       transport={transport}
       authState={authState}
+      githubLogin={githubLogin}
       modelAvailable={modelAvailable}
+      featureEnabled={featureEnabled}
+      serviceState={serviceState}
+      serviceError={serviceError}
       onLinkGitHub={onLinkGitHub}
       onUnlinkGitHub={onUnlinkGitHub}
+      onRetryStatus={onRetryStatus}
     />
   );
 }
@@ -107,17 +123,27 @@ export function AskPengePage({
 type AskPengeWorkbenchProps = {
   readonly transport: AskTransport | undefined;
   readonly authState: AuthState;
+  readonly githubLogin: string | null;
   readonly modelAvailable: boolean;
+  readonly featureEnabled: boolean;
+  readonly serviceState: ServiceState;
+  readonly serviceError: string | null;
   readonly onLinkGitHub: (() => void) | undefined;
   readonly onUnlinkGitHub: (() => void) | undefined;
+  readonly onRetryStatus: (() => void) | undefined;
 };
 
 function AskPengeWorkbench({
   transport,
   authState,
+  githubLogin,
   modelAvailable,
+  featureEnabled,
+  serviceState,
+  serviceError,
   onLinkGitHub,
   onUnlinkGitHub,
+  onRetryStatus,
 }: AskPengeWorkbenchProps): React.JSX.Element {
   const [events, setEvents] = useState<readonly AskStreamEvent[]>([]);
   const [answer, setAnswer] = useState<string>("");
@@ -137,11 +163,16 @@ function AskPengeWorkbench({
   const answerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
-  const canAsk = transport !== undefined && authState === "linked" && modelAvailable;
+  const canAsk =
+    transport !== undefined &&
+    serviceState === "ready" &&
+    featureEnabled &&
+    authState === "linked" &&
+    modelAvailable;
 
   useEffect(() => {
     return () => {
-      sessionRef.current?.stop();
+      sessionRef.current?.close();
       unsubscribeRef.current?.();
       flushBufferedAnswer(false);
     };
@@ -170,13 +201,24 @@ function AskPengeWorkbench({
     }
   }
 
-  function stopSession(): void {
-    sessionRef.current?.stop();
+  async function stopSession(): Promise<void> {
+    const session = sessionRef.current;
     flushBufferedAnswer();
     setStreamState("cancelled");
-    if (unsubscribeRef.current !== null) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
+    try {
+      await session?.stop();
+    } catch {
+      setContractError(
+        "The server could not confirm cancellation. The local stream was closed; reconnect before asking again.",
+      );
+      setStreamState("disconnected");
+    } finally {
+      session?.close();
+      sessionRef.current = null;
+      if (unsubscribeRef.current !== null) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
     }
   }
 
@@ -186,7 +228,7 @@ function AskPengeWorkbench({
     }
 
     if (sessionRef.current !== null) {
-      sessionRef.current.stop();
+      sessionRef.current.close();
     }
     if (unsubscribeRef.current !== null) {
       unsubscribeRef.current();
@@ -213,13 +255,19 @@ function AskPengeWorkbench({
         }
       });
     };
+    const finishLocalSession = (): void => {
+      nextSession.close();
+      if (sessionRef.current === nextSession) {
+        sessionRef.current = null;
+      }
+      unsubscribeAfterDispatch();
+    };
     unsubscribe = nextSession.subscribe((candidate) => {
       let event: AskStreamEvent;
       try {
         event = validateEvent(candidate);
       } catch {
-        nextSession.stop();
-        unsubscribeAfterDispatch();
+        finishLocalSession();
         setContractError(
           "The answer stream did not match Ask Penge protocol 1.0. Reconnect after the backend contract is updated.",
         );
@@ -237,14 +285,12 @@ function AskPengeWorkbench({
         flushBufferedAnswer();
         setStreamError(event);
         setStreamState(event.code === "session_interrupted" ? "disconnected" : "error");
-        nextSession.stop();
-        unsubscribeAfterDispatch();
+        finishLocalSession();
       }
       if (event.type === "completion") {
         flushBufferedAnswer();
         setStreamState(event.finishReason === "cancelled" ? "cancelled" : "complete");
-        nextSession.stop();
-        unsubscribeAfterDispatch();
+        finishLocalSession();
       }
     });
     unsubscribeRef.current = unsubscribe;
@@ -292,16 +338,21 @@ function AskPengeWorkbench({
     startSession(draft);
   };
 
+  const availabilityBadge =
+    serviceState === "loading"
+      ? { tone: "info" as const, label: "Checking Ask Penge status" }
+      : serviceState === "error"
+        ? { tone: "critical" as const, label: "Ask Penge status unavailable" }
+        : serviceState === "ready" && featureEnabled && modelAvailable
+          ? { tone: "good" as const, label: "Exact HydraFusion available" }
+          : { tone: "critical" as const, label: "Exact HydraFusion unavailable" };
+
   const content = (
     <>
       <PageHeader
         title="Ask Penge"
         description="Evidence-first answers with visible tool progress, clear source freshness, and EUR/DKK context — no chain-of-thought leaks and no direct finance data access."
-        badge={
-          <Pill tone={modelAvailable ? "good" : "critical"}>
-            {modelAvailable ? "Exact HydraFusion available" : "Exact HydraFusion unavailable"}
-          </Pill>
-        }
+        badge={<Pill tone={availabilityBadge.tone}>{availabilityBadge.label}</Pill>}
       />
 
       <Panel
@@ -310,7 +361,12 @@ function AskPengeWorkbench({
         actions={
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
             {isStreaming ? (
-              <Button variant="contained" color="inherit" size="small" onClick={stopSession}>
+              <Button
+                variant="contained"
+                color="inherit"
+                size="small"
+                onClick={() => void stopSession()}
+              >
                 Stop
               </Button>
             ) : canAsk && streamState !== "idle" ? (
@@ -326,18 +382,54 @@ function AskPengeWorkbench({
         }
       >
         <Stack spacing={2}>
-          {modelAvailable ? null : (
+          {serviceState === "loading" ? (
+            <Alert severity="info" variant="outlined" sx={{ borderRadius: 2 }}>
+              Checking the server-derived GitHub linkage, feature gate, and exact HydraFusion
+              availability.
+            </Alert>
+          ) : serviceState === "error" ? (
+            <Alert
+              severity="error"
+              variant="outlined"
+              action={
+                onRetryStatus ? (
+                  <Button color="inherit" size="small" onClick={onRetryStatus}>
+                    Retry status
+                  </Button>
+                ) : undefined
+              }
+              sx={{ borderRadius: 2 }}
+            >
+              <Box component="strong" sx={{ display: "block" }}>
+                Ask Penge status is unavailable
+              </Box>
+              {serviceError ??
+                "The trusted chat status could not be loaded. No request will be sent."}
+            </Alert>
+          ) : serviceState === "ready" && !featureEnabled ? (
+            <Alert severity="warning" variant="outlined" sx={{ borderRadius: 2 }}>
+              <Box component="strong" sx={{ display: "block" }}>
+                Ask Penge is disabled by the service
+              </Box>
+              The backend feature gate is closed. No request will be sent.
+            </Alert>
+          ) : !modelAvailable ? (
             <Alert severity="warning" variant="outlined" sx={{ borderRadius: 2 }}>
               <Box component="strong" sx={{ display: "block" }}>
                 Exact HydraFusion is unavailable
               </Box>
-              The exact <Box component="code">hydrafusion</Box> entitlement and chat backend are not
-              configured. Ask Penge is disabled and will not send a request or substitute another
-              model.
+              The exact <Box component="code">hydrafusion</Box> entitlement is unavailable or the
+              chat backend is not configured. Ask Penge will not send a request or substitute
+              another model.
             </Alert>
-          )}
+          ) : null}
 
-          <GitHubStatusCard authState={authState} onLink={onLinkGitHub} onUnlink={onUnlinkGitHub} />
+          <GitHubStatusCard
+            authState={authState}
+            login={githubLogin}
+            onLink={onLinkGitHub}
+            onUnlink={onUnlinkGitHub}
+          />
 
           {contractError !== null ? (
             <Alert severity="error" variant="outlined" sx={{ borderRadius: 2 }}>
@@ -482,6 +574,7 @@ function AskPengeWorkbench({
                       placeholder="Ask about balances, planning, or evidence coverage"
                       value={draft}
                       onChange={(event) => setDraft(event.target.value)}
+                      slotProps={{ htmlInput: { maxLength: 8_000 } }}
                       multiline
                       minRows={3}
                       maxRows={6}
@@ -825,10 +918,12 @@ function AssumptionsList({
 
 export function GitHubStatusCard({
   authState,
+  login,
   onLink,
   onUnlink,
 }: {
   readonly authState: AuthState;
+  readonly login: string | null;
   readonly onLink: (() => void) | undefined;
   readonly onUnlink: (() => void) | undefined;
 }): React.JSX.Element {
@@ -841,7 +936,8 @@ export function GitHubStatusCard({
         {authState === "linked" ? (
           <>
             <Typography color="text.secondary">
-              Linked to the current household member. Credentials and quota are never shared.
+              {login === null ? "Linked GitHub account" : `Linked as @${login}`}. Credentials and
+              quota are never shared.
             </Typography>
             {onUnlink ? (
               <Link component="button" type="button" onClick={onUnlink} sx={{ textAlign: "left" }}>

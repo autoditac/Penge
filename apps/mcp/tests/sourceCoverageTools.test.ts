@@ -370,7 +370,7 @@ describe("source coverage tools", () => {
       runner: fixedRows([
         {
           category_id: CATEGORY,
-          name: "Groceries",
+          name: "Groceries 123456789",
           kind: "expense",
           parent_id: null,
           sort_order: 1,
@@ -394,13 +394,13 @@ describe("source coverage tools", () => {
         {
           rule_id: RULE,
           merchant_id: MERCHANT,
-          merchant_name: "Synthetic Market",
+          merchant_name: "Synthetic Market 123456789",
           version: 1,
           state: "active",
           category_id: CATEGORY,
-          category_name: "Groceries",
+          category_name: "Groceries 123456789",
           treatment: "expense",
-          explanation: "Synthetic exact alias",
+          explanation: "Synthetic exact alias 123456789",
           created_at: "2026-06-01T00:00:00.000Z",
           total_count: 1,
         },
@@ -414,7 +414,7 @@ describe("source coverage tools", () => {
       runner: fixedRows([
         {
           merchant_id: MERCHANT,
-          name: "Synthetic Market",
+          name: "Synthetic Market 123456789",
           identity_kind: "stable",
           confirmed: true,
           archived: false,
@@ -439,6 +439,11 @@ describe("source coverage tools", () => {
     expect(taxonomyOut.entries).toHaveLength(1);
     expect(ruleOut.rules).toHaveLength(1);
     expect(merchantOut.merchants[0]?.reference?.source).toBe("nsi");
+    expect(taxonomyOut.entries[0]?.name).toBe("Groceries [REDACTED]");
+    expect(ruleOut.rules[0]?.merchant_name).toBe("Synthetic Market [REDACTED]");
+    expect(ruleOut.rules[0]?.category_name).toBe("Groceries [REDACTED]");
+    expect(ruleOut.rules[0]?.explanation).toBe("Synthetic exact alias [REDACTED]");
+    expect(merchantOut.merchants[0]?.name).toBe("Synthetic Market [REDACTED]");
   });
 
   it("keeps summary totals when requested pages are empty", async () => {
@@ -485,6 +490,31 @@ describe("source coverage tools", () => {
     await search.handler({ query: "  STRA\u00dfE\u3000MARKT  ", limit: 10, offset: 0 }, CTX);
     expect(params[0]?.[0]).toBe("strasse markt");
     expect(params[1]?.[0]).toBe("strasse markt");
+  });
+
+  it("uses full Unicode case folding for NSI queries", async () => {
+    const params: ReadonlyArray<unknown>[] = [];
+    const search = searchMerchantReferenceTool({
+      runner: {
+        async query(_sql, values) {
+          params.push(values);
+          return params.length === 1 ? { rows: [{ total_count: 0 }] } : { rows: [] };
+        },
+      },
+      now: () => NOW,
+    });
+    await search.handler({ query: "ΟΣ", limit: 10, offset: 0 }, CTX);
+    expect(params[0]?.[0]).toBe("οσ");
+  });
+
+  it("rejects NSI search terms without a Unicode letter or number", () => {
+    const search = searchMerchantReferenceTool({ runner: fixedRows([]), now: () => NOW });
+    expect(() => search.inputSchema.parse({ query: "  ", limit: 10, offset: 0 })).toThrow(
+      /Unicode letter or number/,
+    );
+    expect(() => search.inputSchema.parse({ query: "---", limit: 10, offset: 0 })).toThrow(
+      /Unicode letter or number/,
+    );
   });
 
   it("marks abandoned NSI refreshes stale or failed", async () => {

@@ -28,8 +28,7 @@ export interface BuiltServer {
 
 function auditErrorCode(cause: unknown): string {
   if (cause instanceof PengeError) return cause.code;
-  if (cause instanceof Error) return cause.name || "Error";
-  return "unknown_error";
+  return "tool/internal_error";
 }
 
 function outputJsonSchema(tool: ToolDefinition): NonNullable<Tool["outputSchema"]> {
@@ -91,8 +90,8 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
     if (!tool) {
       const err = new ToolUnknownError(`unknown tool: ${name}`);
       opts.audit.record({
-        tool: name,
-        args: rawArgs,
+        tool: "unknown_tool",
+        args: {},
         status: "error",
         durationMs: Date.now() - startedAt,
         error: err.code,
@@ -109,7 +108,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
       const err = new ToolInputError(`invalid arguments for ${name}: ${message}`);
       opts.audit.record({
         tool: name,
-        args: rawArgs,
+        args: {},
         status: "error",
         durationMs: Date.now() - startedAt,
         error: err.code,
@@ -122,7 +121,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
       const validated = tool.outputSchema.parse(result);
       opts.audit.record({
         tool: name,
-        args: rawArgs,
+        args: parsedArgs,
         status: "ok",
         durationMs: Date.now() - startedAt,
       });
@@ -133,7 +132,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
     } catch (cause) {
       opts.audit.record({
         tool: name,
-        args: rawArgs,
+        args: parsedArgs,
         status: "error",
         durationMs: Date.now() - startedAt,
         error: auditErrorCode(cause),

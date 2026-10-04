@@ -1,4 +1,5 @@
 import { z } from "zod/v3";
+import { caseFold } from "unicode-case-folding";
 
 import { ToolDataError } from "../errors.js";
 import type { ToolDefinition } from "../registry.js";
@@ -8,8 +9,22 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-
 
 const InputSchema = z
   .object({
-    query: z.string().min(2).max(100),
-    category_prefix: z.string().min(1).max(100).optional(),
+    query: z
+      .string()
+      .min(2)
+      .max(100)
+      .refine((value) => /[\p{L}\p{N}]/u.test(normalizeAlias(value)), {
+        message: "query must contain at least one Unicode letter or number after normalization",
+      }),
+    category_prefix: z
+      .string()
+      .min(1)
+      .max(100)
+      .refine((value) => /[\p{L}\p{N}]/u.test(normalizeAlias(value)), {
+        message:
+          "category_prefix must contain at least one Unicode letter or number after normalization",
+      })
+      .optional(),
     limit: z.number().int().min(1).max(20).default(10),
     offset: z.number().int().min(0).max(1000).default(0),
   })
@@ -106,12 +121,7 @@ const SEARCH_COUNT_SQL = `
 `;
 
 function normalizeAlias(value: string): string {
-  return value
-    .normalize("NFKC")
-    .toLocaleLowerCase("und")
-    .replaceAll("ß", "ss")
-    .trim()
-    .replace(/\s+/g, " ");
+  return caseFold(value.normalize("NFKC")).trim().replace(/\s+/g, " ");
 }
 
 function instant(value: Date | string): string {

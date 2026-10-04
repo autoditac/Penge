@@ -1,5 +1,6 @@
 import { z } from "zod/v3";
 
+import { redactText } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 import type { HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
@@ -141,6 +142,7 @@ export function getHouseholdMerchantSummaryTool(
             ...row
           }) => ({
             ...row,
+            name: redactText(row.name),
             reference:
               reference_source === null || reference_key === null || reference_version === null
                 ? null

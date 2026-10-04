@@ -4,6 +4,10 @@ Issue #344 extends the process-local MCP server with typed, bounded evidence pat
 It does not create a network endpoint.
 The server remains stdio-only, read-only, and fail-closed under [ADR-0023](../decisions/0023-mcp-server-architecture.md).
 Individual pre-existing tool contracts remain documented in the [MCP tool reference](tools.md).
+Production workers pass the PostgreSQL URL through `PENGE_DB_URL_FILE`, an
+owner-only regular file capped at 16 KiB.
+The direct `PENGE_DB_URL` form is retained for local CLI and test use, and
+configuring both is rejected.
 
 ## Authoritative stdio tool allowlist
 
@@ -159,14 +163,22 @@ Raw audit snapshots and PayPal `source_fields` are never returned.
 `search_merchant_reference` accepts a query of 2..100 characters, optional category prefix, limit 1..20, and offset 0..1000.
 It searches only the active local generation and returns at most ten aliases per result.
 Neither tool performs network access.
+The `unicode-case-folding` package is intentionally used after NFKC
+normalization because ECMAScript locale lowercasing is not Unicode case
+folding and diverges from the Python index writer for values such as Greek
+final sigma.
 
 ## Audit attribution contract
 
 The future chat worker may set `PENGE_MCP_ACTOR_ID` and `PENGE_MCP_SESSION_ID` when it spawns the stdio process.
-Both values must be opaque 8–64 character identifiers matching `[A-Za-z0-9_-]+`.
-Names and email addresses are rejected.
+They must be generated pseudonyms with the exact forms `actor_<ULID>` and
+`session_<ULID>`; arbitrary names and email addresses are rejected.
 
 Audit records contain only the pseudonymous IDs, tool name, sorted top-level argument key names, status, duration, timestamp, and bounded error code.
+At most 32 validated argument keys matching `[A-Za-z0-9_.-]{1,64}` are
+persisted.
+Invalid and unknown calls use empty argument metadata and a fixed unknown-tool
+name.
 No argument values are persisted, including dates, source IDs, stable transaction IDs, prompts, queries, or nested values.
 The audit directory and file modes are enforced as `0700` and `0600`, respectively; failures are surfaced.
 Records are not duplicated to the MCP process stderr by default.

@@ -1,5 +1,6 @@
 import { z } from "zod/v3";
 
+import { redactText } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 import type { HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
@@ -105,7 +106,10 @@ export function getHouseholdTaxonomySummaryTool(
         total,
         limit: args.limit,
         offset: args.offset,
-        entries: rows.map(({ total_count: _total, ...row }) => row),
+        entries: rows.map(({ total_count: _total, ...row }) => ({
+          ...row,
+          name: redactText(row.name),
+        })),
       };
     },
   };

@@ -1,6 +1,7 @@
 import { z } from "zod/v3";
 
 import { ToolDataError } from "../errors.js";
+import { redactText } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 import type { HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
 
@@ -110,6 +111,9 @@ export function getHouseholdRuleSummaryTool(
         offset: args.offset,
         rules: rows.map(({ total_count: _total, created_at, ...row }) => ({
           ...row,
+          merchant_name: redactText(row.merchant_name),
+          category_name: row.category_name === null ? null : redactText(row.category_name),
+          explanation: redactText(row.explanation),
           created_at: instant(created_at),
         })),
       };

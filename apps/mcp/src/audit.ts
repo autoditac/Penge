@@ -1,6 +1,9 @@
 import { chmodSync, closeSync, constants, mkdirSync, openSync, statSync, writeSync } from "node:fs";
 import { join } from "node:path";
 
+const SAFE_ARGUMENT_KEY = /^[A-Za-z0-9_.-]{1,64}$/;
+const MAX_ARGUMENT_KEYS = 32;
+
 export interface AuditRecord {
   ts: string;
   tool: string;
@@ -13,10 +16,13 @@ export interface AuditRecord {
 }
 
 export function auditArgumentKeys(input: unknown): string[] {
-  if (input !== null && typeof input === "object") {
-    return Object.keys(input).sort();
+  if (input === null || typeof input !== "object") return [];
+  const keys: string[] = [];
+  for (const key of Object.keys(input)) {
+    if (SAFE_ARGUMENT_KEY.test(key)) keys.push(key);
+    if (keys.length === MAX_ARGUMENT_KEYS) break;
   }
-  return [];
+  return keys.sort();
 }
 
 export interface AuditLogger {

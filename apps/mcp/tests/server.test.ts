@@ -224,7 +224,30 @@ describe("MCP server skeleton", () => {
     try {
       await expect(client.callTool({ name: "does_not_exist", arguments: {} })).rejects.toThrow();
       expect(audit.entries).toHaveLength(1);
-      expect(audit.entries[0]).toMatchObject({ tool: "does_not_exist", status: "error" });
+      expect(audit.entries[0]).toMatchObject({
+        tool: "unknown_tool",
+        args: {},
+        status: "error",
+      });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("does not audit raw key names from invalid arguments", async () => {
+    const audit = createCollectingAudit();
+    const { client, server } = await newConnectedClient(audit);
+    try {
+      await expect(
+        client.callTool({
+          name: "_meta",
+          arguments: { "private prompt text": "secret", unexpected: "value" },
+        }),
+      ).rejects.toThrow();
+      expect(audit.entries[0]).toMatchObject({ tool: "_meta", args: {}, status: "error" });
+      expect(JSON.stringify(audit.entries[0])).not.toContain("private prompt text");
+      expect(JSON.stringify(audit.entries[0])).not.toContain("secret");
     } finally {
       await client.close();
       await server.close();

@@ -54,10 +54,13 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
       name: tool.name,
       description: tool.description,
       annotations: { readOnlyHint: true },
-      inputSchema: zodToJsonSchema(tool.inputSchema, {
-        target: "openApi3",
-        $refStrategy: "none",
-      }) as Tool["inputSchema"],
+      inputSchema: {
+        ...(zodToJsonSchema(tool.inputSchema, {
+          target: "openApi3",
+          $refStrategy: "none",
+        }) as Tool["inputSchema"]),
+        type: "object",
+      },
     }));
     return { tools };
   });

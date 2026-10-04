@@ -3,6 +3,7 @@
 Issue #344 extends the process-local MCP server with typed, bounded evidence paths for every supported Penge source.
 It does not create a network endpoint.
 The server remains stdio-only, read-only, and fail-closed under [ADR-0023](../decisions/0023-mcp-server-architecture.md).
+Individual pre-existing tool contracts remain documented in the [MCP tool reference](tools.md).
 
 ## Authoritative stdio tool allowlist
 

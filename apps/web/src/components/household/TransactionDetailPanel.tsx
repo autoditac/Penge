@@ -17,6 +17,7 @@ import Typography from "@mui/material/Typography";
 
 import type {
   HouseholdCategory,
+  HouseholdMerchant,
   HouseholdTreatment,
   HouseholdTransactionDetail,
   UnmatchedHouseholdPaymentDetail,
@@ -55,11 +56,15 @@ type TransactionDetailPanelProps = {
   readonly audit: readonly HouseholdAuditResponse[] | null;
   readonly auditLoading: boolean;
   readonly categories: readonly HouseholdCategory[];
+  readonly merchants: readonly HouseholdMerchant[];
   readonly saving: boolean;
+  readonly onManageMerchants: () => void;
   readonly onClose: () => void;
   readonly onSaveCorrection: (correction: {
     readonly treatment: HouseholdTreatment;
     readonly categoryId: string | null;
+    readonly merchantId: string | null;
+    readonly identityConfirmed: boolean;
   }) => void;
   readonly onSaveSplits: (input: {
     readonly treatment: HouseholdTreatment;
@@ -82,7 +87,9 @@ export function TransactionDetailPanel({
   audit,
   auditLoading,
   categories,
+  merchants,
   saving,
+  onManageMerchants,
   onClose,
   onSaveCorrection,
   onSaveSplits,
@@ -95,6 +102,8 @@ export function TransactionDetailPanel({
   const [categoryId, setCategoryId] = useState(
     detail.splits.length === 1 ? (detail.splits[0]?.categoryId ?? null) : null,
   );
+  const [merchantId, setMerchantId] = useState(detail.merchantId);
+  const [identityConfirmed, setIdentityConfirmed] = useState(detail.identityConfirmed);
   const categoryRequired =
     treatment === "expense" || treatment === "income" || treatment === "refund";
   const allocationCurrency = isHouseholdClassificationCurrency(detail.transaction.currency)
@@ -128,15 +137,33 @@ export function TransactionDetailPanel({
         <ClassificationControls
           detail={detail}
           categories={categories}
+          merchants={merchants}
           treatment={treatment}
           categoryId={categoryId}
+          merchantId={merchantId}
+          identityConfirmed={identityConfirmed}
           categoryRequired={categoryRequired}
           canCategorize={allocationCurrency !== null}
           saving={saving}
           onTreatmentChange={setTreatment}
           onCategoryChange={setCategoryId}
+          onMerchantChange={(nextMerchantId) => {
+            setMerchantId(nextMerchantId);
+            setIdentityConfirmed(
+              nextMerchantId !== null &&
+                nextMerchantId === detail.merchantId &&
+                detail.identityConfirmed,
+            );
+          }}
+          onIdentityConfirmedChange={setIdentityConfirmed}
+          onManageMerchants={onManageMerchants}
           onSave={() =>
-            onSaveCorrection({ treatment, categoryId: categoryRequired ? categoryId : null })
+            onSaveCorrection({
+              treatment,
+              categoryId: categoryRequired ? categoryId : null,
+              merchantId,
+              identityConfirmed: merchantId !== null && identityConfirmed,
+            })
           }
           onUndoOverride={onUndoOverride}
           onDisableRule={onDisableRule}
@@ -271,26 +298,38 @@ function SourceFacts({
 function ClassificationControls({
   detail,
   categories,
+  merchants,
   treatment,
   categoryId,
+  merchantId,
+  identityConfirmed,
   categoryRequired,
   canCategorize,
   saving,
   onTreatmentChange,
   onCategoryChange,
+  onMerchantChange,
+  onIdentityConfirmedChange,
+  onManageMerchants,
   onSave,
   onUndoOverride,
   onDisableRule,
 }: {
   readonly detail: HouseholdTransactionDetail;
   readonly categories: readonly HouseholdCategory[];
+  readonly merchants: readonly HouseholdMerchant[];
   readonly treatment: HouseholdTreatment;
   readonly categoryId: string | null;
+  readonly merchantId: string | null;
+  readonly identityConfirmed: boolean;
   readonly categoryRequired: boolean;
   readonly canCategorize: boolean;
   readonly saving: boolean;
   readonly onTreatmentChange: (treatment: HouseholdTreatment) => void;
   readonly onCategoryChange: (categoryId: string | null) => void;
+  readonly onMerchantChange: (merchantId: string | null) => void;
+  readonly onIdentityConfirmedChange: (confirmed: boolean) => void;
+  readonly onManageMerchants: () => void;
   readonly onSave: () => void;
   readonly onUndoOverride: () => void;
   readonly onDisableRule: (ruleId: string) => void;
@@ -307,6 +346,13 @@ function ClassificationControls({
       onDisableRule(detail.ruleId);
     }
   }
+
+  const selectedMerchant = merchants.find((merchant) => merchant.id === merchantId) ?? null;
+  const merchantCanTeach =
+    selectedMerchant !== null &&
+    selectedMerchant.confirmed &&
+    selectedMerchant.identityKind === "stable" &&
+    !selectedMerchant.archived;
 
   return (
     <Stack spacing={1.5}>
@@ -362,6 +408,92 @@ function ClassificationControls({
         onSelect={onCategoryChange}
         disabled={!categoryRequired || !canCategorize}
       />
+      <Paper
+        component="section"
+        variant="outlined"
+        aria-label="Merchant identity confirmation"
+        sx={{ p: 1.5, bgcolor: "background.default" }}
+      >
+        <Stack spacing={1.25}>
+          <Box>
+            <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Merchant identity
+            </Typography>
+            <Typography color="text.secondary">
+              Link this bank transaction to a household merchant only when the identity is clear.
+            </Typography>
+          </Box>
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ alignItems: { sm: "flex-start" } }}
+          >
+            <FormControl size="small" fullWidth>
+              <InputLabel id="transaction-merchant-label">Household merchant</InputLabel>
+              <Select
+                labelId="transaction-merchant-label"
+                label="Household merchant"
+                value={merchantId ?? ""}
+                disabled={saving}
+                onChange={(event) =>
+                  onMerchantChange(event.target.value === "" ? null : event.target.value)
+                }
+              >
+                <MenuItem value="">No merchant identity</MenuItem>
+                {merchants.map((merchant) => (
+                  <MenuItem
+                    key={merchant.id}
+                    value={merchant.id}
+                    disabled={merchant.archived && merchant.id !== merchantId}
+                  >
+                    {merchant.name}
+                    {merchant.archived
+                      ? " (archived)"
+                      : !merchant.confirmed
+                        ? " (not confirmed)"
+                        : merchant.identityKind !== "stable"
+                          ? ` (${merchant.identityKind})`
+                          : ""}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <Button
+              variant="outlined"
+              onClick={onManageMerchants}
+              disabled={saving}
+              sx={{ minHeight: 40, whiteSpace: "nowrap" }}
+            >
+              Manage merchants
+            </Button>
+          </Stack>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={identityConfirmed}
+                disabled={saving || !merchantCanTeach}
+                onChange={(event) => onIdentityConfirmedChange(event.target.checked)}
+                slotProps={{
+                  input: {
+                    "aria-describedby": "merchant-learning-guidance",
+                  },
+                }}
+              />
+            }
+            label="I confirm this transaction is from the selected merchant"
+          />
+          <Alert
+            id="merchant-learning-guidance"
+            severity={merchantId === null || merchantCanTeach ? "info" : "warning"}
+          >
+            {merchantId === null
+              ? "Choose a confirmed stable merchant to make this correction eligible for deterministic learning."
+              : merchantCanTeach
+                ? "A confirmed single-category expense or income can update the merchant rule. Existing transactions remain unchanged until you preview and approve them."
+                : "This merchant is archived, unconfirmed, or not a stable identity. Update it under Merchants before using it for learning."}
+          </Alert>
+        </Stack>
+      </Paper>
       <Button
         variant="contained"
         disabled={saving || (categoryRequired && (categoryId === null || !canCategorize))}

@@ -621,6 +621,7 @@ function HouseholdRulesPage(): React.JSX.Element {
 }
 
 function HouseholdReviewPage(): React.JSX.Element {
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [selectedTransactionId, setSelectedTransactionId] = useState<string | null>(null);
   const transactions = useInfiniteHouseholdTransactions(search);
@@ -714,6 +715,10 @@ function HouseholdReviewPage(): React.JSX.Element {
     treatment: HouseholdTreatment,
     allocations: readonly SplitInput[],
     detailLinks?: readonly PaymentDetailLinkInput[],
+    identity?: {
+      readonly merchantId: string | null;
+      readonly confirmed: boolean;
+    },
   ): ClassificationWrite {
     if (selectedRow === undefined) {
       throw new Error("The selected household transaction is not loaded.");
@@ -722,8 +727,8 @@ function HouseholdReviewPage(): React.JSX.Element {
     return {
       expected_revision: current?.revision ?? 0,
       treatment,
-      merchant_id: current?.merchant_id ?? null,
-      identity_confirmed: current?.identity_confirmed ?? false,
+      merchant_id: identity === undefined ? (current?.merchant_id ?? null) : identity.merchantId,
+      identity_confirmed: identity?.confirmed ?? current?.identity_confirmed ?? false,
       allocations: [...allocations],
       links: [...(current?.links ?? [])] satisfies ReconciliationLink[],
       detail_links: [...(detailLinks ?? current?.detail_links ?? [])],
@@ -734,6 +739,8 @@ function HouseholdReviewPage(): React.JSX.Element {
   function saveCorrection(input: {
     readonly treatment: HouseholdTreatment;
     readonly categoryId: string | null;
+    readonly merchantId: string | null;
+    readonly identityConfirmed: boolean;
   }): void {
     if (detail === null) {
       return;
@@ -755,7 +762,10 @@ function HouseholdReviewPage(): React.JSX.Element {
     correct.mutate(
       {
         transactionId: detail.transaction.id,
-        body: makeClassificationWrite(input.treatment, splits),
+        body: makeClassificationWrite(input.treatment, splits, undefined, {
+          merchantId: input.merchantId,
+          confirmed: input.identityConfirmed,
+        }),
       },
       {
         onSuccess: () => notify("Transaction correction saved.", "success"),
@@ -901,11 +911,14 @@ function HouseholdReviewPage(): React.JSX.Element {
             <EmptyState label="selected transaction detail" />
           ) : (
             <TransactionDetailPanel
+              key={`${detail.transaction.id}:${detail.classificationRevision}`}
               detail={detail}
               audit={auditQuery.data ?? null}
               auditLoading={auditQuery.isPending}
               categories={categoryTree}
+              merchants={merchantRows}
               saving={saving}
+              onManageMerchants={() => navigate("/household/merchants")}
               onClose={() => setSelectedTransactionId(null)}
               onSaveCorrection={saveCorrection}
               onSaveSplits={saveSplits}

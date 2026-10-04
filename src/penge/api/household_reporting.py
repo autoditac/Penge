@@ -638,7 +638,9 @@ def _is_reportable(allocation: BankAllocation) -> bool:
         AllocationTreatment.INCOME,
         AllocationTreatment.EXPENSE,
         AllocationTreatment.REFUND,
-    ) or (allocation.treatment is AllocationTreatment.UNCLASSIFIED and allocation.amount_native < 0)
+    ) or (
+        allocation.treatment is AllocationTreatment.UNCLASSIFIED and allocation.amount_native != 0
+    )
 
 
 def _allocation_to_model(

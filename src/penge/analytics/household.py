@@ -527,7 +527,7 @@ def _reportable_allocations(allocations: list[BankAllocation]) -> list[BankAlloc
         allocation
         for allocation in allocations
         if allocation.treatment is not AllocationTreatment.UNCLASSIFIED
-        or allocation.amount_native < 0
+        or allocation.amount_native != 0
     ]
 
 
@@ -553,11 +553,14 @@ def _accumulate_allocations(
         elif allocation.treatment is AllocationTreatment.REFUND:
             totals.refunds.add(allocation.amount_eur, allocation.amount_dkk)
         elif allocation.treatment is AllocationTreatment.UNCLASSIFIED:
-            expense_eur = _absolute_or_none(allocation.amount_eur)
-            expense_dkk = _absolute_or_none(allocation.amount_dkk)
-            totals.gross_expenses.add(expense_eur, expense_dkk)
-            has_unclassified_expense = True
-            unclassified_expenses.add(expense_eur, expense_dkk)
+            if allocation.amount_native > 0:
+                totals.income.add(allocation.amount_eur, allocation.amount_dkk)
+            else:
+                expense_eur = _absolute_or_none(allocation.amount_eur)
+                expense_dkk = _absolute_or_none(allocation.amount_dkk)
+                totals.gross_expenses.add(expense_eur, expense_dkk)
+                has_unclassified_expense = True
+                unclassified_expenses.add(expense_eur, expense_dkk)
     return missing_fx, has_unclassified_expense
 
 

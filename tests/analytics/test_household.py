@@ -125,20 +125,20 @@ def test_golden_report_counts_bank_facts_once_and_refunds_on_refund_date() -> No
         until=date(2026, 6, 30),
     )
 
-    assert report.included_transaction_count == 4
+    assert report.included_transaction_count == 5
     assert report.unclassified_transaction_count == 2
     assert report.unclassified_expense_count == 1
     assert report.transfer_excluded_count == 1
     assert report.missing_fx_allocation_count == 0
-    assert report.totals.income.eur.amount == Decimal("1000")
+    assert report.totals.income.eur.amount == Decimal("1500")
     assert report.totals.gross_expenses.eur.amount == Decimal("125")
     assert report.totals.refunds.eur.amount == Decimal("10")
     assert report.totals.net_expenses.eur.amount == Decimal("115")
-    assert report.totals.surplus.eur.amount == Decimal("885")
+    assert report.totals.surplus.eur.amount == Decimal("1385")
     assert report.totals.gross_expenses.dkk.amount == Decimal("932.5")
     assert report.totals.refunds.dkk.amount == Decimal("74.6")
     assert report.totals.net_expenses.dkk.amount == Decimal("857.9")
-    assert report.totals.surplus.dkk.amount == Decimal("6602.1")
+    assert report.totals.surplus.dkk.amount == Decimal("10332.1")
     assert report.unclassified_expense_amount.eur.amount == Decimal("5")
     assert report.unclassified_expense_amount.dkk.amount == Decimal("37.3")
 

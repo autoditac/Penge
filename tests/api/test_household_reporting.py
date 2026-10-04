@@ -19,9 +19,9 @@ def _fact(
     booking_date: date,
     amount: str,
     treatment: str,
-    category_id: str,
-    category_name: str,
-    category_kind: str,
+    category_id: str | None,
+    category_name: str | None,
+    category_kind: str | None,
     eur: str,
     dkk: str,
 ) -> dict[str, object]:
@@ -88,6 +88,17 @@ def _facts() -> list[dict[str, object]]:
             category_kind="income",
             eur="100.00",
             dkk="746.00",
+        ),
+        _fact(
+            transaction_id="t3",
+            booking_date=date(2025, 7, 12),
+            amount="25.00",
+            treatment="unclassified",
+            category_id=None,
+            category_name=None,
+            category_kind=None,
+            eur="25.00",
+            dkk="186.50",
         ),
     ]
 
@@ -230,14 +241,15 @@ def test_summary_uses_bank_ledger_once_and_returns_equal_previous_window(
     assert body["filters"]["account_ids"] == ["a1"]
     assert body["filters"]["entity_ids"] == ["e1"]
     assert body["current"]["totals"]["gross_expenses"]["eur"]["amount"] == "12.50"
-    assert body["current"]["totals"]["income"]["eur"]["amount"] == "100.00"
-    assert body["current"]["totals"]["surplus"]["eur"]["amount"] == "87.50"
+    assert body["current"]["totals"]["income"]["eur"]["amount"] == "125.00"
+    assert body["current"]["totals"]["surplus"]["eur"]["amount"] == "112.50"
     assert body["previous"]["since"] == "2025-05-31"
     assert body["previous"]["until"] == "2025-06-30"
     assert body["previous"]["totals"]["gross_expenses"]["eur"]["amount"] == "20.00"
     assert body["coverage"]["payment_detail_link_count"] == 1
     assert body["coverage"]["payment_detail_reconciled_count"] == 1
     assert body["coverage"]["payment_detail_unmatched_count"] == 1
+    assert body["coverage"]["unclassified_transaction_count"] == 1
 
 
 def test_category_report_rolls_descendants_once_and_filters_branch(

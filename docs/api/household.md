@@ -51,6 +51,7 @@ Existing raw cashflow, investment, tax and net-worth behavior is untouched.
 
 `ClassificationWrite` contains `expected_revision` (zero if absent), treatment, optional merchant, `identity_confirmed`, allocations, reconciliation links, detail links and an explanation.
 Treatments are `expense`, `income`, `refund`, `transfer`, `excluded` and `unclassified`.
+Unclassified bank movements remain review items with no category allocation, while their signed polarity still keeps headline cashflow truthful: positive credits contribute to income and negative debits contribute to gross expenses.
 Expense/refund categories are expense nodes; income categories are income nodes.
 Each category occurs once per allocation set; positive and negative splits cannot cancel into a misleading total.
 Transfers/exclusions/unclassified have no financial category allocations.

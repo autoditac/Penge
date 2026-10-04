@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SessionEvent } from "@github/copilot-sdk";
+import type { PermissionRequest, SessionEvent } from "@github/copilot-sdk";
 
 import {
   ChatFeatureDisabledError,
@@ -12,6 +12,7 @@ import {
   assertSdkCleanupSucceeded,
   blockedToolSources,
   buildCopilotSdkProof,
+  decidePengePermission,
   deriveActorBaseDirectory,
   hydraFusionModel,
   implementedChatToolContractVersion,
@@ -145,6 +146,41 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
       implementedPengeMcpChatTools.map((tool) => `mcp:penge-${tool}`),
     );
     expect(excludedTools?.toArray()).toEqual(blockedToolSources);
+  });
+
+  it("approves once only for read-only allowlisted Penge MCP calls", async () => {
+    const allowlistedRequest = {
+      kind: "mcp",
+      serverName: "penge",
+      toolName: "query_net_worth",
+      toolTitle: "Query net worth",
+      readOnly: true,
+      args: { currency: "EUR" },
+    } satisfies PermissionRequest;
+
+    await expect(
+      Promise.resolve(
+        decidePengePermission(allowlistedRequest, { sessionId: "synthetic-session" }),
+      ),
+    ).resolves.toEqual({ kind: "approve-once" });
+
+    const rejectedRequests = [
+      { ...allowlistedRequest, serverName: "other" },
+      { ...allowlistedRequest, toolName: "_meta" },
+      { ...allowlistedRequest, readOnly: false },
+      { ...allowlistedRequest, managedApprovalRequired: true },
+      {
+        kind: "url",
+        intention: "ambient network access",
+        url: "https://example.invalid",
+      },
+    ] satisfies PermissionRequest[];
+
+    for (const request of rejectedRequests) {
+      await expect(
+        Promise.resolve(decidePengePermission(request, { sessionId: "synthetic-session" })),
+      ).resolves.toMatchObject({ kind: "reject" });
+    }
   });
 
   it("gates the planned issue 344 contract until stdio tools/list proves it", () => {

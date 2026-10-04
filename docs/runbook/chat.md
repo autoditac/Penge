@@ -67,7 +67,9 @@ Issue #346 may enable a linked actor only after all checks pass:
    The deployment switch never substitutes for the actor-scoped record.
 7. `PENGE_CHAT_FALLBACK_MODEL` is unset.
 8. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
-   permission request, and starts only the local stdio Penge MCP server.
+   non-MCP permission request, and starts only the local stdio Penge MCP server.
+   It approves once only for a read-only request matching the exact `penge`
+   server and configured tool allowlist.
 9. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
    reachable.
 10. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted

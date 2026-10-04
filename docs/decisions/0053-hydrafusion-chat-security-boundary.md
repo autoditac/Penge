@@ -66,7 +66,10 @@ in `apps/chat-feasibility`:
 - `availableTools` contains only source-qualified
   `mcp:penge-<tool-name>` entries.
   `excludedTools` denies every `builtin:*` and `custom:*` source, and every
-  permission request is rejected.
+  non-MCP permission request is rejected.
+  A read-only request for the exact `penge` server and configured tool
+  allowlist is approved for that call once; it is never remembered for the
+  session.
 - The only MCP server configuration has `type: "stdio"` and a bounded `tools`
   array.
   An HTTP/SSE URL is structurally absent.

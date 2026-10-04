@@ -3,6 +3,7 @@ import {
   type CopilotClientOptions,
   type GitHubTokenProvider,
   type ModelInfo,
+  type PermissionHandler,
   type SessionConfig,
 } from "@github/copilot-sdk";
 import { isAbsolute, relative, resolve } from "node:path";
@@ -250,6 +251,22 @@ export function assertPlannedMcpContractAvailable(observedTools: readonly string
   }
 }
 
+export const decidePengePermission: PermissionHandler = (request) => {
+  if (
+    request.kind === "mcp" &&
+    request.serverName === pengeMcpServerName &&
+    request.readOnly &&
+    request.managedApprovalRequired !== true &&
+    implementedPengeMcpChatTools.some((tool) => tool === request.toolName)
+  ) {
+    return { kind: "approve-once" };
+  }
+  return {
+    kind: "reject",
+    feedback: "Penge chat permits only one read-only call to an allowlisted Penge MCP tool",
+  };
+};
+
 export function resolveChatRuntimeConfig(
   env: NodeJS.ProcessEnv,
   rawVerification: unknown,
@@ -364,10 +381,7 @@ export function buildCopilotSdkProof(options: {
       gitHubTokenProvider: options.tokenProvider.acquire,
       availableTools,
       excludedTools,
-      onPermissionRequest: () => ({
-        kind: "reject",
-        feedback: "Penge chat denies every ambient permission request",
-      }),
+      onPermissionRequest: decidePengePermission,
       mcpServers: {
         [pengeMcpServerName]: {
           type: "stdio",

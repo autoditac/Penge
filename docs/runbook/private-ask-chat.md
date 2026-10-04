@@ -14,9 +14,11 @@ Do not deploy the chat from this branch.
 - `deploy/nas/penge-chat-db-role.sql.in` is intentionally non-executable.
 - The active nginx configuration returns `404` for exactly `/ask` and the bounded `/ask/` prefix.
 - `deploy/nas/validate-private-ask-chat.sh --ready` must fail while any `@@...@@` token remains.
-- #346 still owes final OAuth, SSE, status-route, mounted-secret, and environment names; do not resolve the loopback/public-origin, immutable issuer/subject headers, proxy-secret header, identity-pepper, OAuth, AES-GCM, chat-database, or finance-MCP credential contracts early.
-- The agreed external API base is `/ask/api`, with `VITE_PENGE_CHAT_BASE_URL=/ask/api`; internal routes are `GET /v1/auth/status`, `GET /oauth/github/start`, `DELETE /v1/auth/github`, `POST /v1/chat` (SSE), `POST /v1/chat/stop`, and quota-free `/health`.
-- The external OAuth callback must remain `/ask/api/oauth/github/callback`, and nginx must overwrite the immutable auth and mounted proxy-secret headers. Keep the route/header tokens unresolved until #346 and #349 publish matching tests.
+- #346 has fixed the backend environment and credential-file names recorded below; immutable oauth2-proxy subject extraction and the nginx mounted-secret include mechanism remain unproven, so their activation tokens stay unresolved.
+- The agreed external API base is `/ask/api/`, with `VITE_PENGE_CHAT_BASE_URL=/ask/api/`; `PENGE_CHAT_PUBLIC_API_BASE` is the external HTTPS URL ending in `/ask/api/`, while `PENGE_CHAT_PUBLIC_APP_ORIGIN` is the HTTPS origin only.
+- Internal routes are `GET /v1/auth/status`, `GET /oauth/github/start`, `GET /oauth/github/callback`, `DELETE /v1/auth/github`, `POST /v1/chat` (SSE), `POST /v1/chat/stop`, and quota-free `/health`.
+- The external OAuth callback must remain `/ask/api/oauth/github/callback`; the web SPA retains `/ask`, only `/ask/api/` proxies to chat with the prefix stripped, and no root-level OAuth route may be exposed.
+- Nginx must overwrite lowercase-equivalent `x-penge-auth-issuer`, `x-penge-auth-subject`, and `x-penge-proxy-secret`; mutable user, email, login, and client-ID forwarding is not an identity contract. Keep immutable-subject extraction and the proxy-secret include tokens unresolved until #346 and #349 publish matching tests.
 - No NAS deployment, real account linking, HydraFusion call, or two-account acceptance has been performed.
 
 The secure seam check is available through the repository task runner:
@@ -141,11 +143,14 @@ Create a new manifest and obtain a new review; never update hashes under an old 
 Do not update a Podman secret in place.
 Create a new versioned secret, switch the reviewed Quadlet contract, restart, verify, and only then retire the old version.
 
-The final unit requires three rootless secrets:
+The final unit requires six distinct rootless secrets:
 
-- GitHub OAuth application material.
+- GitHub client secret; `PENGE_CHAT_GITHUB_CLIENT_ID` is non-secret configuration.
 - A versioned AES-GCM token-encryption keyring.
+- The identity pepper.
+- The nginx-to-chat proxy secret.
 - The least-privilege chat database URL.
+- The read-only finance MCP database URL.
 
 Exact payload formats and mount targets come from #346 and remain unresolved tokens.
 The image-owned container UID/GID and rootless network topology also remain unresolved rather than assuming UID `1000` or host-loopback database access.
@@ -153,9 +158,12 @@ Create secrets only as the dedicated chat account and only after that contract l
 
 ```bash
 umask 077
-podman secret create penge-chat-github-oauth-v2 /secure/path/github-oauth-v2
+podman secret create penge-chat-github-client-secret-v2 /secure/path/github-client-secret-v2
 podman secret create penge-chat-token-keyring-v2 /secure/path/token-keyring-v2
+podman secret create penge-chat-identity-pepper-v2 /secure/path/identity-pepper-v2
+podman secret create penge-chat-proxy-secret-v2 /secure/path/proxy-secret-v2
 podman secret create penge-chat-database-url-v2 /secure/path/database-url-v2
+podman secret create penge-chat-finance-mcp-database-url-v2 /secure/path/finance-mcp-url-v2
 ```
 
 Never pass a secret value on the command line, in an environment variable, or through shell history.
@@ -191,16 +199,30 @@ The resolved SQL may grant only:
 
 - `CONNECT` on the dedicated chat OAuth database.
 - `USAGE` on the OAuth-link schema.
-- `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on the explicit OAuth-link tables.
+- `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on `chat_oauth_link` and `chat_oauth_state`.
+- `INSERT` only on `chat_audit_event`.
+- `USAGE` and `SELECT` only on `chat_audit_event_id_seq`.
 
 It must not grant schema creation, default privileges, sequence-wide access, finance or analytics reads, transcript storage, MCP access, ownership, role inheritance, or superuser capabilities.
 The resolved role creation must target the same role that receives `CONNECT` and explicitly specify `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`.
 Its `PUBLIC` revocations apply only inside that dedicated database.
 Chat deployment must not change the shared Penge finance database or any API, dbt, ingestion, migration, backup, or maintenance role privileges.
 Provision, migrate, back up, restore, and roll back this dedicated OAuth database outside the finance Alembic chain.
+The dedicated migration entry point is `apps/chat/alembic.ini`.
+The long-lived container reads `PENGE_CHAT_DATABASE_URL_FILE` as `penge_chat_oauth`; a one-shot migration runner reads the distinct `PENGE_CHAT_MIGRATION_DATABASE_URL_FILE`, and the finance MCP reads the separate `PENGE_DB_URL_FILE`.
+Never mount or inherit the migration-owner credential in the long-lived chat container.
 
-If #346 instead mandates same-database storage, remove this provisioning template and place the exact grants in its reversible migration.
-Do not adapt this deployment seam to revoke shared-database privileges.
+The deployment order is:
+
+1. Create the dedicated database and `penge_chat_oauth` runtime role.
+2. Run the dedicated Alembic upgrade with the one-shot migration-owner credential.
+3. Grant only the approved DML on the three backend-owned application tables to the runtime role.
+4. Destroy the one-shot migration environment, verify its credential is absent from the Quadlet, and only then launch the service.
+
+Test upgrade and downgrade through `apps/chat/alembic.ini`; downgrade must not delete the database or either role.
+Readiness must verify that `current_user` is `penge_chat_oauth` and that it has no privilege on any other table in the dedicated database's `public` schema.
+
+Do not fold this lifecycle into the finance migration chain or adapt this deployment seam to revoke shared-database privileges.
 Apply it through the reviewed database administration path only after `--ready` passes, then query PostgreSQL privileges and attach the redacted result to the acceptance record.
 
 ## Nginx trust boundary

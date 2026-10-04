@@ -1,32 +1,24 @@
 # Non-loadable nginx route template.
 #
-# Keep this separate from penge.eigmueller.de.conf until #346 and #349 publish
-# matching tests for the agreed /ask/api base path, OAuth callback, immutable
-# identity/proxy-secret headers, and streaming semantics. Deployment validation
-# rejects every unresolved @@...@@ token.
+# Keep this separate from penge.eigmueller.de.conf until #346 and #349 prove
+# immutable-subject extraction and the mounted proxy-secret include mechanism.
+# The web SPA owns /ask; only /ask/api/ reaches the chat backend.
 
-location = /ask {
+location ^~ /ask/api/ {
     auth_request /oauth2/auth;
     error_page 401 = /oauth2/sign_in;
-    @@EXACT_ASK_HANDLER@@
-}
 
-location ^~ /ask/ {
-    auth_request /oauth2/auth;
-    error_page 401 = /oauth2/sign_in;
-    auth_request_set $user  $upstream_http_x_auth_request_user;
-    auth_request_set $email $upstream_http_x_auth_request_email;
-
-    proxy_pass @@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@;
+    # The trailing slash strips /ask/api/ so OAuth and /v1 routes reach backend root.
+    proxy_pass http://127.0.0.1:8123/;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
-    proxy_set_header Host                  $host;
-    proxy_set_header X-Real-IP             $remote_addr;
-    proxy_set_header X-Forwarded-For       $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto     $scheme;
-    proxy_set_header X-Forwarded-User      $user;
-    proxy_set_header X-Forwarded-Email     $email;
-    proxy_set_header X-Forwarded-Client-Id $email;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header x-penge-auth-issuer @@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@;
+    proxy_set_header x-penge-auth-subject @@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@;
+    proxy_set_header x-penge-proxy-secret @@MOUNTED_PROXY_SECRET_NGINX_VALUE@@;
 
     proxy_buffering @@STREAMING_RESPONSE_BUFFERING@@;
     proxy_request_buffering @@STREAMING_REQUEST_BUFFERING@@;

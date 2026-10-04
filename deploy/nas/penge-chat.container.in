@@ -16,9 +16,12 @@ ContainerName=penge-chat
 Network=@@CHAT_ROOTLESS_NETWORK@@
 UserNS=keep-id
 PublishPort=127.0.0.1:8123:@@CHAT_HTTP_PORT@@
-Secret=penge-chat-github-oauth-@@GITHUB_OAUTH_SECRET_VERSION@@,type=mount,target=@@GITHUB_OAUTH_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
+Secret=penge-chat-github-client-secret-@@GITHUB_CLIENT_SECRET_VERSION@@,type=mount,target=@@GITHUB_CLIENT_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
 Secret=penge-chat-token-keyring-@@TOKEN_KEYRING_SECRET_VERSION@@,type=mount,target=@@TOKEN_KEYRING_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
+Secret=penge-chat-identity-pepper-@@IDENTITY_PEPPER_SECRET_VERSION@@,type=mount,target=@@IDENTITY_PEPPER_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
+Secret=penge-chat-proxy-secret-@@PROXY_SECRET_VERSION@@,type=mount,target=@@PROXY_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
 Secret=penge-chat-database-url-@@DATABASE_URL_SECRET_VERSION@@,type=mount,target=@@DATABASE_URL_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
+Secret=penge-chat-finance-mcp-database-url-@@FINANCE_MCP_DATABASE_URL_SECRET_VERSION@@,type=mount,target=@@FINANCE_MCP_DATABASE_URL_SECRET_TARGET@@,mode=0400,uid=@@CHAT_CONTAINER_UID@@,gid=@@CHAT_CONTAINER_GID@@
 EnvironmentFile=%h/.config/penge/approved/private-ask-chat.contract-@@CONTRACT_ENV_SHA256@@.env
 Volume=@@MCP_READ_ONLY_SOURCE@@:@@MCP_READ_ONLY_TARGET@@:ro
 ReadOnly=true

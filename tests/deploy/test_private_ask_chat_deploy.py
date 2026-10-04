@@ -30,6 +30,16 @@ CONTRACT_REPLACEMENTS = {
     "@@PROCESS_LOCAL_STDIO_MCP_ENV_ASSIGNMENT@@": "PENGE_MCP_TRANSPORT=stdio",
     "@@SOURCE_COVERAGE_STARTUP_GATE_ENV_ASSIGNMENT@@": ("PENGE_REQUIRE_SOURCE_COVERAGE=true"),
     "@@TRANSCRIPT_PERSISTENCE_DISABLED_ENV_ASSIGNMENT@@": ("PENGE_TRANSCRIPT_PERSISTENCE=false"),
+    "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/chat-database-url",
+    "@@FINANCE_MCP_DATABASE_URL_SECRET_TARGET@@": ("/run/secrets/finance-mcp-database-url"),
+    "@@CHAT_PUBLIC_API_BASE_WITH_TRAILING_SLASH@@": ("https://chat.example.test/ask/api/"),
+    "@@CHAT_PUBLIC_APP_ORIGIN@@": "https://chat.example.test",
+    "@@GITHUB_CLIENT_ID@@": "synthetic-client-id",
+    "@@GITHUB_CLIENT_SECRET_TARGET@@": "/run/secrets/github-client-secret",
+    "@@TOKEN_KEYRING_SECRET_TARGET@@": "/run/secrets/token-keyring",
+    "@@IDENTITY_PEPPER_SECRET_TARGET@@": "/run/secrets/identity-pepper",
+    "@@PROXY_SECRET_TARGET@@": "/run/secrets/proxy-secret",
+    "@@TRUSTED_PROXY_ISSUER@@": "penge-oauth2-proxy",
 }
 
 
@@ -122,7 +132,7 @@ def test_quadlet_has_only_versioned_secrets_and_no_transcript_volume() -> None:
     quadlet = _read("penge-chat.container.in")
 
     secrets = re.findall(r"^Secret=(.+)$", quadlet, re.MULTILINE)
-    assert len(secrets) == 3
+    assert len(secrets) == 6
     if CONTRACTS_RESOLVED:
         assert all("@@" not in secret for secret in secrets)
     else:
@@ -149,19 +159,40 @@ def test_live_nginx_fails_closed_on_only_bounded_ask_paths() -> None:
 
 def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     nginx = _read("penge-chat.nginx.conf.in")
+    location = re.search(r"location \^~ (?P<prefix>/[^ ]+) \{", nginx)
+    proxy_pass = re.search(r"proxy_pass (?P<upstream>http://127\.0\.0\.1:8123/);", nginx)
 
-    assert "location = /ask {" in nginx
-    assert "location ^~ /ask/ {" in nginx
-    assert "X-Forwarded-User      $user" in nginx
-    assert "X-Forwarded-Email     $email" in nginx
-    assert "X-Forwarded-Client-Id $email" in nginx
+    assert location is not None
+    assert proxy_pass is not None
+    api_prefix = location.group("prefix")
+
+    def upstream_path(public_path: str) -> str | None:
+        if not public_path.startswith(api_prefix):
+            return None
+        return f"/{public_path.removeprefix(api_prefix)}"
+
+    assert "location = /ask {" not in nginx
+    assert "location ^~ /ask/ {" not in nginx
+    assert "location ^~ /ask/api/ {" in nginx
+    assert "proxy_pass http://127.0.0.1:8123/;" in nginx
+    assert "X-Forwarded-User" not in nginx
+    assert "X-Forwarded-Email" not in nginx
+    assert "X-Forwarded-Client-Id" not in nginx
+    assert nginx.count("proxy_set_header x-penge-auth-issuer ") == 1
+    assert nginx.count("proxy_set_header x-penge-auth-subject ") == 1
+    assert nginx.count("proxy_set_header x-penge-proxy-secret ") == 1
+    assert upstream_path("/ask/api/v1/chat") == "/v1/chat"
+    assert upstream_path("/ask/api/oauth/github/callback") == "/oauth/github/callback"
+    assert upstream_path("/ask/oauth/github/callback") is None
+    assert upstream_path("/ask/") is None
     assert "script-src 'self'" in nginx
     assert "script-src 'self' 'unsafe-inline'" not in nginx
     if CONTRACTS_RESOLVED:
         assert "@@" not in nginx
     else:
-        assert "@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@" in nginx
-    assert "proxy_pass http://127.0.0.1:8123" not in nginx
+        assert "@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@" in nginx
+        assert "@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@" in nginx
+        assert "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@" in nginx
 
 
 def test_database_template_cannot_grant_non_oauth_data_access() -> None:
@@ -171,6 +202,12 @@ def test_database_template_cannot_grant_non_oauth_data_access() -> None:
     ).lower()
 
     assert "grant select, insert, update, delete" in executable_sql
+    assert "chat_oauth_link" in executable_sql
+    assert "chat_oauth_state" in executable_sql
+    assert "grant insert" in executable_sql
+    assert "chat_audit_event" in executable_sql
+    assert "grant usage, select" in executable_sql
+    assert "chat_audit_event_id_seq" in executable_sql
     assert "grant all" not in executable_sql
     assert "default privileges" not in executable_sql
     assert "analytics" not in executable_sql
@@ -179,7 +216,6 @@ def test_database_template_cannot_grant_non_oauth_data_access() -> None:
     if CONTRACTS_RESOLVED:
         assert "@@" not in executable_sql
     else:
-        assert "@@oauth_link_tables_only@@" in executable_sql
         assert "current_database() <> '@@chat_oauth_database_name@@'" in executable_sql
         assert (
             'revoke all on database "@@chat_oauth_database_name@@" from public;' in executable_sql
@@ -196,6 +232,21 @@ def test_architecture_contract_is_exact_but_activation_remains_unresolved() -> N
     contract = _read("private-ask-chat.contract.env.in")
 
     assert "PENGE_CHAT_MODEL=hydrafusion" in contract
+    for name in (
+        "PENGE_CHAT_GITHUB_CLIENT_ID",
+        "PENGE_CHAT_GITHUB_CLIENT_SECRET_FILE",
+        "PENGE_CHAT_TOKEN_KEYRING_FILE",
+        "PENGE_CHAT_IDENTITY_PEPPER_FILE",
+        "PENGE_CHAT_PROXY_SHARED_SECRET_FILE",
+        "PENGE_CHAT_TRUSTED_PROXY_ISSUER",
+        "PENGE_CHAT_PUBLIC_API_BASE",
+        "PENGE_CHAT_PUBLIC_APP_ORIGIN",
+        "PENGE_CHAT_DATABASE_URL_FILE",
+        "PENGE_DB_URL_FILE",
+    ):
+        assert contract.count(f"{name}=") == 1
+    assert "PENGE_CHAT_GITHUB_OAUTH_FILE" not in contract
+    assert "PENGE_CHAT_MIGRATION_DATABASE_URL_FILE" not in contract
     if CONTRACTS_RESOLVED:
         assert "@@" not in contract
     else:
@@ -262,12 +313,18 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
         "@@CHAT_HEALTH_START_PERIOD@@": "10s",
         "@@CHAT_HTTP_PORT@@": "3000",
         "@@CHAT_ROOTLESS_NETWORK@@": "private-ask",
-        "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/database-url",
+        "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/chat-database-url",
         "@@DATABASE_URL_SECRET_VERSION@@": "v1",
-        "@@GITHUB_OAUTH_SECRET_TARGET@@": "/run/secrets/github-oauth",
-        "@@GITHUB_OAUTH_SECRET_VERSION@@": "v1",
+        "@@FINANCE_MCP_DATABASE_URL_SECRET_TARGET@@": ("/run/secrets/finance-mcp-database-url"),
+        "@@FINANCE_MCP_DATABASE_URL_SECRET_VERSION@@": "v1",
+        "@@GITHUB_CLIENT_SECRET_TARGET@@": "/run/secrets/github-client-secret",
+        "@@GITHUB_CLIENT_SECRET_VERSION@@": "v1",
+        "@@IDENTITY_PEPPER_SECRET_TARGET@@": "/run/secrets/identity-pepper",
+        "@@IDENTITY_PEPPER_SECRET_VERSION@@": "v1",
         "@@MCP_READ_ONLY_SOURCE@@": "/srv/penge/mcp",
         "@@MCP_READ_ONLY_TARGET@@": "/app/mcp",
+        "@@PROXY_SECRET_TARGET@@": "/run/secrets/proxy-secret",
+        "@@PROXY_SECRET_VERSION@@": "v1",
         "@@TOKEN_KEYRING_SECRET_TARGET@@": "/run/secrets/token-keyring",
         "@@TOKEN_KEYRING_SECRET_VERSION@@": "v1",
     }
@@ -277,8 +334,9 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
 
     nginx = _read("penge-chat.nginx.conf.in")
     nginx_replacements = {
-        "@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@": ("http://127.0.0.1:8123/"),
-        "@@EXACT_ASK_HANDLER@@": "return 308 /ask/;",
+        "@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@": "$penge_auth_subject",
+        "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@": "$penge_proxy_secret",
+        "@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@": "penge-oauth2-proxy",
         "@@STREAMING_READ_TIMEOUT@@": "300s",
         "@@STREAMING_REQUEST_BUFFERING@@": "off",
         "@@STREAMING_RESPONSE_BUFFERING@@": "off",
@@ -297,7 +355,6 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
             "NOCREATEROLE NOINHERIT NOBYPASSRLS;"
         ),
         "@@OAUTH_LINK_SCHEMA@@": "oauth",
-        "@@OAUTH_LINK_TABLES_ONLY@@": '"oauth"."links"',
     }
     for token, value in database_replacements.items():
         database = database.replace(token, value)
@@ -382,7 +439,7 @@ def test_ready_validator_rejects_mismatched_database_privilege_target(
     database.write_text(
         database.read_text().replace(
             'REVOKE ALL ON DATABASE "penge_chat_oauth" FROM penge_chat_oauth;',
-            'REVOKE ALL ON DATABASE "penge_finance" FROM penge_chat_oauth;',
+            'REVOKE ALL ON DATABASE "other_chat_oauth" FROM penge_chat_oauth;',
         )
     )
 
@@ -453,6 +510,68 @@ def test_ready_validator_rejects_host_network_and_privileged_role(
     assert "explicitly deny privileged and inherited attributes" in privileged_role.stderr
     assert mismatched_role.returncode != 0
     assert "created chat role and database grant target differ" in mismatched_role.stderr
+
+
+def test_ready_validator_rejects_shared_or_migration_database_credential(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    quadlet = validator.parent / "penge-chat.container.in"
+    safe_quadlet = quadlet.read_text()
+
+    quadlet.write_text(
+        safe_quadlet.replace(
+            "/run/secrets/finance-mcp-database-url",
+            "/run/secrets/chat-database-url",
+        )
+    )
+    shared = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+    quadlet.write_text(
+        f"{safe_quadlet}Secret=penge-chat-migration-database-url-v1,"
+        "type=mount,target=/run/secrets/migration-database-url\n"
+    )
+    migration = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert shared.returncode != 0
+    assert "assignment does not match its secret target" in shared.stderr
+    assert migration.returncode != 0
+    assert "migration-owner database credential" in migration.stderr
+
+
+def test_ready_validator_requires_external_https_api_base_with_trailing_slash(
+    tmp_path: Path,
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    contract = validator.parent / "private-ask-chat.contract.env.in"
+    contract.write_text(
+        contract.read_text().replace(
+            "https://chat.example.test/ask/api/",
+            "https://chat.example.test/ask/api",
+        )
+    )
+
+    invalid_base = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
+
+    assert invalid_base.returncode != 0
+    assert "must preserve the /ask/api/ callback prefix" in invalid_base.stderr
 
 
 def test_ready_validator_parses_effective_sdk_dependency_and_instructions(
@@ -566,12 +685,18 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
             "@@CHAT_HEALTH_START_PERIOD@@": "10s",
             "@@CHAT_HTTP_PORT@@": "3000",
             "@@CHAT_ROOTLESS_NETWORK@@": "private-ask",
-            "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/database-url",
+            "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/chat-database-url",
             "@@DATABASE_URL_SECRET_VERSION@@": "v1",
-            "@@GITHUB_OAUTH_SECRET_TARGET@@": "/run/secrets/github-oauth",
-            "@@GITHUB_OAUTH_SECRET_VERSION@@": "v1",
+            "@@FINANCE_MCP_DATABASE_URL_SECRET_TARGET@@": ("/run/secrets/finance-mcp-database-url"),
+            "@@FINANCE_MCP_DATABASE_URL_SECRET_VERSION@@": "v1",
+            "@@GITHUB_CLIENT_SECRET_TARGET@@": "/run/secrets/github-client-secret",
+            "@@GITHUB_CLIENT_SECRET_VERSION@@": "v1",
+            "@@IDENTITY_PEPPER_SECRET_TARGET@@": "/run/secrets/identity-pepper",
+            "@@IDENTITY_PEPPER_SECRET_VERSION@@": "v1",
             "@@MCP_READ_ONLY_SOURCE@@": "/srv/penge/mcp",
             "@@MCP_READ_ONLY_TARGET@@": "/app/mcp",
+            "@@PROXY_SECRET_TARGET@@": "/run/secrets/proxy-secret",
+            "@@PROXY_SECRET_VERSION@@": "v1",
             "@@TOKEN_KEYRING_SECRET_TARGET@@": "/run/secrets/token-keyring",
             "@@TOKEN_KEYRING_SECRET_VERSION@@": "v1",
         }
@@ -718,12 +843,15 @@ def test_installer_requires_exact_resolved_environment_contract(tmp_path: Path) 
     assert "contract environment is not the exact reviewed template" in incomplete.stderr
 
 
-def test_installer_rejects_approved_host_network(tmp_path: Path) -> None:
+def test_installer_rejects_approved_host_network_or_migration_secret(
+    tmp_path: Path,
+) -> None:
     installer, env = _installer_fixture(tmp_path, resolved=True)
     digest = "a" * 64
     home = Path(env["HOME"])
     quadlet = installer.parent / "penge-chat.container.in"
-    quadlet.write_text(quadlet.read_text().replace("Network=private-ask", "Network=host"))
+    safe_quadlet = quadlet.read_text()
+    quadlet.write_text(safe_quadlet.replace("Network=private-ask", "Network=host"))
     _write_approval_manifest(installer.parents[2], home, digest)
 
     host_network = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
@@ -733,9 +861,23 @@ def test_installer_rejects_approved_host_network(tmp_path: Path) -> None:
         env=env,
         text=True,
     )
+    quadlet.write_text(
+        f"{safe_quadlet}Secret=penge-chat-migration-database-url-v1,"
+        "type=mount,target=/run/secrets/migration-database-url\n"
+    )
+    _write_approval_manifest(installer.parents[2], home, digest)
+    migration = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, digest],
+        capture_output=True,
+        check=False,
+        env=env,
+        text=True,
+    )
 
     assert host_network.returncode != 0
     assert "dedicated non-host rootless network" in host_network.stderr
+    assert migration.returncode != 0
+    assert "migration-owner credential" in migration.stderr
 
 
 def test_installer_rejects_unsafe_contract_and_manifest_metadata(tmp_path: Path) -> None:

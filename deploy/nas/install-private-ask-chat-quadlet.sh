@@ -190,6 +190,56 @@ if ! podman network exists "$network"; then
   echo "deployment blocked: missing rootless Podman network $network" >&2
   exit 1
 fi
+if grep -Eiq \
+  'PENGE_CHAT_MIGRATION_DATABASE_URL_FILE|migration[^,]*database[^,]*url' \
+  "$tmp" "$contract_env"; then
+  echo "deployment blocked: migration-owner credential must not enter the runtime container" >&2
+  exit 1
+fi
+runtime_secret_targets=()
+validate_runtime_secret() {
+  local prefix=$1
+  local environment_name=$2
+  local target
+  local -a secret_lines
+
+  mapfile -t secret_lines < <(grep "^Secret=$prefix-" "$tmp" || true)
+  if [[ ${#secret_lines[@]} -ne 1 ]]; then
+    echo "deployment blocked: $environment_name secret must appear exactly once" >&2
+    exit 1
+  fi
+  target="$(sed -n 's/.*[,]target=\([^,]*\).*/\1/p' <<<"${secret_lines[0]}")"
+  if [[ ! $target =~ ^/run/secrets/[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$ ]]; then
+    echo "deployment blocked: $environment_name secret target is invalid" >&2
+    exit 1
+  fi
+  if [[ $(grep -c "^$environment_name=" "$contract_env") -ne 1 \
+    || $(sed -n "s/^$environment_name=//p" "$contract_env") != "$target" ]]; then
+    echo "deployment blocked: $environment_name must match its secret target" >&2
+    exit 1
+  fi
+  runtime_secret_targets+=("$target")
+}
+
+validate_runtime_secret "penge-chat-github-client-secret" \
+  "PENGE_CHAT_GITHUB_CLIENT_SECRET_FILE"
+validate_runtime_secret "penge-chat-token-keyring" \
+  "PENGE_CHAT_TOKEN_KEYRING_FILE"
+validate_runtime_secret "penge-chat-identity-pepper" \
+  "PENGE_CHAT_IDENTITY_PEPPER_FILE"
+validate_runtime_secret "penge-chat-proxy-secret" \
+  "PENGE_CHAT_PROXY_SHARED_SECRET_FILE"
+validate_runtime_secret "penge-chat-database-url" \
+  "PENGE_CHAT_DATABASE_URL_FILE"
+validate_runtime_secret "penge-chat-finance-mcp-database-url" \
+  "PENGE_DB_URL_FILE"
+unique_secret_target_count="$(
+  printf '%s\n' "${runtime_secret_targets[@]}" | sort -u | wc -l
+)"
+if [[ $unique_secret_target_count -ne ${#runtime_secret_targets[@]} ]]; then
+  echo "deployment blocked: every runtime credential needs a distinct mounted file" >&2
+  exit 1
+fi
 
 rendered_quadlet_sha256="$(sha256_file "$tmp")"
 if [[ ${approved[rendered_quadlet_sha256]} != "$rendered_quadlet_sha256" ]]; then

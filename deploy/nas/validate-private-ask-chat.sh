@@ -81,29 +81,56 @@ mapfile -t publish_lines < <(grep '^PublishPort=' "$quadlet" || true)
 [[ ${#publish_lines[@]} -eq 1 ]] || fail "exactly one chat publish directive is required"
 mapfile -t network_lines < <(grep '^Network=' "$quadlet" || true)
 [[ ${#network_lines[@]} -eq 1 ]] || fail "exactly one chat network directive is required"
-! grep -q 'SecurityLabelDisable' "$quadlet"
-! grep -Eq '^Volume=.*chat.*:rw([,:]|$)' "$quadlet"
+if grep -q 'SecurityLabelDisable' "$quadlet"; then
+  fail "chat Quadlet must retain default SELinux confinement"
+fi
+if grep -Eq '^Volume=.*chat.*:rw([,:]|$)' "$quadlet"; then
+  fail "chat Quadlet must not persist transcripts"
+fi
+if grep -Eiq \
+  'PENGE_CHAT_MIGRATION_DATABASE_URL_FILE|migration[^,]*database[^,]*url' \
+  "$quadlet"; then
+  fail "migration-owner database credential must not enter the runtime container"
+fi
 grep -q '^WantedBy=default.target$' "$quadlet"
 grep -q 'systemctl --user daemon-reload' "$root/deploy/nas/install-private-ask-chat-quadlet.sh"
-! grep -Eq 'sudo|/etc/containers/systemd|systemctl daemon-reload' \
-  "$root/deploy/nas/install-private-ask-chat-quadlet.sh"
+if grep -Eq 'sudo|/etc/containers/systemd|systemctl daemon-reload' \
+  "$root/deploy/nas/install-private-ask-chat-quadlet.sh"; then
+  fail "chat installer must remain rootless"
+fi
 
 grep -q 'location = /ask {' "$nginx_live"
 grep -q 'location ^~ /ask/ {' "$nginx_live"
-! grep -q 'proxy_pass http://127.0.0.1:8123' "$nginx_live"
+if grep -q 'proxy_pass http://127.0.0.1:8123' "$nginx_live"; then
+  fail "live nginx must not activate the unresolved chat upstream"
+fi
 grep -q 'return 404;' "$nginx_live"
-grep -q 'location = /ask {' "$nginx_template"
-grep -q 'location ^~ /ask/ {' "$nginx_template"
-! grep -Eq 'script-src[^;]*unsafe-inline' "$nginx_template"
-grep -q 'proxy_set_header X-Forwarded-User      $user;' "$nginx_template"
-grep -q 'proxy_set_header X-Forwarded-Email     $email;' "$nginx_template"
-grep -q 'proxy_set_header X-Forwarded-Client-Id $email;' "$nginx_template"
+grep -q 'location ^~ /ask/api/ {' "$nginx_template"
+if grep -Eq '^location[[:space:]]+(=[[:space:]]+/ask|\^~[[:space:]]+/ask/)[[:space:]]*\{' \
+  "$nginx_template"; then
+  fail "chat nginx template must leave /ask frontend routing to the web SPA"
+fi
+grep -q 'proxy_pass http://127.0.0.1:8123/;' "$nginx_template"
+if grep -Eq 'script-src[^;]*unsafe-inline' "$nginx_template"; then
+  fail "chat CSP must not allow inline scripts"
+fi
+grep -q 'proxy_set_header x-penge-auth-issuer ' "$nginx_template"
+grep -q 'proxy_set_header x-penge-auth-subject ' "$nginx_template"
+grep -q 'proxy_set_header x-penge-proxy-secret ' "$nginx_template"
+if grep -Eiq 'X-Forwarded-(User|Email|Client-Id)' "$nginx_template"; then
+  fail "chat nginx template must not forward mutable identity headers"
+fi
 
 sql_body="$(sed '/^[[:space:]]*--/d' "$db_template")"
-! grep -Eiq 'grant[[:space:]]+all|analytics|finance|transcript|default privileges' \
-  <<<"$sql_body"
+if grep -Eiq \
+  'grant[[:space:]]+all|analytics|finance|transcript|default privileges' \
+  <<<"$sql_body"; then
+  fail "chat database template exceeds the OAuth-only privilege boundary"
+fi
 grep -q 'REVOKE ALL ON SCHEMA public FROM PUBLIC;' "$db_template"
-! grep -q '@@DATABASE_IDENTIFIER@@' "$db_template"
+if grep -q '@@DATABASE_IDENTIFIER@@' "$db_template"; then
+  fail "chat database template uses an unguarded database identifier"
+fi
 grep -q '^PENGE_CHAT_MODEL=hydrafusion$' "$contract_env_template"
 
 unresolved="$(
@@ -120,12 +147,17 @@ if [[ $mode == "--seam" ]]; then
     || fail "unresolved seam publish contract changed unexpectedly"
   [[ ${network_lines[0]} == "Network=@@CHAT_ROOTLESS_NETWORK@@" ]] \
     || fail "unresolved seam network contract changed unexpectedly"
-  grep -q '@@CHAT_UPSTREAM_WITH_EXPLICIT_BASE_PATH_SEMANTICS@@' "$nginx_template"
+  grep -q '@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@' "$nginx_template"
+  grep -q '@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@' "$nginx_template"
+  grep -q '@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@' "$nginx_template"
   grep -q "current_database() <> '@@CHAT_OAUTH_DATABASE_NAME@@'" "$db_template"
   grep -q \
     'REVOKE ALL ON DATABASE "@@CHAT_OAUTH_DATABASE_NAME@@" FROM PUBLIC;' \
     "$db_template"
-  grep -q '@@OAUTH_LINK_TABLES_ONLY@@' "$db_template"
+  grep -q '@@OAUTH_LINK_SCHEMA@@.chat_oauth_link' "$db_template"
+  grep -q '@@OAUTH_LINK_SCHEMA@@.chat_oauth_state' "$db_template"
+  grep -q '@@OAUTH_LINK_SCHEMA@@.chat_audit_event' "$db_template"
+  grep -q '@@OAUTH_LINK_SCHEMA@@.chat_audit_event_id_seq' "$db_template"
   grep -q '@@COPILOT_MODE_EMPTY_ENV_ASSIGNMENT@@' "$contract_env_template"
   [[ -n $unresolved ]] || fail "seam mode requires fail-closed unresolved contracts"
   echo "private Ask deployment seam is fail-closed; deployment is not ready"
@@ -157,6 +189,56 @@ case "${network,,}" in
     fail "resolved chat network must be a dedicated non-host rootless network"
     ;;
 esac
+if grep -q '^PENGE_CHAT_MIGRATION_DATABASE_URL_FILE=' "$contract_env_template"; then
+  fail "migration-owner database credential must not enter the runtime environment"
+fi
+runtime_secret_targets=()
+validate_runtime_secret() {
+  local prefix=$1
+  local environment_name=$2
+  local target
+  local -a secret_lines
+
+  mapfile -t secret_lines < <(grep "^Secret=$prefix-" "$quadlet" || true)
+  [[ ${#secret_lines[@]} -eq 1 ]] \
+    || fail "$environment_name secret must appear exactly once"
+  target="$(sed -n 's/.*[,]target=\([^,]*\).*/\1/p' <<<"${secret_lines[0]}")"
+  [[ $target =~ ^/run/secrets/[A-Za-z0-9][A-Za-z0-9_.-]{0,127}$ ]] \
+    || fail "$environment_name secret target is invalid"
+  [[ $(grep -c "^$environment_name=" "$contract_env_template") -eq 1 ]] \
+    || fail "$environment_name assignment must appear exactly once"
+  [[ $(sed -n "s/^$environment_name=//p" "$contract_env_template") == "$target" ]] \
+    || fail "$environment_name assignment does not match its secret target"
+  runtime_secret_targets+=("$target")
+}
+
+validate_runtime_secret "penge-chat-github-client-secret" \
+  "PENGE_CHAT_GITHUB_CLIENT_SECRET_FILE"
+validate_runtime_secret "penge-chat-token-keyring" \
+  "PENGE_CHAT_TOKEN_KEYRING_FILE"
+validate_runtime_secret "penge-chat-identity-pepper" \
+  "PENGE_CHAT_IDENTITY_PEPPER_FILE"
+validate_runtime_secret "penge-chat-proxy-secret" \
+  "PENGE_CHAT_PROXY_SHARED_SECRET_FILE"
+validate_runtime_secret "penge-chat-database-url" \
+  "PENGE_CHAT_DATABASE_URL_FILE"
+validate_runtime_secret "penge-chat-finance-mcp-database-url" \
+  "PENGE_DB_URL_FILE"
+unique_secret_target_count="$(
+  printf '%s\n' "${runtime_secret_targets[@]}" | sort -u | wc -l
+)"
+[[ $unique_secret_target_count -eq ${#runtime_secret_targets[@]} ]] \
+  || fail "every runtime credential must use a distinct mounted file"
+public_api_base="$(
+  sed -n 's/^PENGE_CHAT_PUBLIC_API_BASE=//p' "$contract_env_template"
+)"
+public_app_origin="$(
+  sed -n 's/^PENGE_CHAT_PUBLIC_APP_ORIGIN=//p' "$contract_env_template"
+)"
+[[ $public_app_origin =~ ^https://[A-Za-z0-9.-]+(:[0-9]{1,5})?$ ]] \
+  || fail "public chat app origin must be an external HTTPS origin only"
+[[ $public_api_base == "$public_app_origin/ask/api/" ]] \
+  || fail "public chat API base must preserve the /ask/api/ callback prefix"
 
 guard_name="$(
   sed -n "s/.*current_database() <> '\\([^']*\\)'.*/\\1/p" "$db_template"

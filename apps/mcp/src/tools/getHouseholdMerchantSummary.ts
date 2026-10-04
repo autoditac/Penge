@@ -77,7 +77,7 @@ export interface GetHouseholdMerchantSummaryOptions {
 }
 
 const MERCHANT_SQL = `
-  SELECT m.id::text AS merchant_id, left(m.name, 200) AS name, m.identity_kind,
+  SELECT m.id::text AS merchant_id, m.name, m.identity_kind,
     m.confirmed, m.archived, m.revision, m.rule_version,
     (SELECT count(*)::int FROM household_merchant_alias a WHERE a.merchant_id = m.id)
       AS alias_count,

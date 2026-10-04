@@ -44,6 +44,11 @@ const OutputSchema = z
 
 const RowSchema = RuleSchema.omit({ created_at: true }).extend({
   version: z.coerce.number().int().positive(),
+  // Database text is accepted unbounded: `redactTextBounded` redacts the full
+  // value first and then applies the sole wire bound enforced by RuleSchema.
+  merchant_name: z.string(),
+  category_name: z.string().nullable(),
+  explanation: z.string(),
   created_at: z.union([z.date(), z.string()]),
   total_count: z.coerce.number().int().nonnegative(),
 });
@@ -58,8 +63,8 @@ export interface GetHouseholdRuleSummaryOptions {
 
 const RULE_SQL = `
   SELECT r.id::text AS rule_id, r.merchant_id::text AS merchant_id,
-    left(m.name, 200) AS merchant_name, r.version, r.state,
-    r.category_id::text AS category_id, left(c.name, 200) AS category_name,
+    m.name AS merchant_name, r.version, r.state,
+    r.category_id::text AS category_id, c.name AS category_name,
     r.treatment, r.explanation, r.created_at, count(*) OVER()::int AS total_count
   FROM household_rule AS r
   INNER JOIN household_merchant AS m ON m.id = r.merchant_id

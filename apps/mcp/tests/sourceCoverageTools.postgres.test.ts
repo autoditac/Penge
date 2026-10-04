@@ -149,7 +149,9 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
       await client.close();
       rmSync(dir, { recursive: true, force: true });
     }
-  });
+    // Spawns `tsx src/index.ts`: cold TypeScript transpilation on a shared CI
+    // runner exceeds vitest's 5s default before the stdio handshake completes.
+  }, 60_000);
 
   it("fails closed on missing net-worth FX in actual PostgreSQL aggregation", async () => {
     const rawUrl = process.env.PENGE_TEST_DATABASE_URL;

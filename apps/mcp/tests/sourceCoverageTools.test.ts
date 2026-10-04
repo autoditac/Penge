@@ -708,6 +708,80 @@ describe("source coverage tools", () => {
     expect(merchantSql).toMatch(/r\.version = m\.rule_version/);
   });
 
+  it("redacts identifiers spanning the 200-character bound without SQL truncation", async () => {
+    const sqls: string[] = [];
+    const capture = {
+      async query(sql: string) {
+        sqls.push(sql);
+        return { rows: [] };
+      },
+    };
+    await getHouseholdMerchantSummaryTool({ runner: capture, now: () => NOW }).handler(
+      { include_archived: false, limit: 25, offset: 0 },
+      CTX,
+    );
+    await getHouseholdRuleSummaryTool({ runner: capture, now: () => NOW }).handler(
+      { limit: 25, offset: 0 },
+      CTX,
+    );
+    for (const sql of sqls) {
+      expect(sql).not.toMatch(/left\s*\(/i);
+    }
+
+    // IBAN straddles the former 200-character SQL cutoff: redaction must run
+    // on the full value, so no readable identifier prefix can survive.
+    const prefix = `${"A".repeat(189)} `;
+    const straddling = `${prefix}DE89370400440532013000 tail`;
+    const merchants = await getHouseholdMerchantSummaryTool({
+      runner: fixedRows([
+        {
+          merchant_id: MERCHANT,
+          name: straddling,
+          identity_kind: "stable",
+          confirmed: true,
+          archived: false,
+          revision: 1,
+          rule_version: 1,
+          alias_count: 0,
+          active_rule_count: 0,
+          classified_transaction_count: 0,
+          reference_source: null,
+          reference_key: null,
+          reference_version: null,
+          total_count: 1,
+        },
+      ]),
+      now: () => NOW,
+    }).handler({ include_archived: false, limit: 25, offset: 0 }, CTX);
+    const merchantName = merchants.merchants[0]?.name ?? "";
+    expect(merchantName).toBe(`${prefix}[REDACTED]`);
+    expect(merchantName.length).toBeLessThanOrEqual(200);
+    expect(merchantName).not.toMatch(/DE8937040044/);
+
+    const rules = await getHouseholdRuleSummaryTool({
+      runner: fixedRows([
+        {
+          rule_id: RULE,
+          merchant_id: MERCHANT,
+          merchant_name: straddling,
+          version: 1,
+          state: "active",
+          category_id: CATEGORY,
+          category_name: straddling,
+          treatment: "expense",
+          explanation: "synthetic",
+          created_at: "2026-06-01T00:00:00.000Z",
+          total_count: 1,
+        },
+      ]),
+      now: () => NOW,
+    }).handler({ limit: 25, offset: 0 }, CTX);
+    expect(rules.rules[0]?.merchant_name).toBe(`${prefix}[REDACTED]`);
+    expect(rules.rules[0]?.category_name).toBe(`${prefix}[REDACTED]`);
+    expect(rules.rules[0]?.merchant_name).not.toMatch(/DE8937040044/);
+    expect(rules.rules[0]?.category_name).not.toMatch(/DE8937040044/);
+  });
+
   it("returns local NSI status and bounded search results", async () => {
     const status = getMerchantReferenceStatusTool({
       runner: fixedRows([

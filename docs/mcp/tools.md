@@ -7,7 +7,17 @@ an example call/response.
 The MCP server is **read-only** by construction: every Postgres
 connection is forced to `default_transaction_read_only = on`, and tool
 output schemas are validated before being returned to the host. Tools
-return aggregates only — never raw transactions or account numbers.
+return aggregates or explicitly bounded canonical records by stable ID.
+They never return `transaction.raw`, external account identifiers, IBANs, or
+provider payloads.
+The exact source matrix, new evidence-tool schemas, and downstream chat/UI
+contracts are documented in the
+[MCP source coverage contract](source-coverage.md).
+Tool discovery publishes each Zod-derived output contract as MCP
+`outputSchema`, and successful calls include the validated value in
+`structuredContent`.
+Top-level arrays and scalars are wrapped as `{ "result": ... }` to satisfy the
+MCP object-only structured-output contract.
 
 ## `_meta`
 
@@ -23,11 +33,12 @@ requested date range, valued in the requested currency.
 
 ### Input
 
-| Field          | Type                                   | Notes                                                    |
-| -------------- | -------------------------------------- | -------------------------------------------------------- |
-| `date_range`   | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`. `from` must be on or before `to`.      |
-| `currency`     | `"EUR" \| "DKK"`                       | Both are first-class; pick whichever the consumer needs. |
-| `breakdown_by` | `"none" \| "account" \| "asset_class"` | See semantics below.                                     |
+| Field          | Type                                                | Notes                                                    |
+| -------------- | --------------------------------------------------- | -------------------------------------------------------- |
+| `date_range`   | `{ from: string; to: string }`                      | ISO `YYYY-MM-DD`; ordered; at most 367 inclusive days.   |
+| `currency`     | `"EUR" \| "DKK"`                                    | Both are first-class; pick whichever the consumer needs. |
+| `breakdown_by` | `"none" \| "account" \| "asset_class"`              | See semantics below.                                     |
+| `source`       | `"nordnet" \| "pfa" \| "growney" \| "manual_facts"` | Optional source-aware holdings filter.                   |
 
 ### Output
 
@@ -41,6 +52,11 @@ Array of:
   "value": 123456.78, // numeric, summed across the breakdown
 }
 ```
+
+The optional `source` filter is required when using this tool as
+source-specific holdings evidence.
+Queries are limited to a 367-day window and fail instead of returning a
+partial response if the result would exceed 5,000 rows.
 
 ### Breakdown semantics
 
@@ -90,7 +106,7 @@ Array of:
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `query_cashflow`
@@ -104,7 +120,7 @@ movement valued in the requested currency.
 
 | Field         | Type                                   | Notes                                                                    |
 | ------------- | -------------------------------------- | ------------------------------------------------------------------------ |
-| `date_range`  | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`. `from` must be on or before `to`.                      |
+| `date_range`  | `{ from: string; to: string }`         | ISO `YYYY-MM-DD`; ordered and limited to 367 inclusive days.             |
 | `granularity` | `"day" \| "week" \| "month" \| "year"` | Bucket size. The mart is daily-grain; coarser buckets are summed in SQL. |
 | `currency`    | `"EUR" \| "DKK"` (optional)            | Defaults to `EUR`. Both are first-class throughout Penge.                |
 
@@ -133,6 +149,9 @@ Array of:
   consumer should treat absence as zero, not as an error.
 - Week boundaries follow Postgres `date_trunc('week', ...)`, i.e.
   ISO weeks starting Monday.
+- Responses contain at most 367 periods. The query requests one sentinel
+  row beyond that limit and fails closed rather than returning truncated
+  evidence if the bound is exceeded.
 
 ### Example call
 
@@ -188,7 +207,7 @@ Array of:
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `compute_tax_year`
@@ -301,7 +320,7 @@ currency.
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration. The Python subprocess does not log financial
 data to stderr beyond the canonical `error: …` prefix on failure.
 
@@ -351,17 +370,11 @@ malformed baseline JSON is a hard error (no safe empty default).
 {
   "baseline": {
     "p10": { "2025": 209028.14, "2026": 218463.81 /* ... */ },
-    "p50": {
-      /* ... */
-    },
-    "p90": {
-      /* ... */
-    },
+    "p50": {/* ... */},
+    "p90": {/* ... */},
     "fire_year_distribution": { "2032": 17, "2033": 23 }, // empty when no path met the goal
   },
-  "scenario": {
-    /* same shape */
-  },
+  "scenario": {/* same shape */},
   "deltas": {
     "p50_value_eur": -54321.0, // terminal-year p50 delta (scenario - baseline)
     "fire_year_shift_years": 2, // median-FIRE-year shift, or null if undefined
@@ -404,7 +417,7 @@ median FIRE year is undefined (fewer than 50 % of paths met the goal).
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `search_documents`
@@ -476,9 +489,9 @@ For each entry in `<PENGE_VAULT_ROOT>/.index.json`:
   DK CPR numbers (`\d{6}-?\d{4}`) and long digit runs (`\d{8,}`) —
   typical of account / customer numbers — are replaced with
   `[REDACTED]`.
-- The audit logger additionally redacts the `query` argument (and any
-  other key whose name matches the standard redaction policy in
-  `audit.ts`) before writing the audit record.
+- The audit logger records only top-level argument key names, so the
+  `query` value and all other argument values are absent from the audit
+  record.
 
 ### Example call
 
@@ -499,7 +512,7 @@ For each entry in `<PENGE_VAULT_ROOT>/.index.json`:
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.
 
 ## `answer_planning_question`
@@ -516,20 +529,20 @@ it is not a personal plan and contains no real financial data.
 
 ### Input
 
-| Field       | Type                | Notes                                                                 |
-| ----------- | ------------------- | --------------------------------------------------------------------- |
-| `plan_id`   | `"synthetic_household"` | Optional; defaults to the synthetic household.                     |
-| `questions` | `QuestionId[]`      | Optional; defaults to the three core questions below. Unique, max 5. |
+| Field       | Type                    | Notes                                                                |
+| ----------- | ----------------------- | -------------------------------------------------------------------- |
+| `plan_id`   | `"synthetic_household"` | Optional; defaults to the synthetic household.                       |
+| `questions` | `QuestionId[]`          | Optional; defaults to the three core questions below. Unique, max 5. |
 
 Supported `QuestionId` values:
 
-| Question id | Question |
-| --- | --- |
-| `can_we_retire` | Can this household retire on the planned timeline? |
-| `what_breaks_first` | What breaks first if the plan fails? |
-| `how_do_taxes_affect_plan` | How do taxes affect this plan? |
-| `which_assumptions_matter` | Which assumptions should be reviewed before deciding? |
-| `which_scenarios_should_we_test` | Which scenarios should we test before deciding? |
+| Question id                      | Question                                              |
+| -------------------------------- | ----------------------------------------------------- |
+| `can_we_retire`                  | Can this household retire on the planned timeline?    |
+| `what_breaks_first`              | What breaks first if the plan fails?                  |
+| `how_do_taxes_affect_plan`       | How do taxes affect this plan?                        |
+| `which_assumptions_matter`       | Which assumptions should be reviewed before deciding? |
+| `which_scenarios_should_we_test` | Which scenarios should we test before deciding?       |
 
 ### Output
 
@@ -543,17 +556,27 @@ Supported `QuestionId` values:
       "question_id": "can_we_retire",
       "status": "watch",
       "answer": "The plan is watch for retirement in 2029...",
-      "evidence": [{ "label": "planned_retirement_year", "value": "2029", "source": "RetirementReadinessReport" }],
+      "evidence": [
+        {
+          "label": "planned_retirement_year",
+          "value": "2029",
+          "source": "RetirementReadinessReport",
+        },
+      ],
       "risk_codes": ["de_vorabpauschale_not_in_household_plan"],
       "assumption_keys": ["planned_retirement_year", "annual_spending_plan"],
       "limitation_codes": ["planning_grade_not_filing_advice"],
-      "docs": ["docs/sim/planning-outputs.md"]
-    }
+      "docs": ["docs/sim/planning-outputs.md"],
+    },
   ],
   "risks": [{ "code": "de_vorabpauschale_not_in_household_plan", "severity": "warning" }],
-  "assumptions": [{ "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" }],
-  "limitations": [{ "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] }],
-  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"]
+  "assumptions": [
+    { "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" },
+  ],
+  "limitations": [
+    { "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] },
+  ],
+  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"],
 }
 ```
 
@@ -578,10 +601,10 @@ or rejecting a suggestion happens in the import wizard via
 
 ### Input
 
-| Field               | Type     | Notes                                              |
-| ------------------- | -------- | -------------------------------------------------- |
-| `import_session_id` | `string` | UUID of a **staged** import session.               |
-| `limit`             | `number` | Optional, 1–10000 (default 1000). Max rows read.   |
+| Field               | Type     | Notes                                            |
+| ------------------- | -------- | ------------------------------------------------ |
+| `import_session_id` | `string` | UUID of a **staged** import session.             |
+| `limit`             | `number` | Optional, 1–10000 (default 1000). Max rows read. |
 
 Sessions that are `committed`, `discarded`, or `expired` are rejected
 with an error — suggestions only make sense while a session is still
@@ -595,7 +618,7 @@ reviewable. Excluded rows are skipped.
     "id": "0b6c1a52-…",
     "source": "nordnet_transactions",
     "status": "staged",
-    "rows_considered": 3
+    "rows_considered": 3,
   },
   "suggestions": [
     {
@@ -605,9 +628,9 @@ reviewable. Excluded rows are skipped.
       "field": "category", // "category" | "counterparty" | "asset_class"
       "value": "investment.trade.buy",
       "confidence": 0.9, // 0..1, rule strength
-      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category"
-    }
-  ]
+      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category",
+    },
+  ],
 }
 ```
 
@@ -617,7 +640,7 @@ reviewable. Excluded rows are skipped.
 | -------------- | ------------------------------------------------------------------------------------------------------ | ---------- |
 | `category`     | Canonical transaction kind (`buy`, `dividend`, `internal_transfer`, …) mapped to a fixed category list | 0.9        |
 | `category`     | DA/DE/EN keyword match on the row's free text (gebyr/Gebühr, udbytte/Dividende, rente/Zins, …)         | 0.55–0.6   |
-| `counterparty` | Instrument name normalized (whitespace collapsed, IBAN/CPR/long-digit-run patterns redacted)          | 0.7        |
+| `counterparty` | Instrument name normalized (whitespace collapsed, IBAN/CPR/long-digit-run patterns redacted)           | 0.7        |
 | `counterparty` | Free text normalized the same way                                                                      | 0.5        |
 | `asset_class`  | `balance` rows → `cash`; `scheme` rows → `pension`                                                     | 0.95       |
 | `asset_class`  | Instrument-name keywords (bond/Anleihe/obligation, ETF/UCITS/MSCI, Geldmarkt, gold/Rohstoff)           | 0.65–0.7   |
@@ -653,13 +676,13 @@ date. Provider details and transaction-level records are never returned.
 
 ### Input
 
-| Field         | Type                               | Notes |
-| ------------- | ---------------------------------- | ----- |
-| `date_range`  | `{ from: string; to: string }`     | Inclusive ISO dates. |
-| `granularity` | `"day" \| "month" \| "year"`       | Trend bucket size. |
-| `account_ids` | `string[]` (optional)              | UUIDs of checking accounts only; omitted means all default-scope checking accounts. |
-| `entity_ids`  | `string[]` (optional)              | Household entity UUID filters; omitted means all entities. |
-| `category_id` | `string` UUID (optional)            | Includes the selected category and descendants. |
+| Field         | Type                           | Notes                                                                               |
+| ------------- | ------------------------------ | ----------------------------------------------------------------------------------- |
+| `date_range`  | `{ from: string; to: string }` | Inclusive ISO dates.                                                                |
+| `granularity` | `"day" \| "month" \| "year"`   | Trend bucket size.                                                                  |
+| `account_ids` | `string[]` (optional)          | UUIDs of checking accounts only; omitted means all default-scope checking accounts. |
+| `entity_ids`  | `string[]` (optional)          | Household entity UUID filters; omitted means all entities.                          |
+| `category_id` | `string` UUID (optional)       | Includes the selected category and descendants.                                     |
 
 The previous window is the immediately preceding window with the same
 inclusive number of days as `date_range`. The result includes current and
@@ -700,5 +723,5 @@ other source-level rows.
 ### Audit
 
 Every call is recorded by the MCP audit logger
-(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, redacted arguments,
+(`logs/mcp/audit-YYYY-MM-DD.jsonl`) with tool name, argument key names (never values),
 status, and duration.

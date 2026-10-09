@@ -53,6 +53,16 @@ describe("query_net_worth — schema validation", () => {
     ).toThrow();
   });
 
+  it("rejects date ranges wider than 367 days", () => {
+    const tool = queryNetWorthTool({ runner: makeRunner([]) });
+    expect(() =>
+      tool.inputSchema.parse({
+        ...baseArgs,
+        date_range: { from: "2024-01-01", to: "2025-01-02" },
+      }),
+    ).toThrow(/367 days/);
+  });
+
   it("rejects calendar-impossible dates that match the YYYY-MM-DD shape", () => {
     const tool = queryNetWorthTool({ runner: makeRunner([]) });
     expect(() =>
@@ -87,7 +97,7 @@ describe("query_net_worth — SQL shape", () => {
     expect(runner.calls).toHaveLength(1);
     expect(runner.calls[0]!.sql).toMatch(/balance_eur/);
     expect(runner.calls[0]!.sql).not.toMatch(/balance_dkk/);
-    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31"]);
+    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31", null]);
   });
 
   it("uses balance_dkk for DKK", async () => {
@@ -103,7 +113,22 @@ describe("query_net_worth — SQL shape", () => {
     const tool = queryNetWorthTool({ runner });
     await tool.handler({ ...baseArgs, breakdown_by: "account" }, ctx);
     expect(runner.calls[0]!.sql).toMatch(/GROUP BY m\.as_of, m\.account_id/);
-    expect(runner.calls[0]!.sql).not.toMatch(/JOIN/);
+    expect(runner.calls[0]!.sql).toMatch(/a\.provider/);
+  });
+
+  it("applies the optional source filter without interpolating it", async () => {
+    const runner = makeRunner([]);
+    const tool = queryNetWorthTool({ runner });
+    await tool.handler({ ...baseArgs, source: "pfa" }, ctx);
+    expect(runner.calls[0]!.sql).toMatch(/\$3::text/);
+    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31", "pfa"]);
+  });
+
+  it("maps the public manual_facts source ID to the stored manual provider", async () => {
+    const runner = makeRunner([]);
+    const tool = queryNetWorthTool({ runner });
+    await tool.handler({ ...baseArgs, source: "manual_facts" }, ctx);
+    expect(runner.calls[0]!.params[2]).toBe("manual");
   });
 
   it("joins account.kind for breakdown_by=asset_class", async () => {
@@ -141,8 +166,13 @@ describe("query_net_worth — SQL shape", () => {
 describe("query_net_worth — output shape", () => {
   it("aggregates rows into the wire schema with no breakdown_key when breakdown_by=none", async () => {
     const runner = makeRunner([
-      { date: "2024-01-01", breakdown_key: null, value: "1000.50" },
-      { date: new Date("2024-01-02T00:00:00Z"), breakdown_key: null, value: 2000.25 },
+      { date: "2024-01-01", breakdown_key: null, value: "1000.50", missing_value_count: 0 },
+      {
+        date: new Date("2024-01-02T00:00:00Z"),
+        breakdown_key: null,
+        value: 2000.25,
+        missing_value_count: 0,
+      },
     ]);
     const tool = queryNetWorthTool({ runner });
     const result = await tool.handler(baseArgs, ctx);
@@ -155,8 +185,8 @@ describe("query_net_worth — output shape", () => {
 
   it("includes breakdown_key when breakdown_by != none", async () => {
     const runner = makeRunner([
-      { date: "2024-01-01", breakdown_key: "bank", value: 500 },
-      { date: "2024-01-01", breakdown_key: "brokerage", value: 1500 },
+      { date: "2024-01-01", breakdown_key: "bank", value: 500, missing_value_count: 0 },
+      { date: "2024-01-01", breakdown_key: "brokerage", value: 1500, missing_value_count: 0 },
     ]);
     const tool = queryNetWorthTool({ runner });
     const result = await tool.handler({ ...baseArgs, breakdown_by: "asset_class" }, ctx);
@@ -167,11 +197,24 @@ describe("query_net_worth — output shape", () => {
     ]);
   });
 
-  it("treats null aggregated value as 0", async () => {
-    const runner = makeRunner([{ date: "2024-01-01", breakdown_key: null, value: null }]);
+  it("fails closed when selected rows have missing valuation FX", async () => {
+    const runner = makeRunner([
+      { date: "2024-01-01", breakdown_key: null, value: 100, missing_value_count: 1 },
+    ]);
     const tool = queryNetWorthTool({ runner });
-    const [row] = await tool.handler(baseArgs, ctx);
-    expect(row?.value).toBe(0);
+    await expect(tool.handler(baseArgs, ctx)).rejects.toThrow(
+      /cannot value every selected row in EUR/,
+    );
+  });
+
+  it("fails closed when the aggregate is null", async () => {
+    const runner = makeRunner([
+      { date: "2024-01-01", breakdown_key: null, value: null, missing_value_count: 1 },
+    ]);
+    const tool = queryNetWorthTool({ runner });
+    await expect(tool.handler(baseArgs, ctx)).rejects.toThrow(
+      /cannot value every selected row in EUR/,
+    );
   });
 
   it("never leaks raw transaction-shaped fields", async () => {
@@ -180,6 +223,7 @@ describe("query_net_worth — output shape", () => {
         date: "2024-01-01",
         breakdown_key: "acct-uuid-1",
         value: 100,
+        missing_value_count: 0,
         // simulate a careless query that returned extra columns; the
         // wire schema must drop them
         account_iban: "DE89...",

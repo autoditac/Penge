@@ -27,6 +27,7 @@
 
 import { z } from "zod/v3";
 
+import { ToolDataError } from "../errors.js";
 import type { ToolDefinition } from "../registry.js";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -61,9 +62,17 @@ const InputSchema = z
       .refine((r) => r.from <= r.to, {
         message: "date_range.from must be on or before date_range.to",
         path: ["from"],
-      }),
+      })
+      .refine(
+        (range) =>
+          (Date.parse(`${range.to}T00:00:00Z`) - Date.parse(`${range.from}T00:00:00Z`)) /
+            86_400_000 <=
+          366,
+        { message: "date_range must contain at most 367 days" },
+      ),
     currency: z.enum(["EUR", "DKK"]),
     breakdown_by: z.enum(["asset_class", "account", "none"]),
+    source: z.enum(["nordnet", "pfa", "growney", "manual_facts"]).optional(),
   })
   .strict();
 
@@ -78,7 +87,7 @@ const OutputRowSchema = z
   })
   .strict();
 
-const OutputSchema = z.array(OutputRowSchema);
+const OutputSchema = z.array(OutputRowSchema).max(5000);
 
 export type QueryNetWorthOutput = z.infer<typeof OutputSchema>;
 
@@ -124,6 +133,7 @@ interface MartRow extends Record<string, unknown> {
   date: Date | string;
   breakdown_key: string | null;
   value: string | number | null;
+  missing_value_count: string | number;
 }
 
 function formatDate(value: Date | string): string {
@@ -146,11 +156,15 @@ function buildSql(
       SELECT
         m.as_of AS date,
         NULL::text AS breakdown_key,
-        SUM(${valueCol})::float8 AS value
+        SUM(${valueCol})::float8 AS value,
+        COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
       FROM ${martTable} AS m
+      INNER JOIN ${accountTable} AS a ON a.id = m.account_id
       WHERE m.as_of >= $1::date AND m.as_of <= $2::date
+        AND ($3::text IS NULL OR a.provider = $3)
       GROUP BY m.as_of
       ORDER BY m.as_of ASC
+      LIMIT 5001
     `;
   }
 
@@ -159,11 +173,15 @@ function buildSql(
       SELECT
         m.as_of AS date,
         m.account_id::text AS breakdown_key,
-        SUM(${valueCol})::float8 AS value
+        SUM(${valueCol})::float8 AS value,
+        COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
       FROM ${martTable} AS m
+      INNER JOIN ${accountTable} AS a ON a.id = m.account_id
       WHERE m.as_of >= $1::date AND m.as_of <= $2::date
+        AND ($3::text IS NULL OR a.provider = $3)
       GROUP BY m.as_of, m.account_id
       ORDER BY m.as_of ASC, m.account_id ASC
+      LIMIT 5001
     `;
   }
 
@@ -172,12 +190,15 @@ function buildSql(
     SELECT
       m.as_of AS date,
       a.kind AS breakdown_key,
-      SUM(${valueCol})::float8 AS value
+      SUM(${valueCol})::float8 AS value,
+      COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
     FROM ${martTable} AS m
     INNER JOIN ${accountTable} AS a ON a.id = m.account_id
     WHERE m.as_of >= $1::date AND m.as_of <= $2::date
+      AND ($3::text IS NULL OR a.provider = $3)
     GROUP BY m.as_of, a.kind
     ORDER BY m.as_of ASC, a.kind ASC
+    LIMIT 5001
   `;
 }
 
@@ -193,11 +214,12 @@ export function queryNetWorthTool(
     name: "query_net_worth",
     description:
       "Aggregated daily net worth from `mart_net_worth_daily`. Returns one " +
-      "row per date (and optional breakdown key) within `date_range`, valued " +
+      "row per date (and optional breakdown key) within a maximum 367-day `date_range`, valued " +
       "in `currency`. `breakdown_by` controls grouping: `none` sums across the " +
       "household, `account` groups by account UUID, `asset_class` groups by " +
-      "`account.kind` (bank / brokerage / pension / cash). Aggregates only — " +
-      "never returns transactions or account numbers.",
+      "`account.kind` (bank / brokerage / pension / cash). `source` optionally " +
+      "restricts results to one holdings provider. Results fail closed above 5,000 rows. " +
+      "Aggregates only — never returns transactions or account numbers.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {
@@ -205,11 +227,20 @@ export function queryNetWorthTool(
       const result = await opts.runner.query<MartRow>(sql, [
         args.date_range.from,
         args.date_range.to,
+        args.source === "manual_facts" ? "manual" : (args.source ?? null),
       ]);
+      if (result.rows.length > 5000) {
+        throw new ToolDataError("net worth query exceeds the 5000-row output bound");
+      }
 
       return result.rows.map((row) => {
+        if (Number(row.missing_value_count) > 0 || row.value === null) {
+          throw new ToolDataError(
+            `net worth query cannot value every selected row in ${args.currency}`,
+          );
+        }
         const date = formatDate(row.date);
-        const value = typeof row.value === "string" ? Number(row.value) : (row.value ?? 0);
+        const value = typeof row.value === "string" ? Number(row.value) : row.value;
         const base = {
           date,
           currency: args.currency,

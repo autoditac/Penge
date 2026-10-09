@@ -36,3 +36,13 @@ export function redactText(text: string): string {
   }
   return out;
 }
+
+export function redactTextBounded(text: string, maxLength: number): string {
+  if (!Number.isInteger(maxLength) || maxLength < 1) {
+    throw new RangeError("maxLength must be a positive integer");
+  }
+  const redacted = redactText(text);
+  if (redacted.length <= maxLength) return redacted;
+  const truncated = redacted.slice(0, maxLength);
+  return /[\uD800-\uDBFF]$/.test(truncated) ? truncated.slice(0, -1) : truncated;
+}

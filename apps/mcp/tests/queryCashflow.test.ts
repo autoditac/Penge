@@ -56,6 +56,24 @@ describe("query_cashflow — schema validation", () => {
     ).toThrow();
   });
 
+  it("accepts at most 367 inclusive days and rejects a larger range", () => {
+    const tool = queryCashflowTool({ runner: makeRunner([]) });
+    expect(() =>
+      tool.inputSchema.parse({
+        ...baseArgs,
+        date_range: { from: "2024-01-01", to: "2025-01-01" },
+        granularity: "day",
+      }),
+    ).not.toThrow();
+    expect(() =>
+      tool.inputSchema.parse({
+        ...baseArgs,
+        date_range: { from: "2024-01-01", to: "2025-01-02" },
+        granularity: "day",
+      }),
+    ).toThrow(/367 inclusive days/);
+  });
+
   it("rejects calendar-impossible dates that match the YYYY-MM-DD shape", () => {
     const tool = queryCashflowTool({ runner: makeRunner([]) });
     expect(() =>
@@ -93,7 +111,7 @@ describe("query_cashflow — SQL shape", () => {
     expect(sql).toMatch(/m\.outflow_eur/);
     expect(sql).toMatch(/m\.net_eur/);
     expect(sql).not.toMatch(/inflow_dkk|outflow_dkk|net_dkk/);
-    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31", "month"]);
+    expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31", "month", 368]);
   });
 
   it("uses *_dkk columns when currency=DKK", async () => {
@@ -128,6 +146,14 @@ describe("query_cashflow — SQL shape", () => {
     const sql = runner.calls[0]!.sql;
     expect(sql).toMatch(/GREATEST\(bucket_start, \$1::date\)/);
     expect(sql).toMatch(/LEAST\(bucket_end, \$2::date\)/);
+  });
+
+  it("queries one overflow sentinel row beyond the fixed result bound", async () => {
+    const runner = makeRunner([]);
+    const tool = queryCashflowTool({ runner });
+    await tool.handler(baseArgs, ctx);
+    expect(runner.calls[0]!.sql).toMatch(/LIMIT \$4/);
+    expect(runner.calls[0]!.params[3]).toBe(368);
   });
 
   it("respects martTable override and uses it verbatim", async () => {
@@ -236,6 +262,22 @@ describe("query_cashflow — output shape & rollup correctness", () => {
     const validated = tool.outputSchema.parse(result);
     expect(Object.keys(validated[0]!).sort()).toEqual(
       ["period_start", "period_end", "currency", "inflow", "outflow", "net"].sort(),
+    );
+  });
+
+  it("fails closed when PostgreSQL returns more than 367 periods", async () => {
+    const runner = makeRunner(
+      Array.from({ length: 368 }, (_, index) => ({
+        period_start: `2024-01-${String((index % 28) + 1).padStart(2, "0")}`,
+        period_end: `2024-01-${String((index % 28) + 1).padStart(2, "0")}`,
+        inflow: 1,
+        outflow: 0,
+        net: 1,
+      })),
+    );
+    const tool = queryCashflowTool({ runner });
+    await expect(tool.handler(baseArgs, ctx)).rejects.toThrow(
+      /exceeded the maximum of 367 result rows/,
     );
   });
 

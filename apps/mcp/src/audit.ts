@@ -1,78 +1,112 @@
-import { mkdirSync, createWriteStream, type WriteStream } from "node:fs";
-import { dirname, join } from "node:path";
+import {
+  chmodSync,
+  closeSync,
+  constants,
+  fchmodSync,
+  fstatSync,
+  mkdirSync,
+  openSync,
+  statSync,
+  writeSync,
+} from "node:fs";
+import { join } from "node:path";
 
-const REDACT_KEY = /(account|iban|cpr|tax[_-]?id|name|email|query)/i;
-const REDACTED = "[REDACTED]";
+const SAFE_ARGUMENT_KEY = /^[A-Za-z0-9_.-]{1,64}$/;
+const MAX_ARGUMENT_KEYS = 32;
 
 export interface AuditRecord {
   ts: string;
   tool: string;
-  args: unknown;
+  argumentKeys: string[];
+  actorId?: string;
+  sessionId?: string;
   status: "ok" | "error";
   durationMs: number;
   error?: string;
 }
 
-/**
- * Recursively walk an unknown value and replace every value whose key matches
- * REDACT_KEY with "[REDACTED]". Arrays are walked element-wise. Primitive
- * values at the root return unchanged — redaction only applies inside objects
- * because we key off field names.
- */
-export function redactArgs(input: unknown): unknown {
-  if (Array.isArray(input)) {
-    return input.map((item) => redactArgs(item));
+export function auditArgumentKeys(input: unknown): string[] {
+  if (input === null || typeof input !== "object") return [];
+  const keys: string[] = [];
+  for (const key of Object.keys(input)) {
+    if (SAFE_ARGUMENT_KEY.test(key)) keys.push(key);
+    if (keys.length === MAX_ARGUMENT_KEYS) break;
   }
-  if (input !== null && typeof input === "object") {
-    const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-      if (REDACT_KEY.test(key)) {
-        out[key] = REDACTED;
-      } else {
-        out[key] = redactArgs(value);
-      }
-    }
-    return out;
-  }
-  return input;
+  return keys.sort();
 }
 
 export interface AuditLogger {
-  record(entry: Omit<AuditRecord, "ts">): void;
+  record(
+    entry: Omit<AuditRecord, "ts" | "argumentKeys"> & {
+      args: unknown;
+    },
+  ): void;
   close(): Promise<void>;
 }
 
 export interface AuditLoggerOptions {
   logDir: string;
-  /** Override stderr stream (test injection). */
+  /** Explicit opt-in mirror for operators that have reviewed the sink. */
   stderr?: NodeJS.WritableStream;
   /** Override the date used for the file name (test determinism). */
   now?: () => Date;
+  /** Opaque per-person identifier. Must not contain a name or email address. */
+  actorId?: string;
+  /** Opaque bounded-lifetime chat session identifier. */
+  sessionId?: string;
 }
 
 export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
   const now = opts.now ?? (() => new Date());
-  const stderr: NodeJS.WritableStream = opts.stderr ?? process.stderr;
   const datePart = now().toISOString().slice(0, 10);
   const filePath = join(opts.logDir, `audit-${datePart}.jsonl`);
-  mkdirSync(dirname(filePath), { recursive: true });
-  const file: WriteStream = createWriteStream(filePath, { flags: "a" });
+  mkdirSync(opts.logDir, { recursive: true, mode: 0o700 });
+  chmodSync(opts.logDir, 0o700);
+  if ((statSync(opts.logDir).mode & 0o077) !== 0) {
+    throw new Error("MCP audit directory permissions must be 0700");
+  }
+  const file = openSync(
+    filePath,
+    constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | constants.O_NOFOLLOW,
+    0o600,
+  );
+  try {
+    if (!fstatSync(file).isFile()) {
+      throw new Error("MCP audit path must be a regular file");
+    }
+    fchmodSync(file, 0o600);
+    const fileStat = fstatSync(file);
+    if ((fileStat.mode & 0o077) !== 0) {
+      throw new Error("MCP audit file permissions must be 0600");
+    }
+  } catch (error) {
+    closeSync(file);
+    throw error;
+  }
+  let closed = false;
 
   return {
     record(entry) {
+      if (closed) throw new Error("MCP audit logger is closed");
       const record: AuditRecord = {
         ts: now().toISOString(),
-        ...entry,
-        args: redactArgs(entry.args),
+        ...(opts.actorId === undefined ? {} : { actorId: opts.actorId }),
+        ...(opts.sessionId === undefined ? {} : { sessionId: opts.sessionId }),
+        tool: entry.tool,
+        argumentKeys: auditArgumentKeys(entry.args),
+        status: entry.status,
+        durationMs: entry.durationMs,
+        ...(entry.error === undefined ? {} : { error: entry.error }),
       };
       const line = `${JSON.stringify(record)}\n`;
-      file.write(line);
-      stderr.write(line);
+      writeSync(file, line);
+      opts.stderr?.write(line);
     },
     async close() {
-      await new Promise<void>((resolve) => {
-        file.end(() => resolve());
-      });
+      if (!closed) {
+        closeSync(file);
+        closed = true;
+      }
     },
   };
 }

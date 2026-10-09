@@ -1,0 +1,37 @@
+# Non-loadable nginx route template.
+#
+# Keep this separate from penge.eigmueller.de.conf until #346 and #349 prove
+# immutable-subject extraction and the mounted proxy-secret include mechanism.
+# The web SPA owns /ask; only /ask/api/ reaches the chat backend.
+
+location ^~ /ask/api/ {
+    auth_request /oauth2/auth;
+    error_page 401 = /oauth2/sign_in;
+
+    # The trailing slash strips /ask/api/ so OAuth and /v1 routes reach backend root.
+    proxy_pass http://127.0.0.1:8123/;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-User "";
+    proxy_set_header X-Forwarded-Email "";
+    proxy_set_header X-Forwarded-Client-Id "";
+    proxy_set_header X-Login "";
+    proxy_set_header X-User "";
+    proxy_set_header x-penge-auth-issuer @@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@;
+    proxy_set_header x-penge-auth-subject @@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@;
+    proxy_set_header x-penge-proxy-secret @@MOUNTED_PROXY_SECRET_NGINX_VALUE@@;
+
+    proxy_buffering @@STREAMING_RESPONSE_BUFFERING@@;
+    proxy_request_buffering @@STREAMING_REQUEST_BUFFERING@@;
+    proxy_read_timeout @@STREAMING_READ_TIMEOUT@@;
+    proxy_send_timeout @@STREAMING_SEND_TIMEOUT@@;
+
+    add_header Cache-Control "no-store" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; connect-src 'self'; frame-ancestors 'none'; form-action 'self'; img-src 'self' data:; object-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'" always;
+    add_header Referrer-Policy "no-referrer" always;
+    add_header X-Content-Type-Options "nosniff" always;
+}

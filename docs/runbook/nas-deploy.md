@@ -15,10 +15,15 @@ Every merge to `main` publishes `ghcr.io/autoditac/penge/{api,web}:main` and
 The NAS quadlets at `/etc/containers/systemd/penge-{api,web}.container`
 (tracked in this repo under `deploy/nas/`) reference the moving `:main` tags
 and carry `AutoUpdate=registry`.
+The private Ask Penge chat has a separate, fail-closed rootless deployment
+seam at `deploy/nas/penge-chat.container.in`.
+It is not deployable until the contracts and acceptance gates in the
+[private Ask chat runbook](private-ask-chat.md) are resolved.
 The host nginx configuration, tracked at
 `deploy/nas/penge.eigmueller.de.conf`, keeps TLS and OAuth on the host,
-proxies API routes to the API container on `127.0.0.1:8001`, and proxies the
-SPA to the WebUI container on `127.0.0.1:8082`.
+proxies API routes to the API container on `127.0.0.1:8001`, proxies the
+SPA to the WebUI container on `127.0.0.1:8082`, and explicitly denies the
+unresolved `/ask` surface.
 The WebUI image is built with `VITE_PENGE_API_URL=https://penge.eigmueller.de`,
 so its browser requests return through the same host and OAuth gate.
 

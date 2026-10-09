@@ -79,9 +79,7 @@ def test_teardown_never_prunes_beyond_its_own_job() -> None:
 def test_ci_images_are_run_scoped_and_removed() -> None:
     """A shared `:ci` tag leaks the superseded image on every run."""
     ci = (ROOT / ".github/workflows/ci.yml").read_text()
-    tag = (
-        "CI_IMAGE_TAG: penge/${{ matrix.app }}:ci-" "${{ github.run_id }}-${{ github.run_attempt }}"
-    )
+    tag = "CI_IMAGE_TAG: penge/${{ matrix.app }}:ci-${{ github.run_id }}-${{ github.run_attempt }}"
 
     assert ci.count(tag) == 1
     assert "tags: penge/${{ matrix.app }}:ci\n" not in ci
@@ -227,3 +225,11 @@ def test_web_image_targets_the_production_api_origin() -> None:
 
     assert "ARG VITE_PENGE_API_URL=https://penge.eigmueller.de" in containerfile
     assert "ENV VITE_PENGE_API_URL=${VITE_PENGE_API_URL}" in containerfile
+
+
+def test_private_ask_route_remains_closed_until_contracts_are_resolved() -> None:
+    nginx = (ROOT / "deploy/nas/penge.eigmueller.de.conf").read_text()
+
+    assert "location = /ask" in nginx
+    assert "location ^~ /ask/" in nginx
+    assert "proxy_pass http://127.0.0.1:8123;" not in nginx

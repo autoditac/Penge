@@ -1,0 +1,57 @@
+name: private Ask chat deployment
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/private-ask-chat-deployment.yml"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
+      - "apps/chat/**"
+      - "apps/mcp/**"
+      - "deploy/nas/**"
+      - "docs/decisions/0054-private-ask-chat-deployment.md"
+      - "docs/runbook/private-ask-chat.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tests/deploy/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/private-ask-chat-deployment.yml"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/release.yml"
+      - "apps/chat/**"
+      - "apps/mcp/**"
+      - "deploy/nas/**"
+      - "docs/decisions/0054-private-ask-chat-deployment.md"
+      - "docs/runbook/private-ask-chat.md"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tests/deploy/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: private-ask-chat-deployment-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deployment-contract:
+    name: Fail-closed deployment contract
+    runs-on: [self-hosted, linux, x64, penge]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.7.3"
+      - name: Test deployment contracts
+        run: |
+          uv run --group dev pytest \
+            tests/deploy/test_private_ask_chat_deploy.py \
+            tests/deploy/test_nas_deploy.py -q
+      - name: Require fail-closed seam
+        run: ./deploy/nas/validate-private-ask-chat.sh --seam

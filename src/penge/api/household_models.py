@@ -5,9 +5,9 @@ from __future__ import annotations
 from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, PlainSerializer, WithJsonSchema
 
 from penge.analytics.household import PaymentEventKind, ReconciliationStatus
 
@@ -31,6 +31,17 @@ class HouseholdTreatment(StrEnum):
     UNCLASSIFIED = "unclassified"
 
 
+WireDecimal = Annotated[
+    Decimal,
+    PlainSerializer(lambda value: format(value, "f"), return_type=str, when_used="json"),
+    WithJsonSchema(
+        {"type": "string", "pattern": r"^(?!^[-+.]*$)[+-]?0*\d*\.?\d*$"},
+        mode="serialization",
+    ),
+]
+"""Decimal serialised in fixed-point notation (never ``0E-12``) for the WebUI contract."""
+
+
 class _FrozenModel(BaseModel):
     """Immutable response model that rejects undeclared fields."""
 
@@ -51,8 +62,8 @@ class HouseholdReportFilters(_FrozenModel):
 class HouseholdCurrencyAmount(_FrozenModel):
     """Known subtotal and conversion completeness for one currency."""
 
-    amount: Decimal | None
-    known_subtotal: Decimal
+    amount: WireDecimal | None
+    known_subtotal: WireDecimal
     complete: bool
     missing_count: int
 
@@ -176,7 +187,7 @@ class HouseholdReportAllocation(_FrozenModel):
     category_name: str | None
     category_path: list[str]
     treatment: HouseholdTreatment
-    amount_native: Decimal
+    amount_native: WireDecimal
     currency: str
     amount_reporting: HouseholdCurrencyPair
 
@@ -189,13 +200,13 @@ class HouseholdPaymentDetailLink(_FrozenModel):
     reference: str | None
     merchant_name: str | None
     event_kind: PaymentEventKind
-    source_amount: Decimal
+    source_amount: WireDecimal
     source_currency: str
     source_date: date | None
     merchant_category_code: str | None
     bank_code: str | None
     bank_sub_code: str | None
-    bank_amount: Decimal
+    bank_amount: WireDecimal
     bank_currency: str
     approved_detail_revision: int
     current_detail_revision: int
@@ -213,10 +224,10 @@ class HouseholdReportTransaction(_FrozenModel):
     counterparty: str | None
     merchant_name: str | None
     treatment: HouseholdTreatment
-    signed_amount_native: Decimal
+    signed_amount_native: WireDecimal
     currency: str
     amount_reporting: HouseholdCurrencyPair
-    matching_split_amount_native: Decimal
+    matching_split_amount_native: WireDecimal
     matching_split_amount_reporting: HouseholdCurrencyPair
     allocations: list[HouseholdReportAllocation]
     payment_details: list[HouseholdPaymentDetailLink]

@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from penge.api import data
+from penge.api.household_models import HouseholdCurrencyAmount
 
 if TYPE_CHECKING:
     import pytest
@@ -385,3 +386,18 @@ def test_category_filtered_transaction_keeps_full_bank_amount_separate_from_spli
     assert item["matching_split_amount_native"] == "-60.00"
     assert item["matching_split_amount_reporting"]["eur"]["amount"] == "-60.00"
     assert len(item["allocations"]) == 2
+
+
+def test_currency_amounts_serialise_zero_with_scale_in_fixed_point() -> None:
+    scaled_zero = Decimal("1.000000000000") - Decimal("1.000000000000")
+    assert str(scaled_zero) == "0E-12"
+
+    payload = HouseholdCurrencyAmount(
+        amount=scaled_zero,
+        known_subtotal=scaled_zero,
+        complete=True,
+        missing_count=0,
+    ).model_dump(mode="json")
+
+    assert payload["amount"] == "0.000000000000"
+    assert payload["known_subtotal"] == "0.000000000000"

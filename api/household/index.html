@@ -3779,6 +3779,7 @@ Existing raw cashflow, investment, tax and net-worth behavior is untouched.</p>
 <h2 id="corrections-and-learning">Corrections and learning<a class="headerlink" href="#corrections-and-learning" title="Permanent link">&para;</a></h2>
 <p><code>ClassificationWrite</code> contains <code>expected_revision</code> (zero if absent), treatment, optional merchant, <code>identity_confirmed</code>, allocations, reconciliation links, detail links and an explanation.
 Treatments are <code>expense</code>, <code>income</code>, <code>refund</code>, <code>transfer</code>, <code>excluded</code> and <code>unclassified</code>.
+Unclassified bank movements remain review items with no category allocation, while their signed polarity still keeps headline cashflow truthful: positive credits contribute to income and negative debits contribute to gross expenses. This signed-polarity fallback is shared by the API, the household reporting mart (<code>reporting_treatment</code>), and the MCP <code>query_household_report</code> tool; it never changes the stored unclassified treatment or creates learning evidence.
 Expense/refund categories are expense nodes; income categories are income nodes.
 Each category occurs once per allocation set; positive and negative splits cannot cancel into a misleading total.
 Transfers/exclusions/unclassified have no financial category allocations.

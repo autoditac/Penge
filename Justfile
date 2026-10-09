@@ -272,6 +272,15 @@ api-lint:
 api-openapi:
     uv run --group api --group db --group http python -m penge.api.openapi
 
+# Synthetic household correction/learning and API contract tests.
+household-test:
+    uv run --group dev --group api --group db --group http --group enablebanking pytest tests/household -q
+
+# Household persistence, correction API and bank-sync hook quality gates.
+household-lint:
+    uv run --group dev ruff check src/penge/household src/penge/api/household.py tests/household
+    uv run --group dev --group api --group db --group http --group enablebanking mypy src/penge/household src/penge/api/household.py tests/household
+
 # Build the read-API container image locally.
 api-image:
     docker build -f apps/api/Containerfile -t penge/api:dev .

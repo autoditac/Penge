@@ -70,6 +70,7 @@ nav:
   - Web:
       - "Modern WebUI": web/modern-webui.md
       - "Read API": api/index.md
+      - "Household categorization API": api/household.md
   - MCP:
       - "Tool reference": mcp/tools.md
   - Simulation:
@@ -141,6 +142,7 @@ nav:
       - "ADR-0045 MUI Core WebUI design system": decisions/0045-mui-core-webui-design-system.md
       - "ADR-0046 Scheduled Enable Banking net-worth refresh": decisions/0046-scheduled-enable-banking-net-worth-refresh.md
       - "ADR template": decisions/adr-template.md
+      - "ADR-0050 Audited household categorization": decisions/0050-audited-household-categorization.md
   - Privacy: privacy.md
   - Terms: terms.md
 

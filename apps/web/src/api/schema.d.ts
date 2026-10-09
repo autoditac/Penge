@@ -227,6 +227,324 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/household/aliases": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Aliases */
+    get: operations["aliases_household_aliases_get"];
+    put?: never;
+    /** Create Alias */
+    post: operations["create_alias_household_aliases_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/aliases/{key}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update Alias */
+    patch: operations["update_alias_household_aliases__key__patch"];
+    trace?: never;
+  };
+  "/household/audit": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** History */
+    get: operations["history_household_audit_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/categories": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Categories
+     * @description Flat, stable-ID tree including archived categories for historical display.
+     */
+    get: operations["categories_household_categories_get"];
+    put?: never;
+    /** Create Category */
+    post: operations["create_category_household_categories_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/categories/{key}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update Category */
+    patch: operations["update_category_household_categories__key__patch"];
+    trace?: never;
+  };
+  "/household/merchants": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Merchants */
+    get: operations["merchants_household_merchants_get"];
+    put?: never;
+    /** Create Merchant */
+    post: operations["create_merchant_household_merchants_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/merchants/{key}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update Merchant */
+    patch: operations["update_merchant_household_merchants__key__patch"];
+    trace?: never;
+  };
+  "/household/payment-details": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Payment Details */
+    get: operations["payment_details_household_payment_details_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/previews/{key}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Preview */
+    get: operations["get_preview_household_previews__key__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/previews/{key}/apply": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Apply Preview */
+    post: operations["apply_preview_household_previews__key__apply_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/rules": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Rules */
+    get: operations["rules_household_rules_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/rules/{key}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Control Rule */
+    patch: operations["control_rule_household_rules__key__patch"];
+    trace?: never;
+  };
+  "/household/rules/{key}/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Preview Rule
+     * @description Scan a bounded chronological source page and persist eligible changes.
+     */
+    post: operations["preview_rule_household_rules__key__preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/transactions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Transactions
+     * @description Bounded browsing/filtering; raw JSON, account identifiers and source secrets omitted.
+     */
+    get: operations["transactions_household_transactions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/transactions/{key}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get Transaction */
+    get: operations["get_transaction_household_transactions__key__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/transactions/{key}/classification": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Correct Transaction */
+    patch: operations["correct_transaction_household_transactions__key__classification_patch"];
+    trace?: never;
+  };
+  "/household/transactions/{key}/suggestion": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Suggestion */
+    get: operations["suggestion_household_transactions__key__suggestion_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/transactions/{key}/undo": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Undo Transaction */
+    post: operations["undo_transaction_household_transactions__key__undo_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/imports": {
     parameters: {
       query?: never;
@@ -546,6 +864,46 @@ export interface components {
       /** Reporting Kind */
       reporting_kind: string;
     };
+    /** AliasOut */
+    AliasOut: {
+      /** Confirmed */
+      confirmed: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Merchant Id
+       * Format: uuid
+       */
+      merchant_id: string;
+      /** Normalized */
+      normalized: string;
+      /** Provider */
+      provider: string;
+      /** Revision */
+      revision: number;
+    };
+    /** AliasWrite */
+    AliasWrite: {
+      /**
+       * Confirmed
+       * @default false
+       */
+      confirmed: boolean;
+      /** Expected Revision */
+      expected_revision: number;
+      /** Label */
+      label: string;
+      /**
+       * Merchant Id
+       * Format: uuid
+       */
+      merchant_id: string;
+      /** Provider */
+      provider: string;
+    };
     /**
      * AllocationDimension
      * @description Grouping dimension for the current-allocation endpoint.
@@ -580,6 +938,14 @@ export interface components {
       /** Weight Eur */
       weight_eur: string | null;
     };
+    /** ApplyPreview */
+    ApplyPreview: {
+      /**
+       * Approve
+       * @constant
+       */
+      approve: true;
+    };
     /**
      * AspspListResponse
      * @description The set of providers the deployment can connect to.
@@ -601,6 +967,38 @@ export interface components {
       default_currency: string;
       /** Provider */
       provider: string;
+    };
+    /** AuditOut */
+    AuditOut: {
+      /** Action */
+      action: string;
+      /** Actor */
+      actor: string;
+      /** After */
+      after: {
+        [key: string]: unknown;
+      };
+      /** Before */
+      before: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Subject Id
+       * Format: uuid
+       */
+      subject_id: string;
+      /** Subject Type */
+      subject_type: string;
     };
     /**
      * AuthorizeRequest
@@ -680,6 +1078,37 @@ export interface components {
       /** Source */
       source?: string | null;
     };
+    /** Candidate */
+    Candidate: {
+      /** Alias Id */
+      alias_id: string | null;
+      /** Alias Revision */
+      alias_revision: number | null;
+      /** Expected Revision */
+      expected_revision: number;
+      /** Normalized Counterparty */
+      normalized_counterparty: string;
+      /** Provider */
+      provider: string;
+      /** Source Amount */
+      source_amount: string;
+      /** Source Counterparty */
+      source_counterparty: string | null;
+      /** Source Currency */
+      source_currency: string;
+      /** Source Kind */
+      source_kind: string;
+      /**
+       * Source Ts
+       * Format: date-time
+       */
+      source_ts: string;
+      /**
+       * Transaction Id
+       * Format: uuid
+       */
+      transaction_id: string;
+    };
     /**
      * CashflowPoint
      * @description One account-day row of ``mart_cashflow_daily``.
@@ -731,6 +1160,140 @@ export interface components {
       points: components["schemas"]["CashflowPoint"][];
       /** Total */
       total: number;
+    };
+    /** CategoryOut */
+    CategoryOut: {
+      /** Archived */
+      archived: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "expense" | "income";
+      /** Name */
+      name: string;
+      /** Parent Id */
+      parent_id: string | null;
+      /** Revision */
+      revision: number;
+      /** Sort Order */
+      sort_order: number;
+    };
+    /** CategoryWrite */
+    CategoryWrite: {
+      /**
+       * Archived
+       * @default false
+       */
+      archived: boolean;
+      /** Expected Revision */
+      expected_revision: number;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "expense" | "income";
+      /** Name */
+      name: string;
+      /** Parent Id */
+      parent_id?: string | null;
+      /**
+       * Sort Order
+       * @default 0
+       */
+      sort_order: number;
+    };
+    /** ClassificationOut */
+    ClassificationOut: {
+      /** Allocations */
+      allocations: components["schemas"]["Split-Output"][];
+      /**
+       * Detail Changed
+       * @default false
+       */
+      detail_changed: boolean;
+      /** Detail Links */
+      detail_links: components["schemas"]["PaymentDetailLink-Output"][];
+      /** Explanation */
+      explanation: string;
+      /** Identity Confirmed */
+      identity_confirmed: boolean;
+      /** Links */
+      links: components["schemas"]["ReconciliationLink"][];
+      /** Merchant Id */
+      merchant_id: string | null;
+      /**
+       * Provenance
+       * @enum {string}
+       */
+      provenance: "manual" | "rule";
+      /**
+       * Review State
+       * @enum {string}
+       */
+      review_state: "classified" | "needs_review" | "unclassified";
+      /** Revision */
+      revision: number;
+      /** Rule Id */
+      rule_id: string | null;
+      /** Source Amount */
+      source_amount: string;
+      /**
+       * Source Changed
+       * @default false
+       */
+      source_changed: boolean;
+      /** Source Counterparty */
+      source_counterparty: string | null;
+      /** Source Currency */
+      source_currency: string;
+      /** Source Kind */
+      source_kind: string;
+      /**
+       * Source Ts
+       * Format: date-time
+       */
+      source_ts: string;
+      /**
+       * Transaction Id
+       * Format: uuid
+       */
+      transaction_id: string;
+      /**
+       * Treatment
+       * @enum {string}
+       */
+      treatment: "expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified";
+    };
+    /** ClassificationWrite */
+    ClassificationWrite: {
+      /** Allocations */
+      allocations?: components["schemas"]["Split-Input"][];
+      /** Detail Links */
+      detail_links?: components["schemas"]["PaymentDetailLink-Input"][];
+      /** Expected Revision */
+      expected_revision: number;
+      /** Explanation */
+      explanation: string;
+      /**
+       * Identity Confirmed
+       * @default false
+       */
+      identity_confirmed: boolean;
+      /** Links */
+      links?: components["schemas"]["ReconciliationLink"][];
+      /** Merchant Id */
+      merchant_id?: string | null;
+      /**
+       * Treatment
+       * @enum {string}
+       */
+      treatment: "expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified";
     };
     /**
      * CommitCountsOut
@@ -1125,6 +1688,64 @@ export interface components {
       /** Row Count */
       row_count: number;
     };
+    /** MerchantOut */
+    MerchantOut: {
+      /** Archived */
+      archived: boolean;
+      /** Confirmed */
+      confirmed: boolean;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Identity Kind
+       * @enum {string}
+       */
+      identity_kind: "stable" | "processor" | "marketplace" | "mixed" | "unknown";
+      /** Name */
+      name: string;
+      /** Reference Key */
+      reference_key: string | null;
+      /** Reference Source */
+      reference_source: string | null;
+      /** Reference Version */
+      reference_version: string | null;
+      /** Revision */
+      revision: number;
+      /** Rule Version */
+      rule_version: number;
+    };
+    /** MerchantWrite */
+    MerchantWrite: {
+      /**
+       * Archived
+       * @default false
+       */
+      archived: boolean;
+      /**
+       * Confirmed
+       * @default false
+       */
+      confirmed: boolean;
+      /** Expected Revision */
+      expected_revision: number;
+      /**
+       * Identity Kind
+       * @default unknown
+       * @enum {string}
+       */
+      identity_kind: "stable" | "processor" | "marketplace" | "mixed" | "unknown";
+      /** Name */
+      name: string;
+      /** Reference Key */
+      reference_key?: string | null;
+      /** Reference Source */
+      reference_source?: string | null;
+      /** Reference Version */
+      reference_version?: string | null;
+    };
     /**
      * MetaRefreshResponse
      * @description Concise, machine-readable outcome of a WebUI-triggered dbt refresh.
@@ -1211,6 +1832,128 @@ export interface components {
       points: components["schemas"]["NetWorthTotalPoint"][];
       /** Total */
       total: number;
+    };
+    /** PaymentDetailLink */
+    "PaymentDetailLink-Input": {
+      /** Bank Amount */
+      bank_amount: number | string;
+      /**
+       * Detail Id
+       * Format: uuid
+       */
+      detail_id: string;
+      /** Detail Revision */
+      detail_revision: number;
+    };
+    /** PaymentDetailLink */
+    "PaymentDetailLink-Output": {
+      /** Bank Amount */
+      bank_amount: string;
+      /**
+       * Detail Id
+       * Format: uuid
+       */
+      detail_id: string;
+      /** Detail Revision */
+      detail_revision: number;
+    };
+    /** PaymentDetailOut */
+    PaymentDetailOut: {
+      /** Amount */
+      amount: string;
+      /** Connection Id */
+      connection_id?: string | null;
+      /** Currency */
+      currency: string;
+      /**
+       * Event Kind
+       * @enum {string}
+       */
+      event_kind: "purchase" | "refund" | "funding" | "unknown";
+      /** External Id */
+      external_id: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Last Seen At
+       * Format: date-time
+       */
+      last_seen_at: string;
+      /** Merchant Name */
+      merchant_name?: string | null;
+      /**
+       * Provider
+       * @constant
+       */
+      provider: "paypal";
+      /** Reference */
+      reference?: string | null;
+      /** Revision */
+      revision: number;
+      /** Source Account Id */
+      source_account_id: string;
+      source_fields?: components["schemas"]["PaymentSourceFields"];
+      /**
+       * Ts
+       * Format: date-time
+       */
+      ts: string;
+    };
+    /**
+     * PaymentSourceFields
+     * @description Provider whitelist, not an arbitrary response/profile blob.
+     */
+    PaymentSourceFields: {
+      /** Bank Code */
+      bank_code?: string | null;
+      /** Bank Sub Code */
+      bank_sub_code?: string | null;
+      /** Entry Reference */
+      entry_reference?: string | null;
+      /** Merchant Category Code */
+      merchant_category_code?: string | null;
+      /** Transaction Date */
+      transaction_date?: string | null;
+      /** Transaction Id */
+      transaction_id?: string | null;
+    };
+    /** PreviewOut */
+    PreviewOut: {
+      /** Applied */
+      applied: boolean;
+      /** Candidates */
+      candidates: components["schemas"]["Candidate"][];
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Rule Id
+       * Format: uuid
+       */
+      rule_id: string;
+    };
+    /** ReconciliationLink */
+    ReconciliationLink: {
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "transfer" | "refund";
+      /**
+       * Related Transaction Id
+       * Format: uuid
+       */
+      related_transaction_id: string;
     };
     /**
      * ReturnsPoint
@@ -1346,6 +2089,85 @@ export interface components {
       /** Suggested By */
       suggested_by?: string | null;
     };
+    /** RuleControl */
+    RuleControl: {
+      /** Disabled */
+      disabled: boolean;
+      /** Expected Version */
+      expected_version: number;
+    };
+    /** RuleOut */
+    RuleOut: {
+      /** Category Id */
+      category_id: string | null;
+      /**
+       * Created At
+       * Format: date-time
+       */
+      created_at: string;
+      /** Evidence */
+      evidence: {
+        [key: string]: unknown;
+      }[];
+      /** Explanation */
+      explanation: string;
+      /**
+       * Id
+       * Format: uuid
+       */
+      id: string;
+      /**
+       * Merchant Id
+       * Format: uuid
+       */
+      merchant_id: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: "active" | "conflict" | "disabled" | "insufficient";
+      /** Treatment */
+      treatment:
+        | ("expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified")
+        | null;
+      /** Version */
+      version: number;
+    };
+    /** Split */
+    "Split-Input": {
+      /** Amount */
+      amount: number | string;
+      /**
+       * Category Id
+       * Format: uuid
+       */
+      category_id: string;
+    };
+    /** Split */
+    "Split-Output": {
+      /** Amount */
+      amount: string;
+      /**
+       * Category Id
+       * Format: uuid
+       */
+      category_id: string;
+    };
+    /** Suggestion */
+    Suggestion: {
+      /** Explanation */
+      explanation: string;
+      /** Merchant Id */
+      merchant_id: string | null;
+      rule: components["schemas"]["RuleOut"] | null;
+      /** Source Hint */
+      source_hint?: string | null;
+      /**
+       * Transaction Id
+       * Format: uuid
+       */
+      transaction_id: string;
+    };
     /**
      * SuggestionSessionOut
      * @description Session echo returned by the MCP suggestion tool.
@@ -1384,6 +2206,52 @@ export interface components {
       holding_snapshots: number;
       /** Transactions */
       transactions: number;
+    };
+    /** TransactionOut */
+    TransactionOut: {
+      /**
+       * Account Id
+       * Format: uuid
+       */
+      account_id: string;
+      /** Amount */
+      amount: string;
+      classification: components["schemas"]["ClassificationOut"] | null;
+      /** Counterparty */
+      counterparty: string | null;
+      /** Currency */
+      currency: string;
+      /** Description */
+      description: string | null;
+      /** Kind */
+      kind: string;
+      /** Provider */
+      provider: string;
+      /**
+       * Reporting Role
+       * @enum {string}
+       */
+      reporting_role: "bank_movement" | "detail_only" | "other_source";
+      /**
+       * Transaction Id
+       * Format: uuid
+       */
+      transaction_id: string;
+      /**
+       * Ts
+       * Format: date-time
+       */
+      ts: string;
+    };
+    /** Undo */
+    Undo: {
+      /**
+       * Audit Id
+       * Format: uuid
+       */
+      audit_id: string;
+      /** Expected Revision */
+      expected_revision: number;
     };
     /** ValidationError */
     ValidationError: {
@@ -1721,6 +2589,717 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["SyncResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  aliases_household_aliases_get: {
+    parameters: {
+      query?: {
+        merchant_id?: string | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AliasOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_alias_household_aliases_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AliasWrite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AliasOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_alias_household_aliases__key__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["AliasWrite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AliasOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  history_household_audit_get: {
+    parameters: {
+      query: {
+        subject_id: string;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuditOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  categories_household_categories_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CategoryOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_category_household_categories_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CategoryWrite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CategoryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_category_household_categories__key__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CategoryWrite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CategoryOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  merchants_household_merchants_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MerchantOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  create_merchant_household_merchants_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MerchantWrite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MerchantOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  update_merchant_household_merchants__key__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MerchantWrite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MerchantOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  payment_details_household_payment_details_get: {
+    parameters: {
+      query?: {
+        unmatched?: boolean;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PaymentDetailOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_preview_household_previews__key__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PreviewOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  apply_preview_household_previews__key__apply_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ApplyPreview"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PreviewOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  rules_household_rules_get: {
+    parameters: {
+      query?: {
+        merchant_id?: string | null;
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RuleOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  control_rule_household_rules__key__patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RuleControl"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RuleOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  preview_rule_household_rules__key__preview_post: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+      };
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PreviewOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  transactions_household_transactions_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+        offset?: number;
+        account_id?: string | null;
+        merchant_id?: string | null;
+        category_id?: string | null;
+        treatment?:
+          | ("expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified")
+          | null;
+        review_state?: ("classified" | "needs_review" | "unclassified") | null;
+        provider?: string | null;
+        currency?: string | null;
+        from_date?: string | null;
+        to_date?: string | null;
+        search?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TransactionOut"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  get_transaction_household_transactions__key__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TransactionOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  correct_transaction_household_transactions__key__classification_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ClassificationWrite"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClassificationOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  suggestion_household_transactions__key__suggestion_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Suggestion"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  undo_transaction_household_transactions__key__undo_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        key: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["Undo"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClassificationOut"];
         };
       };
       /** @description Validation Error */

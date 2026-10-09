@@ -39,6 +39,15 @@ models:
           - not_null
           - accepted_values:
               values: ["income", "expense", "refund", "unclassified"]
+      - name: reporting_treatment
+        description: >
+          Cashflow treatment for reporting; non-zero unclassified movements
+          are treated as income or expense according to their signed amount,
+          without changing their stored classification.
+        data_tests:
+          - not_null
+          - accepted_values:
+              values: ["income", "expense", "refund", "unclassified"]
       - name: category_id
         description: Assigned leaf category; null for unclassified allocations.
         data_tests:
@@ -100,4 +109,5 @@ models:
             - account_id
             - as_of
             - treatment
+            - reporting_treatment
             - category_id

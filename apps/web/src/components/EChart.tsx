@@ -16,6 +16,7 @@ import {
 } from "echarts/components";
 import { SVGRenderer } from "echarts/renderers";
 import type { ComposeOption } from "echarts/core";
+import type { ECElementEvent } from "echarts/core";
 import type { BarSeriesOption, LineSeriesOption, PieSeriesOption } from "echarts/charts";
 import type {
   AxisPointerComponentOption,
@@ -52,9 +53,15 @@ type EChartProps = {
   readonly option: EChartOption;
   readonly height: number;
   readonly ariaLabel: string;
+  readonly onDataPointClick?: ((dataIndex: number) => void) | undefined;
 };
 
-export function EChart({ option, height, ariaLabel }: EChartProps): React.JSX.Element {
+export function EChart({
+  option,
+  height,
+  ariaLabel,
+  onDataPointClick,
+}: EChartProps): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const chartRef = useRef<echarts.ECharts | null>(null);
 
@@ -79,6 +86,22 @@ export function EChart({ option, height, ariaLabel }: EChartProps): React.JSX.El
   useEffect(() => {
     chartRef.current?.setOption(option, { notMerge: true });
   }, [option]);
+
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (chart === null || onDataPointClick === undefined) {
+      return;
+    }
+    const handleClick = (event: ECElementEvent): void => {
+      if (event.componentType === "series" && typeof event.dataIndex === "number") {
+        onDataPointClick(event.dataIndex);
+      }
+    };
+    chart.on("click", handleClick);
+    return () => {
+      chart.off("click", handleClick);
+    };
+  }, [onDataPointClick]);
 
   return <div ref={containerRef} role="img" aria-label={ariaLabel} style={{ height }} />;
 }

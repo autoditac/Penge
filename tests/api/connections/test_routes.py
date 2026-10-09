@@ -42,8 +42,105 @@ def _link(client: TestClient, provider: str = "gls") -> dict[str, object]:
 def test_list_aspsps(client: TestClient) -> None:
     resp = client.get("/connections/aspsps")
     assert resp.status_code == 200
-    providers = {p["provider"] for p in resp.json()["providers"]}
-    assert providers == {"gls", "ebank", "lunar"}
+    providers = {p["provider"]: p for p in resp.json()["providers"]}
+    assert set(providers) == {"gls", "ebank", "lunar", "paypal"}
+    assert providers["paypal"] == {
+        "provider": "paypal",
+        "aspsp_name": "PayPal",
+        "aspsp_country": "DE",
+        "default_currency": "EUR",
+        "psu_type": "personal",
+        "data_role": "payment_detail",
+    }
+
+
+def test_paypal_link_requests_personal_psu_type(
+    client: TestClient, fake_client: FakeClient
+) -> None:
+    linked = _link(client, provider="paypal")
+
+    assert isinstance(linked["connection_id"], str)
+    assert fake_client.requested_psu_types == ["personal"]
+    assert fake_client.aspsp_name == "PayPal"
+    assert fake_client.aspsp_country == "DE"
+
+
+def test_paypal_sync_is_detail_only_and_reconsent_preserves_source_identity(
+    client: TestClient,
+    engine: Engine,
+    fake_client: FakeClient,
+) -> None:
+    fake_client.stable_entry_reference = "synthetic-paypal-entry"
+    fake_client.session_accounts = [
+        fake_client.session_accounts[0].model_copy(
+            update={"uid": "paypal-session-account-1", "identification_hash": "stable-paypal-hash"}
+        )
+    ]
+
+    first_link = _link(client, provider="paypal")
+    first_authorized = client.post(
+        "/connections/authorize",
+        json={"code": "first-code", "state": first_link["state"]},
+    )
+    assert first_authorized.status_code == 200, first_authorized.text
+    first_sync = client.post(f"/connections/{first_link['connection_id']}/sync")
+    assert first_sync.status_code == 200, first_sync.text
+    assert first_sync.json()["transactions"] == 0
+    assert first_sync.json()["holding_snapshots"] == 0
+    assert first_sync.json()["payment_details"] == 1
+    with engine.connect() as conn:
+        first_detail_id: uuid.UUID = conn.execute(
+            text(
+                "select id from household_payment_detail "
+                "where provider = 'paypal' and external_id = 'synthetic-paypal-entry'"
+            )
+        ).scalar_one()
+
+    fake_client.session_accounts = [
+        fake_client.session_accounts[0].model_copy(update={"uid": "paypal-session-account-2"})
+    ]
+    renewed_link = _link(client, provider="paypal")
+    renewed_authorized = client.post(
+        "/connections/authorize",
+        json={"code": "renewed-code", "state": renewed_link["state"]},
+    )
+    assert renewed_authorized.status_code == 200, renewed_authorized.text
+    renewed_sync = client.post(f"/connections/{renewed_link['connection_id']}/sync")
+    assert renewed_sync.status_code == 200, renewed_sync.text
+    assert renewed_sync.json()["payment_details"] == 1
+    assert fake_client.balance_calls == []
+
+    with engine.connect() as conn:
+        details = conn.execute(
+            text(
+                "select id, connection_id, source_account_id, external_id, revision "
+                "from household_payment_detail where provider = 'paypal'"
+            )
+        ).all()
+        account_count: int = conn.execute(
+            text("select count(*) from account where provider = 'paypal'")
+        ).scalar_one()
+        transaction_count: int = conn.execute(
+            text(
+                'select count(*) from "transaction" where account_id in '
+                "(select id from account where provider = 'paypal')"
+            )
+        ).scalar_one()
+        snapshot_count: int = conn.execute(
+            text(
+                "select count(*) from holding_snapshot where account_id in "
+                "(select id from account where provider = 'paypal')"
+            )
+        ).scalar_one()
+
+    assert len(details) == 1
+    detail_id, connection_id, source_account_id, external_id, revision = details[0]
+    assert detail_id == first_detail_id
+    assert connection_id == uuid.UUID(str(renewed_link["connection_id"]))
+    assert source_account_id == "DE:stable-paypal-hash"
+    assert external_id == "synthetic-paypal-entry"
+    assert revision == 1
+    assert account_count == transaction_count == snapshot_count == 0
 
 
 def test_list_empty(client: TestClient) -> None:
@@ -81,8 +178,8 @@ def test_link_authorize_sync_happy_path(client: TestClient, engine: Engine, tmp_
     assert (tmp_path / "refresh-state" / "pending").exists()
 
     with engine.connect() as conn:
-        accounts = conn.execute(text("select count(*) from account")).scalar_one()
-        txns = conn.execute(text('select count(*) from "transaction"')).scalar_one()
+        accounts: int = conn.execute(text("select count(*) from account")).scalar_one()
+        txns: int = conn.execute(text('select count(*) from "transaction"')).scalar_one()
     assert accounts == 1
     assert txns == 1
 
@@ -158,7 +255,7 @@ def test_account_corrections_survive_sync_for_two_accounts(
     assert client.post(f"/connections/{linked['connection_id']}/sync").status_code == 200
 
     with engine.begin() as conn:
-        owner = conn.execute(
+        owner: uuid.UUID = conn.execute(
             text("insert into entity (name, kind) values ('Test Child', 'person') returning id")
         ).scalar_one()
         rows = conn.execute(
@@ -200,7 +297,7 @@ def test_account_correction_rejects_invalid_inputs(client: TestClient, engine: E
     client.post("/connections/authorize", json={"code": "c", "state": linked["state"]})
     client.post(f"/connections/{linked['connection_id']}/sync")
     with engine.connect() as conn:
-        account_id = conn.execute(text("select id from account")).scalar_one()
+        account_id: uuid.UUID = conn.execute(text("select id from account")).scalar_one()
     path = f"/accounts/{account_id}/metadata"
 
     assert client.patch(path, json={}).status_code == 422

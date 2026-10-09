@@ -52,6 +52,11 @@ class TestOpenApiSchema:
             "/household/transactions/{key}/undo",
             "/household/audit",
             "/household/payment-details",
+            "/household/reports/summary",
+            "/household/reports/categories",
+            "/household/reports/transactions",
+            "/vendors/reference-index/status",
+            "/vendors/reference-index/search",
         }
 
     def test_render_is_deterministic(self) -> None:

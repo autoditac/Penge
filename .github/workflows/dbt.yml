@@ -8,7 +8,9 @@
 #      data, real `dbt build`/`dbt test` invocations) -- e.g. issue
 #      #282's zero/negative `return_factor` fixtures. These seed rows
 #      and truncate them again on teardown, leaving the schema empty.
-#   5. Runs `dbt parse`, then `dbt build` against the now-empty
+#   5. Runs the household integration suite against a dedicated test
+#      database in the same ephemeral Postgres service.
+#   6. Runs `dbt parse`, then `dbt build` against the now-empty
 #      schema -- a no-op build that verifies the project is
 #      parseable, the profile is valid, and sources resolve.
 
@@ -20,6 +22,15 @@ on:
       - dbt/**
       - migrations/**
       - tests/dbt/**
+      - tests/household/**
+      - src/penge/**
+      - tests/api/**
+      - tests/analytics/**
+      - tests/ingest/**
+      - apps/web/**
+      - apps/mcp/**
+      - pnpm-lock.yaml
+      - Justfile
       - pyproject.toml
       - uv.lock
       - .github/workflows/dbt.yml
@@ -29,6 +40,15 @@ on:
       - dbt/**
       - migrations/**
       - tests/dbt/**
+      - tests/household/**
+      - src/penge/**
+      - tests/api/**
+      - tests/analytics/**
+      - tests/ingest/**
+      - apps/web/**
+      - apps/mcp/**
+      - pnpm-lock.yaml
+      - Justfile
       - pyproject.toml
       - uv.lock
       - .github/workflows/dbt.yml
@@ -44,7 +64,7 @@ jobs:
   build:
     name: dbt build (smoke)
     runs-on: [self-hosted, linux, x64, penge]
-    timeout-minutes: 10
+    timeout-minutes: 30
     services:
       postgres:
         # postgres:17-alpine — same digest pinned in compose.yaml.
@@ -52,7 +72,7 @@ jobs:
         env:
           POSTGRES_USER: penge
           POSTGRES_PASSWORD: penge
-          POSTGRES_DB: penge
+          POSTGRES_DB: penge_household_test
         # Ephemeral host port, not a fixed `5432:5432`. Three runners share
         # this host, so a fixed mapping makes two concurrent jobs collide and
         # the loser fails with "Docker start fail with exit code 1" (#304).
@@ -62,7 +82,7 @@ jobs:
         # creating an anonymous volume that outlives the job (#289), and keeps
         # the test database in RAM.
         options: >-
-          --health-cmd "pg_isready -U penge"
+          --health-cmd "pg_isready -U penge -d penge_household_test"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
@@ -71,7 +91,7 @@ jobs:
       PGHOST: localhost
       PGUSER: penge
       PGPASSWORD: penge
-      PGDATABASE: penge
+      PGDATABASE: penge_household_test
       PGSSLMODE: disable
     steps:
       - name: Resolve the Postgres host port
@@ -88,13 +108,28 @@ jobs:
             echo "PENGE_TEST_DATABASE_URL=postgresql+psycopg://penge:penge@localhost:${RESOLVED_PORT}/penge"
           } >> "$GITHUB_ENV"
 
+      - name: Select the disposable household test database
+        env:
+          RESOLVED_PORT: ${{ job.services.postgres.ports['5432'] }}
+        run: |
+          set -euo pipefail
+          {
+            echo "DATABASE_URL=postgresql+psycopg://${PGUSER}:${PGPASSWORD}@localhost:${RESOLVED_PORT}/penge_household_test"
+            echo "PENGE_TEST_DATABASE_URL=postgresql+psycopg://${PGUSER}:${PGPASSWORD}@localhost:${RESOLVED_PORT}/penge_household_test"
+            echo "PENGE_ALLOW_DESTRUCTIVE_TEST_DB=1"
+            echo "PGDATABASE=penge_household_test"
+          } >> "$GITHUB_ENV"
+
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: extractions/setup-just@f8a3cce218d9f83db3a2ecd90e41ac3de6cdfd9b # v3
+        with:
+          just-version: "1.51.0"
       - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           enable-cache: true
 
       - name: Install db + dbt + test deps
-        run: uv sync --group db --group dbt --group dev --frozen
+        run: uv sync --group db --group dbt --group dev --group api --group http --group manual --group parsers --group enablebanking --frozen
 
       - name: alembic upgrade head
         run: uv run --group db alembic upgrade head
@@ -103,10 +138,48 @@ jobs:
         run: uv run --group dbt dbt deps --project-dir dbt --profiles-dir dbt
 
       - name: Mart regression tests (synthetic data)
-        run: uv run --group db --group dbt --group dev pytest tests/dbt -q
+        run: time uv run --group db --group dbt --group dev pytest tests/dbt -vv --durations=20
+
+      - name: Household end-to-end tests (synthetic data)
+        run: just household-test
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Install pinned browser test tooling
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.0.9 --activate
+          pnpm install --frozen-lockfile
+          pnpm --filter @penge/web exec playwright install --with-deps chromium
+
+      - name: Seed synthetic browser data and materialize reports
+        run: just household-browser-seed
+
+      - name: MCP household report real PostgreSQL runner
+        env:
+          PENGE_MCP_REPORT_PG_TEST: "1"
+        run: just household-mcp-postgres-test
+
+      - name: Household desktop and mobile real-API browser acceptance
+        env:
+          PENGE_HOUSEHOLD_ENABLED: "true"
+          PENGE_REFRESH_STATE_DIR: ${{ runner.temp }}/household-browser-refresh
+          PENGE_API_CORS_ORIGINS: http://127.0.0.1:5173
+        run: just household-browser-test
+
+      - name: Preserve synthetic browser failure evidence
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: household-browser-failure-${{ github.run_id }}
+          path: apps/web/test-results/
+          if-no-files-found: ignore
+          retention-days: 3
 
       - name: dbt parse
         run: uv run --group dbt dbt parse --project-dir dbt --profiles-dir dbt
 
       - name: dbt build
-        run: uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt
+        run: time uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt

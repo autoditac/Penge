@@ -5,14 +5,14 @@ from __future__ import annotations
 import os
 import subprocess
 import uuid
-from collections.abc import Iterator
+from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
 import pytest
-from sqlalchemy import create_engine, delete, func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import Session
@@ -22,29 +22,18 @@ from penge.household import schemas as s
 from penge.household import service
 from penge.ingest.enablebanking.loader import _persist
 from penge.ingest.enablebanking.models import BalancesResponse, Transaction
+from tests.household.conftest import DB_URL
 
-URL = os.environ.get("PENGE_HOUSEHOLD_TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(
-    URL is None, reason="isolated household test database not configured"
+    DB_URL is None, reason="isolated household test database not configured"
 )
 ROOT = Path(__file__).resolve().parents[2]
 
 
 @pytest.fixture
-def postgres_engine() -> Iterator[Engine]:
-    """Only use an explicitly opted-in disposable database, never DATABASE_URL."""
-    assert URL is not None
-    command = ["alembic", "upgrade", "head"]
-    subprocess.run(  # noqa: S603 — fixed migration command on explicitly disposable test database
-        command,
-        cwd=ROOT,
-        env={**os.environ, "DATABASE_URL": URL},
-        check=True,
-        capture_output=True,
-    )
-    engine = create_engine(URL)
-    yield engine
-    engine.dispose()
+def clean_source_sync_database(clean_postgres_database: None) -> None:
+    """Keep each source-sync scenario isolated on the guarded Postgres fixture."""
+    _ = clean_postgres_database
 
 
 def booked(key: str, amount: str = "12.34", label: str = "Synthetic Grocer") -> Transaction:
@@ -61,7 +50,7 @@ def booked(key: str, amount: str = "12.34", label: str = "Synthetic Grocer") -> 
 
 
 def sync(engine: Engine, account: str, rows: list[Transaction], currency: str = "EUR") -> int:
-    return _persist(
+    result = _persist(
         engine,
         provider="gls",
         transactions=rows,
@@ -72,7 +61,8 @@ def sync(engine: Engine, account: str, rows: list[Transaction], currency: str = 
         currency=currency,
         iban=None,
         dk_tax_treatment=None,
-    ).writes
+    )
+    return int(result.writes)
 
 
 def test_sync_learning_manual_override_source_drift_and_details(
@@ -173,7 +163,7 @@ def test_sync_learning_manual_override_source_drift_and_details(
     assert sync(postgres_engine, account, [booked(first, label=label)]) == 0
     sync(postgres_engine, account, [booked(first, label=label), booked(second, label=label)])
     with Session(postgres_engine) as session:
-        rows = session.scalars(
+        rows: Sequence[m.Classification] = session.scalars(
             select(m.Classification).where(m.Classification.merchant_id == merchant_id)
         ).all()
         assert len(rows) == 2
@@ -265,7 +255,7 @@ def test_concurrent_first_correction_has_one_winner(
                 )
             return 200
         except service.HouseholdError as exc:
-            return exc.status
+            return int(exc.status)
 
     with ThreadPoolExecutor(max_workers=2) as workers:
         assert sorted(workers.map(lambda _: correct(), range(2))) == [200, 409]
@@ -348,10 +338,10 @@ def test_resync_reviews_every_reporting_snapshot_field(
 
 def test_migration_downgrade_keeps_raw_facts(postgres_engine: Engine) -> None:
     """Disposable database only; round-trip removes only newly added tables."""
-    assert URL is not None
+    assert DB_URL is not None
     with postgres_engine.connect() as connection:
         before = connection.scalar(select(func.count()).select_from(m.SourceTransaction))
-    env = {**os.environ, "DATABASE_URL": URL}
+    env = {**os.environ, "DATABASE_URL": DB_URL}
     for command in (
         ["alembic", "downgrade", "0007_account_metadata_overrides"],
         ["alembic", "upgrade", "head"],

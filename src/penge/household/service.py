@@ -36,8 +36,13 @@ def lock_household(session: Session) -> None:
 
 
 def require[Model: m.Base](session: Session, model: type[Model], key: uuid.UUID) -> Model:
-    """Read and lock an existing domain object or reject explicitly."""
-    result = session.get(model, key, with_for_update=True, populate_existing=True)
+    """Read an object; lock only within a household write session."""
+    result = session.get(
+        model,
+        key,
+        with_for_update=session.info.get("household_read_only") is not True,
+        populate_existing=True,
+    )
     if result is None:
         raise HouseholdError(f"{model.__name__} not found", status=404)
     return result

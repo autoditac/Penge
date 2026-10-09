@@ -71,6 +71,7 @@ class ConnectionSummary:
     status: str
     transactions: int = 0
     holding_snapshots: int = 0
+    payment_details: int = 0
     writes: int = 0
     error: str | None = None
 
@@ -266,7 +267,7 @@ class DbtRunner:
 
     def _promote_shadow_schemas(self) -> None:
         with self._engine.begin() as connection:
-            available = set(
+            available: set[str] = set(
                 connection.execute(
                     text(
                         "SELECT schema_name FROM information_schema.schemata "
@@ -521,6 +522,7 @@ def _sync_one_connection(
             status="succeeded",
             transactions=outcome.transactions,
             holding_snapshots=outcome.holding_snapshots,
+            payment_details=outcome.payment_details,
             writes=committed_writes,
         ),
         False,

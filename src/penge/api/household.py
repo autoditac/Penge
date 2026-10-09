@@ -44,6 +44,7 @@ def read_session(_: Annotated[None, Depends(require_enabled)]) -> Iterator[Sessi
     """Read canonical facts/corrections directly, without waiting for dbt refresh."""
     try:
         with Session(get_import_engine()) as session:
+            session.info["household_read_only"] = True
             yield session
     except service.HouseholdError as exc:
         raise HTTPException(exc.status, str(exc)) from exc
@@ -74,7 +75,7 @@ def write_session(_: Annotated[None, Depends(require_enabled)]) -> Iterator[Sess
 
 
 Read = Annotated[Session, Depends(read_session)]
-Write = Annotated[Session, Depends(write_session)]
+Write = Annotated[Session, Depends(write_session, scope="function")]
 
 
 @router.get("/categories", response_model=list[s.CategoryOut])

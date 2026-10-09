@@ -52,6 +52,11 @@ class FakeClient:
         self.session_accounts: list[AccountResource] = [_account()]
         self.aspsp_name: str = "GLS Gemeinschaftsbank"
         self.aspsp_country: str = "DE"
+        self.requested_psu_types: list[str] = []
+        self.requested_balances: list[bool] = []
+        self.requested_transactions: list[bool] = []
+        self.balance_calls: list[str] = []
+        self.stable_entry_reference: str | None = None
         # When set, get_account_transactions returns two booked entries that
         # share the same entry_reference, to exercise the upsert dedup path.
         self.duplicate_entry_reference: bool = False
@@ -95,6 +100,9 @@ class FakeClient:
     ) -> StartAuthorizationResponse:
         self.aspsp_name = aspsp_name
         self.aspsp_country = aspsp_country
+        self.requested_psu_types.append(psu_type)
+        self.requested_balances.append(balances)
+        self.requested_transactions.append(transactions)
         return StartAuthorizationResponse(
             url=f"https://auth.example/start?state={state}",
             authorization_id="auth-123",
@@ -157,7 +165,7 @@ class FakeClient:
                 )
         txns = [
             Transaction(
-                entry_reference=f"{account_uid}-tx-1",
+                entry_reference=self.stable_entry_reference or f"{account_uid}-tx-1",
                 transaction_amount=Amount(amount=Decimal("12.34"), currency="EUR"),
                 credit_debit_indicator="DBIT",
                 status="BOOK",
@@ -184,6 +192,7 @@ class FakeClient:
         return TransactionsResponse(transactions=txns)
 
     def get_account_balances(self, account_uid: str) -> BalancesResponse:
+        self.balance_calls.append(account_uid)
         return BalancesResponse(
             balances=[
                 Balance(

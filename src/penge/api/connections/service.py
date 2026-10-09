@@ -18,6 +18,7 @@ from typing import TYPE_CHECKING
 from penge.api.connections import store
 from penge.api.connections.provider import get_provider
 from penge.ingest.enablebanking.client import EnableBankingError, default_consent_until
+from penge.ingest.paypal.loader import PayPalDetailMappingError
 from penge.web.mask import mask_iban
 
 if TYPE_CHECKING:
@@ -25,7 +26,7 @@ if TYPE_CHECKING:
 
     from penge.api.connections.provider import Provider
     from penge.ingest.enablebanking.client import Client
-    from penge.ingest.enablebanking.models import AccountResource
+    from penge.ingest.enablebanking.models import AccountResource, GetSessionResponse
 
 log = logging.getLogger("penge.api.connections")
 
@@ -126,6 +127,9 @@ def start_link(
             aspsp_country=provider.aspsp_country,
             redirect_url=redirect_url,
             valid_until=valid_until,
+            psu_type=provider.psu_type,
+            balances=provider.request_balances,
+            transactions=provider.request_transactions,
             state=state,
         )
     except EnableBankingError as exc:
@@ -242,6 +246,7 @@ class SyncOutcome:
     transactions: int
     holding_snapshots: int
     writes: int
+    payment_details: int = 0
 
 
 @dataclass(slots=True)
@@ -266,9 +271,14 @@ def _history_windows(days: int) -> list[int]:
 
 def _provider_for_sync(engine: Engine, record: store.ConnectionRecord) -> Provider:
     provider = get_provider(record.provider)
-    if provider is not None:
+    if provider is not None and provider.sync_account is not None:
         return provider
-    err = ConnectionError(step="sync", message=f"unknown provider '{record.provider}'")
+    message = (
+        f"unknown provider '{record.provider}'"
+        if provider is None
+        else "detail-only provider sync is not configured"
+    )
+    err = ConnectionError(step="sync", message=message)
     store.record_error(
         engine,
         record.id,
@@ -279,40 +289,105 @@ def _provider_for_sync(engine: Engine, record: store.ConnectionRecord) -> Provid
     raise err
 
 
+def _ensure_payment_detail_consent(
+    engine: Engine,
+    provider: Provider,
+    record: store.ConnectionRecord,
+) -> None:
+    """Reject an expired detail-source consent before contacting the ASPSP."""
+    if provider.data_role != "payment_detail":
+        return
+    if record.valid_until is not None and record.valid_until > datetime.now(UTC):
+        return
+
+    err = ConnectionError(step="sync", message="consent has expired; re-consent required")
+    store.record_error(
+        engine,
+        record.id,
+        error=err.as_error_payload(),
+        status=store.STATUS_EXPIRED,
+        is_sync=True,
+    )
+    raise err
+
+
+def _authorized_session(
+    engine: Engine,
+    client: Client,
+    record: store.ConnectionRecord,
+    session_id: str,
+) -> GetSessionResponse:
+    """Fetch an active session or record its sanitized failure."""
+    try:
+        session = client.get_session(session_id)
+    except EnableBankingError as exc:
+        err = _from_eb_error("sync", exc)
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=record.status,
+            is_sync=True,
+        )
+        raise err from exc
+
+    if session.status != _SESSION_AUTHORIZED:
+        err = ConnectionError(
+            step="sync",
+            message=f"session status is {session.status}; re-consent required",
+        )
+        store.record_error(
+            engine,
+            record.id,
+            error=err.as_error_payload(),
+            status=store.STATUS_EXPIRED,
+            is_sync=True,
+        )
+        raise err
+    return session
+
+
 def _sync_accounts(
     engine: Engine,
     provider: Provider,
     *,
     client: Client,
+    connection_id: uuid.UUID,
     accounts: list[AccountResource],
     entity_name: str,
     date_from: date,
     date_to: date,
     on_write: Callable[[int], None] | None,
-) -> tuple[int, int, int]:
-    """Sync every account for one window, returning ``(txns, snapshots, writes)``.
+) -> tuple[int, int, int, int]:
+    """Sync each account and return `(txns, snapshots, details, writes)`.
 
     Raises :class:`EnableBankingError` unchanged so the caller can decide
     whether to retry with a narrower window or record the failure.
     """
     total_txn = 0
     total_snap = 0
+    total_details = 0
     total_writes = 0
+    sync_account = provider.sync_account
+    if sync_account is None:
+        raise RuntimeError("provider has no configured sync adapter")
     for acct in accounts:
-        result = provider.sync_account(
+        result = sync_account(
             engine,
             client=client,
             account=acct,
+            connection_id=connection_id,
             entity_name=entity_name,
             date_from=date_from,
             date_to=date_to,
         )
         total_txn += result.transactions
         total_snap += result.holding_snapshots
+        total_details += result.payment_details
         total_writes += result.writes
         if result.writes > 0 and on_write is not None:
             on_write(result.writes)
-    return total_txn, total_snap, total_writes
+    return total_txn, total_snap, total_details, total_writes
 
 
 def sync(
@@ -341,32 +416,9 @@ def sync(
         )
         raise err
 
-    try:
-        session = client.get_session(record.session_id)
-    except EnableBankingError as exc:
-        err = _from_eb_error("sync", exc)
-        store.record_error(
-            engine,
-            record.id,
-            error=err.as_error_payload(),
-            status=record.status,
-            is_sync=True,
-        )
-        raise err from exc
+    _ensure_payment_detail_consent(engine, provider, record)
 
-    if session.status != _SESSION_AUTHORIZED:
-        err = ConnectionError(
-            step="sync",
-            message=f"session status is {session.status}; re-consent required",
-        )
-        store.record_error(
-            engine,
-            record.id,
-            error=err.as_error_payload(),
-            status=store.STATUS_EXPIRED,
-            is_sync=True,
-        )
-        raise err
+    session = _authorized_session(engine, client, record, record.session_id)
 
     today = datetime.now(UTC).date()
     date_to = today
@@ -385,21 +437,26 @@ def sync(
     windows = _history_windows(days)
     total_txn = 0
     total_snap = 0
+    total_details = 0
     write_observer = _WriteObserver(on_write)
 
     for index, window in enumerate(windows):
         date_from = today - timedelta(days=window)
         try:
-            total_txn, total_snap, _ = _sync_accounts(
+            total_txn, total_snap, total_details, _ = _sync_accounts(
                 engine,
                 provider,
                 client=client,
+                connection_id=record.id,
                 accounts=selected,
                 entity_name=record.entity_name,
                 date_from=date_from,
                 date_to=date_to,
                 on_write=write_observer,
             )
+        except PayPalDetailMappingError as exc:
+            err = _record_payment_mapping_error(engine, record, exc)
+            raise err from exc
         except EnableBankingError as exc:
             code, _ = _eb_message(exc.body)
             is_last = index == len(windows) - 1
@@ -444,7 +501,29 @@ def sync(
         transactions=total_txn,
         holding_snapshots=total_snap,
         writes=write_observer.total,
+        payment_details=total_details,
     )
+
+
+def _record_payment_mapping_error(
+    engine: Engine,
+    record: store.ConnectionRecord,
+    exc: PayPalDetailMappingError,
+) -> ConnectionError:
+    """Persist a safe source-data error without including provider payloads."""
+    err = ConnectionError(
+        step="sync",
+        message=str(exc),
+        code="INVALID_PAYMENT_DETAIL",
+    )
+    store.record_error(
+        engine,
+        record.id,
+        error=err.as_error_payload(),
+        status=record.status,
+        is_sync=True,
+    )
+    return err
 
 
 __all__ = [

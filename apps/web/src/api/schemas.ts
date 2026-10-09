@@ -21,6 +21,7 @@ type Generated = components["schemas"];
 const decimalString = z.string().regex(/^[+-]?(?:\d+\.?\d*|\.\d+)$/);
 
 const isoDateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const isoTimestampString = z.string();
 
 export const accountSummarySchema = z.object({
   account_id: z.string(),
@@ -234,9 +235,403 @@ export const feesResponseSchema = z.object({
 });
 export type FeesResponse = z.infer<typeof feesResponseSchema>;
 
-/* ---- import sessions (#207/#208) ---- */
+/* ---- audited household categorization (#330/#334) ---- */
 
-const isoTimestampString = z.string();
+export const householdCategorySchema = z.object({
+  archived: z.boolean(),
+  id: z.string(),
+  kind: z.enum(["expense", "income"]),
+  name: z.string(),
+  parent_id: z.string().nullable(),
+  revision: z.number().int(),
+  sort_order: z.number().int(),
+});
+export type HouseholdCategoryResponse = z.infer<typeof householdCategorySchema>;
+export const householdCategoriesResponseSchema = z.array(householdCategorySchema);
+
+export const householdMerchantSchema = z.object({
+  archived: z.boolean(),
+  confirmed: z.boolean(),
+  id: z.string(),
+  identity_kind: z.enum(["stable", "processor", "marketplace", "mixed", "unknown"]),
+  name: z.string(),
+  reference_key: z.string().nullable(),
+  reference_source: z.string().nullable(),
+  reference_version: z.string().nullable(),
+  revision: z.number().int(),
+  rule_version: z.number().int(),
+});
+export type HouseholdMerchantResponse = z.infer<typeof householdMerchantSchema>;
+export const householdMerchantsResponseSchema = z.array(householdMerchantSchema);
+
+export const householdAliasSchema = z.object({
+  confirmed: z.boolean(),
+  id: z.string(),
+  merchant_id: z.string(),
+  normalized: z.string(),
+  provider: z.string(),
+  revision: z.number().int(),
+});
+export type HouseholdAliasResponse = z.infer<typeof householdAliasSchema>;
+export const householdAliasesResponseSchema = z.array(householdAliasSchema);
+
+export const householdSplitSchema = z.object({
+  amount: decimalString,
+  category_id: z.string(),
+});
+export const householdPaymentDetailLinkSchema = z.object({
+  bank_amount: decimalString,
+  detail_id: z.string(),
+  detail_revision: z.number().int(),
+});
+export const householdReconciliationLinkSchema = z.object({
+  kind: z.enum(["transfer", "refund"]),
+  related_transaction_id: z.string(),
+});
+export const householdClassificationSchema = z.object({
+  allocations: z.array(householdSplitSchema),
+  detail_changed: z.boolean(),
+  detail_links: z.array(householdPaymentDetailLinkSchema),
+  explanation: z.string(),
+  identity_confirmed: z.boolean(),
+  links: z.array(householdReconciliationLinkSchema),
+  merchant_id: z.string().nullable(),
+  provenance: z.enum(["manual", "rule"]),
+  review_state: z.enum(["classified", "needs_review", "unclassified"]),
+  revision: z.number().int(),
+  rule_id: z.string().nullable(),
+  source_amount: decimalString,
+  source_changed: z.boolean(),
+  source_counterparty: z.string().nullable(),
+  source_currency: z.string(),
+  source_kind: z.string(),
+  source_ts: isoTimestampString,
+  transaction_id: z.string(),
+  treatment: z.enum(["expense", "income", "refund", "transfer", "excluded", "unclassified"]),
+});
+export type HouseholdClassificationResponse = z.infer<typeof householdClassificationSchema>;
+
+export const householdTransactionSchema = z.object({
+  account_id: z.string(),
+  amount: decimalString,
+  classification: householdClassificationSchema.nullable(),
+  counterparty: z.string().nullable(),
+  currency: z.string(),
+  description: z.string().nullable(),
+  kind: z.string(),
+  provider: z.string(),
+  reporting_role: z.enum(["bank_movement", "detail_only", "other_source"]),
+  transaction_id: z.string(),
+  ts: isoTimestampString,
+});
+export type HouseholdTransactionResponse = z.infer<typeof householdTransactionSchema>;
+export const householdTransactionsResponseSchema = z.array(householdTransactionSchema);
+
+export const householdRuleSchema = z.object({
+  category_id: z.string().nullable(),
+  created_at: isoTimestampString,
+  evidence: z.array(z.record(z.string(), z.unknown())),
+  explanation: z.string(),
+  id: z.string(),
+  merchant_id: z.string(),
+  state: z.enum(["active", "conflict", "disabled", "insufficient"]),
+  treatment: z
+    .enum(["expense", "income", "refund", "transfer", "excluded", "unclassified"])
+    .nullable(),
+  version: z.number().int(),
+});
+export type HouseholdRuleResponse = z.infer<typeof householdRuleSchema>;
+export const householdRulesResponseSchema = z.array(householdRuleSchema);
+
+export const householdCandidateSchema = z.object({
+  alias_id: z.string().nullable(),
+  alias_revision: z.number().int().nullable(),
+  expected_revision: z.number().int(),
+  normalized_counterparty: z.string(),
+  provider: z.string(),
+  source_amount: decimalString,
+  source_currency: z.string(),
+  source_counterparty: z.string().nullable(),
+  source_kind: z.string(),
+  source_ts: isoTimestampString,
+  transaction_id: z.string(),
+});
+export const householdPreviewSchema = z.object({
+  applied: z.boolean(),
+  candidates: z.array(householdCandidateSchema),
+  created_at: isoTimestampString,
+  id: z.string(),
+  rule_id: z.string(),
+});
+export type HouseholdPreviewResponse = z.infer<typeof householdPreviewSchema>;
+
+export const householdPaymentSourceFieldsSchema = z.object({
+  bank_code: z.string().nullable().optional(),
+  bank_sub_code: z.string().nullable().optional(),
+  entry_reference: z.string().nullable().optional(),
+  merchant_category_code: z.string().nullable().optional(),
+  transaction_date: isoTimestampString.nullable().optional(),
+  transaction_id: z.string().nullable().optional(),
+});
+export const householdPaymentDetailSchema = z.object({
+  amount: decimalString,
+  connection_id: z.string().nullable().optional(),
+  currency: z.string(),
+  event_kind: z.enum(["purchase", "refund", "funding", "unknown"]),
+  external_id: z.string(),
+  id: z.string(),
+  last_seen_at: isoTimestampString,
+  merchant_name: z.string().nullable().optional(),
+  provider: z.literal("paypal"),
+  reference: z.string().nullable().optional(),
+  revision: z.number().int(),
+  source_account_id: z.string(),
+  source_fields: householdPaymentSourceFieldsSchema.optional(),
+  ts: isoTimestampString,
+});
+export type HouseholdPaymentDetailResponse = z.infer<typeof householdPaymentDetailSchema>;
+export const householdPaymentDetailsResponseSchema = z.array(householdPaymentDetailSchema);
+
+export const householdSuggestionSchema = z.object({
+  explanation: z.string(),
+  merchant_id: z.string().nullable(),
+  rule: householdRuleSchema.nullable(),
+  source_hint: z.string().nullable().optional(),
+  transaction_id: z.string(),
+});
+export type HouseholdSuggestionResponse = z.infer<typeof householdSuggestionSchema>;
+
+export const householdAuditSchema = z.object({
+  action: z.string(),
+  actor: z.string(),
+  after: z.record(z.string(), z.unknown()),
+  before: z.record(z.string(), z.unknown()).nullable(),
+  created_at: isoTimestampString,
+  id: z.string(),
+  subject_id: z.string(),
+  subject_type: z.string(),
+});
+export type HouseholdAuditResponse = z.infer<typeof householdAuditSchema>;
+export const householdAuditResponseSchema = z.array(householdAuditSchema);
+
+/* ---- household income and expense reporting (#334) ---- */
+
+export const householdReportCurrencyAmountSchema = z.object({
+  amount: decimalString.nullable(),
+  complete: z.boolean(),
+  known_subtotal: decimalString,
+  missing_count: z.number().int().nonnegative(),
+});
+export const householdReportCurrencyPairSchema = z.object({
+  dkk: householdReportCurrencyAmountSchema,
+  eur: householdReportCurrencyAmountSchema,
+});
+export const householdReportTotalsSchema = z.object({
+  gross_expenses: householdReportCurrencyPairSchema,
+  income: householdReportCurrencyPairSchema,
+  net_expenses: householdReportCurrencyPairSchema,
+  refunds: householdReportCurrencyPairSchema,
+  surplus: householdReportCurrencyPairSchema,
+});
+export const householdReportFiltersSchema = z.object({
+  account_ids: z.array(z.string()),
+  category_id: z.string().nullable(),
+  entity_ids: z.array(z.string()),
+  granularity: z.enum(["day", "month", "year"]),
+  since: isoDateString,
+  until: isoDateString,
+});
+export const householdReportWindowSchema = z.object({
+  since: isoDateString,
+  totals: householdReportTotalsSchema,
+  until: isoDateString,
+});
+export const householdReportChangeSchema = householdReportTotalsSchema;
+export const householdTrendPointSchema = z.object({
+  period_end: isoDateString,
+  period_start: isoDateString,
+  totals: householdReportTotalsSchema,
+});
+export const householdReportCoverageSchema = z.object({
+  allocation_mismatch_count: z.number().int().nonnegative(),
+  bank_transaction_count: z.number().int().nonnegative(),
+  classification_review_count: z.number().int().nonnegative(),
+  excluded_transaction_count: z.number().int().nonnegative(),
+  history_completeness: z.literal("unknown"),
+  history_start: isoDateString.nullable(),
+  included_transaction_count: z.number().int().nonnegative(),
+  missing_fx_allocation_count: z.number().int().nonnegative(),
+  payment_detail_link_count: z.number().int().nonnegative(),
+  payment_detail_reconciled_count: z.number().int().nonnegative(),
+  payment_detail_review_count: z.number().int().nonnegative(),
+  payment_detail_stale_count: z.number().int().nonnegative(),
+  payment_detail_unmatched_count: z.number().int().nonnegative(),
+  source_snapshot_drift_count: z.number().int().nonnegative(),
+  transfer_excluded_count: z.number().int().nonnegative(),
+  unclassified_expense_amount: householdReportCurrencyPairSchema,
+  unclassified_expense_count: z.number().int().nonnegative(),
+  unclassified_transaction_count: z.number().int().nonnegative(),
+});
+export const householdReportFreshnessSchema = z.object({
+  latest_bank_booking_date: isoDateString.nullable(),
+  latest_bank_import_at: isoTimestampString.nullable(),
+  latest_fx_rate_date: isoDateString.nullable(),
+  latest_payment_detail_sync_at: isoTimestampString.nullable(),
+  report_generated_at: isoTimestampString,
+});
+export const householdReportSummarySchema = z.object({
+  change: householdReportChangeSchema,
+  coverage: householdReportCoverageSchema,
+  current: householdReportWindowSchema,
+  filters: householdReportFiltersSchema,
+  freshness: householdReportFreshnessSchema,
+  points: z.array(householdTrendPointSchema),
+  previous: householdReportWindowSchema,
+});
+
+export type HouseholdReportCategoryNode = {
+  readonly archived: boolean;
+  readonly category_id: string;
+  readonly children: readonly HouseholdReportCategoryNode[];
+  readonly kind: "expense" | "income";
+  readonly name: string;
+  readonly parent_id: string | null;
+  readonly revision: number;
+  readonly sort_order: number;
+  readonly totals: z.infer<typeof householdReportTotalsSchema>;
+  readonly transaction_count: number;
+};
+export const householdReportCategoryNodeSchema: z.ZodType<HouseholdReportCategoryNode> = z.lazy(
+  () =>
+    z.object({
+      archived: z.boolean(),
+      category_id: z.string(),
+      children: z.array(householdReportCategoryNodeSchema),
+      kind: z.enum(["expense", "income"]),
+      name: z.string(),
+      parent_id: z.string().nullable(),
+      revision: z.number().int(),
+      sort_order: z.number().int(),
+      totals: householdReportTotalsSchema,
+      transaction_count: z.number().int().nonnegative(),
+    }),
+);
+export const householdReportCategoriesSchema = z.object({
+  categories: z.array(householdReportCategoryNodeSchema),
+  coverage: householdReportCoverageSchema,
+  filters: householdReportFiltersSchema,
+  freshness: householdReportFreshnessSchema,
+});
+
+const householdReportAllocationSchema = z.object({
+  amount_native: decimalString,
+  amount_reporting: householdReportCurrencyPairSchema,
+  category_id: z.string(),
+  category_name: z.string(),
+  category_path: z.array(z.string()),
+  currency: z.string(),
+  treatment: z.enum(["income", "expense", "refund", "transfer", "excluded", "unclassified"]),
+});
+const householdReportPaymentDetailSchema = z.object({
+  approved_detail_revision: z.number().int(),
+  bank_amount: decimalString,
+  bank_code: z.string().nullable(),
+  bank_currency: z.string(),
+  bank_sub_code: z.string().nullable(),
+  current_detail_revision: z.number().int(),
+  detail_id: z.string(),
+  event_kind: z.enum(["purchase", "refund", "funding", "unknown"]),
+  external_reference: z.string().nullable(),
+  merchant_category_code: z.string().nullable(),
+  merchant_name: z.string().nullable(),
+  reconciliation_status: z.enum(["unmatched", "review", "reconciled", "stale"]),
+  reference: z.string().nullable(),
+  source_amount: decimalString,
+  source_currency: z.string(),
+  source_date: isoDateString.nullable(),
+});
+export const householdReportTransactionSchema = z.object({
+  account_id: z.string(),
+  allocations: z.array(householdReportAllocationSchema),
+  amount_reporting: householdReportCurrencyPairSchema,
+  counterparty: z.string().nullable(),
+  currency: z.string(),
+  description: z.string().nullable(),
+  entity_id: z.string(),
+  matching_split_amount_native: decimalString,
+  matching_split_amount_reporting: householdReportCurrencyPairSchema,
+  merchant_name: z.string().nullable(),
+  payment_details: z.array(householdReportPaymentDetailSchema),
+  payment_reconciliation_status: z.enum(["unmatched", "review", "reconciled", "stale"]).nullable(),
+  signed_amount_native: decimalString,
+  treatment: z.enum(["income", "expense", "refund", "transfer", "excluded", "unclassified"]),
+  transaction_id: z.string(),
+  value_date: isoDateString,
+});
+export const householdReportTransactionsSchema = z.object({
+  filters: householdReportFiltersSchema,
+  items: z.array(householdReportTransactionSchema),
+  limit: z.number().int().positive(),
+  offset: z.number().int().nonnegative(),
+  search: z.string().nullable(),
+  total: z.number().int().nonnegative(),
+});
+
+export type HouseholdReportSummaryResponse = z.infer<typeof householdReportSummarySchema>;
+export type HouseholdReportCategoriesResponse = z.infer<typeof householdReportCategoriesSchema>;
+export type HouseholdReportTransaction = z.infer<typeof householdReportTransactionSchema>;
+export type HouseholdReportTransactionsResponse = z.infer<typeof householdReportTransactionsSchema>;
+
+/* ---- public merchant reference index (#332) ---- */
+
+export const vendorReferenceIndexStatusSchema = z.object({
+  active_generation_id: z.string().uuid().nullable(),
+  attribution: z.string(),
+  attribution_url: z.string(),
+  candidate_integrity: z.string().nullable(),
+  candidate_version: z.string().nullable(),
+  checksum_sha256: z.string().nullable(),
+  error_code: z.string().nullable(),
+  error_message: z.string().nullable(),
+  last_attempt_at: isoTimestampString.nullable(),
+  last_checked_at: isoTimestampString.nullable(),
+  last_success_at: isoTimestampString.nullable(),
+  license: z.literal("BSD-3-Clause").nullable(),
+  package_integrity: z.string().nullable(),
+  record_count: z.number().int().nonnegative().nullable(),
+  snapshot_completed_at: isoTimestampString.nullable(),
+  snapshot_started_at: isoTimestampString.nullable(),
+  source_generated_at: isoTimestampString.nullable(),
+  source_id: z.literal("name-suggestion-index"),
+  source_url: z.string().nullable(),
+  source_version: z.string().nullable(),
+  status: z.enum(["never_refreshed", "refreshing", "current", "stale", "failed"]),
+});
+export type VendorReferenceIndexStatusResponse = z.infer<typeof vendorReferenceIndexStatusSchema>;
+
+export const vendorReferenceSearchSchema = z.object({
+  limit: z.number().int().min(1).max(100),
+  match_status: z.enum(["no_match", "unique", "ambiguous"]),
+  matches: z.array(
+    z.object({
+      aliases: z.array(z.string()),
+      category_path: z.string(),
+      label: z.string(),
+      license: z.literal("BSD-3-Clause"),
+      match_kind: z.enum(["exact_alias", "substring"]),
+      source_entity_id: z.string(),
+      source_url: z.string(),
+      source_version: z.string(),
+      wikidata_id: z.string().nullable(),
+    }),
+  ),
+  source_status: z.enum(["never_refreshed", "refreshing", "current", "stale", "failed"]),
+  source_version: z.string().nullable(),
+  truncated: z.boolean(),
+});
+export type VendorReferenceSearchResponse = z.infer<typeof vendorReferenceSearchSchema>;
+
+/* ---- import sessions (#207/#208) ---- */
 
 export const rowIssueSchema = z.object({
   code: z.string(),
@@ -344,8 +739,10 @@ export type SuggestionsResponse = z.infer<typeof suggestionsResponseSchema>;
 
 export const aspspSchema = z.object({
   aspsp_country: z.string(),
+  data_role: z.enum(["cash_account", "payment_detail"]),
   aspsp_name: z.string(),
   default_currency: z.string(),
+  psu_type: z.enum(["personal", "business"]),
   provider: z.string(),
 });
 export type Aspsp = z.infer<typeof aspspSchema>;
@@ -377,6 +774,7 @@ export const connectionSchema = z.object({
   aspsp_country: z.string(),
   aspsp_name: z.string(),
   created_at: z.string(),
+  data_role: z.enum(["cash_account", "payment_detail", "unknown"]),
   entity_name: z.string(),
   id: z.string(),
   last_error: connectionErrorSchema.nullable(),
@@ -405,6 +803,7 @@ export type LinkResponse = z.infer<typeof linkResponseSchema>;
 export const syncResponseSchema = z.object({
   connection: connectionSchema,
   holding_snapshots: z.number().int(),
+  payment_details: z.number().int(),
   transactions: z.number().int(),
 });
 export type SyncResponse = z.infer<typeof syncResponseSchema>;
@@ -488,6 +887,40 @@ type _CheckBenchmarkSeries = Assert<
 >;
 type _CheckFeeYearRow = Assert<MutuallyAssignable<FeeYearRow, Generated["FeeYearRow"]>>;
 type _CheckFeesResponse = Assert<MutuallyAssignable<FeesResponse, Generated["FeesResponse"]>>;
+type _CheckHouseholdCategory = Assert<
+  MutuallyAssignable<HouseholdCategoryResponse, Generated["CategoryOut"]>
+>;
+type _CheckHouseholdMerchant = Assert<
+  MutuallyAssignable<HouseholdMerchantResponse, Generated["MerchantOut"]>
+>;
+type _CheckHouseholdAlias = Assert<
+  MutuallyAssignable<HouseholdAliasResponse, Generated["AliasOut"]>
+>;
+type _CheckHouseholdSplit = Assert<
+  MutuallyAssignable<z.infer<typeof householdSplitSchema>, Generated["Split-Output"]>
+>;
+type _CheckHouseholdDetailLink = Assert<
+  MutuallyAssignable<
+    z.infer<typeof householdPaymentDetailLinkSchema>,
+    Generated["PaymentDetailLink-Output"]
+  >
+>;
+type _CheckHouseholdClassification = Assert<
+  MutuallyAssignable<HouseholdClassificationResponse, Generated["ClassificationOut"]>
+>;
+type _CheckHouseholdTransaction = Assert<
+  MutuallyAssignable<HouseholdTransactionResponse, Generated["TransactionOut"]>
+>;
+type _CheckHouseholdRule = Assert<MutuallyAssignable<HouseholdRuleResponse, Generated["RuleOut"]>>;
+type _CheckHouseholdPreview = Assert<
+  MutuallyAssignable<HouseholdPreviewResponse, Generated["PreviewOut"]>
+>;
+type _CheckHouseholdCandidate = Assert<
+  MutuallyAssignable<z.infer<typeof householdCandidateSchema>, Generated["Candidate"]>
+>;
+type _CheckHouseholdAudit = Assert<
+  MutuallyAssignable<HouseholdAuditResponse, Generated["AuditOut"]>
+>;
 type _CheckAspsp = Assert<MutuallyAssignable<Aspsp, Generated["AspspOut"]>>;
 type _CheckAspspListResponse = Assert<
   MutuallyAssignable<AspspListResponse, Generated["AspspListResponse"]>

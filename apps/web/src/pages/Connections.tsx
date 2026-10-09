@@ -77,7 +77,7 @@ export function ConnectionsPage(): React.JSX.Element {
     <>
       <PageHeader
         title="Bank connections"
-        description="Link a bank through Enable Banking, authorize the consent once, then sync on demand. A consent is reused for roughly 180 days — only an expired or revoked session asks you to consent again."
+        description="Link a provider through Enable Banking, authorize the consent once, then sync on demand. A consent is reused for roughly 180 days — only an expired or revoked session asks you to consent again."
       />
       <LinkPanel />
       <AuthorizePanel />
@@ -129,6 +129,7 @@ function LinkPanel(): React.JSX.Element {
 
   const providers = aspsps.data.providers;
   const selected = provider === "" ? (providers[0]?.provider ?? "") : provider;
+  const selectedProvider = providers.find((item) => item.provider === selected);
   const canSubmit = selected !== "" && entityName.trim() !== "" && !startLink.isPending;
 
   return (
@@ -157,7 +158,8 @@ function LinkPanel(): React.JSX.Element {
         >
           {providers.map((aspsp) => (
             <MenuItem key={aspsp.provider} value={aspsp.provider}>
-              {aspsp.aspsp_name} ({aspsp.aspsp_country})
+              {aspsp.aspsp_name} ({aspsp.aspsp_country}) · {aspsp.psu_type}
+              {aspsp.data_role === "payment_detail" ? " · detail-only" : ""}
             </MenuItem>
           ))}
         </TextField>
@@ -173,6 +175,14 @@ function LinkPanel(): React.JSX.Element {
           {startLink.isPending ? "Starting…" : "Start consent"}
         </Button>
       </Box>
+      {selectedProvider?.data_role === "payment_detail" ? (
+        <Alert severity="info" variant="outlined" sx={{ mt: 1.5, borderRadius: 3 }}>
+          PayPal is a detail-only source. Its wallet balance and payment rows are not added as
+          household cashflow; unmatched details require review and an approved link to a checking
+          transaction. PayPal has not been live-authorized in this deployment, so available history
+          and merchant details are not yet verified.
+        </Alert>
+      ) : null}
       {startLink.isError ? (
         <Typography role="alert" color="error.main" sx={{ fontSize: "0.85rem", mt: 1.5 }}>
           {startLink.error.message}
@@ -356,10 +366,17 @@ function ConnectionCard({ connection }: { readonly connection: Connection }): Re
 
   useEffect(() => {
     if (sync.isSuccess) {
-      notify(
-        `Imported ${sync.data.transactions} transactions, ${sync.data.holding_snapshots} snapshots.`,
-        "success",
-      );
+      if (sync.data.connection.data_role === "payment_detail") {
+        notify(
+          `Synced ${sync.data.payment_details} payment details; no ledger transactions or balances were added.`,
+          "success",
+        );
+      } else {
+        notify(
+          `Imported ${sync.data.transactions} transactions, ${sync.data.holding_snapshots} snapshots.`,
+          "success",
+        );
+      }
     }
   }, [sync.isSuccess, sync.data, notify]);
   useEffect(() => {
@@ -394,7 +411,10 @@ function ConnectionCard({ connection }: { readonly connection: Connection }): Re
             {connection.entity_name} · {connection.aspsp_country}
           </Typography>
         </Box>
-        <Pill tone={statusTone(connection.status)}>{connection.status}</Pill>
+        <Stack direction="row" spacing={0.75}>
+          {connection.data_role === "payment_detail" ? <Pill tone="info">detail-only</Pill> : null}
+          <Pill tone={statusTone(connection.status)}>{connection.status}</Pill>
+        </Stack>
       </Stack>
 
       {connection.accounts.length > 0 ? (
@@ -455,7 +475,11 @@ function ConnectionCard({ connection }: { readonly connection: Connection }): Re
           onClick={() => sync.mutate({ connectionId: connection.id })}
           sx={{ minHeight: "2.75rem" }}
         >
-          {sync.isPending ? "Syncing…" : "Sync now"}
+          {sync.isPending
+            ? "Syncing…"
+            : connection.data_role === "payment_detail"
+              ? "Sync details"
+              : "Sync now"}
         </Button>
       </Stack>
     </Box>

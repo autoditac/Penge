@@ -11,6 +11,7 @@ import AssignmentOutlinedIcon from "@mui/icons-material/AssignmentOutlined";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
+import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import TrendingUpOutlinedIcon from "@mui/icons-material/TrendingUpOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import AppBar from "@mui/material/AppBar";
@@ -38,6 +39,7 @@ const navItems = [
   { to: "/imports", label: "Imports", end: false, icon: <UploadFileOutlinedIcon /> },
   { to: "/connections", label: "Connections", end: false, icon: <AccountBalanceOutlinedIcon /> },
   { to: "/planning", label: "Planning", end: false, icon: <AssignmentOutlinedIcon /> },
+  { to: "/household", label: "Spending", end: false, icon: <PaymentsOutlinedIcon /> },
 ] as const;
 
 const drawerWidth = 232;

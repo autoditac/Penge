@@ -1,1 +1,1 @@
-"""Synthetic household categorization tests."""
+"""Synthetic end-to-end fixtures for household categorization and reporting."""

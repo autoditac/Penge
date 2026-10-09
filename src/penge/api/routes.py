@@ -18,9 +18,27 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.engine import Engine
 
 from penge.analytics import ReturnPoint, ReturnsError, mwr_from_series, twr_summary
+from penge.analytics.household import BankTransaction, Category, previous_window
 from penge.api import data
 from penge.api.account_kinds import reporting_kind
 from penge.api.connections.config import ConnectionsConfig
+from penge.api.household_models import (
+    HouseholdCategoryReportResponse,
+    HouseholdGranularity,
+    HouseholdReportFilters,
+    HouseholdReportFreshness,
+    HouseholdReportSummaryResponse,
+    HouseholdReportTransactionsResponse,
+)
+from penge.api.household_reporting import (
+    build_category_response,
+    build_report_coverage,
+    build_summary_response,
+    build_transactions_response,
+    categories_from_rows,
+    category_descendant_ids,
+    transactions_from_rows,
+)
 from penge.api.imports.engine import get_import_engine
 from penge.api.models import (
     AccountSummary,
@@ -240,6 +258,334 @@ def meta_freshness() -> FreshnessResponse:
     """Latest data date and row count per mart, for staleness banners."""
     return FreshnessResponse(
         marts=[MartFreshness.model_validate(row) for row in data.fetch_freshness()]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Household reporting projection (issue #333, ADR-0052)
+# ---------------------------------------------------------------------------
+
+_HouseholdAccountParam = Annotated[
+    list[str] | None,
+    Query(description="Repeat to select checking-account ids; default is all checking accounts."),
+]
+_HouseholdEntityParam = Annotated[
+    list[str] | None,
+    Query(description="Repeat to filter household entity ids; default is all owned entities."),
+]
+_HouseholdCategoryParam = Annotated[
+    str | None,
+    Query(description="Category id; includes descendant categories."),
+]
+
+
+def _household_scope(
+    *,
+    since: date | None,
+    until: date | None,
+    account_ids: list[str] | None,
+    entity_ids: list[str] | None,
+) -> tuple[date, date, list[str], list[str]]:
+    resolved_since, resolved_until = _window(since, until)
+    if resolved_since > resolved_until:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="since must be on or before until",
+        )
+    resolved_entities = list(dict.fromkeys(entity_ids or []))
+    if account_ids is None:
+        resolved_accounts = data.fetch_household_default_accounts(entity_ids=resolved_entities)
+    else:
+        resolved_accounts = list(dict.fromkeys(account_ids))
+        eligible_accounts = data.fetch_household_checking_accounts(
+            account_ids=resolved_accounts,
+            entity_ids=resolved_entities,
+        )
+        if set(eligible_accounts) != set(resolved_accounts):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="account_id must select checking accounts in the selected entity scope",
+            )
+    return resolved_since, resolved_until, resolved_accounts, resolved_entities
+
+
+def _household_filters(
+    *,
+    since: date,
+    until: date,
+    account_ids: list[str],
+    entity_ids: list[str],
+    category_id: str | None,
+    granularity: HouseholdGranularity,
+) -> HouseholdReportFilters:
+    return HouseholdReportFilters(
+        since=since,
+        until=until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        category_id=category_id,
+        granularity=granularity,
+    )
+
+
+def _household_freshness(
+    *,
+    account_ids: list[str],
+    entity_ids: list[str],
+    until: date,
+) -> tuple[HouseholdReportFreshness, date | None]:
+    row = data.fetch_household_report_freshness(
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        until=until,
+    )
+    generated_at = datetime.now(UTC)
+    history_start = row.get("history_start")
+    latest_booking = row.get("latest_bank_booking_date")
+    latest_import = row.get("latest_bank_import_at")
+    latest_fx = row.get("latest_fx_rate_date")
+    latest_detail = row.get("latest_payment_detail_sync_at")
+    freshness = HouseholdReportFreshness(
+        report_generated_at=generated_at,
+        latest_bank_booking_date=latest_booking if isinstance(latest_booking, date) else None,
+        latest_bank_import_at=latest_import if isinstance(latest_import, datetime) else None,
+        latest_fx_rate_date=latest_fx if isinstance(latest_fx, date) else None,
+        latest_payment_detail_sync_at=(
+            latest_detail if isinstance(latest_detail, datetime) else None
+        ),
+    )
+    return freshness, history_start if isinstance(history_start, date) else None
+
+
+def _household_categories_and_transactions(
+    *,
+    since: date,
+    until: date,
+    account_ids: list[str],
+    entity_ids: list[str],
+) -> tuple[tuple[Category, ...], tuple[BankTransaction, ...]]:
+    category_rows = data.fetch_household_categories()
+    categories = categories_from_rows(category_rows)
+    fact_rows = data.fetch_household_report_facts(
+        since=since,
+        until=until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+    )
+    transactions = transactions_from_rows(fact_rows)
+    return categories, transactions
+
+
+def _household_category_transactions(
+    *,
+    rows: list[dict[str, object]],
+) -> tuple[BankTransaction, ...]:
+    transaction_ids = list(dict.fromkeys(str(row["transaction_id"]) for row in rows))
+    details = data.fetch_household_payment_details(transaction_ids=transaction_ids)
+    return transactions_from_rows(rows, details)
+
+
+def _validate_household_category(
+    categories: tuple[Category, ...],
+    category_id: str | None,
+) -> None:
+    if category_id is None:
+        return
+    if category_id not in {category.category_id for category in categories}:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="unknown category_id",
+        )
+    category_descendant_ids(categories, category_id)
+
+
+@router.get(
+    "/household/reports/summary",
+    response_model=HouseholdReportSummaryResponse,
+)
+def household_report_summary(
+    since: _SinceParam = None,
+    until: _UntilParam = None,
+    account_id: _HouseholdAccountParam = None,
+    entity_id: _HouseholdEntityParam = None,
+    category_id: _HouseholdCategoryParam = None,
+    granularity: HouseholdGranularity = HouseholdGranularity.MONTH,
+) -> HouseholdReportSummaryResponse:
+    """Return household totals, comparison, trend, coverage, and freshness."""
+    resolved_since, resolved_until, account_ids, entity_ids = _household_scope(
+        since=since,
+        until=until,
+        account_ids=account_id,
+        entity_ids=entity_id,
+    )
+    filters = _household_filters(
+        since=resolved_since,
+        until=resolved_until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        category_id=category_id,
+        granularity=granularity,
+    )
+    categories = categories_from_rows(data.fetch_household_categories())
+    _validate_household_category(categories, category_id)
+    previous_since, _ = previous_window(resolved_since, resolved_until)
+    transactions = _household_category_transactions(
+        rows=data.fetch_household_report_facts(
+            since=previous_since,
+            until=resolved_until,
+            account_ids=account_ids,
+            entity_ids=entity_ids,
+        ),
+    )
+    freshness, history_start = _household_freshness(
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        until=resolved_until,
+    )
+    coverage = build_report_coverage(
+        transactions=transactions,
+        categories=categories,
+        since=resolved_since,
+        until=resolved_until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        category_id=category_id,
+        history_start=history_start,
+        unmatched_detail_count=data.fetch_household_unmatched_payment_detail_count(
+            since=resolved_since,
+            until=resolved_until,
+            entity_ids=entity_ids,
+        ),
+    )
+    return build_summary_response(
+        transactions=transactions,
+        categories=categories,
+        filters=filters,
+        coverage=coverage,
+        freshness=freshness,
+    )
+
+
+@router.get(
+    "/household/reports/categories",
+    response_model=HouseholdCategoryReportResponse,
+)
+def household_report_categories(
+    since: _SinceParam = None,
+    until: _UntilParam = None,
+    account_id: _HouseholdAccountParam = None,
+    entity_id: _HouseholdEntityParam = None,
+    category_id: _HouseholdCategoryParam = None,
+    granularity: HouseholdGranularity = HouseholdGranularity.MONTH,
+) -> HouseholdCategoryReportResponse:
+    """Return descendant-inclusive category rollups and report coverage."""
+    resolved_since, resolved_until, account_ids, entity_ids = _household_scope(
+        since=since,
+        until=until,
+        account_ids=account_id,
+        entity_ids=entity_id,
+    )
+    filters = _household_filters(
+        since=resolved_since,
+        until=resolved_until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        category_id=category_id,
+        granularity=granularity,
+    )
+    categories, transactions = _household_categories_and_transactions(
+        since=resolved_since,
+        until=resolved_until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+    )
+    _validate_household_category(categories, category_id)
+    freshness, history_start = _household_freshness(
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        until=resolved_until,
+    )
+    coverage = build_report_coverage(
+        transactions=transactions,
+        categories=categories,
+        since=resolved_since,
+        until=resolved_until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        category_id=category_id,
+        history_start=history_start,
+        unmatched_detail_count=data.fetch_household_unmatched_payment_detail_count(
+            since=resolved_since,
+            until=resolved_until,
+            entity_ids=entity_ids,
+        ),
+    )
+    return build_category_response(
+        transactions=transactions,
+        categories=categories,
+        filters=filters,
+        coverage=coverage,
+        freshness=freshness,
+    )
+
+
+@router.get(
+    "/household/reports/transactions",
+    response_model=HouseholdReportTransactionsResponse,
+)
+def household_report_transactions(
+    since: _SinceParam = None,
+    until: _UntilParam = None,
+    account_id: _HouseholdAccountParam = None,
+    entity_id: _HouseholdEntityParam = None,
+    category_id: _HouseholdCategoryParam = None,
+    granularity: HouseholdGranularity = HouseholdGranularity.MONTH,
+    search: Annotated[str | None, Query(min_length=1, max_length=200)] = None,
+    limit: _LimitParam = DEFAULT_LIMIT,
+    offset: _OffsetParam = 0,
+) -> HouseholdReportTransactionsResponse:
+    """Return a stable, paginated bank-grain transaction drilldown."""
+    resolved_since, resolved_until, account_ids, entity_ids = _household_scope(
+        since=since,
+        until=until,
+        account_ids=account_id,
+        entity_ids=entity_id,
+    )
+    filters = _household_filters(
+        since=resolved_since,
+        until=resolved_until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        category_id=category_id,
+        granularity=granularity,
+    )
+    categories = categories_from_rows(data.fetch_household_categories())
+    _validate_household_category(categories, category_id)
+    selected_category_ids = (
+        category_descendant_ids(categories, category_id) if category_id is not None else frozenset()
+    )
+    rows, total = data.fetch_household_transaction_page(
+        since=resolved_since,
+        until=resolved_until,
+        account_ids=account_ids,
+        entity_ids=entity_ids,
+        category_ids=sorted(selected_category_ids),
+        category_filter=category_id is not None,
+        search=search,
+        limit=limit,
+        offset=offset,
+    )
+    transaction_ids = list(dict.fromkeys(str(row["transaction_id"]) for row in rows))
+    details = data.fetch_household_payment_details(transaction_ids=transaction_ids)
+    transactions = transactions_from_rows(rows, details)
+    return build_transactions_response(
+        transactions=transactions,
+        categories=categories,
+        filters=filters,
+        search=search,
+        limit=limit,
+        offset=offset,
+        total=total,
     )
 
 

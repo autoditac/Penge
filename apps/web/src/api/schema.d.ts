@@ -403,6 +403,66 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/household/reports/categories": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Household Report Categories
+     * @description Return descendant-inclusive category rollups and report coverage.
+     */
+    get: operations["household_report_categories_household_reports_categories_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/reports/summary": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Household Report Summary
+     * @description Return household totals, comparison, trend, coverage, and freshness.
+     */
+    get: operations["household_report_summary_household_reports_summary_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/household/reports/transactions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Household Report Transactions
+     * @description Return a stable, paginated bank-grain transaction drilldown.
+     */
+    get: operations["household_report_transactions_household_reports_transactions_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/household/rules": {
     parameters: {
       query?: never;
@@ -794,6 +854,46 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/vendors/reference-index/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Search Reference Index
+     * @description Search the active local reference generation; no request is sent upstream.
+     */
+    get: operations["search_reference_index_vendors_reference_index_search_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/vendors/reference-index/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Reference Index Status
+     * @description Expose active release freshness, provenance, and sanitized failures.
+     */
+    get: operations["reference_index_status_vendors_reference_index_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -963,10 +1063,20 @@ export interface components {
       aspsp_country: string;
       /** Aspsp Name */
       aspsp_name: string;
+      /**
+       * Data Role
+       * @enum {string}
+       */
+      data_role: "cash_account" | "payment_detail";
       /** Default Currency */
       default_currency: string;
       /** Provider */
       provider: string;
+      /**
+       * Psu Type
+       * @enum {string}
+       */
+      psu_type: "personal" | "business";
     };
     /** AuditOut */
     AuditOut: {
@@ -1386,6 +1496,11 @@ export interface components {
        * Format: date-time
        */
       created_at: string;
+      /**
+       * Data Role
+       * @enum {string}
+       */
+      data_role: "cash_account" | "payment_detail" | "unknown";
       /** Entity Name */
       entity_name: string;
       /**
@@ -1481,6 +1596,343 @@ export interface components {
     HTTPValidationError: {
       /** Detail */
       detail?: components["schemas"]["ValidationError"][];
+    };
+    /**
+     * HouseholdCategoryNode
+     * @description Category hierarchy node with descendant-inclusive totals.
+     */
+    HouseholdCategoryNode: {
+      /** Archived */
+      archived: boolean;
+      /** Category Id */
+      category_id: string;
+      /** Children */
+      children: components["schemas"]["HouseholdCategoryNode"][];
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "expense" | "income";
+      /** Name */
+      name: string;
+      /** Parent Id */
+      parent_id: string | null;
+      /** Revision */
+      revision: number;
+      /** Sort Order */
+      sort_order: number;
+      totals: components["schemas"]["HouseholdReportTotals"];
+      /** Transaction Count */
+      transaction_count: number;
+    };
+    /**
+     * HouseholdCategoryReportResponse
+     * @description Category hierarchy and rollups under the common report filters.
+     */
+    HouseholdCategoryReportResponse: {
+      /** Categories */
+      categories: components["schemas"]["HouseholdCategoryNode"][];
+      coverage: components["schemas"]["HouseholdReportCoverage"];
+      filters: components["schemas"]["HouseholdReportFilters"];
+      freshness: components["schemas"]["HouseholdReportFreshness"];
+    };
+    /**
+     * HouseholdCurrencyAmount
+     * @description Known subtotal and conversion completeness for one currency.
+     */
+    HouseholdCurrencyAmount: {
+      /** Amount */
+      amount: string | null;
+      /** Complete */
+      complete: boolean;
+      /** Known Subtotal */
+      known_subtotal: string;
+      /** Missing Count */
+      missing_count: number;
+    };
+    /**
+     * HouseholdCurrencyPair
+     * @description Amounts in EUR and DKK without a hidden base currency.
+     */
+    HouseholdCurrencyPair: {
+      dkk: components["schemas"]["HouseholdCurrencyAmount"];
+      eur: components["schemas"]["HouseholdCurrencyAmount"];
+    };
+    /**
+     * HouseholdGranularity
+     * @description Supported report bucket sizes.
+     * @enum {string}
+     */
+    HouseholdGranularity: "day" | "month" | "year";
+    /**
+     * HouseholdPaymentDetailLink
+     * @description Minimal, whitelisted PayPal enrichment attached to a bank movement.
+     */
+    HouseholdPaymentDetailLink: {
+      /** Approved Detail Revision */
+      approved_detail_revision: number;
+      /** Bank Amount */
+      bank_amount: string;
+      /** Bank Code */
+      bank_code: string | null;
+      /** Bank Currency */
+      bank_currency: string;
+      /** Bank Sub Code */
+      bank_sub_code: string | null;
+      /** Current Detail Revision */
+      current_detail_revision: number;
+      /** Detail Id */
+      detail_id: string;
+      event_kind: components["schemas"]["PaymentEventKind"];
+      /** External Reference */
+      external_reference: string | null;
+      /** Merchant Category Code */
+      merchant_category_code: string | null;
+      /** Merchant Name */
+      merchant_name: string | null;
+      reconciliation_status: components["schemas"]["ReconciliationStatus"];
+      /** Reference */
+      reference: string | null;
+      /** Source Amount */
+      source_amount: string;
+      /** Source Currency */
+      source_currency: string;
+      /** Source Date */
+      source_date: string | null;
+    };
+    /**
+     * HouseholdReportAllocation
+     * @description One signed category split on a canonical bank transaction.
+     */
+    HouseholdReportAllocation: {
+      /** Amount Native */
+      amount_native: string;
+      amount_reporting: components["schemas"]["HouseholdCurrencyPair"];
+      /** Category Id */
+      category_id: string | null;
+      /** Category Name */
+      category_name: string | null;
+      /** Category Path */
+      category_path: string[];
+      /** Currency */
+      currency: string;
+      treatment: components["schemas"]["HouseholdTreatment"];
+    };
+    /**
+     * HouseholdReportChange
+     * @description Current-window totals minus previous-window totals.
+     */
+    HouseholdReportChange: {
+      gross_expenses: components["schemas"]["HouseholdCurrencyPair"];
+      income: components["schemas"]["HouseholdCurrencyPair"];
+      net_expenses: components["schemas"]["HouseholdCurrencyPair"];
+      refunds: components["schemas"]["HouseholdCurrencyPair"];
+      surplus: components["schemas"]["HouseholdCurrencyPair"];
+    };
+    /**
+     * HouseholdReportCoverage
+     * @description Coverage, classification, and reconciliation counts for a report.
+     */
+    HouseholdReportCoverage: {
+      /** Allocation Mismatch Count */
+      allocation_mismatch_count: number;
+      /** Bank Transaction Count */
+      bank_transaction_count: number;
+      /** Classification Review Count */
+      classification_review_count: number;
+      /** Excluded Transaction Count */
+      excluded_transaction_count: number;
+      /**
+       * History Completeness
+       * @constant
+       */
+      history_completeness: "unknown";
+      /** History Start */
+      history_start: string | null;
+      /** Included Transaction Count */
+      included_transaction_count: number;
+      /** Missing Fx Allocation Count */
+      missing_fx_allocation_count: number;
+      /** Payment Detail Link Count */
+      payment_detail_link_count: number;
+      /** Payment Detail Reconciled Count */
+      payment_detail_reconciled_count: number;
+      /** Payment Detail Review Count */
+      payment_detail_review_count: number;
+      /** Payment Detail Stale Count */
+      payment_detail_stale_count: number;
+      /** Payment Detail Unmatched Count */
+      payment_detail_unmatched_count: number;
+      /** Source Snapshot Drift Count */
+      source_snapshot_drift_count: number;
+      /** Transfer Excluded Count */
+      transfer_excluded_count: number;
+      unclassified_expense_amount: components["schemas"]["HouseholdCurrencyPair"];
+      /** Unclassified Expense Count */
+      unclassified_expense_count: number;
+      /** Unclassified Transaction Count */
+      unclassified_transaction_count: number;
+    };
+    /**
+     * HouseholdReportFilters
+     * @description Canonical filters echoed by all household report reads.
+     */
+    HouseholdReportFilters: {
+      /** Account Ids */
+      account_ids: string[];
+      /** Category Id */
+      category_id: string | null;
+      /** Entity Ids */
+      entity_ids: string[];
+      granularity: components["schemas"]["HouseholdGranularity"];
+      /**
+       * Since
+       * Format: date
+       */
+      since: string;
+      /**
+       * Until
+       * Format: date
+       */
+      until: string;
+    };
+    /**
+     * HouseholdReportFreshness
+     * @description Observation and source freshness metadata for a report response.
+     */
+    HouseholdReportFreshness: {
+      /** Latest Bank Booking Date */
+      latest_bank_booking_date: string | null;
+      /** Latest Bank Import At */
+      latest_bank_import_at: string | null;
+      /** Latest Fx Rate Date */
+      latest_fx_rate_date: string | null;
+      /** Latest Payment Detail Sync At */
+      latest_payment_detail_sync_at: string | null;
+      /**
+       * Report Generated At
+       * Format: date-time
+       */
+      report_generated_at: string;
+    };
+    /**
+     * HouseholdReportSummaryResponse
+     * @description Selected-window household totals, trend, comparison, and coverage.
+     */
+    HouseholdReportSummaryResponse: {
+      change: components["schemas"]["HouseholdReportChange"];
+      coverage: components["schemas"]["HouseholdReportCoverage"];
+      current: components["schemas"]["HouseholdReportWindow"];
+      filters: components["schemas"]["HouseholdReportFilters"];
+      freshness: components["schemas"]["HouseholdReportFreshness"];
+      /** Points */
+      points: components["schemas"]["HouseholdTrendPoint"][];
+      previous: components["schemas"]["HouseholdReportWindow"];
+    };
+    /**
+     * HouseholdReportTotals
+     * @description Explicit income, gross, refund, net-expense, and surplus measures.
+     */
+    HouseholdReportTotals: {
+      gross_expenses: components["schemas"]["HouseholdCurrencyPair"];
+      income: components["schemas"]["HouseholdCurrencyPair"];
+      net_expenses: components["schemas"]["HouseholdCurrencyPair"];
+      refunds: components["schemas"]["HouseholdCurrencyPair"];
+      surplus: components["schemas"]["HouseholdCurrencyPair"];
+    };
+    /**
+     * HouseholdReportTransaction
+     * @description One bank transaction with complete source amount and split drilldown.
+     */
+    HouseholdReportTransaction: {
+      /** Account Id */
+      account_id: string;
+      /** Allocations */
+      allocations: components["schemas"]["HouseholdReportAllocation"][];
+      amount_reporting: components["schemas"]["HouseholdCurrencyPair"];
+      /** Counterparty */
+      counterparty: string | null;
+      /** Currency */
+      currency: string;
+      /** Description */
+      description: string | null;
+      /** Entity Id */
+      entity_id: string;
+      /** Matching Split Amount Native */
+      matching_split_amount_native: string;
+      matching_split_amount_reporting: components["schemas"]["HouseholdCurrencyPair"];
+      /** Merchant Name */
+      merchant_name: string | null;
+      /** Payment Details */
+      payment_details: components["schemas"]["HouseholdPaymentDetailLink"][];
+      payment_reconciliation_status: components["schemas"]["ReconciliationStatus"] | null;
+      /** Signed Amount Native */
+      signed_amount_native: string;
+      /** Transaction Id */
+      transaction_id: string;
+      treatment: components["schemas"]["HouseholdTreatment"];
+      /**
+       * Value Date
+       * Format: date
+       */
+      value_date: string;
+    };
+    /**
+     * HouseholdReportTransactionsResponse
+     * @description Stable paginated bank transaction drilldown.
+     */
+    HouseholdReportTransactionsResponse: {
+      filters: components["schemas"]["HouseholdReportFilters"];
+      /** Items */
+      items: components["schemas"]["HouseholdReportTransaction"][];
+      /** Limit */
+      limit: number;
+      /** Offset */
+      offset: number;
+      /** Search */
+      search: string | null;
+      /** Total */
+      total: number;
+    };
+    /**
+     * HouseholdReportWindow
+     * @description Totals for a concrete inclusive date window.
+     */
+    HouseholdReportWindow: {
+      /**
+       * Since
+       * Format: date
+       */
+      since: string;
+      totals: components["schemas"]["HouseholdReportTotals"];
+      /**
+       * Until
+       * Format: date
+       */
+      until: string;
+    };
+    /**
+     * HouseholdTreatment
+     * @description Bank-movement treatment used by the household projection.
+     * @enum {string}
+     */
+    HouseholdTreatment: "income" | "expense" | "refund" | "transfer" | "excluded" | "unclassified";
+    /**
+     * HouseholdTrendPoint
+     * @description A clipped trend bucket with household totals.
+     */
+    HouseholdTrendPoint: {
+      /**
+       * Period End
+       * Format: date
+       */
+      period_end: string;
+      /**
+       * Period Start
+       * Format: date
+       */
+      period_start: string;
+      totals: components["schemas"]["HouseholdReportTotals"];
     };
     /**
      * ImportRowOut
@@ -1629,7 +2081,7 @@ export interface components {
       entity_name: string;
       /**
        * Provider
-       * @description Penge provider slug: gls | ebank | lunar.
+       * @description Penge provider slug: gls | ebank | lunar | paypal.
        */
       provider: string;
     };
@@ -1903,6 +2355,12 @@ export interface components {
       ts: string;
     };
     /**
+     * PaymentEventKind
+     * @description Conservative PayPal source-event semantics.
+     * @enum {string}
+     */
+    PaymentEventKind: "purchase" | "refund" | "funding" | "unknown";
+    /**
      * PaymentSourceFields
      * @description Provider whitelist, not an arbitrary response/profile blob.
      */
@@ -1954,6 +2412,121 @@ export interface components {
        * Format: uuid
        */
       related_transaction_id: string;
+    };
+    /**
+     * ReconciliationStatus
+     * @description Status of explicit bank-to-payment-detail allocations.
+     * @enum {string}
+     */
+    ReconciliationStatus: "unmatched" | "review" | "reconciled" | "stale";
+    /**
+     * ReferenceIndexStatusOut
+     * @description Refresh status, active provenance, and sanitized failure information.
+     */
+    ReferenceIndexStatusOut: {
+      /** Active Generation Id */
+      active_generation_id: string | null;
+      /** Attribution */
+      attribution: string;
+      /** Attribution Url */
+      attribution_url: string;
+      /** Candidate Integrity */
+      candidate_integrity: string | null;
+      /** Candidate Version */
+      candidate_version: string | null;
+      /** Checksum Sha256 */
+      checksum_sha256: string | null;
+      /** Error Code */
+      error_code: string | null;
+      /** Error Message */
+      error_message: string | null;
+      /** Last Attempt At */
+      last_attempt_at: string | null;
+      /** Last Checked At */
+      last_checked_at: string | null;
+      /** Last Success At */
+      last_success_at: string | null;
+      /** License */
+      license: "BSD-3-Clause" | null;
+      /** Package Integrity */
+      package_integrity: string | null;
+      /** Record Count */
+      record_count?: number | null;
+      /** Snapshot Completed At */
+      snapshot_completed_at: string | null;
+      /** Snapshot Started At */
+      snapshot_started_at: string | null;
+      /** Source Generated At */
+      source_generated_at: string | null;
+      /**
+       * Source Id
+       * @default name-suggestion-index
+       * @constant
+       */
+      source_id: "name-suggestion-index";
+      /** Source Url */
+      source_url: string | null;
+      /** Source Version */
+      source_version: string | null;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "never_refreshed" | "refreshing" | "current" | "stale" | "failed";
+    };
+    /**
+     * ReferenceSearchOut
+     * @description Conservative local-only matches for a user-provided search string.
+     */
+    ReferenceSearchOut: {
+      /** Limit */
+      limit: number;
+      /**
+       * Match Status
+       * @enum {string}
+       */
+      match_status: "no_match" | "unique" | "ambiguous";
+      /** Matches */
+      matches: components["schemas"]["ReferenceSuggestionOut"][];
+      /**
+       * Source Status
+       * @enum {string}
+       */
+      source_status: "never_refreshed" | "refreshing" | "current" | "stale" | "failed";
+      /** Source Version */
+      source_version: string | null;
+      /** Truncated */
+      truncated: boolean;
+    };
+    /**
+     * ReferenceSuggestionOut
+     * @description One public reference search result with its source provenance.
+     */
+    ReferenceSuggestionOut: {
+      /** Aliases */
+      aliases: string[];
+      /** Category Path */
+      category_path: string;
+      /** Label */
+      label: string;
+      /**
+       * License
+       * @constant
+       */
+      license: "BSD-3-Clause";
+      /**
+       * Match Kind
+       * @enum {string}
+       */
+      match_kind: "exact_alias" | "substring";
+      /** Source Entity Id */
+      source_entity_id: string;
+      /** Source Url */
+      source_url: string;
+      /** Source Version */
+      source_version: string;
+      /** Wikidata Id */
+      wikidata_id: string | null;
     };
     /**
      * ReturnsPoint
@@ -2128,8 +2701,7 @@ export interface components {
       state: "active" | "conflict" | "disabled" | "insufficient";
       /** Treatment */
       treatment:
-        | ("expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified")
-        | null;
+        ("expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified") | null;
       /** Version */
       version: number;
     };
@@ -2204,6 +2776,8 @@ export interface components {
       connection: components["schemas"]["ConnectionOut"];
       /** Holding Snapshots */
       holding_snapshots: number;
+      /** Payment Details */
+      payment_details: number;
       /** Transactions */
       transactions: number;
     };
@@ -3035,6 +3609,134 @@ export interface operations {
       };
     };
   };
+  household_report_categories_household_reports_categories_get: {
+    parameters: {
+      query?: {
+        /** @description First day of the window (inclusive). Default: one year ago. */
+        since?: string | null;
+        /** @description Last day of the window (inclusive). Default: today. */
+        until?: string | null;
+        /** @description Repeat to select checking-account ids; default is all checking accounts. */
+        account_id?: string[] | null;
+        /** @description Repeat to filter household entity ids; default is all owned entities. */
+        entity_id?: string[] | null;
+        /** @description Category id; includes descendant categories. */
+        category_id?: string | null;
+        granularity?: components["schemas"]["HouseholdGranularity"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HouseholdCategoryReportResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  household_report_summary_household_reports_summary_get: {
+    parameters: {
+      query?: {
+        /** @description First day of the window (inclusive). Default: one year ago. */
+        since?: string | null;
+        /** @description Last day of the window (inclusive). Default: today. */
+        until?: string | null;
+        /** @description Repeat to select checking-account ids; default is all checking accounts. */
+        account_id?: string[] | null;
+        /** @description Repeat to filter household entity ids; default is all owned entities. */
+        entity_id?: string[] | null;
+        /** @description Category id; includes descendant categories. */
+        category_id?: string | null;
+        granularity?: components["schemas"]["HouseholdGranularity"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HouseholdReportSummaryResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  household_report_transactions_household_reports_transactions_get: {
+    parameters: {
+      query?: {
+        /** @description First day of the window (inclusive). Default: one year ago. */
+        since?: string | null;
+        /** @description Last day of the window (inclusive). Default: today. */
+        until?: string | null;
+        /** @description Repeat to select checking-account ids; default is all checking accounts. */
+        account_id?: string[] | null;
+        /** @description Repeat to filter household entity ids; default is all owned entities. */
+        entity_id?: string[] | null;
+        /** @description Category id; includes descendant categories. */
+        category_id?: string | null;
+        granularity?: components["schemas"]["HouseholdGranularity"];
+        search?: string | null;
+        /** @description Page size. */
+        limit?: number;
+        /** @description Page start offset. */
+        offset?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HouseholdReportTransactionsResponse"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
   rules_household_rules_get: {
     parameters: {
       query?: {
@@ -3146,8 +3848,7 @@ export interface operations {
         merchant_id?: string | null;
         category_id?: string | null;
         treatment?:
-          | ("expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified")
-          | null;
+          ("expense" | "income" | "refund" | "transfer" | "excluded" | "unclassified") | null;
         review_state?: ("classified" | "needs_review" | "unclassified") | null;
         provider?: string | null;
         currency?: string | null;
@@ -3761,6 +4462,59 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  search_reference_index_vendors_reference_index_search_get: {
+    parameters: {
+      query: {
+        /** @description Local search text. */
+        q: string;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReferenceSearchOut"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  reference_index_status_vendors_reference_index_status_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReferenceIndexStatusOut"];
         };
       };
     };

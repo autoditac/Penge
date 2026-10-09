@@ -60,6 +60,7 @@ class LoadResult:
     transactions: int
     holding_snapshots: int
     writes: int
+    payment_details: int = 0
 
 
 # --------------------------------------------------------------------------- #

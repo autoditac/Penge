@@ -134,6 +134,11 @@ refresh-net-worth *FLAGS:
         --dbt-profiles-dir dbt \
         {{FLAGS}}
 
+# Refresh the public merchant-reference catalog without sending private data.
+# Use --dry-run to inspect the public package version without persisting it.
+refresh-merchant-reference *FLAGS:
+    uv run --group api --group db --group http penge-refresh-merchant-reference {{FLAGS}}
+
 # --- Growney / Sutor Bank Depotauszug --------------------------------------
 #
 # Forward all flags to the penge-growney CLI. Sutor Bank is the
@@ -263,6 +268,36 @@ api-dev:
 api-test:
     uv run --group dev --group api --group db --group http --group parsers --group manual pytest tests/api
 
+# Run only inspected synthetic in-memory and database-free household tests.
+household-in-memory-test:
+    env -u DATABASE_URL -u PENGE_TEST_DATABASE_URL -u PENGE_ALLOW_DESTRUCTIVE_TEST_DB uv run --group dev --group api --group db --group http --group enablebanking pytest tests/household/test_api_journey.py tests/household/test_database_setup.py tests/household/test_browser_fixtures.py tests/household/test_write_boundary.py tests/ingest/paypal tests/analytics/test_household.py tests/api/test_household_reporting.py tests/api/test_openapi.py tests/api/test_routes.py tests/api/test_merchant_reference.py tests/api/test_merchant_reference_store.py tests/ingest/merchant_reference -q
+
+# Parse household models without connecting to or materializing a database.
+household-dbt-parse:
+    uv run --group dbt dbt parse --project-dir dbt --profiles-dir dbt
+
+# CI-only browser seed uses the same guarded disposable database.
+household-browser-seed:
+    uv run --group db python -m tests.household.browser_seed
+    time uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt
+
+household-mcp-postgres-test:
+    pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts
+
+household-browser-test:
+    VITE_PENGE_DEMO=false VITE_PENGE_API_URL=http://127.0.0.1:8000 pnpm --filter @penge/web build
+    pnpm --filter @penge/web exec playwright test
+
+# Requires a separately authorized disposable Postgres database.
+household-test:
+    @test -n "${PENGE_TEST_DATABASE_URL:-}" || (echo "PENGE_TEST_DATABASE_URL must point to an isolated test database" >&2; exit 1)
+    @test "${PENGE_ALLOW_DESTRUCTIVE_TEST_DB:-}" = "1" || (echo "PENGE_ALLOW_DESTRUCTIVE_TEST_DB=1 is required for the disposable test database" >&2; exit 1)
+    uv run --group db python -c 'import os; from tests.household.db_guard import validate_isolated_test_database_url; validate_isolated_test_database_url(os.environ.get("PENGE_TEST_DATABASE_URL"), allow_destructive_test_db=os.environ.get("PENGE_ALLOW_DESTRUCTIVE_TEST_DB"))'
+    DATABASE_URL="${PENGE_TEST_DATABASE_URL}" uv run --group db alembic upgrade head
+    DATABASE_URL="${PENGE_TEST_DATABASE_URL}" uv run --group db alembic downgrade base
+    DATABASE_URL="${PENGE_TEST_DATABASE_URL}" uv run --group db alembic upgrade head
+    time uv run --group dev --group api --group db --group http --group parsers --group manual --group enablebanking --group dbt pytest tests/household -vv --durations=20
+
 # Lint + type-check the read API package.
 api-lint:
     uv run --group dev ruff check src/penge/api tests/api
@@ -271,10 +306,6 @@ api-lint:
 # Regenerate the committed OpenAPI schema (docs/api/openapi.json).
 api-openapi:
     uv run --group api --group db --group http python -m penge.api.openapi
-
-# Synthetic household correction/learning and API contract tests.
-household-test:
-    uv run --group dev --group api --group db --group http --group enablebanking pytest tests/household -q
 
 # Household persistence, correction API and bank-sync hook quality gates.
 household-lint:

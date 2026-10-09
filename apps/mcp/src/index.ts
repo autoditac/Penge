@@ -13,6 +13,7 @@ import { buildServer } from "./server.js";
 import { answerPlanningQuestionTool } from "./tools/answerPlanningQuestion.js";
 import { computeTaxYearTool } from "./tools/computeTaxYear.js";
 import { queryCashflowTool } from "./tools/queryCashflow.js";
+import { queryHouseholdReportTool } from "./tools/queryHouseholdReport.js";
 import { queryNetWorthTool } from "./tools/queryNetWorth.js";
 import { runScenarioTool } from "./tools/runScenario.js";
 import { searchDocumentsTool } from "./tools/searchDocuments.js";
@@ -47,6 +48,18 @@ async function main(): Promise<void> {
         },
       }),
       queryCashflowTool({
+        runner: {
+          async query(sql, params) {
+            const client = await data.acquire();
+            try {
+              return await client.query(sql, [...params]);
+            } finally {
+              client.release();
+            }
+          },
+        },
+      }),
+      queryHouseholdReportTool({
         runner: {
           async query(sql, params) {
             const client = await data.acquire();

@@ -1,0 +1,13 @@
+# Check for a new public NSI catalog release once per day.
+
+[Unit]
+Description=Schedule the Penge public merchant-reference refresh
+
+[Timer]
+OnCalendar=*-*-* 03:17:00
+RandomizedDelaySec=15min
+Persistent=true
+Unit=penge-merchant-reference-refresh.service
+
+[Install]
+WantedBy=timers.target

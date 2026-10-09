@@ -3636,7 +3636,8 @@ The opt-in <a href="household/">household categorization API</a> adds guarded
 committed-transaction corrections, category trees, deterministic learning,
 and explicit historical previews without changing source facts.
 Import commits use that same lock and durable marker, so raw-table writes
-cannot overlap a shadow dbt build.</p>
+cannot overlap a shadow dbt build.
+The opt-in <a href="household/">household categorization API</a> adds guarded committed-transaction corrections, category trees, deterministic learning and explicit historical previews without changing source facts.</p>
 <h2 id="running-it">Running it<a class="headerlink" href="#running-it" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code>just<span class="w"> </span>api-dev<span class="w">        </span><span class="c1"># uvicorn on 127.0.0.1:8000 with auto-reload</span>
 just<span class="w"> </span>api-test<span class="w">       </span><span class="c1"># pytest tests/api</span>

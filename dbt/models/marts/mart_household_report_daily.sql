@@ -21,13 +21,20 @@ with eligible as (
         f.classification_review_state,
         f.classification_source_current,
         f.source_snapshot_drift,
-        f.allocation_mismatch
+        f.allocation_mismatch,
+        case
+            when f.treatment = 'unclassified' and f.allocation_amount_native > 0
+                then 'income'
+            when f.treatment = 'unclassified' and f.allocation_amount_native < 0
+                then 'expense'
+            else f.treatment
+        end as reporting_treatment
     from {{ ref('fct_household_report_allocation') }} as f
     where
         f.treatment in ('income', 'expense', 'refund', 'unclassified')
         and (
             f.treatment != 'unclassified'
-            or f.allocation_amount_native < 0
+            or f.allocation_amount_native != 0
         )
 ),
 
@@ -39,6 +46,7 @@ aggregated as (
         e.account_currency,
         e.as_of,
         e.treatment,
+        e.reporting_treatment,
         e.category_id,
         e.is_default_scope,
         sum(e.allocation_amount_native)::numeric(20, 4)
@@ -77,6 +85,7 @@ aggregated as (
         e.account_currency,
         e.as_of,
         e.treatment,
+        e.reporting_treatment,
         e.category_id,
         e.is_default_scope
 ),
@@ -89,6 +98,7 @@ final as (
         a.account_currency,
         a.as_of,
         a.treatment,
+        a.reporting_treatment,
         a.category_id,
         a.is_default_scope,
         a.allocation_amount_native,

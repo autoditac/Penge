@@ -32,6 +32,8 @@ function martRow(
   return {
     as_of: asOf,
     treatment,
+    reporting_treatment:
+      treatment === "unclassified" ? (Number(amountEur) > 0 ? "income" : "expense") : treatment,
     known_allocation_amount_eur: amountEur,
     known_allocation_amount_dkk: amountDkk,
     missing_fx_count_eur: missingEur,
@@ -40,6 +42,25 @@ function martRow(
 }
 
 describe("query_household_report", () => {
+  it("splits positive and negative unclassified movements by signed polarity", async () => {
+    const runner = new FakeRunner([
+      martRow("2025-07-05", "unclassified", "25.00000000", "186.50000000"),
+      martRow("2025-07-06", "unclassified", "-7.00000000", "-52.22000000"),
+    ]);
+    const tool = queryHouseholdReportTool({ runner });
+    const result = await tool.handler({
+      date_range: { from: "2025-07-01", to: "2025-07-31" },
+      granularity: "month",
+    });
+
+    expect(result.current.totals.income.eur.amount).toBe("25");
+    expect(result.current.totals.income.dkk.amount).toBe("186.5");
+    expect(result.current.totals.gross_expenses.eur.amount).toBe("7");
+    expect(result.current.totals.gross_expenses.dkk.amount).toBe("52.22");
+    expect(result.current.totals.surplus.eur.amount).toBe("18");
+    expect(result.current.totals.surplus.dkk.amount).toBe("134.28");
+  });
+
   it("returns exact bank-ledger summaries, previous comparison, and month trend", async () => {
     const runner = new FakeRunner([
       martRow("2025-06-12", "expense", "-20.00000000", "-149.20000000"),
@@ -47,6 +68,7 @@ describe("query_household_report", () => {
       martRow("2025-07-06", "refund", "2.50000000", "18.65000000"),
       martRow("2025-07-10", "income", "100.00000000", "746.00000000"),
       martRow("2025-07-12", "unclassified", "-1.25000000", "-9.32500000"),
+      martRow("2025-07-13", "unclassified", "50.00000000", "373.00000000"),
     ]);
     const tool = queryHouseholdReportTool({ runner });
     const result = await tool.handler({
@@ -60,9 +82,13 @@ describe("query_household_report", () => {
       complete: true,
       missing_count: 0,
     });
+    expect(result.current.totals.income.eur.amount).toBe("150");
+    expect(result.current.totals.income.dkk.amount).toBe("1119");
+    expect(result.current.totals.gross_expenses.dkk.amount).toBe("102.575");
     expect(result.current.totals.refunds.eur.amount).toBe("2.5");
     expect(result.current.totals.net_expenses.eur.amount).toBe("11.25");
-    expect(result.current.totals.surplus.eur.amount).toBe("88.75");
+    expect(result.current.totals.surplus.eur.amount).toBe("138.75");
+    expect(result.current.totals.surplus.dkk.amount).toBe("1035.075");
     expect(result.previous.totals.gross_expenses.eur.amount).toBe("20");
     expect(result.change.gross_expenses.eur.amount).toBe("-6.25");
     expect(result.trend).toHaveLength(1);

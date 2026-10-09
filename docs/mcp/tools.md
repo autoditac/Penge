@@ -650,6 +650,8 @@ Returns read-only household income and expense aggregates from
 is not a financial input, transfers and excluded principal movements are
 not report expenses, and refunds reduce expenses on their refund booking
 date. Provider details and transaction-level records are never returned.
+Positive unclassified movements contribute to income and negative ones to
+gross expenses, without changing their unclassified treatment.
 
 ### Input
 

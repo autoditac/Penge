@@ -84,6 +84,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 DBT_PROJECT_DIR = REPO_ROOT / "dbt"
 
 _RAW_TABLES = (
+    "household_classification",
     "holding_snapshot",
     '"transaction"',
     "fx_rate",

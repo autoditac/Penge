@@ -53,10 +53,14 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
     const tools: Tool[] = registry.list().map((tool) => ({
       name: tool.name,
       description: tool.description,
-      inputSchema: zodToJsonSchema(tool.inputSchema, {
-        target: "openApi3",
-        $refStrategy: "none",
-      }) as Tool["inputSchema"],
+      annotations: { readOnlyHint: true },
+      inputSchema: {
+        ...(zodToJsonSchema(tool.inputSchema, {
+          target: "openApi3",
+          $refStrategy: "none",
+        }) as Tool["inputSchema"]),
+        type: "object",
+      },
     }));
     return { tools };
   });

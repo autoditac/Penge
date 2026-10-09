@@ -20,6 +20,7 @@ committed-transaction corrections, category trees, deterministic learning,
 and explicit historical previews without changing source facts.
 Import commits use that same lock and durable marker, so raw-table writes
 cannot overlap a shadow dbt build.
+The opt-in [household categorization API](household.md) adds guarded committed-transaction corrections, category trees, deterministic learning and explicit historical previews without changing source facts.
 
 ## Running it
 

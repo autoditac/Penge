@@ -16,6 +16,9 @@ importers:
       pg:
         specifier: 8.23.0
         version: 8.23.0
+      unicode-case-folding:
+        specifier: 1.1.2
+        version: 1.1.2
       zod:
         specifier: 4.6.5
         version: 4.6.5
@@ -2028,6 +2031,9 @@ packages:
     resolution: {integrity: sha512-u4UB2/IrKdU6lFxumHmmo1a3fCQO5tzQllRorfoRS63txhrB7xTpSn1PftwC4qEHkOaqP95fCWW4lJzwErwzhQ==}
     engines: {node: '>=22.19.0'}
 
+  unicode-case-folding@1.1.2:
+    resolution: {integrity: sha512-03vMM1kVkJbiSIPDW1D0hu42prq3Pe000yC5PaNMjhBJQxDuhAfh+R1V4TXXL21adjBqj7fUtBjZuWCRmiOQQQ==}
+
   unpipe@1.0.0:
     resolution: {integrity: sha512-pjy2bYhSsufwWlKwPc+l3cN7+wuJlK6uz0YdJEOlQDbl6jo/YlPi4mb8agUkVC8BF7V8NuzeyPNqRksA3hztKQ==}
     engines: {node: '>= 0.8'}
@@ -4025,6 +4031,8 @@ snapshots:
   undici-types@8.9.0: {}
 
   undici@8.11.2: {}
+
+  unicode-case-folding@1.1.2: {}
 
   unpipe@1.0.0: {}
 

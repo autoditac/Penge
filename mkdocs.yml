@@ -76,6 +76,8 @@ nav:
       - "Household reporting API": api/household-reporting.md
   - MCP:
       - "Tool reference": mcp/tools.md
+      - "Source coverage contract": mcp/source-coverage.md
+      - "Golden evals": mcp/evals.md
   - Simulation:
       - "Personas": sim/personas.md
       - "User stories": sim/user-stories.md

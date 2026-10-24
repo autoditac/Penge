@@ -9,7 +9,7 @@
 
 ADR-0005 fixed the policy: every LLM in the Penge system reaches data
 exclusively through a Model Context Protocol (MCP) server with typed tools.
-This ADR records the *implementation* shape — language, layout, transport,
+This ADR records the _implementation_ shape — language, layout, transport,
 auth surface, audit logging — that the first set of tools (issues `#45`,
 `#46`, `#47`, `#49`) and every future tool plug into.
 
@@ -18,7 +18,7 @@ We need a skeleton that:
 1. Boots locally with `just mcp-dev` and is reachable from Claude Desktop.
 2. Connects read-only to Postgres (operational tables) and DuckDB (mart
    tables produced by dbt — see ADR-0001).
-3. Logs every tool call with redacted arguments so the audit trail is real
+3. Logs every tool call with argument key names but no values so the audit trail is real
    from day one, before any tool ships.
 4. Is type-safe end-to-end and refuses to start with a misconfigured env.
 
@@ -50,7 +50,7 @@ official `@modelcontextprotocol/sdk`, communicating over stdio.
 ```text
 apps/mcp/
   src/
-    audit.ts        # JSONL audit log + key-based redactor
+    audit.ts        # keys-only JSONL audit log
     config.ts       # zod-validated env loader (PENGE_DB_URL, ...)
     db.ts           # pg.Pool (read-only) + DuckDB path holder
     registry.ts     # ToolRegistry, ToolDefinition<I, O>
@@ -77,12 +77,12 @@ apps/mcp/
   zod input schema, a zod output schema, a description, and a handler.
   `server.ts` derives the JSON Schema sent to the host via
   `zod-to-json-schema`. Tools never see raw JSON-RPC.
-- **Audit log:** `logs/mcp/audit-YYYY-MM-DD.jsonl`, mirrored to stderr.
-  Every record carries `ts`, `tool`, redacted `args`, `status`, `durationMs`,
-  optional `error`. Argument values for fields whose name matches
-  `account|iban|cpr|tax_id|name|email` (case-insensitive) are replaced with
-  `"[REDACTED]"` *before* the record is written. The redactor is recursive
-  (objects and arrays).
+- **Audit log:** `logs/mcp/audit-YYYY-MM-DD.jsonl`.
+  Every record carries `ts`, `tool`, sorted top-level `argumentKeys`,
+  `status`, `durationMs`, and an optional bounded error code.
+  Argument values and tool results are never written.
+  Directory and file modes are enforced as `0700` and `0600`, and records
+  are not mirrored to the MCP process stderr by default.
 - **Built-in `_meta` tool:** returns server name, version, and the list of
   registered tools. Lets the loop be tested before any real tool exists,
   and gives MCP hosts a stable health probe.
@@ -117,7 +117,7 @@ For local development, run `just mcp-build` once and switch `args` to
 ### Positive
 
 - Provider-neutral (works with any MCP host).
-- Audit log exists *before* any tool, so every future tool inherits it.
+- Audit log exists _before_ any tool, so every future tool inherits it.
 - Strict TypeScript catches schema/handler drift at compile time.
 - No new ports, no new auth code paths.
 

@@ -1,0 +1,467 @@
+import pg from "pg";
+import { z } from "zod/v3";
+
+import { DatabasePolicyError } from "./errors.js";
+import type { EncryptedEnvelope } from "./identity.js";
+
+const { Pool } = pg;
+
+export const OAuthLinkSchema = z
+  .object({
+    actorId: z.string().min(1),
+    githubUserId: z.number().int().positive(),
+    githubLogin: z.string().min(1),
+    tokenEnvelope: z.unknown(),
+    updatedAt: z.string().datetime(),
+  })
+  .strict();
+
+export const AuditEventSchema = z
+  .object({
+    actorId: z.string().min(1),
+    sessionId: z.string().min(1).nullable(),
+    tool: z.string().min(1).nullable(),
+    status: z.enum(["started", "completed", "cancelled", "timeout", "error", "denied"]),
+    durationMs: z.number().int().nonnegative().nullable(),
+    argumentKeys: z.array(z.string().regex(/^[a-zA-Z0-9_.-]{1,64}$/)).max(32),
+  })
+  .strict();
+
+export type OAuthLink = z.infer<typeof OAuthLinkSchema>;
+export type AuditEvent = z.infer<typeof AuditEventSchema>;
+
+export interface LockedOAuthActorStore {
+  putState(stateHash: string, stateEnvelope: EncryptedEnvelope, expiresAt: string): Promise<void>;
+  consumeState(stateHash: string, now?: Date): Promise<EncryptedEnvelope | null>;
+  deletePendingStates(): Promise<void>;
+  getLink(): Promise<OAuthLink | null>;
+  upsertLink(
+    githubUserId: number,
+    githubLogin: string,
+    tokenEnvelope: EncryptedEnvelope,
+  ): Promise<void>;
+  deleteLink(): Promise<void>;
+}
+
+export interface ChatStore {
+  withOAuthActorLock<T>(
+    actorId: string,
+    operation: (lockedStore: LockedOAuthActorStore) => Promise<T>,
+  ): Promise<T>;
+  withOAuthCallbackLock<T>(
+    actorId: string,
+    stateHash: string,
+    operation: (
+      stateEnvelope: EncryptedEnvelope | null,
+      lockedStore: LockedOAuthActorStore,
+    ) => Promise<T>,
+  ): Promise<T>;
+  putOAuthState(
+    actorId: string,
+    stateHash: string,
+    stateEnvelope: EncryptedEnvelope,
+    expiresAt: string,
+  ): Promise<void>;
+  consumeOAuthState(
+    actorId: string,
+    stateHash: string,
+    now?: Date,
+  ): Promise<EncryptedEnvelope | null>;
+  upsertOAuthLink(
+    actorId: string,
+    githubUserId: number,
+    githubLogin: string,
+    tokenEnvelope: EncryptedEnvelope,
+  ): Promise<void>;
+  getOAuthLink(actorId: string): Promise<OAuthLink | null>;
+  deleteOAuthLink(actorId: string): Promise<void>;
+  appendAudit(event: AuditEvent): Promise<void>;
+  close(): Promise<void>;
+}
+
+interface Queryable {
+  query(
+    query: string,
+    values?: readonly unknown[],
+  ): Promise<{ rows: Array<{ table_name: string; table_schema: string }> }>;
+}
+
+export interface PostgresChatStoreOptions {
+  timeoutMs?: number;
+  connectionTimeoutMs?: number;
+  oauthTransactionTimeoutMs?: number;
+  onPoolError?: (error: Error) => void;
+}
+
+function isDatabaseTimeout(error: unknown): boolean {
+  return error instanceof Error && /timeout|canceling statement/i.test(error.message);
+}
+
+export class PostgresChatStore implements ChatStore {
+  private constructor(private readonly pool: pg.Pool) {}
+
+  static async connect(
+    databaseUrl: string,
+    expectedRole: string,
+    options: PostgresChatStoreOptions = {},
+  ): Promise<PostgresChatStore> {
+    const timeoutMs = options.timeoutMs ?? 5_000;
+    const connectionTimeoutMs = options.connectionTimeoutMs ?? timeoutMs;
+    const oauthTransactionTimeoutMs =
+      options.oauthTransactionTimeoutMs ?? Math.max(timeoutMs, 20_000);
+    const pool = new Pool({
+      connectionString: databaseUrl,
+      max: 4,
+      application_name: "penge-chat",
+      connectionTimeoutMillis: connectionTimeoutMs,
+      query_timeout: timeoutMs,
+      statement_timeout: timeoutMs,
+      lock_timeout: timeoutMs,
+      idle_in_transaction_session_timeout: oauthTransactionTimeoutMs,
+    });
+    pool.on("error", (error) => {
+      options.onPoolError?.(error);
+    });
+    try {
+      const result = await pool.query<{ role: string }>("SELECT current_user::text AS role");
+      if (result.rows[0]?.role !== expectedRole) {
+        throw new DatabasePolicyError(
+          `chat database connection must use role ${expectedRole}, got ${result.rows[0]?.role ?? "unknown"}`,
+        );
+      }
+
+      await assertNoFinanceTableAccess(pool);
+      return new PostgresChatStore(pool);
+    } catch (error) {
+      await pool.end();
+      throw error;
+    }
+  }
+
+  async withOAuthActorLock<T>(
+    actorId: string,
+    operation: (lockedStore: LockedOAuthActorStore) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect();
+    let discard = false;
+    try {
+      await client.query("BEGIN");
+      await client.query("SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", [actorId]);
+      const result = await operation(this.lockedActorStore(client, actorId));
+      await client.query("COMMIT");
+      return result;
+    } catch (error) {
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
+      throw error;
+    } finally {
+      client.release(discard);
+    }
+  }
+
+  async withOAuthCallbackLock<T>(
+    actorId: string,
+    stateHash: string,
+    operation: (
+      stateEnvelope: EncryptedEnvelope | null,
+      lockedStore: LockedOAuthActorStore,
+    ) => Promise<T>,
+  ): Promise<T> {
+    const client = await this.pool.connect();
+    let locked = false;
+    let discard = false;
+    try {
+      await client.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [actorId]);
+      locked = true;
+      await client.query("BEGIN");
+      const stateResult = await client.query<{
+        state_envelope: EncryptedEnvelope;
+        expires_at: Date;
+      }>(
+        `DELETE FROM chat_oauth_state
+         WHERE state_hash = $1 AND actor_id = $2
+         RETURNING state_envelope, expires_at`,
+        [stateHash, actorId],
+      );
+      await client.query("COMMIT");
+      const row = stateResult.rows[0];
+      const stateEnvelope =
+        row === undefined || row.expires_at.getTime() <= Date.now() ? null : row.state_envelope;
+      return await operation(stateEnvelope, this.lockedActorStore(client, actorId));
+    } catch (error) {
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
+      throw error;
+    } finally {
+      if (locked) {
+        try {
+          await client.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [actorId]);
+        } catch {
+          discard = true;
+        }
+      }
+      client.release(discard);
+    }
+  }
+
+  private lockedActorStore(client: pg.PoolClient, actorId: string): LockedOAuthActorStore {
+    return {
+      putState: async (stateHash, stateEnvelope, expiresAt) => {
+        await client.query("DELETE FROM chat_oauth_state WHERE expires_at <= now()");
+        await client.query(
+          `INSERT INTO chat_oauth_state
+             (state_hash, actor_id, state_envelope, expires_at)
+           VALUES ($1, $2, $3::jsonb, $4)
+           ON CONFLICT (actor_id) DO UPDATE SET
+             state_hash = EXCLUDED.state_hash,
+             state_envelope = EXCLUDED.state_envelope,
+             created_at = now(),
+             expires_at = EXCLUDED.expires_at`,
+          [stateHash, actorId, JSON.stringify(stateEnvelope), expiresAt],
+        );
+      },
+      consumeState: async (stateHash, now = new Date()) => {
+        const stateResult = await client.query<{
+          state_envelope: EncryptedEnvelope;
+          expires_at: Date;
+        }>(
+          `DELETE FROM chat_oauth_state
+           WHERE state_hash = $1 AND actor_id = $2
+           RETURNING state_envelope, expires_at`,
+          [stateHash, actorId],
+        );
+        const row = stateResult.rows[0];
+        return row === undefined || row.expires_at.getTime() <= now.getTime()
+          ? null
+          : row.state_envelope;
+      },
+      deletePendingStates: async () => {
+        await client.query("DELETE FROM chat_oauth_state WHERE actor_id = $1", [actorId]);
+      },
+      getLink: async () => {
+        const result = await client.query<{
+          actor_id: string;
+          github_user_id: string;
+          github_login: string;
+          token_envelope: unknown;
+          updated_at: Date;
+        }>(
+          `SELECT actor_id, github_user_id, github_login, token_envelope, updated_at
+           FROM chat_oauth_link WHERE actor_id = $1`,
+          [actorId],
+        );
+        const row = result.rows[0];
+        return row === undefined
+          ? null
+          : OAuthLinkSchema.parse({
+              actorId: row.actor_id,
+              githubUserId: Number(row.github_user_id),
+              githubLogin: row.github_login,
+              tokenEnvelope: row.token_envelope,
+              updatedAt: row.updated_at.toISOString(),
+            });
+      },
+      upsertLink: async (githubUserId, githubLogin, tokenEnvelope) => {
+        await client.query(
+          `INSERT INTO chat_oauth_link
+             (actor_id, github_user_id, github_login, token_envelope)
+           VALUES ($1, $2, $3, $4::jsonb)
+           ON CONFLICT (actor_id) DO UPDATE SET
+             github_user_id = EXCLUDED.github_user_id,
+             github_login = EXCLUDED.github_login,
+             token_envelope = EXCLUDED.token_envelope,
+             updated_at = now()`,
+          [actorId, githubUserId, githubLogin, JSON.stringify(tokenEnvelope)],
+        );
+      },
+      deleteLink: async () => {
+        await client.query("DELETE FROM chat_oauth_link WHERE actor_id = $1", [actorId]);
+      },
+    };
+  }
+
+  async putOAuthState(
+    actorId: string,
+    stateHash: string,
+    stateEnvelope: EncryptedEnvelope,
+    expiresAt: string,
+  ): Promise<void> {
+    const client = await this.pool.connect();
+    let discard = false;
+    try {
+      await client.query("BEGIN");
+      await client.query(
+        `DELETE FROM chat_oauth_state
+         WHERE expires_at <= now()`,
+      );
+      await client.query(
+        `INSERT INTO chat_oauth_state
+           (state_hash, actor_id, state_envelope, expires_at)
+         VALUES ($1, $2, $3::jsonb, $4)
+         ON CONFLICT (actor_id) DO UPDATE SET
+           state_hash = EXCLUDED.state_hash,
+           state_envelope = EXCLUDED.state_envelope,
+           created_at = now(),
+           expires_at = EXCLUDED.expires_at`,
+        [stateHash, actorId, JSON.stringify(stateEnvelope), expiresAt],
+      );
+      await client.query("COMMIT");
+    } catch (error) {
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
+      throw error;
+    } finally {
+      client.release(discard);
+    }
+  }
+
+  async consumeOAuthState(
+    actorId: string,
+    stateHash: string,
+    now = new Date(),
+  ): Promise<EncryptedEnvelope | null> {
+    const client = await this.pool.connect();
+    let discard = false;
+    try {
+      await client.query("BEGIN");
+      const result = await client.query<{
+        state_envelope: EncryptedEnvelope;
+        expires_at: Date;
+      }>(
+        `DELETE FROM chat_oauth_state
+         WHERE state_hash = $1 AND actor_id = $2
+         RETURNING state_envelope, expires_at`,
+        [stateHash, actorId],
+      );
+      await client.query("COMMIT");
+      const row = result.rows[0];
+      if (row === undefined || row.expires_at.getTime() <= now.getTime()) {
+        return null;
+      }
+      return row.state_envelope;
+    } catch (error) {
+      discard = isDatabaseTimeout(error);
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        discard = true;
+      }
+      throw error;
+    } finally {
+      client.release(discard);
+    }
+  }
+
+  async upsertOAuthLink(
+    actorId: string,
+    githubUserId: number,
+    githubLogin: string,
+    tokenEnvelope: EncryptedEnvelope,
+  ): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO chat_oauth_link
+         (actor_id, github_user_id, github_login, token_envelope)
+       VALUES ($1, $2, $3, $4::jsonb)
+       ON CONFLICT (actor_id) DO UPDATE SET
+         github_user_id = EXCLUDED.github_user_id,
+         github_login = EXCLUDED.github_login,
+         token_envelope = EXCLUDED.token_envelope,
+         updated_at = now()`,
+      [actorId, githubUserId, githubLogin, JSON.stringify(tokenEnvelope)],
+    );
+  }
+
+  async getOAuthLink(actorId: string): Promise<OAuthLink | null> {
+    const result = await this.pool.query<{
+      actor_id: string;
+      github_user_id: string;
+      github_login: string;
+      token_envelope: unknown;
+      updated_at: Date;
+    }>(
+      `SELECT actor_id, github_user_id, github_login, token_envelope, updated_at
+       FROM chat_oauth_link WHERE actor_id = $1`,
+      [actorId],
+    );
+    const row = result.rows[0];
+    return row === undefined
+      ? null
+      : OAuthLinkSchema.parse({
+          actorId: row.actor_id,
+          githubUserId: Number(row.github_user_id),
+          githubLogin: row.github_login,
+          tokenEnvelope: row.token_envelope,
+          updatedAt: row.updated_at.toISOString(),
+        });
+  }
+
+  async deleteOAuthLink(actorId: string): Promise<void> {
+    await this.pool.query("DELETE FROM chat_oauth_link WHERE actor_id = $1", [actorId]);
+  }
+
+  async appendAudit(event: AuditEvent): Promise<void> {
+    const parsed = AuditEventSchema.parse(event);
+    await this.pool.query(
+      `INSERT INTO chat_audit_event
+         (actor_id, session_id, tool_name, status, duration_ms, argument_keys)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb)`,
+      [
+        parsed.actorId,
+        parsed.sessionId,
+        parsed.tool,
+        parsed.status,
+        parsed.durationMs,
+        JSON.stringify(parsed.argumentKeys),
+      ],
+    );
+  }
+
+  async close(): Promise<void> {
+    await this.pool.end();
+  }
+}
+
+export async function assertNoFinanceTableAccess(queryable: Queryable): Promise<void> {
+  const result = await queryable.query(
+    `SELECT table_schema, table_name
+     FROM information_schema.tables
+     WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+       AND NOT (
+         table_schema = 'public'
+         AND table_name = ANY($1::text[])
+       )
+       AND (
+         has_table_privilege(
+           current_user,
+           format('%I.%I', table_schema, table_name),
+           'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+         )
+         OR has_any_column_privilege(
+           current_user,
+           format('%I.%I', table_schema, table_name),
+           'SELECT,INSERT,UPDATE,REFERENCES'
+         )
+       )`,
+    [["chat_oauth_state", "chat_oauth_link", "chat_audit_event"]],
+  );
+  if (result.rows.length > 0) {
+    throw new DatabasePolicyError(
+      `chat database role has unexpected table access: ${result.rows
+        .map((row) => `${row.table_schema}.${row.table_name}`)
+        .sort()
+        .join(", ")}`,
+    );
+  }
+}

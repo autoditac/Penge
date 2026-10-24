@@ -1,4 +1,4 @@
-/** Route table: app shell layout with the four reporting surfaces. */
+/** Route table for the reporting and evidence-first application surfaces. */
 
 import { createBrowserRouter } from "react-router";
 
@@ -8,7 +8,13 @@ import { OverviewPage } from "./pages/Overview";
 import { PerformancePage } from "./pages/Performance";
 import { PlanningPage } from "./pages/Planning";
 import { HouseholdPage } from "./pages/Household";
+import { AskPengeE2EEntry } from "./ask-penge/AskPengeE2EEntry";
+import { AskPengeLivePage } from "./ask-penge/AskPengeLivePage";
 import { AppShell } from "./shell/AppShell";
+
+function AskPengeRoute(): React.JSX.Element {
+  return <AskPengeE2EEntry />;
+}
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +26,8 @@ export const router = createBrowserRouter([
       { path: "imports", Component: ImportsPage },
       { path: "connections", Component: ConnectionsPage },
       { path: "planning", Component: PlanningPage },
+      { path: "ask", Component: AskPengeLivePage },
+      { path: "ask/e2e", Component: AskPengeRoute },
       { path: "household/*", Component: HouseholdPage },
     ],
   },

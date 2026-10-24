@@ -1,6 +1,21 @@
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  resolve: {
+    alias:
+      mode === "e2e"
+        ? [
+            {
+              find: "./ask-penge/AskPengeE2EEntry",
+              replacement: fileURLToPath(
+                new URL("./src/ask-penge/AskPengeE2EHarness.tsx", import.meta.url),
+              ),
+            },
+          ]
+        : [],
+  },
   server: {
     host: "127.0.0.1",
     port: 5173,
@@ -26,4 +41,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

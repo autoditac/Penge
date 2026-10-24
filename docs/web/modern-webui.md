@@ -82,6 +82,34 @@ are recorded in ADR-0036.
   wizard says so and falls back to manual review.
 - **Planning** — labelled synthetic preview of the MCP
   `answer_planning_question` surface until live wiring lands.
+- **Ask Penge** — fail-closed evidence-first workbench for the private chat
+  backend in #346.
+  The route consumes a strict `1.0` zod-validated event envelope for ordered
+  text, sanitized tool activity, evidence, completion, and typed errors behind
+  an injectable transport.
+  Text deltas are buffered into bounded live-region updates, while terminal
+  completion flushes remaining text and exposes typed assumptions and limits.
+  It keeps GitHub account linkage separate from model availability, rejects
+  unknown major contracts and extra event fields, never persists transcripts,
+  and does not call finance endpoints directly.
+  Desktop uses a collapsible evidence rail; mobile moves tool and source details
+  into a bounded bottom sheet.
+  Production enables the fetch-stream adapter only when
+  `VITE_PENGE_CHAT_BASE_URL` is set to a same-origin base path. The adapter reads
+  GitHub linkage, the backend feature gate, and exact `hydrafusion` availability
+  from `GET <base>/v1/auth/status`; it never derives identity or entitlement in
+  the browser. Linking navigates to `<base>/oauth/github/start`, unlinking uses
+  `DELETE <base>/v1/auth/github`, and bounded questions (maximum 8,000
+  characters) stream from `POST <base>/v1/chat`. User cancellation calls
+  `POST <base>/v1/chat/stop` only after a server session ID is observed.
+  Missing configuration keeps the production route disabled, exposes no
+  simulated OAuth success, and permits no model fallback.
+  The incremental SSE parser handles chunk boundaries and CRLF/LF framing;
+  malformed, out-of-order, cross-session, and post-terminal events fail closed.
+  Synthetic streams are available only through injected transports in tests.
+  The fixed #346 protocol requires contiguous per-session sequence numbers,
+  stable session/event IDs, and no events after a terminal completion/error;
+  contract adaptation remains isolated in `src/ask-penge/contract.ts`.
 
 ## Design system (ADR-0045)
 

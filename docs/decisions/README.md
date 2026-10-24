@@ -47,3 +47,4 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 | [0050](0050-audited-household-categorization.md) | Audited household categorization independent of source facts | Proposed |
 | [0051](0051-public-merchant-reference-index.md) | Versioned public merchant reference index | Proposed |
 | [0052](0052-household-reporting-projection.md) | Household income and expense reporting projection | Proposed |
+| [0054](0054-private-ask-chat-deployment.md) | Fail-closed deployment for private Ask Penge chat | Proposed |

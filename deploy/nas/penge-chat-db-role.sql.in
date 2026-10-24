@@ -1,0 +1,41 @@
+\set ON_ERROR_STOP on
+
+-- Non-executable dedicated-database least-privilege template.
+--
+-- #346 must replace every @@...@@ token with its migration-owned OAuth-link
+-- database, schema, and table names.  This template must never target the
+-- shared Penge finance database or alter its PUBLIC/role privileges.
+
+BEGIN;
+
+DO $$
+BEGIN
+    IF current_database() <> '@@CHAT_OAUTH_DATABASE_NAME@@' THEN
+        RAISE EXCEPTION 'must run against the dedicated chat OAuth database';
+    END IF;
+END
+$$;
+
+-- PUBLIC changes are safe only inside the dedicated chat OAuth database.
+REVOKE ALL ON DATABASE "@@CHAT_OAUTH_DATABASE_NAME@@" FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+
+@@CREATE_DEDICATED_CHAT_ROLE_WITH_SECRET_MANAGED_LOGIN@@
+
+REVOKE ALL ON DATABASE "@@CHAT_OAUTH_DATABASE_NAME@@" FROM @@CHAT_DATABASE_ROLE@@;
+REVOKE ALL ON SCHEMA public FROM @@CHAT_DATABASE_ROLE@@;
+GRANT CONNECT ON DATABASE "@@CHAT_OAUTH_DATABASE_NAME@@" TO @@CHAT_DATABASE_ROLE@@;
+GRANT USAGE ON SCHEMA @@OAUTH_LINK_SCHEMA@@ TO @@CHAT_DATABASE_ROLE@@;
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON TABLE
+        @@OAUTH_LINK_SCHEMA@@.chat_oauth_link,
+        @@OAUTH_LINK_SCHEMA@@.chat_oauth_state
+    TO @@CHAT_DATABASE_ROLE@@;
+GRANT INSERT
+    ON TABLE @@OAUTH_LINK_SCHEMA@@.chat_audit_event
+    TO @@CHAT_DATABASE_ROLE@@;
+GRANT USAGE, SELECT
+    ON SEQUENCE @@OAUTH_LINK_SCHEMA@@.chat_audit_event_id_seq
+    TO @@CHAT_DATABASE_ROLE@@;
+
+COMMIT;

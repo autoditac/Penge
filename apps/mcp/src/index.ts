@@ -10,14 +10,7 @@ import { createAuditLogger } from "./audit.js";
 import { loadConfig } from "./config.js";
 import { connect } from "./db.js";
 import { buildServer } from "./server.js";
-import { answerPlanningQuestionTool } from "./tools/answerPlanningQuestion.js";
-import { computeTaxYearTool } from "./tools/computeTaxYear.js";
-import { queryCashflowTool } from "./tools/queryCashflow.js";
-import { queryHouseholdReportTool } from "./tools/queryHouseholdReport.js";
-import { queryNetWorthTool } from "./tools/queryNetWorth.js";
-import { runScenarioTool } from "./tools/runScenario.js";
-import { searchDocumentsTool } from "./tools/searchDocuments.js";
-import { suggestImportMappingTool } from "./tools/suggestImportMapping.js";
+import { createPengeTools } from "./tools/index.js";
 
 const SERVER_NAME = "penge-mcp";
 const SERVER_VERSION = "0.0.0";
@@ -29,65 +22,25 @@ async function main(): Promise<void> {
     databaseUrl: config.databaseUrl,
     duckdbPath: config.duckdbPath,
   });
+  const runner = {
+    async query<R extends Record<string, unknown>>(
+      sql: string,
+      params: ReadonlyArray<unknown>,
+    ): Promise<{ rows: R[] }> {
+      const client = await data.acquire();
+      try {
+        return await client.query<R>(sql, [...params]);
+      } finally {
+        client.release();
+      }
+    },
+  };
 
   const { server } = buildServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
     audit,
-    extraTools: [
-      queryNetWorthTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
-      }),
-      queryCashflowTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
-      }),
-      queryHouseholdReportTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
-      }),
-      computeTaxYearTool(),
-      runScenarioTool(),
-      answerPlanningQuestionTool(),
-      searchDocumentsTool({ vaultRoot: config.vaultRoot }),
-      suggestImportMappingTool({
-        runner: {
-          async query(sql, params) {
-            const client = await data.acquire();
-            try {
-              return await client.query(sql, [...params]);
-            } finally {
-              client.release();
-            }
-          },
-        },
-      }),
-    ],
+    extraTools: createPengeTools({ runner, vaultRoot: config.vaultRoot }),
   });
 
   const transport = new StdioServerTransport();

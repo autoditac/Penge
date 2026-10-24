@@ -3,12 +3,14 @@ packages:
 
 allowBuilds:
   esbuild: true
+  koffi: false
 
-# pnpm 10+ promotes ignored build scripts to a hard error in CI. We only need
-# the binary that esbuild's lifecycle script downloads (Vite/Vitest load TS
-# through it), so allow-list it explicitly for both pnpm config generations. The
-# strict-dep-builds=false fallback is a belt-and-braces guard for the implicit
-# `pnpm install` that `pnpm exec` runs as a deps-status check in CI.
+# pnpm 10+ promotes ignored build scripts to a hard error in CI. Esbuild is the
+# only allowed lifecycle: Vite/Vitest need its downloaded binary. The pinned
+# Copilot SDK pulls in koffi, but this proof does not use its native lifecycle,
+# so deny it explicitly and do not add it to onlyBuiltDependencies. The
+# strict-dep-builds=false fallback covers the implicit install that `pnpm exec`
+# runs as a dependency-status check in CI.
 onlyBuiltDependencies:
   - esbuild
 strictDepBuilds: false

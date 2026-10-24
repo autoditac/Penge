@@ -71,6 +71,7 @@ nav:
       - "Returns engine (TWR/MWR)": analytics/returns.md
   - Web:
       - "Modern WebUI": web/modern-webui.md
+      - "Ask Penge product brief": web/ask-penge-product-brief.md
       - "Read API": api/index.md
       - "Household categorization API": api/household.md
       - "Household reporting API": api/household-reporting.md
@@ -90,6 +91,7 @@ nav:
       - DE: tax/de.md
       - DK Refresh Checklist: tax/dk-refresh-checklist.md
   - Runbook:
+      - "Chat architecture proof": runbook/chat.md
       - "Monthly ritual (1-hour close)": runbook/monthly-ritual.md
       - "Household integration verification": runbook/household-integration.md
       - "Monthly automated report": runbook/monthly-report.md
@@ -149,6 +151,7 @@ nav:
       - "ADR-0050 Audited household categorization": decisions/0050-audited-household-categorization.md
       - "ADR-0051 Public merchant reference index": decisions/0051-public-merchant-reference-index.md
       - "ADR-0052 Household income and expense reporting projection": decisions/0052-household-reporting-projection.md
+      - "ADR-0053 Secure HydraFusion chat service boundary": decisions/0053-hydrafusion-chat-security-boundary.md
   - Privacy: privacy.md
   - Terms: terms.md
 

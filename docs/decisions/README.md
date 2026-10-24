@@ -14,36 +14,37 @@ We use the [MADR](https://adr.github.io/madr/) template — see [`adr-template.m
 
 <!-- Keep this list sorted by ADR number. -->
 
-| #    | Title                                                                                        | Status   |
-|------|----------------------------------------------------------------------------------------------|----------|
-| [0001](0001-self-hosted-postgres-duckdb-stack.md) | Self-hosted Postgres + DuckDB stack over a managed lakehouse | Accepted |
-| [0002](0002-custom-monorepo-over-off-the-shelf-pfm.md) | Custom monorepo over off-the-shelf PFM tools                 | Accepted |
-| [0003](0003-hybrid-ingestion-psd2-and-csv-pdf.md) | Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers        | Superseded by [0026](0026-retire-gocardless-for-enable-banking.md) |
-| [0004](0004-eur-and-dkk-shown-in-parallel.md) | EUR and DKK shown in parallel; no single base currency       | Accepted |
-| [0005](0005-llm-access-via-mcp-only.md) | LLM access exclusively via MCP server with typed tools       | Accepted |
-| [0006](0006-trunk-based-conventional-commits-adrs.md) | Trunk-based development with Conventional Commits and ADRs   | Accepted |
-| [0007](0007-initial-relational-data-model.md) | Initial relational data model                                | Accepted |
-| [0008](0008-nordnet-account-modelling.md) | Nordnet account modelling: kinds, multi-currency cash, ASK   | Accepted |
-| [0026](0026-retire-gocardless-for-enable-banking.md) | Retire GoCardless; standardize on Enable Banking for PSD2 | Accepted |
-| [0027](0027-liquid-depot-simulation-model.md) | Liquid depot simulation model (ASK + frie midler, Lager/Realisation) | Proposed |
-| [0028](0028-sim-payout-model.md) | Decumulation payout model: annuity factor + PMT | Proposed |
-| [0033](0033-reporting-first-react-webui.md) | Reporting-first React WebUI | Proposed |
-| [0034](0034-application-container-images.md) | Application container images in CI and releases | Proposed |
-| [0035](0035-fastapi-read-api.md) | FastAPI read API as the WebUI data layer | Proposed |
-| [0036](0036-webui-frontend-stack.md) | WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types | Proposed |
-| [0037](0037-staged-import-sessions.md) | Staged import sessions for file-based connectors | Proposed |
-| [0038](0038-import-mapping-suggestions-via-mcp.md) | Import mapping suggestions via the MCP server | Proposed |
-| [0039](0039-returns-engine-twr-mwr.md) | Returns engine: TWR and MWR | Proposed |
-| [0040](0040-in-app-enable-banking-consent-flow.md) | In-app Enable Banking consent flow | Proposed |
-| [0041](0041-connections-sync-history-window-fallback.md) | Connections sync history-window fallback | Accepted |
-| [0042](0042-nordnet-interest-suffix-fallback.md) | Nordnet interest types: `…RENTE` suffix fallback to `cash_interest` | Accepted |
-| [0043](0043-enable-banking-dateless-balance-fallback.md) | Enable Banking balances without a reference date: stamp with the sync date | Accepted |
-| [0044](0044-continuous-image-publishing-and-nas-auto-deploy.md) | Continuous image publishing and NAS auto-deploy | Accepted |
-| [0045](0045-mui-core-webui-design-system.md) | MUI Core with a custom Penge theme for the WebUI design system | Proposed |
-| [0046](0046-scheduled-enable-banking-net-worth-refresh.md) | Scheduled Enable Banking sync and guarded net-worth refresh | Proposed |
-| [0047](0047-per-account-bank-metadata-corrections.md) | Per-account bank metadata corrections | Proposed |
-| [0048](0048-unified-savings-reporting-kind.md) | Unify cash savings in reporting while preserving source kinds | Proposed |
-| [0049](0049-nordnet-holdings-only-imports.md) | Account-scoped Nordnet holdings-only imports | Proposed |
-| [0050](0050-audited-household-categorization.md) | Audited household categorization independent of source facts | Proposed |
-| [0051](0051-public-merchant-reference-index.md) | Versioned public merchant reference index | Proposed |
-| [0052](0052-household-reporting-projection.md) | Household income and expense reporting projection | Proposed |
+| #                                                               | Title                                                                            | Status                                                             |
+| --------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| [0001](0001-self-hosted-postgres-duckdb-stack.md)               | Self-hosted Postgres + DuckDB stack over a managed lakehouse                     | Accepted                                                           |
+| [0002](0002-custom-monorepo-over-off-the-shelf-pfm.md)          | Custom monorepo over off-the-shelf PFM tools                                     | Accepted                                                           |
+| [0003](0003-hybrid-ingestion-psd2-and-csv-pdf.md)               | Hybrid ingestion: PSD2 (GoCardless) + CSV/PDF parsers                            | Superseded by [0026](0026-retire-gocardless-for-enable-banking.md) |
+| [0004](0004-eur-and-dkk-shown-in-parallel.md)                   | EUR and DKK shown in parallel; no single base currency                           | Accepted                                                           |
+| [0005](0005-llm-access-via-mcp-only.md)                         | LLM access exclusively via MCP server with typed tools                           | Accepted                                                           |
+| [0006](0006-trunk-based-conventional-commits-adrs.md)           | Trunk-based development with Conventional Commits and ADRs                       | Accepted                                                           |
+| [0007](0007-initial-relational-data-model.md)                   | Initial relational data model                                                    | Accepted                                                           |
+| [0008](0008-nordnet-account-modelling.md)                       | Nordnet account modelling: kinds, multi-currency cash, ASK                       | Accepted                                                           |
+| [0026](0026-retire-gocardless-for-enable-banking.md)            | Retire GoCardless; standardize on Enable Banking for PSD2                        | Accepted                                                           |
+| [0027](0027-liquid-depot-simulation-model.md)                   | Liquid depot simulation model (ASK + frie midler, Lager/Realisation)             | Proposed                                                           |
+| [0028](0028-sim-payout-model.md)                                | Decumulation payout model: annuity factor + PMT                                  | Proposed                                                           |
+| [0033](0033-reporting-first-react-webui.md)                     | Reporting-first React WebUI                                                      | Proposed                                                           |
+| [0034](0034-application-container-images.md)                    | Application container images in CI and releases                                  | Proposed                                                           |
+| [0035](0035-fastapi-read-api.md)                                | FastAPI read API as the WebUI data layer                                         | Proposed                                                           |
+| [0036](0036-webui-frontend-stack.md)                            | WebUI frontend stack: React Router, TanStack Query, ECharts, zod + OpenAPI types | Proposed                                                           |
+| [0037](0037-staged-import-sessions.md)                          | Staged import sessions for file-based connectors                                 | Proposed                                                           |
+| [0038](0038-import-mapping-suggestions-via-mcp.md)              | Import mapping suggestions via the MCP server                                    | Proposed                                                           |
+| [0039](0039-returns-engine-twr-mwr.md)                          | Returns engine: TWR and MWR                                                      | Proposed                                                           |
+| [0040](0040-in-app-enable-banking-consent-flow.md)              | In-app Enable Banking consent flow                                               | Proposed                                                           |
+| [0041](0041-connections-sync-history-window-fallback.md)        | Connections sync history-window fallback                                         | Accepted                                                           |
+| [0042](0042-nordnet-interest-suffix-fallback.md)                | Nordnet interest types: `…RENTE` suffix fallback to `cash_interest`              | Accepted                                                           |
+| [0043](0043-enable-banking-dateless-balance-fallback.md)        | Enable Banking balances without a reference date: stamp with the sync date       | Accepted                                                           |
+| [0044](0044-continuous-image-publishing-and-nas-auto-deploy.md) | Continuous image publishing and NAS auto-deploy                                  | Accepted                                                           |
+| [0045](0045-mui-core-webui-design-system.md)                    | MUI Core with a custom Penge theme for the WebUI design system                   | Proposed                                                           |
+| [0046](0046-scheduled-enable-banking-net-worth-refresh.md)      | Scheduled Enable Banking sync and guarded net-worth refresh                      | Proposed                                                           |
+| [0047](0047-per-account-bank-metadata-corrections.md)           | Per-account bank metadata corrections                                            | Proposed                                                           |
+| [0048](0048-unified-savings-reporting-kind.md)                  | Unify cash savings in reporting while preserving source kinds                    | Proposed                                                           |
+| [0049](0049-nordnet-holdings-only-imports.md)                   | Account-scoped Nordnet holdings-only imports                                     | Proposed                                                           |
+| [0050](0050-audited-household-categorization.md)                | Audited household categorization independent of source facts                     | Proposed                                                           |
+| [0051](0051-public-merchant-reference-index.md)                 | Versioned public merchant reference index                                        | Proposed                                                           |
+| [0052](0052-household-reporting-projection.md)                  | Household income and expense reporting projection                                | Proposed                                                           |
+| [0053](0053-hydrafusion-chat-security-boundary.md)              | Secure HydraFusion chat service boundary                                         | Accepted                                                           |

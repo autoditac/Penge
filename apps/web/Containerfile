@@ -26,7 +26,7 @@ ENV VITE_PENGE_API_URL=${VITE_PENGE_API_URL}
 
 RUN pnpm --filter @penge/web build
 
-FROM docker.io/nginxinc/nginx-unprivileged:1.30-alpine-slim@sha256:e28dcf0a161ddcbf228c7364b4a14f9bad4763ae8f5317c437b896afa3df4b84
+FROM docker.io/nginxinc/nginx-unprivileged:1.31-alpine-slim@sha256:a8cb0f33d51fa107c96fd2bd3a71aaf564ec131e9d2bdf8700944f0ed8b170d7
 
 LABEL org.opencontainers.image.title="Penge WebUI"
 LABEL org.opencontainers.image.description="Reporting-first household finance cockpit."

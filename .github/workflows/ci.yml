@@ -138,7 +138,7 @@ jobs:
       - name: Build WebUI
         run: pnpm --filter @penge/web build
       - name: Test WebUI
-        run: pnpm --filter @penge/web test
+        run: pnpm --filter @penge/web test --maxWorkers=2
       - name: Lint WebUI
         run: pnpm --filter @penge/web lint
 

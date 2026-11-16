@@ -18,17 +18,17 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
-    "pg": "8.23.0",
+    "pg": "8.23.1",
     "zod": "4.6.7",
     "zod-to-json-schema": "3.25.2"
   },
   "devDependencies": {
-    "@types/node": "26.6.3",
+    "@types/node": "26.6.6",
     "@types/pg": "8.23.1",
     "@typescript-eslint/eslint-plugin": "8.73.0",
     "@typescript-eslint/parser": "8.73.0",
     "eslint": "10.15.0",
-    "prettier": "3.9.9",
+    "prettier": "3.10.1",
     "tsx": "4.23.15",
     "typescript": "6.0.3",
     "typescript-eslint": "8.73.0",

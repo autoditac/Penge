@@ -3804,7 +3804,7 @@
 
 <h1 id="runner-maintenance-gh-runner-ubuntu">Runner maintenance (<code>gh-runner-ubuntu</code>)<a class="headerlink" href="#runner-maintenance-gh-runner-ubuntu" title="Permanent link">&para;</a></h1>
 <p>Operational procedures for the self-hosted GitHub Actions runner that builds
-Penge's container images. Its VM disk is ~19 GB, which is enough for CI only
+Penge's container images. Its root filesystem is ~29 GB, which is enough for CI only
 if Docker's growth is actively bounded.</p>
 <h2 id="the-failure-mode">The failure mode<a class="headerlink" href="#the-failure-mode" title="Permanent link">&para;</a></h2>
 <p>CI builds images with <code>docker/setup-buildx-action</code>. The action starts a
@@ -3871,7 +3871,7 @@ recovered only 1.58 GB until the containers themselves were removed.</p>
 <h3 id="docker-is-only-half-of-it">Docker is only half of it<a class="headerlink" href="#docker-is-only-half-of-it" title="Permanent link">&para;</a></h3>
 <p>A survey taken while CI was failing at <strong>92 % full</strong> found the split below. It
 is worth re-reading before assuming a disk alert is a Docker problem: the root
-filesystem is <strong>19 GB, shared by three runner instances</strong>, and Docker was the
+filesystem was <strong>19 GB, shared by three runner instances</strong>, and Docker was the
 smaller half.</p>
 <table>
 <thead>
@@ -3929,11 +3929,15 @@ smaller half.</p>
 </tr>
 </tbody>
 </table>
-<p>The structural problem is three runners on a 19 GB disk: ~4 GB of the tool
+<p>The structural problem is three runners sharing one disk: ~4 GB of the tool
 cache and runner runtime is triplicated by design and cannot be swept. The
 sweeps buy headroom; they do not change that arithmetic. If the host starts
 alerting again with both timers healthy, the answer is a bigger disk, not a
 more aggressive sweep.</p>
+<p>The WebUI CI test step limits Vitest to two workers to match the VM's two
+CPUs and allows 60 seconds per test to accommodate concurrent runner jobs.
+Both limits prevent load-related test timeouts from blocking image publishing;
+local test defaults are unchanged.</p>
 <h4 id="why-the-workspace-sweep-is-narrower-than-it-could-be">Why the workspace sweep is narrower than it could be<a class="headerlink" href="#why-the-workspace-sweep-is-narrower-than-it-could-be" title="Permanent link">&para;</a></h4>
 <ul>
 <li><strong><code>_update</code> is gated on the newest mtime anywhere in its tree</strong>, not the

@@ -65,8 +65,9 @@ alerting again with both timers healthy, the answer is a bigger disk, not a
 more aggressive sweep.
 
 The WebUI CI test step limits Vitest to two workers to match the VM's two
-CPUs. Running a worker per test file overloads the shared runner and can
-cause test timeouts that block image publishing.
+CPUs and allows 60 seconds per test to accommodate concurrent runner jobs.
+Both limits prevent load-related test timeouts from blocking image publishing;
+local test defaults are unchanged.
 
 #### Why the workspace sweep is narrower than it could be
 

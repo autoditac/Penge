@@ -1,7 +1,7 @@
 # Runner maintenance (`gh-runner-ubuntu`)
 
 Operational procedures for the self-hosted GitHub Actions runner that builds
-Penge's container images. Its VM disk is ~19 GB, which is enough for CI only
+Penge's container images. Its root filesystem is ~29 GB, which is enough for CI only
 if Docker's growth is actively bounded.
 
 ## The failure mode
@@ -43,7 +43,7 @@ recovered only 1.58 GB until the containers themselves were removed.
 
 A survey taken while CI was failing at **92 % full** found the split below. It
 is worth re-reading before assuming a disk alert is a Docker problem: the root
-filesystem is **19 GB, shared by three runner instances**, and Docker was the
+filesystem was **19 GB, shared by three runner instances**, and Docker was the
 smaller half.
 
 | Path | Size | Reclaimed by |
@@ -58,11 +58,16 @@ smaller half.
 | `/var/lib/containerd` | 1.6 GB | ❌ not touched |
 | `/usr` | 2.5 GB | ❌ the OS |
 
-The structural problem is three runners on a 19 GB disk: ~4 GB of the tool
+The structural problem is three runners sharing one disk: ~4 GB of the tool
 cache and runner runtime is triplicated by design and cannot be swept. The
 sweeps buy headroom; they do not change that arithmetic. If the host starts
 alerting again with both timers healthy, the answer is a bigger disk, not a
 more aggressive sweep.
+
+The WebUI CI test step limits Vitest to two workers to match the VM's two
+CPUs and allows 60 seconds per test to accommodate concurrent runner jobs.
+Both limits prevent load-related test timeouts from blocking image publishing;
+local test defaults are unchanged.
 
 #### Why the workspace sweep is narrower than it could be
 

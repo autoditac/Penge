@@ -304,9 +304,6 @@ export class ChatRuntime {
     if (!this.config.productionEnabled) {
       return false;
     }
-    if (this.availableActors.has(actorId)) {
-      return true;
-    }
     const current = this.readinessTasks.get(actorId);
     if (current !== undefined) {
       return current;

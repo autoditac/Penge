@@ -2,6 +2,7 @@ import type { GitHubTokenProvider, SessionEvent } from "@github/copilot-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MCP_REGISTRATION_ALLOWLIST, MCP_SOURCE_ALLOWLIST } from "../src/config.js";
+import { HydraFusionUnavailableError } from "../src/errors.js";
 import { ChatRuntime, projectEvidence, summarizeEvidence } from "../src/runtime.js";
 import type { ActiveCopilotRun, CopilotEventSink, CopilotRuntime } from "../src/sdk.js";
 import type { StreamEvent } from "../src/stream.js";
@@ -19,6 +20,7 @@ class FakeCopilotRuntime implements CopilotRuntime {
   >();
   sendGate?: Promise<void>;
   createGate?: Promise<void>;
+  createError?: Error;
   closeError?: Error;
   closeGate: Promise<void> | undefined;
   emitIdleOnAbort = false;
@@ -30,6 +32,7 @@ class FakeCopilotRuntime implements CopilotRuntime {
     sink: CopilotEventSink;
   }): Promise<ActiveCopilotRun> {
     await this.createGate;
+    if (this.createError !== undefined) throw this.createError;
     const state = { sink: options.sink, aborted: false, closed: false };
     this.runs.set(options.sessionId, state);
     return {
@@ -112,6 +115,33 @@ describe("chat runtime isolation and lifecycle", () => {
     const run = [...copilot.runs.values()][0];
     expect(run).toMatchObject({ aborted: false, closed: true });
     expect(run?.prompt).toBeUndefined();
+  });
+
+  it("rechecks readiness and denies a launch after actor model policy is disabled", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    await expect(runtime.ensureModelAvailable("actor-a")).resolves.toBe(true);
+
+    copilot.createError = new HydraFusionUnavailableError("synthetic disabled policy");
+    await expect(runtime.ensureModelAvailable("actor-a")).resolves.toBe(false);
+    expect(runtime.isModelAvailable("actor-a")).toBe(false);
+
+    const events: StreamEvent[] = [];
+    await runtime.start("actor-a", "Synthetic question", (event) => events.push(event));
+    await vi.waitFor(() =>
+      expect(events.at(-1)).toMatchObject({
+        type: "error",
+        code: "hydrafusion_unavailable",
+        retryable: false,
+      }),
+    );
+    expect(copilot.runs.size).toBe(1);
+    await runtime.close();
   });
 
   it("isolates actors, propagates cancellation, and retains no transcript", async () => {

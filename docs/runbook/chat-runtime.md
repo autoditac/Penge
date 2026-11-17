@@ -8,7 +8,7 @@ It must not be enabled merely because configuration exists.
 For each linked household actor:
 
 1. Complete GitHub OAuth using that person's own GitHub identity.
-2. Start a session with that actor's token provider and verify exact-model session creation succeeds for `hydrafusion`.
+2. Verify an exact `hydrafusion` session with that actor's token provider reports one matching model with an explicitly enabled policy through the session-scoped model list.
 3. Confirm issue #344's `issue-344-v1` MCP contract is installed.
 4. Confirm the MCP accepts file-only `PENGE_DB_URL_FILE` configuration.
 5. Run `just chat-check` and `just chat-migration-integration`, plus process-cleanup checks.
@@ -26,7 +26,8 @@ Never substitute another model.
 Production startup connects to a process-local Penge MCP child, verifies the exact registration set (including `_meta`) and every output schema with `listTools`, and closes the probe.
 The SDK exposes only the reviewed chat subset, never `_meta`.
 Missing or extra MCP tools fail startup.
-Per-actor model availability remains false until exact `hydrafusion` session creation succeeds with the linked actor token.
+Each authenticated status check and chat launch verifies a fresh session-scoped model list using the linked actor token.
+Missing, disabled, unconfigured, or duplicate model-policy entries fail closed.
 
 ## Incident response
 

@@ -14,6 +14,7 @@ import {
   CopilotRuntimeError,
   FeatureDisabledError,
   HydraFusionUnavailableError,
+  UpstreamResponseError,
 } from "./errors.js";
 import { BoundedMemorySessionFs } from "./memorySessionFs.js";
 import { buildMcpServerConfig } from "./mcp.js";
@@ -38,6 +39,11 @@ export interface CopilotRuntime {
 }
 
 interface CopilotSessionLike {
+  readonly rpc: {
+    model: {
+      list(options: { skipCache: boolean }): Promise<unknown>;
+    };
+  };
   send(options: { prompt: string }): Promise<unknown>;
   abort(): Promise<void>;
   disconnect(): Promise<void>;
@@ -186,6 +192,31 @@ const MODEL_FAILURE_CODES = new Set([
   "model_not_entitled",
 ]);
 
+const SessionModelListSchema = z.object({
+  list: z.array(
+    z
+      .object({
+        id: z.string(),
+        policy: z.unknown().optional(),
+      })
+      .passthrough(),
+  ),
+});
+const EnabledModelPolicySchema = z.object({ state: z.literal("enabled") }).passthrough();
+
+function assertEnabledModelPolicy(response: unknown): void {
+  const parsed = SessionModelListSchema.safeParse(response);
+  if (!parsed.success) {
+    throw new UpstreamResponseError("session model list is malformed");
+  }
+  const matches = parsed.data.list.filter((model) => model.id === HYDRAFUSION_MODEL);
+  if (matches.length !== 1 || !EnabledModelPolicySchema.safeParse(matches[0]?.policy).success) {
+    throw new HydraFusionUnavailableError(
+      `linked GitHub identity does not have an enabled ${HYDRAFUSION_MODEL} policy`,
+    );
+  }
+}
+
 function classifySessionCreationError(error: unknown): unknown {
   const parsed = SdkFailureSchema.safeParse(error);
   if (!parsed.success) {
@@ -261,6 +292,11 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       } catch (error) {
         throw classifySessionCreationError(error);
       }
+      const models = await withTimeout(
+        session.rpc.model.list({ skipCache: true }),
+        this.config.requestTimeoutMs,
+      );
+      assertEnabledModelPolicy(models);
       unsubscribe = session.on((event) => options.sink.onEvent(event));
     } catch (error) {
       await withTimeout(forceStopClient(client, runtimePid), this.config.requestTimeoutMs);

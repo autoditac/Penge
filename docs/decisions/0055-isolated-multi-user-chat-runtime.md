@@ -56,8 +56,9 @@ SDK session files use a bounded process-memory provider and persistent workspace
 Large-output file spilling and runtime diagnostics are disabled; the pinned SDK transport captures child stderr without forwarding it into service logs and reports its process-group leader so forced cleanup can terminate all MCP descendants.
 The Copilot runtime transport is explicitly an owned stdio child with a minimal connection-level environment, so ambient SDK defaults such as `COPILOT_SDK_DEFAULT_CONNECTION` cannot select in-process or external transports.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
-Exact-model session creation with that provider is the per-actor entitlement check; client-global unauthenticated model listing is not used.
-A bounded, immediately closed exact-model session lets authenticated status checks establish readiness before the browser submits its first question.
+Each exact-model session checks a fresh session-scoped model list using that actor's authentication; exactly one `hydrafusion` entry with an explicit enabled policy is required.
+Missing or non-enabled policy and duplicate entries fail closed; client-global unauthenticated model listing is not used.
+A bounded, immediately closed exact-model session lets each authenticated status check establish readiness before the browser submits its first question.
 Readiness probes and chats share the same atomic global and per-actor admission limits; a full status probe returns `429 rate_limit` and releases its reservation after teardown.
 The MCP server is a local stdio child with a minimal explicit environment, a mounted finance database URL file, and allowlisted read-only tools.
 Each child receives only derived `actor_<ULID>` and `session_<ULID>` audit pseudonyms; trusted identity claims and internal identifiers are never forwarded.
@@ -94,7 +95,7 @@ The official Copilot and MCP SDK dependencies are required to execute and verify
 
 ### Negative
 
-- Chat remains unavailable to an actor until exact `hydrafusion` session creation succeeds with that actor's linked token.
+- Chat remains unavailable unless exact `hydrafusion` session creation and the session-scoped enabled-policy check succeed with that actor's linked token.
 - Production requires coordinated reverse-proxy headers and mounted secrets from issue #342.
 - The accepted issue #344 MCP branch must land before the production readiness probe can pass.
 - Production enablement is blocked until the household owner accepts an amendment or superseding ADR for [ADR-0005](0005-llm-access-via-mcp-only.md) that permits bounded transaction-level records to reach `hydrafusion`, or removes `search_household_transactions` and `get_household_transaction_detail` from the chat allowlist.

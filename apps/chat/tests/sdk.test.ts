@@ -13,6 +13,7 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 import { MCP_CHAT_TOOL_ALLOWLIST } from "../src/config.js";
+import { HydraFusionUnavailableError, UpstreamResponseError } from "../src/errors.js";
 import { BoundedMemorySessionFs } from "../src/memorySessionFs.js";
 import {
   buildSessionConfig,
@@ -26,6 +27,16 @@ const provider: GitHubTokenProvider = async () => ({
   accessToken: "synthetic",
   expiresIn: 7_200,
 });
+
+function enabledModelRpc() {
+  return {
+    model: {
+      list: async () => ({
+        list: [{ id: "hydrafusion", policy: { state: "enabled" } }],
+      }),
+    },
+  };
+}
 
 async function waitForFile(path: string): Promise<string> {
   for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -151,6 +162,7 @@ describe("Copilot SDK policy", () => {
       createSession: async (session) => {
         expect(session.largeOutput).toEqual({ enabled: false });
         return {
+          rpc: enabledModelRpc(),
           send: async () => undefined,
           abort: async () => undefined,
           disconnect: async () => undefined,
@@ -378,6 +390,101 @@ describe("Copilot SDK policy", () => {
     expect(forceStop).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ["disabled", [{ id: "hydrafusion", policy: { state: "disabled" } }]],
+    ["unconfigured", [{ id: "hydrafusion", policy: { state: "unconfigured" } }]],
+    ["missing policy", [{ id: "hydrafusion" }]],
+    ["unknown policy", [{ id: "hydrafusion", policy: { state: "unknown" } }]],
+    ["missing model", [{ id: "another-model", policy: { state: "enabled" } }]],
+    [
+      "duplicate model",
+      [
+        { id: "hydrafusion", policy: { state: "enabled" } },
+        { id: "hydrafusion", policy: { state: "disabled" } },
+      ],
+    ],
+  ])("rejects the exact model when its policy is %s", async (_label, models) => {
+    const list = vi.fn(async () => ({ list: models }));
+    const send = vi.fn(async () => undefined);
+    const forceStop = vi.fn(async () => undefined);
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
+      start: async () => undefined,
+      createSession: async () => ({
+        rpc: { model: { list } },
+        send,
+        abort: async () => undefined,
+        disconnect: async () => undefined,
+        on: () => () => undefined,
+      }),
+      stop: async () => [],
+      forceStop,
+    }));
+
+    await expect(
+      runtime.createRun({
+        actorId: "actor-a",
+        sessionId: "session-a",
+        tokenProvider: provider,
+        sink: { onEvent: () => undefined },
+      }),
+    ).rejects.toBeInstanceOf(HydraFusionUnavailableError);
+    expect(list).toHaveBeenCalledWith({ skipCache: true });
+    expect(send).not.toHaveBeenCalled();
+    expect(forceStop).toHaveBeenCalledOnce();
+  });
+
+  it("fails explicitly and cleans up when the session model list is malformed", async () => {
+    const forceStop = vi.fn(async () => undefined);
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
+      start: async () => undefined,
+      createSession: async () => ({
+        rpc: { model: { list: async () => ({ list: "invalid" }) } },
+        send: async () => undefined,
+        abort: async () => undefined,
+        disconnect: async () => undefined,
+        on: () => () => undefined,
+      }),
+      stop: async () => [],
+      forceStop,
+    }));
+
+    await expect(
+      runtime.createRun({
+        actorId: "actor-a",
+        sessionId: "session-a",
+        tokenProvider: provider,
+        sink: { onEvent: () => undefined },
+      }),
+    ).rejects.toBeInstanceOf(UpstreamResponseError);
+    expect(forceStop).toHaveBeenCalledOnce();
+  });
+
+  it("bounds a stalled session model-list request and cleans up", async () => {
+    const forceStop = vi.fn(async () => undefined);
+    const runtime = new GitHubCopilotRuntime(syntheticConfig({ requestTimeoutMs: 20 }), () => ({
+      start: async () => undefined,
+      createSession: async () => ({
+        rpc: { model: { list: async () => new Promise<never>(() => undefined) } },
+        send: async () => undefined,
+        abort: async () => undefined,
+        disconnect: async () => undefined,
+        on: () => () => undefined,
+      }),
+      stop: async () => [],
+      forceStop,
+    }));
+
+    await expect(
+      runtime.createRun({
+        actorId: "actor-a",
+        sessionId: "session-a",
+        tokenProvider: provider,
+        sink: { onEvent: () => undefined },
+      }),
+    ).rejects.toThrow(/exceeded 20 ms/);
+    expect(forceStop).toHaveBeenCalledOnce();
+  });
+
   it("uses no disk-backed session path even when forced termination interrupts setup", async () => {
     const copilotBaseDirectory = join(tmpdir(), `penge-chat-${crypto.randomUUID()}`);
     let clientOptions: CopilotClientOptions | undefined;
@@ -413,6 +520,7 @@ describe("Copilot SDK policy", () => {
 
   it("uses each actor's provider for that actor's exact-model session", async () => {
     const accessTokens: string[] = [];
+    const policyTokens: string[] = [];
     const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
       start: async () => undefined,
       createSession: async (session) => {
@@ -425,6 +533,15 @@ describe("Copilot SDK policy", () => {
           accessTokens.push(token.accessToken);
         }
         return {
+          rpc: {
+            model: {
+              list: async (options) => {
+                expect(options).toEqual({ skipCache: true });
+                if (token?.kind === "token") policyTokens.push(token.accessToken);
+                return { list: [{ id: "hydrafusion", policy: { state: "enabled" } }] };
+              },
+            },
+          },
           send: async () => undefined,
           abort: async () => undefined,
           disconnect: async () => undefined,
@@ -457,7 +574,65 @@ describe("Copilot SDK policy", () => {
       }),
     ]);
     expect(accessTokens.sort()).toEqual(["actor-a-token", "actor-b-token"]);
+    expect(policyTokens.sort()).toEqual(["actor-a-token", "actor-b-token"]);
     await Promise.all(runs.map(async (run) => run.close()));
+  });
+
+  it("does not use one actor's enabled model policy for another actor", async () => {
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), () => ({
+      start: async () => undefined,
+      createSession: async (session) => {
+        const token = await session.gitHubTokenProvider?.({
+          host: "github.com",
+          sessionId: session.sessionId ?? "synthetic-session",
+          reason: "initial",
+        });
+        return {
+          rpc: {
+            model: {
+              list: async () => ({
+                list: [
+                  {
+                    id: "hydrafusion",
+                    policy: {
+                      state:
+                        token?.kind === "token" && token.accessToken === "actor-a-token"
+                          ? "enabled"
+                          : "disabled",
+                    },
+                  },
+                ],
+              }),
+            },
+          },
+          send: async () => undefined,
+          abort: async () => undefined,
+          disconnect: async () => undefined,
+          on: () => () => undefined,
+        };
+      },
+      stop: async () => [],
+      forceStop: async () => undefined,
+    }));
+    const providerFor =
+      (accessToken: string): GitHubTokenProvider =>
+      async () => ({ kind: "token", accessToken, expiresIn: 7200 });
+
+    const first = await runtime.createRun({
+      actorId: "actor-a",
+      sessionId: "session-a",
+      tokenProvider: providerFor("actor-a-token"),
+      sink: { onEvent: () => undefined },
+    });
+    await expect(
+      runtime.createRun({
+        actorId: "actor-b",
+        sessionId: "session-b",
+        tokenProvider: providerFor("actor-b-token"),
+        sink: { onEvent: () => undefined },
+      }),
+    ).rejects.toBeInstanceOf(HydraFusionUnavailableError);
+    await first.close();
   });
 
   it("bounds abort and teardown and force-stops after cooperative cleanup fails", async () => {
@@ -466,6 +641,7 @@ describe("Copilot SDK policy", () => {
     const runtime = new GitHubCopilotRuntime(syntheticConfig({ requestTimeoutMs: 10 }), () => ({
       start: async () => undefined,
       createSession: async () => ({
+        rpc: enabledModelRpc(),
         send: async () => undefined,
         abort: async () => new Promise<void>(() => undefined),
         disconnect: async () => new Promise<void>(() => undefined),

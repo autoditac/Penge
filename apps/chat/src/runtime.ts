@@ -27,6 +27,12 @@ interface TokenProviderFactory {
   providerFor(actorId: string): GitHubTokenProvider;
 }
 
+interface ToolEvidence {
+  tool: McpToolName;
+  coverage: "full" | "partial" | "missing";
+  freshness: "fresh" | "stale" | "missing";
+}
+
 interface ActiveSession {
   actorId: string;
   sessionId: string;
@@ -38,12 +44,9 @@ interface ActiveSession {
   timeout: NodeJS.Timeout;
   terminal: boolean;
   releaseCapacity: () => void;
-  toolsByCallId: Map<string, McpToolName>;
+  toolsByCallId: Map<string, { tool: McpToolName; allSourcesRequested: boolean }>;
   eventQueue: Promise<void>;
-  evidence: Array<{
-    coverage: "full" | "partial" | "missing";
-    freshness: "fresh" | "stale" | "missing";
-  }>;
+  evidence: ToolEvidence[];
 }
 
 type TerminalStatus = "completed" | "cancelled" | "timeout" | "error";
@@ -63,6 +66,15 @@ const JsonValueSchema: z.ZodType<JsonValue> = z.lazy(() =>
 
 const StructuredContentSchema = z.record(z.string(), JsonValueSchema);
 const SOURCE_SET = new Set<string>(MCP_SOURCE_ALLOWLIST);
+const SourceCoverageArgumentsSchema = z
+  .object({
+    source_ids: z
+      .array(McpSourceNameSchema)
+      .max(MCP_SOURCE_ALLOWLIST.length)
+      .refine((sources) => new Set(sources).size === sources.length)
+      .optional(),
+  })
+  .strict();
 const SourceCoverageSchema = z.object({
   tool_allowlist: z.array(z.string()).min(1),
   sources: z
@@ -81,6 +93,18 @@ const SourceCoverageSchema = z.object({
   currency: z.enum(["EUR", "DKK"]).optional(),
   _meta: z.object({}).passthrough().optional(),
 });
+
+function containsAllSources(sources: readonly string[]): boolean {
+  return MCP_SOURCE_ALLOWLIST.every((source) => sources.includes(source));
+}
+
+function requestedAllSources(args: unknown): boolean {
+  const parsed = SourceCoverageArgumentsSchema.safeParse(args);
+  return (
+    parsed.success &&
+    (parsed.data.source_ids === undefined || containsAllSources(parsed.data.source_ids))
+  );
+}
 
 function publicErrorMessage(): string {
   return "The chat session was interrupted without retaining its transcript.";
@@ -147,6 +171,7 @@ function collectEvidenceSignals(
 export function projectEvidence(
   tool: McpToolName,
   structuredContent: unknown,
+  allSourcesRequested = false,
 ): Extract<StreamEventInput, { type: "evidence" }> {
   const parsed = StructuredContentSchema.safeParse(structuredContent);
   if (!parsed.success) {
@@ -161,9 +186,10 @@ export function projectEvidence(
     assertExactToolAllowlist(coverage.data.tool_allowlist);
     const sourceNames = coverage.data.sources.map((source) => source.id);
     const freshnessSet = new Set(coverage.data.sources.map((source) => source.coverage.freshness));
+    const fullSourceScope = allSourcesRequested && containsAllSources(sourceNames);
     const effectiveCoverage =
+      fullSourceScope &&
       coverage.data.complete &&
-      sourceNames.length > 0 &&
       coverage.data.sources.every((source) => source.coverage.completeness === "complete")
         ? "full"
         : "partial";
@@ -182,7 +208,9 @@ export function projectEvidence(
       coverage: effectiveCoverage,
       freshness: effectiveFreshness,
       currency,
-      summary: `Validated structured output (${sourceNames.length} allowlisted sources) from the authoritative MCP registration. Raw rows were not exposed.`,
+      summary:
+        `Validated structured output (${sourceNames.length} allowlisted sources) from the authoritative MCP registration. ` +
+        `${fullSourceScope ? "" : "Full source scope was not verified. "}Raw rows were not exposed.`,
     };
   }
 
@@ -224,17 +252,16 @@ export function projectEvidence(
   };
 }
 
-export function summarizeEvidence(
-  evidence: readonly {
-    coverage: "full" | "partial" | "missing";
-    freshness: "fresh" | "stale" | "missing";
-  }[],
-): { coverage: "full" | "partial"; freshness: "fresh" | "stale" } {
+export function summarizeEvidence(evidence: readonly ToolEvidence[]): {
+  coverage: "full" | "partial";
+  freshness: "fresh" | "stale";
+} {
+  const verifiedAllSources = evidence.some(
+    (item) => item.tool === "get_source_coverage" && item.coverage === "full",
+  );
   return {
     coverage:
-      evidence.length > 0 && evidence.every((item) => item.coverage === "full")
-        ? "full"
-        : "partial",
+      verifiedAllSources && evidence.every((item) => item.coverage === "full") ? "full" : "partial",
     freshness:
       evidence.length > 0 && evidence.every((item) => item.freshness === "fresh")
         ? "fresh"
@@ -626,7 +653,11 @@ export class ChatRuntime {
           await this.denyTool(session, event.data.arguments);
           return;
         }
-        session.toolsByCallId.set(event.data.toolCallId, tool);
+        session.toolsByCallId.set(event.data.toolCallId, {
+          tool,
+          allSourcesRequested:
+            tool === "get_source_coverage" && requestedAllSources(event.data.arguments),
+        });
         session.sink(
           session.emit({
             type: "tool",
@@ -647,9 +678,10 @@ export class ChatRuntime {
         break;
       }
       case "tool.execution_complete": {
-        const tool = session.toolsByCallId.get(event.data.toolCallId);
-        if (tool !== undefined) {
+        const call = session.toolsByCallId.get(event.data.toolCallId);
+        if (call !== undefined) {
           session.toolsByCallId.delete(event.data.toolCallId);
+          const { tool } = call;
           session.sink(
             session.emit({
               type: "tool",
@@ -661,14 +693,19 @@ export class ChatRuntime {
             }),
           );
           if (event.data.success) {
-            const evidence = projectEvidence(tool, event.data.result?.structuredContent);
+            const evidence = projectEvidence(
+              tool,
+              event.data.result?.structuredContent,
+              call.allSourcesRequested,
+            );
             session.evidence.push({
+              tool,
               coverage: evidence.coverage,
               freshness: evidence.freshness,
             });
             session.sink(session.emit(evidence));
           } else {
-            session.evidence.push({ coverage: "missing", freshness: "missing" });
+            session.evidence.push({ tool, coverage: "missing", freshness: "missing" });
           }
           await this.store.appendAudit({
             actorId: session.actorId,

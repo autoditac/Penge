@@ -62,7 +62,9 @@ The MCP server is a local stdio child with a minimal explicit environment, a mou
 Each child receives only derived `actor_<ULID>` and `session_<ULID>` audit pseudonyms; trusted identity claims and internal identifiers are never forwarded.
 Startup probes the production MCP child with `connect`, `listTools`, and `close`, discarding child stderr; missing or extra registrations and missing output schemas disable production.
 The pinned registration order matches issue #350 exactly, and every successful `get_source_coverage` result must independently report that ordered allowlist, including `_meta`; missing, extra, reordered, or duplicate entries fail closed before evidence projection.
-Coverage is reported as full only when the required top-level `complete` flag is true and every returned source is complete; empty source lists remain partial.
+Full `get_source_coverage` evidence and a full completion require a call that requested all independently pinned source IDs, returned every expected ID, and marked both the overall result and every source complete.
+An omitted `source_ids` filter or an explicit set of all source IDs requests the whole catalog; subset requests, absent or invalid SDK argument metadata, and missing coverage calls remain partial.
+Other tool evidence reports completeness for that tool's result, not for the entire source catalog.
 Unknown or duplicate source IDs and invalid completeness or freshness values are rejected, and unknown or stale freshness is never projected as fresh.
 
 The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.

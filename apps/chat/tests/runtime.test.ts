@@ -83,6 +83,13 @@ function eventBase(type: SessionEvent["type"]): {
   };
 }
 
+function completeSources(ids: readonly string[] = MCP_SOURCE_ALLOWLIST) {
+  return ids.map((id) => ({
+    id,
+    coverage: { completeness: "complete", freshness: "fresh" },
+  }));
+}
+
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -405,9 +412,7 @@ describe("chat runtime isolation and lifecycle", () => {
           content: "redacted",
           structuredContent: {
             tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
-            sources: [
-              { id: "nordnet", coverage: { completeness: "complete", freshness: "fresh" } },
-            ],
+            sources: completeSources(),
             complete: true,
           },
         },
@@ -488,7 +493,7 @@ describe("chat runtime isolation and lifecycle", () => {
           content: "redacted",
           structuredContent: {
             tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
-            sources: [{ id: "gls", coverage: { completeness: "complete", freshness: "fresh" } }],
+            sources: completeSources(),
             complete: false,
           },
         },
@@ -554,7 +559,34 @@ describe("chat runtime isolation and lifecycle", () => {
 
     expect(
       projectEvidence("get_source_coverage", { ...base, sources: [gls], complete: true }),
-    ).toMatchObject({ source: "gls", coverage: "full", freshness: "fresh" });
+    ).toMatchObject({ source: "gls", coverage: "partial", freshness: "fresh" });
+    expect(
+      projectEvidence(
+        "get_source_coverage",
+        { ...base, sources: completeSources(), complete: true },
+        true,
+      ),
+    ).toMatchObject({ coverage: "full", freshness: "fresh" });
+    expect(
+      projectEvidence("get_source_coverage", {
+        ...base,
+        sources: completeSources(),
+        complete: true,
+      }),
+    ).toMatchObject({ coverage: "partial", freshness: "fresh" });
+    expect(
+      projectEvidence(
+        "get_source_coverage",
+        {
+          ...base,
+          sources: completeSources().map((source) =>
+            source.id === "enable_banking" ? enableBanking : source,
+          ),
+          complete: true,
+        },
+        true,
+      ),
+    ).toMatchObject({ coverage: "partial", freshness: "stale" });
     expect(
       projectEvidence("get_source_coverage", {
         ...base,
@@ -576,6 +608,179 @@ describe("chat runtime isolation and lifecycle", () => {
     expect(
       projectEvidence("get_source_coverage", { ...base, sources: [], complete: true }),
     ).toMatchObject({ coverage: "partial", freshness: "missing" });
+  });
+
+  it.each([
+    { name: "unfiltered request", args: {}, ids: [...MCP_SOURCE_ALLOWLIST], coverage: "full" },
+    {
+      name: "explicit all-source request in a different order",
+      args: { source_ids: [...MCP_SOURCE_ALLOWLIST].reverse() },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "full",
+    },
+    {
+      name: "complete requested subset",
+      args: { source_ids: ["gls"] },
+      ids: ["gls"],
+      coverage: "partial",
+    },
+    {
+      name: "missing source in an unfiltered response",
+      args: {},
+      ids: MCP_SOURCE_ALLOWLIST.slice(0, -1),
+      coverage: "partial",
+    },
+    {
+      name: "all-source response to a subset request",
+      args: { source_ids: ["gls"] },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+    {
+      name: "unavailable SDK request arguments",
+      args: undefined,
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+    {
+      name: "malformed request arguments",
+      args: { source_ids: "gls" },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+    {
+      name: "duplicate requested source IDs",
+      args: { source_ids: [...MCP_SOURCE_ALLOWLIST.slice(0, -1), "gls"] },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+  ])("requires the whole source set for $name", async ({ args, ids, coverage }) => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-get_source_coverage",
+        mcpToolName: "get_source_coverage",
+        mcpConfigServerName: "penge",
+        toolCallId: "coverage",
+        ...(args === undefined ? {} : { arguments: args }),
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: {
+        success: true,
+        toolCallId: "coverage",
+        result: {
+          content: "redacted",
+          structuredContent: {
+            tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+            sources: completeSources(ids),
+            complete: true,
+          },
+        },
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "completion" }));
+    expect(events).toContainEqual(expect.objectContaining({ type: "evidence", coverage }));
+    expect(events.at(-1)).toMatchObject({ type: "completion", coverage });
+    if (coverage === "partial") {
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "evidence",
+          summary: expect.stringContaining("Full source scope was not verified."),
+        }),
+      );
+    }
+    expect(JSON.stringify(store.audits)).not.toContain("source_ids");
+    await runtime.close();
+  });
+
+  it("does not share full-source verification between actors", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const firstEvents: StreamEvent[] = [];
+    const secondEvents: StreamEvent[] = [];
+    const first = await runtime.start("actor-a", "First question", (event) =>
+      firstEvents.push(event),
+    );
+    const second = await runtime.start("actor-b", "Second question", (event) =>
+      secondEvents.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.size).toBe(2));
+
+    for (const [sessionId, tool] of [
+      [first, "get_source_coverage"],
+      [second, "query_net_worth"],
+    ] as const) {
+      copilot.emit(sessionId, {
+        ...eventBase("tool.execution_start"),
+        type: "tool.execution_start",
+        data: {
+          toolName: `penge-${tool}`,
+          mcpToolName: tool,
+          mcpConfigServerName: "penge",
+          toolCallId: "call",
+          arguments: {},
+        },
+      });
+      copilot.emit(sessionId, {
+        ...eventBase("tool.execution_complete"),
+        type: "tool.execution_complete",
+        data: {
+          success: true,
+          toolCallId: "call",
+          result: {
+            content: "redacted",
+            structuredContent:
+              tool === "get_source_coverage"
+                ? {
+                    tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+                    sources: completeSources(),
+                    complete: true,
+                  }
+                : { completeness: "complete", freshness: "fresh" },
+          },
+        },
+      });
+      copilot.emit(sessionId, {
+        ...eventBase("session.idle"),
+        type: "session.idle",
+        ephemeral: true,
+        data: { aborted: false },
+      });
+    }
+
+    await vi.waitFor(() => {
+      expect(firstEvents.at(-1)).toMatchObject({ type: "completion", coverage: "full" });
+      expect(secondEvents.at(-1)).toMatchObject({ type: "completion", coverage: "partial" });
+    });
+    expect(secondEvents).toContainEqual(
+      expect.objectContaining({ type: "evidence", coverage: "full" }),
+    );
+    await runtime.close();
   });
 
   it("derives evidence only from declared metadata keys", () => {
@@ -601,22 +806,55 @@ describe("chat runtime isolation and lifecycle", () => {
     [
       "all full and fresh",
       [
-        { coverage: "full" as const, freshness: "fresh" as const },
-        { coverage: "full" as const, freshness: "fresh" as const },
+        {
+          tool: "get_source_coverage" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
+        {
+          tool: "query_net_worth" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
       ],
       { coverage: "full", freshness: "fresh" },
     ],
     [
+      "full local evidence without all-source verification",
+      [
+        {
+          tool: "query_net_worth" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
+      ],
+      { coverage: "partial", freshness: "fresh" },
+    ],
+    [
       "mixed partial and stale",
       [
-        { coverage: "full" as const, freshness: "fresh" as const },
-        { coverage: "partial" as const, freshness: "stale" as const },
+        {
+          tool: "get_source_coverage" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
+        {
+          tool: "query_net_worth" as const,
+          coverage: "partial" as const,
+          freshness: "stale" as const,
+        },
       ],
       { coverage: "partial", freshness: "stale" },
     ],
     [
       "missing evidence",
-      [{ coverage: "missing" as const, freshness: "missing" as const }],
+      [
+        {
+          tool: "query_net_worth" as const,
+          coverage: "missing" as const,
+          freshness: "missing" as const,
+        },
+      ],
       { coverage: "partial", freshness: "stale" },
     ],
   ])("summarizes %s conservatively", (_name, evidence, expected) => {

@@ -1997,6 +1997,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#browser-ci-setup-on-shared-runners" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser CI setup on shared runners
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#installing-the-host-units" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3734,6 +3745,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#browser-ci-setup-on-shared-runners" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser CI setup on shared runners
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#installing-the-host-units" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -3991,6 +4013,32 @@ resource older than the threshold provably cannot belong to a running job.</p>
   hourly and unattended. Rehearse with <code>--dry-run</code> first.</p>
 <p>There is no unconditional <code>docker system prune</code> anywhere, and non-BuildKit
 containers are never matched.</p>
+<h2 id="browser-ci-setup-on-shared-runners">Browser CI setup on shared runners<a class="headerlink" href="#browser-ci-setup-on-shared-runners" title="Permanent link">&para;</a></h2>
+<p>The dbt smoke workflow sets <code>UV_CACHE_DIR</code> before setup-uv restores its cache,
+and passes the same directory as <code>cache-local-path</code>.
+Both uv's mutable cache and <code>PLAYWRIGHT_BROWSERS_PATH</code> live under the runner's
+temporary directory, isolated across the three runner instances.
+The uv path is job-scoped and stable across runs so setup-uv can reuse archives;
+the browser path additionally includes run ID and attempt.
+Cache archives can still be reused across runs, but extraction, pruning and
+browser downloads never write into another active job's directory.
+Frozen uv/pnpm installs and the workspace's prohibited koffi build remain unchanged.</p>
+<p><code>just ci-browser-deps</code> serializes Playwright's system-package installation using
+<code>scripts/ci-package-setup.sh</code> and <code>flock</code> on <code>$HOME/.cache/penge-ci/package-setup.lock</code>.
+The main CI workflow's OCR apt setup and the backup workflow's PostgreSQL/age and
+ShellCheck apt setup use the same helper and lock.
+All three runner instances use the same host user and home, so the lock is
+deliberately outside their distinct temporary/workspace directories.
+Lock acquisition fails explicitly after 300 seconds.
+Uncoordinated host apt activity can still contend: only explicit apt lock errors
+are retried, at most three attempts with ten seconds between attempts.
+Other install failures fail immediately, with the original output and exit status.
+No apt locks are deleted and no package-manager processes are killed.
+Chromium archive installation runs separately, in the job-local browser directory.
+The existing 30-minute job timeout remains the overall execution bound.</p>
+<p>Run <code>just ci-setup-test</code> for synthetic cache-wiring, concurrency, timeout and
+error-propagation regressions; these tests never invoke apt or change the host.
+This setup is independent of browser port allocation and does not permit server reuse.</p>
 <h2 id="installing-the-host-units">Installing the host units<a class="headerlink" href="#installing-the-host-units" title="Permanent link">&para;</a></h2>
 <p>Requires root on the runner VM. Run from a checkout of <code>main</code>:</p>
 <div class="highlight"><pre><span></span><code>sudo<span class="w"> </span>install<span class="w"> </span>-m<span class="w"> </span><span class="m">0755</span><span class="w"> </span>deploy/runner/docker-gc.sh<span class="w"> </span>/usr/local/bin/penge-docker-gc

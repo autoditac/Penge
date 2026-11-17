@@ -115,9 +115,8 @@ describe("bounded entitlement probe", () => {
       probeEntitlement(client, baseDirectory, { probeMs: 50, shutdownMs: 500 }),
     ).rejects.toBeInstanceOf(SdkCleanupError);
     finishStartup();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(forceStop).toHaveBeenCalledTimes(2));
     expect(listModels).not.toHaveBeenCalled();
-    expect(forceStop).toHaveBeenCalledOnce();
     await expect(stat(baseDirectory)).resolves.toBeDefined();
     await rm(baseDirectory, { recursive: true, force: true });
   });

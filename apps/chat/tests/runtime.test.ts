@@ -1,6 +1,7 @@
 import type { GitHubTokenProvider, SessionEvent } from "@github/copilot-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { MCP_REGISTRATION_ALLOWLIST } from "../src/config.js";
 import { ChatRuntime, projectEvidence, summarizeEvidence } from "../src/runtime.js";
 import type { ActiveCopilotRun, CopilotEventSink, CopilotRuntime } from "../src/sdk.js";
 import type { StreamEvent } from "../src/stream.js";
@@ -340,6 +341,84 @@ describe("chat runtime isolation and lifecycle", () => {
       freshness: "fresh",
       currency: "mixed",
     });
+  });
+
+  it("does not let earlier full coverage mask a failed financial lookup", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-get_source_coverage",
+        mcpToolName: "get_source_coverage",
+        mcpConfigServerName: "penge",
+        toolCallId: "coverage",
+        arguments: {},
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: {
+        success: true,
+        toolCallId: "coverage",
+        result: {
+          content: "redacted",
+          structuredContent: {
+            tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+            sources: [
+              { id: "nordnet", coverage: { completeness: "complete", freshness: "fresh" } },
+            ],
+          },
+        },
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-query_net_worth",
+        mcpToolName: "query_net_worth",
+        mcpConfigServerName: "penge",
+        toolCallId: "failed-lookup",
+        arguments: {},
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: { success: false, toolCallId: "failed-lookup" },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "completion" }));
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "evidence", coverage: "full", freshness: "fresh" }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "tool", name: "query_net_worth", status: "failed" }),
+    );
+    expect(events.at(-1)).toMatchObject({
+      type: "completion",
+      coverage: "partial",
+      freshness: "stale",
+    });
+    expect(store.audits).toContainEqual(
+      expect.objectContaining({ tool: "query_net_worth", status: "error", argumentKeys: [] }),
+    );
   });
 
   it("derives evidence only from declared metadata keys", () => {

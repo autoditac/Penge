@@ -674,6 +674,8 @@ export class ChatRuntime {
               freshness: evidence.freshness,
             });
             session.sink(session.emit(evidence));
+          } else {
+            session.evidence.push({ coverage: "missing", freshness: "missing" });
           }
           await this.store.appendAudit({
             actorId: session.actorId,

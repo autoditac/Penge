@@ -8,15 +8,20 @@ Production remains disabled because the currently authenticated user's
 
 ```bash
 just chat-feasibility
+just mcp-test
 ```
 
-The recipe builds, tests, and lints `@penge/chat-feasibility`.
+The first recipe builds, tests, and lints `@penge/chat-feasibility`.
 It proves the pinned SDK configuration shape, empty mode, streaming event
 schemas, local stdio MCP configuration for the eight currently implemented tools,
 ambient-tool denial, actor/token/storage ownership, sanitized child
 environments, and typed unavailable-model errors.
 It uses synthetic values and makes no external model call.
 It does not start the MCP child, request `tools/list`, or invoke a tool.
+The MCP test separately spawns a synthetic stdio server using the production
+registry and a fake query runner, lists its read-only tools, and invokes
+`query_net_worth` with synthetic input.
+This does not test the production entrypoint or a Copilot session.
 
 The planned `issue-344-v1` MCP server registers `_meta` plus 16 chat tools.
 It is not implemented on this PR's current base: repository source currently

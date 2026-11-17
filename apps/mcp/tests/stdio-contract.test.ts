@@ -18,7 +18,7 @@ const expectedTools = [
 ];
 
 describe("MCP stdio tools/list contract", () => {
-  it("publishes every real Penge tool as read-only", async () => {
+  it("lists read-only Penge tools and invokes one with synthetic data", async () => {
     const transport = new StdioClientTransport({
       command: "pnpm",
       args: ["exec", "tsx", fixturePath],
@@ -36,6 +36,18 @@ describe("MCP stdio tools/list contract", () => {
 
       expect(list.tools.map((tool) => tool.name)).toEqual(expectedTools);
       expect(list.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
+
+      const result = await client.callTool({
+        name: "query_net_worth",
+        arguments: {
+          date_range: { from: "2024-01-01", to: "2024-01-31" },
+          currency: "EUR",
+          breakdown_by: "none",
+        },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content).toEqual([{ type: "text", text: "[]" }]);
     } finally {
       await client.close();
     }

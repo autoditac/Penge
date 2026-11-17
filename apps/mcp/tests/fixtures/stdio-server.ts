@@ -6,7 +6,7 @@ import { createPengeTools, type PengeQueryRunner } from "../../src/tools/index.j
 
 const audit: AuditLogger = {
   record() {
-    // The contract probe lists tools without invoking them.
+    // The synthetic contract probe does not persist audit entries.
   },
   async close() {
     // No resources are allocated by the contract probe.

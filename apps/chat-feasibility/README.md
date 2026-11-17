@@ -10,6 +10,9 @@ configuration that the production backend must preserve.
 Repository source defines `_meta` plus eight implemented chat tools.
 The harness proves that the SDK configuration targets only those eight; it does
 not start the MCP child, call `tools/list`, or invoke a tool.
+Separately, `just mcp-test` exercises stdio discovery and a synthetic
+`query_net_worth` call using the server registry and an in-memory query fixture.
+It does not start the production entrypoint or a Copilot session.
 The planned `issue-344-v1` contract is `_meta` plus 16 chat tools, but #350 is
 not merged; production readiness must remain blocked until an independent
 stdio `tools/list` result proves that exact registration set.

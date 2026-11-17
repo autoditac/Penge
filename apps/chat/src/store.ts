@@ -434,23 +434,27 @@ export class PostgresChatStore implements ChatStore {
 }
 
 export async function assertNoFinanceTableAccess(queryable: Queryable): Promise<void> {
+  // information_schema.tables omits materialized views, so inspect every data-bearing relation kind.
   const result = await queryable.query(
-    `SELECT table_schema, table_name
-     FROM information_schema.tables
-     WHERE table_schema NOT IN ('pg_catalog', 'information_schema')
+    `SELECT n.nspname AS table_schema, c.relname AS table_name
+     FROM pg_catalog.pg_class AS c
+     INNER JOIN pg_catalog.pg_namespace AS n ON n.oid = c.relnamespace
+     WHERE c.relkind IN ('r', 'p', 'v', 'm', 'f')
+       AND n.nspname NOT IN ('pg_catalog', 'information_schema')
+       AND n.nspname NOT LIKE 'pg\\_toast%'
        AND NOT (
-         table_schema = 'public'
-         AND table_name = ANY($1::text[])
+         n.nspname = 'public'
+         AND c.relname = ANY($1::text[])
        )
        AND (
          has_table_privilege(
            current_user,
-           format('%I.%I', table_schema, table_name),
+           c.oid,
            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
          )
          OR has_any_column_privilege(
            current_user,
-           format('%I.%I', table_schema, table_name),
+           c.oid,
            'SELECT,INSERT,UPDATE,REFERENCES'
          )
        )`,

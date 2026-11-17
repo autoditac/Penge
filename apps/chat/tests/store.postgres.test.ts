@@ -9,6 +9,7 @@ const databaseUrl = process.env.PENGE_CHAT_STORE_TEST_DATABASE_URL;
 const adminUrl = process.env.PENGE_CHAT_STORE_TEST_ADMIN_URL;
 const expectedRole = process.env.PENGE_CHAT_STORE_TEST_ROLE;
 const expectsPrivilegeRejection = process.env.PENGE_CHAT_STORE_EXPECT_PRIVILEGE_REJECTION === "1";
+const expectedRejectedRelation = process.env.PENGE_CHAT_STORE_EXPECT_REJECTED_RELATION;
 const canRunFunctional =
   databaseUrl !== undefined &&
   adminUrl !== undefined &&
@@ -16,14 +17,16 @@ const canRunFunctional =
   !expectsPrivilegeRejection;
 
 describe("PostgreSQL chat-role isolation", () => {
-  it.runIf(databaseUrl !== undefined && expectedRole !== undefined && expectsPrivilegeRejection)(
-    "rejects a column-only grant on a non-chat table",
-    async () => {
-      await expect(PostgresChatStore.connect(databaseUrl!, expectedRole!)).rejects.toThrow(
-        /public\.finance_shadow/,
-      );
-    },
-  );
+  it.runIf(
+    databaseUrl !== undefined &&
+      expectedRole !== undefined &&
+      expectsPrivilegeRejection &&
+      expectedRejectedRelation !== undefined,
+  )("rejects access to the configured non-chat relation", async () => {
+    await expect(PostgresChatStore.connect(databaseUrl!, expectedRole!)).rejects.toThrow(
+      `unexpected table access: ${expectedRejectedRelation}`,
+    );
+  });
 
   it.runIf(canRunFunctional)(
     "durably consumes OAuth state before a later callback failure",

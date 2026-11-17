@@ -95,9 +95,42 @@ def _table_names(database_url: str) -> set[str]:
         engine.dispose()
 
 
+def _run_store_vitest(env: dict[str, str]) -> None:
+    pnpm = shutil.which("pnpm")
+    assert pnpm is not None
+    result = subprocess.run(  # noqa: S603 - resolved executable, constant arguments
+        [
+            pnpm,
+            "--filter",
+            "@penge/chat",
+            "exec",
+            "vitest",
+            "run",
+            "tests/store.postgres.test.ts",
+        ],
+        check=False,
+        capture_output=True,
+        env={**os.environ, **env},
+        text=True,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert " passed" in result.stdout, result.stdout + result.stderr
+
+
 def _run_store_postgres_tests(admin_url: str) -> None:
     chat_admin_url = _database_url(admin_url, CHAT_DATABASE)
     chat_admin_engine = sa.create_engine(chat_admin_url)
+    store_url = _database_url(
+        admin_url,
+        CHAT_DATABASE,
+        username=STORE_ROLE,
+        password=STORE_ROLE_PASSWORD,
+    )
+    rejection_env = {
+        "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
+        "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
+        "PENGE_CHAT_STORE_EXPECT_PRIVILEGE_REJECTION": "1",
+    }
     try:
         with chat_admin_engine.begin() as connection:
             connection.execute(
@@ -119,58 +152,40 @@ def _run_store_postgres_tests(admin_url: str) -> None:
             connection.execute(
                 sa.text(f'GRANT SELECT (amount) ON finance_shadow TO "{STORE_ROLE}"')
             )
-        store_url = _database_url(
-            admin_url,
-            CHAT_DATABASE,
-            username=STORE_ROLE,
-            password=STORE_ROLE_PASSWORD,
+        _run_store_vitest(
+            {
+                **rejection_env,
+                "PENGE_CHAT_STORE_EXPECT_REJECTED_RELATION": "public.finance_shadow",
+            }
         )
-        pnpm = shutil.which("pnpm")
-        assert pnpm is not None
-        store_test = subprocess.run(  # noqa: S603 - resolved executable, constant arguments
-            [
-                pnpm,
-                "--filter",
-                "@penge/chat",
-                "exec",
-                "vitest",
-                "run",
-                "tests/store.postgres.test.ts",
-            ],
-            check=False,
-            capture_output=True,
-            env={
-                **os.environ,
-                "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
-                "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
-                "PENGE_CHAT_STORE_EXPECT_PRIVILEGE_REJECTION": "1",
-            },
-            text=True,
-        )
-        assert store_test.returncode == 0, store_test.stdout + store_test.stderr
         with chat_admin_engine.begin() as connection:
             connection.execute(sa.text("DROP TABLE finance_shadow"))
-        functional_test = subprocess.run(  # noqa: S603 - resolved executable, constant arguments
-            [
-                pnpm,
-                "--filter",
-                "@penge/chat",
-                "exec",
-                "vitest",
-                "run",
-                "tests/store.postgres.test.ts",
-            ],
-            check=False,
-            capture_output=True,
-            env={
-                **os.environ,
+            connection.execute(sa.text("CREATE SCHEMA finance_marts"))
+            connection.execute(
+                sa.text(
+                    "CREATE MATERIALIZED VIEW finance_marts.net_worth_shadow AS "
+                    "SELECT 1::integer AS id, 100::numeric AS amount"
+                )
+            )
+            connection.execute(sa.text(f'GRANT USAGE ON SCHEMA finance_marts TO "{STORE_ROLE}"'))
+            connection.execute(
+                sa.text(f'GRANT SELECT ON finance_marts.net_worth_shadow TO "{STORE_ROLE}"')
+            )
+        _run_store_vitest(
+            {
+                **rejection_env,
+                "PENGE_CHAT_STORE_EXPECT_REJECTED_RELATION": "finance_marts.net_worth_shadow",
+            }
+        )
+        with chat_admin_engine.begin() as connection:
+            connection.execute(sa.text("DROP SCHEMA finance_marts CASCADE"))
+        _run_store_vitest(
+            {
                 "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
                 "PENGE_CHAT_STORE_TEST_ADMIN_URL": chat_admin_url,
                 "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
-            },
-            text=True,
+            }
         )
-        assert functional_test.returncode == 0, functional_test.stdout + functional_test.stderr
     finally:
         chat_admin_engine.dispose()
 

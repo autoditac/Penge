@@ -40,7 +40,14 @@ just chat-entitlement-check
 The command uses the currently authenticated Copilot identity and calls only
 `listModels()`.
 It creates an isolated temporary SDK directory, uses error-only logging, prints
-only `exactModel`, `entitled`, and `matchCount`, then deletes the directory.
+only `exactModel`, `entitled`, and `matchCount`, and deletes the directory only
+after a confirmed graceful SDK shutdown.
+The probe has a 30-second deadline and allows five seconds for graceful shutdown
+before requesting a forced stop.
+If termination cannot be confirmed, the command fails without a model result and
+retains its `penge-copilot-entitlement-*` temporary directory.
+After confirming that the corresponding runtime is no longer running, remove
+that isolated directory securely; never inspect or publish its contents.
 It never prints a token, login, prompt, or financial data.
 Exit status `2` means the exact ID is unavailable.
 

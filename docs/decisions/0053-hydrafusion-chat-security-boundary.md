@@ -142,6 +142,10 @@ The separate MCP stdio contract test spawns a synthetic server using the
 production registry and a fake query runner, checks the read-only tool list,
 and invokes `query_net_worth` with synthetic input.
 It does not start the production entrypoint or establish a Copilot session.
+The separate entitlement probe has a bounded deadline and attempts graceful,
+then forced, SDK shutdown.
+It retains isolated temporary storage instead of deleting it when termination
+cannot be confirmed.
 
 The token-safe check on 2026-10-04 called only `listModels()` for the currently
 authenticated user, logged at error level, and emitted only the exact-ID result:

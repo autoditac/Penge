@@ -6,6 +6,7 @@ import {
   PengeError,
   SdkCleanupError,
   assertSdkCleanupSucceeded,
+  evaluateHydraFusionAvailability,
   hydraFusionModel,
 } from "./index.js";
 
@@ -21,7 +22,7 @@ export class EntitlementProbeTimeoutError extends PengeError {
 
 export interface EntitlementProbeClient {
   start: CopilotClient["start"];
-  listModels: () => Promise<readonly Pick<ModelInfo, "id">[]>;
+  listModels: () => Promise<readonly Pick<ModelInfo, "id" | "policy">[]>;
   stop: CopilotClient["stop"];
   forceStop: CopilotClient["forceStop"];
 }
@@ -122,7 +123,7 @@ export async function probeEntitlement(
   let probeFailed = false;
   let probeError: unknown;
   let result: EntitlementProbeResult | undefined;
-  let operation: Promise<readonly Pick<ModelInfo, "id">[]> | undefined;
+  let operation: Promise<readonly Pick<ModelInfo, "id" | "policy">[]> | undefined;
 
   try {
     operation = (async () => {
@@ -135,8 +136,7 @@ export async function probeEntitlement(
       return client.listModels();
     })();
     const models = await withDeadline(operation, timeouts.probeMs, "Entitlement probe");
-    const matchCount = models.filter((model) => model.id === hydraFusionModel).length;
-    result = { exactModel: hydraFusionModel, entitled: matchCount === 1, matchCount };
+    result = { exactModel: hydraFusionModel, ...evaluateHydraFusionAvailability(models) };
   } catch (error) {
     probeFailed = true;
     probeError = error;

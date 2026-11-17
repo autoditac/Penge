@@ -214,7 +214,7 @@ mcp-dev:
 mcp-test:
     pnpm --filter @penge/mcp test
 
-# Build, test, and lint the bounded HydraFusion architecture proof.
+# Build, test, and lint the bounded Copilot Fusion architecture proof.
 chat-feasibility:
     pnpm --filter @penge/chat-feasibility build
     pnpm --filter @penge/chat-feasibility test

@@ -60,7 +60,8 @@ retains its `penge-copilot-entitlement-*` temporary directory.
 After confirming that the corresponding runtime is no longer running, remove
 that isolated directory securely; never inspect or publish its contents.
 It never prints a token, login, prompt, or financial data.
-Exit status `2` means the exact ID is unavailable.
+Exit status `2` means the exact ID is missing, duplicated, or blocked by policy.
+The SDK may omit policy metadata; when present, its state must be `enabled`.
 
 The 2026-10-04 result was:
 
@@ -71,6 +72,12 @@ The 2026-10-04 result was:
 Do not create an entitlement record from documentation, a different account,
 a display name, or a similar model ID.
 Never ask for or use another household member's credentials to run this check.
+This CLI check uses the client identity and cannot prove entitlement for a
+different session actor.
+SDK 1.0.16 also exposes experimental `session.rpc.model.list()` for the
+session's own authentication context; its results are untyped JSON and must
+be validated before they are used for an actor-scoped decision.
+Successful session creation alone is not evidence that the model can execute.
 
 ## Production enablement checklist
 
@@ -79,7 +86,8 @@ Issue #346 may enable a linked actor only after all checks pass:
 1. The actor uses that person's own GitHub account, Copilot entitlement, OAuth
    credential, and quota.
    SDK storage is derived from the actor ID below a trusted absolute root.
-2. `listModels()` for that actor contains exactly `hydrafusion`.
+2. The actor-scoped model listing contains exactly one `hydrafusion` entry.
+   If policy metadata is present, its state must be `enabled`.
 3. The successful check is persisted for exactly that actor, normalized linked
    GitHub login, and `hydrafusion` model ID.
    A record for another actor or linked identity is rejected.

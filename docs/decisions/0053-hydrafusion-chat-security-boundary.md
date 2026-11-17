@@ -1,4 +1,4 @@
-# 0053 — Secure HydraFusion chat service boundary
+# 0053 — Secure Copilot Fusion chat service boundary
 
 - **Status:** Accepted
 - **Date:** 2026-10-04
@@ -46,7 +46,7 @@ names.
 2. **Shared household Copilot identity or ambient logged-in runtime identity** —
    rejected.
 3. **HTTP/SSE MCP or direct database access from the chat service** — rejected.
-4. **Fallback model when HydraFusion is unavailable** — rejected.
+4. **Fallback model when Copilot Fusion is unavailable** — rejected.
 
 ## Decision
 
@@ -93,9 +93,15 @@ in `apps/chat-feasibility`:
 `PENGE_CHAT_ENABLE_PRODUCTION=1` is only a process-wide deployment switch and
 does not grant model access to any actor.
 There is deliberately no process-wide entitlement flag.
-Issue #346 must persist a successful `listModels()` verification keyed by the
-tuple `(actor ID, normalized linked GitHub login, exact model ID)` and pass that
-actor-scoped record into session configuration.
+Issue #346 must persist a successful actor-scoped model availability verification
+keyed by the tuple `(actor ID, normalized linked GitHub login, exact model ID)`
+and pass that actor-scoped record into session configuration.
+The response must contain exactly one matching model; if policy metadata is
+present, its state must be `enabled`.
+Client-wide `listModels()` does not establish entitlement for a separately
+authenticated session actor.
+The SDK's experimental session-scoped model list requires validated response
+semantics; session creation alone does not prove model execution.
 The runtime rejects a record belonging to another actor or linked identity.
 Verification is never inferred from documentation, another user, or the
 deployment switch.
@@ -182,7 +188,7 @@ disabled, and no other model may substitute.
   compatibility with ADR-0005 remains unresolved.
 - Actor/token isolation and deny-by-default tools are executable contracts.
 - Downstream work has versioned seams instead of inferred tool names.
-- Missing HydraFusion entitlement fails explicitly.
+- Missing Copilot Fusion entitlement fails explicitly.
 
 ### Negative
 

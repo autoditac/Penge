@@ -13,7 +13,7 @@ The first release supports two separately authorized household actors.
 Each person links that person's own GitHub account and Copilot entitlement.
 Accounts, credentials, quota, sessions, and SDK storage are never shared.
 
-HydraFusion is experimental and has no fallback.
+Copilot Fusion is experimental and has no fallback.
 When the exact `hydrafusion` model ID is unavailable to the current linked
 identity, the surface is disabled and explains the external entitlement gate.
 One household member's successful check never enables the other member:

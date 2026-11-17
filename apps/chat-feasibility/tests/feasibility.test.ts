@@ -61,7 +61,7 @@ function enabledRuntime() {
   );
 }
 
-describe("HydraFusion Copilot SDK feasibility proof", () => {
+describe("Copilot Fusion SDK feasibility proof", () => {
   it("builds the pinned SDK empty-mode session configuration for stdio-only MCP", () => {
     const proof = buildCopilotSdkProof({
       runtime: enabledRuntime(),
@@ -303,7 +303,7 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
   });
 
   it("rejects another actor using the first actor's entitlement verification", () => {
-    expect(() =>
+    const resolveForAnotherActor = () =>
       resolveChatRuntimeConfig(
         {
           PENGE_CHAT_MODEL: hydraFusionModel,
@@ -317,8 +317,11 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
           model: hydraFusionModel,
           verifiedAt,
         },
-      ),
-    ).toThrow(UserCredentialScopeError);
+      );
+    expect(resolveForAnotherActor).toThrow(UserCredentialScopeError);
+    expect(resolveForAnotherActor).toThrow(
+      "Copilot Fusion entitlement verification must match the current actor and linked GitHub identity",
+    );
   });
 
   it("rejects an entitlement verification for a different linked GitHub identity", () => {
@@ -343,6 +346,19 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
   it("returns a typed unavailable-model error from user-scoped model metadata", () => {
     expect(() => assertHydraFusionAvailable([{ id: "gpt-5.4" }])).toThrow(ModelUnavailableError);
     expect(() => assertHydraFusionAvailable([{ id: hydraFusionModel }])).not.toThrow();
+    expect(() =>
+      assertHydraFusionAvailable([
+        { id: hydraFusionModel, policy: { state: "enabled", terms: "" } },
+      ]),
+    ).not.toThrow();
+    for (const state of ["disabled", "unconfigured"] as const) {
+      expect(() =>
+        assertHydraFusionAvailable([{ id: hydraFusionModel, policy: { state, terms: "" } }]),
+      ).toThrow(ModelUnavailableError);
+    }
+    expect(() =>
+      assertHydraFusionAvailable([{ id: hydraFusionModel }, { id: hydraFusionModel }]),
+    ).toThrow(ModelUnavailableError);
   });
 
   it("fails the entitlement probe when SDK cleanup returns errors", () => {

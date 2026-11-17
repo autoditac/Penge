@@ -83,6 +83,44 @@ describe("bounded entitlement probe", () => {
     await expect(stat(baseDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it.each([
+    { state: "enabled", entitled: true },
+    { state: "disabled", entitled: false },
+    { state: "unconfigured", entitled: false },
+  ] as const)("checks listed model policy $state", async ({ state, entitled }) => {
+    const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+    const client: EntitlementProbeClient = {
+      start: async () => {},
+      listModels: async () => [{ id: hydraFusionModel, policy: { state, terms: "" } }],
+      stop: async () => [],
+      forceStop: async () => {},
+    };
+
+    await expect(probeEntitlement(client, baseDirectory)).resolves.toEqual({
+      exactModel: hydraFusionModel,
+      entitled,
+      matchCount: 1,
+    });
+    await expect(stat(baseDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("does not grant entitlement for duplicate exact model IDs", async () => {
+    const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+    const client: EntitlementProbeClient = {
+      start: async () => {},
+      listModels: async () => [{ id: hydraFusionModel }, { id: hydraFusionModel }],
+      stop: async () => [],
+      forceStop: async () => {},
+    };
+
+    await expect(probeEntitlement(client, baseDirectory)).resolves.toEqual({
+      exactModel: hydraFusionModel,
+      entitled: false,
+      matchCount: 2,
+    });
+    await expect(stat(baseDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
   it("withholds a successful result when SDK cleanup reports errors", async () => {
     const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
     const forceStop = vi.fn(async () => {});

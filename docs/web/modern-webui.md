@@ -156,8 +156,9 @@ Copilot SDK agent can use those same typed tools for multi-step workflows.
 
 The [Ask Penge product truth and surface brief](ask-penge-product-brief.md)
 defines the app-scoped behavior and accessibility contract.
-The #345 harness is synthetic, the exact HydraFusion entitlement check failed
-for the currently authenticated user, and production remains disabled.
+The #345 harness is synthetic, the exact Copilot Fusion model ID `hydrafusion`
+was not returned for the currently authenticated user, and production remains
+disabled.
 Each household member must use that person's own GitHub/Copilot identity and
 credentials; shared household credentials are unsupported.
 

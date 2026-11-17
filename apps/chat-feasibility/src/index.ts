@@ -305,7 +305,7 @@ export function resolveChatRuntimeConfig(
     verification.githubLogin.toLowerCase() !== identity.githubLogin.toLowerCase()
   ) {
     throw new UserCredentialScopeError(
-      "HydraFusion entitlement verification must match the current actor and linked GitHub identity",
+      "Copilot Fusion entitlement verification must match the current actor and linked GitHub identity",
     );
   }
 
@@ -320,8 +320,24 @@ export function resolveChatRuntimeConfig(
   });
 }
 
-export function assertHydraFusionAvailable(models: readonly Pick<ModelInfo, "id">[]): void {
-  if (!models.some((model) => model.id === hydraFusionModel)) {
+export function evaluateHydraFusionAvailability(
+  models: readonly Pick<ModelInfo, "id" | "policy">[],
+): { entitled: boolean; matchCount: number } {
+  const matches = models.filter((model) => model.id === hydraFusionModel);
+  const model = matches[0];
+  return {
+    entitled:
+      matches.length === 1 &&
+      model !== undefined &&
+      (model.policy === undefined || model.policy?.state === "enabled"),
+    matchCount: matches.length,
+  };
+}
+
+export function assertHydraFusionAvailable(
+  models: readonly Pick<ModelInfo, "id" | "policy">[],
+): void {
+  if (!evaluateHydraFusionAvailability(models).entitled) {
     throw new ModelUnavailableError(
       `authenticated Copilot identity is not entitled to model ${hydraFusionModel}`,
     );

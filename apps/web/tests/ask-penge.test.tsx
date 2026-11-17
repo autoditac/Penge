@@ -455,6 +455,68 @@ describe("AskPengePage", () => {
     expect(screen.getByText(`Synthetic ${code} recovery message.`)).toBeInTheDocument();
   });
 
+  it("flushes buffered text and releases the timer on protocol errors", () => {
+    vi.useFakeTimers();
+    try {
+      const transport: AskTransport = {
+        start() {
+          return {
+            stop: async () => undefined,
+            close: () => undefined,
+            subscribe: (callback) => {
+              callback({
+                ...envelope(0),
+                type: "text",
+                id: "partial-before-error",
+                stream: "answer",
+                delta: "Validated partial.",
+                source: "assistant",
+              });
+              callback({ type: "text", version: "2.0" });
+              return () => undefined;
+            },
+          };
+        },
+      };
+      render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+      fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      expect(screen.getByText("Unsupported answer stream")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Validated partial.");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("presents cancelled completions with non-success severity", async () => {
+    useMediaQueryMock.mockReturnValue(false);
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        transport={createImmediateTransport([
+          {
+            ...envelope(0),
+            type: "completion",
+            id: "cancelled-completion",
+            summary: "Synthetic answer stopped early.",
+            coverage: "partial",
+            freshness: "fresh",
+            finishReason: "cancelled",
+            assumptions: [],
+          },
+        ])}
+      />,
+    );
+
+    await startInjectedStream();
+    const alert = (await screen.findByText("Synthetic answer stopped early.")).closest(
+      ".MuiAlert-root",
+    );
+    expect(alert).toHaveClass("MuiAlert-colorWarning");
+    expect(alert).not.toHaveClass("MuiAlert-colorSuccess");
+  });
+
   it("buffers answer announcements and flushes them when cancelled", async () => {
     vi.useFakeTimers();
     try {

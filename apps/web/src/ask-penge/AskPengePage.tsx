@@ -270,6 +270,7 @@ function AskPengeWorkbench({
       try {
         event = validateEvent(candidate);
       } catch {
+        flushBufferedAnswer();
         finishLocalSession();
         setContractError(
           "The answer stream did not match Ask Penge protocol 1.0. Reconnect after the backend contract is updated.",
@@ -757,7 +758,11 @@ function AskPengeWorkbench({
                   </Stack>
 
                   {completion ? (
-                    <Alert severity="success" variant="outlined" sx={{ borderRadius: 2 }}>
+                    <Alert
+                      severity={completionSeverity(completion)}
+                      variant="outlined"
+                      sx={{ borderRadius: 2 }}
+                    >
                       {completion.summary}
                     </Alert>
                   ) : null}
@@ -886,7 +891,7 @@ function AskPengeWorkbench({
               ))
             )}
             {completion ? (
-              <Alert severity="success" variant="outlined">
+              <Alert severity={completionSeverity(completion)} variant="outlined">
                 {completion.summary}
               </Alert>
             ) : null}
@@ -978,4 +983,8 @@ export function GitHubStatusCard({
       </Stack>
     </Paper>
   );
+}
+
+function completionSeverity(completion: AskStreamCompletionEvent): "success" | "warning" {
+  return completion.finishReason === "cancelled" ? "warning" : "success";
 }

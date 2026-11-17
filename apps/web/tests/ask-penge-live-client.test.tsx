@@ -356,6 +356,36 @@ describe("Ask Penge live client", () => {
     });
   });
 
+  it("closes the local stream before awaiting a slow stop response", async () => {
+    let resolveStop: ((response: Response) => void) | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(new ReadableStream<Uint8Array>({}), {
+          headers: { "X-Penge-Chat-Session-Id": "slow-stop-session" },
+        }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveStop = resolve;
+          }),
+      );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    session.subscribe(() => undefined);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    const streamSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal;
+
+    const stopping = session.stop();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(streamSignal?.aborted).toBe(true);
+
+    resolveStop?.(jsonResponse({ status: "cancelling" }, 202));
+    await expect(stopping).resolves.toBeUndefined();
+  });
+
   it("rejects a stream session that differs from the response session header", async () => {
     const completion = JSON.stringify({
       version: "1.0",

@@ -326,16 +326,22 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
       return {
         stop: async () => {
           userStopped = true;
-          if (sessionId !== null) {
-            const response = await fetchFn(endpoint(baseUrl, "v1/chat/stop"), {
-              method: "POST",
-              credentials: "same-origin",
-              headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({ sessionId }),
-            });
+          const stopRequest =
+            sessionId === null
+              ? null
+              : fetchFn(endpoint(baseUrl, "v1/chat/stop"), {
+                  method: "POST",
+                  credentials: "same-origin",
+                  headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({ sessionId }),
+                });
+          // Release the local stream before awaiting the server so a slow stop cannot keep it open.
+          close();
+          if (stopRequest !== null) {
+            const response = await stopRequest;
             if (!response.ok) {
               throw httpError(
                 "chat_stop_failed",
@@ -344,7 +350,6 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
               );
             }
           }
-          close();
         },
         close,
         subscribe: (callback) => {

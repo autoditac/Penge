@@ -77,6 +77,18 @@ development module graph; traces showed cold optimizer/network-changed failures.
 The browser recipe builds that bundle explicitly before starting Playwright,
 keeping compilation outside the server-readiness timeout and retaining the
 real API origin and demo-disabled build flags.
+The three self-hosted runners share host networking, not just disk.
+The dbt workflow reserves API ports 18001/18002/18003 and preview ports
+15001/15002/15003 for `penge-1`/`penge-2`/`penge-3` respectively.
+Each runner executes only one job at a time; unknown runner names fail explicitly
+until their own disjoint pair is allocated.
+`PENGE_BROWSER_API_PORT` and `PENGE_BROWSER_WEB_PORT` select those ports for
+the production build, API listener, CORS origin, preview, and browser assertions.
+Without overrides, local defaults remain API 8000 and preview 5173.
+Both servers refuse reuse, and preview uses strict port binding: an occupied
+port must fail, never attach to another job's API or silently move the preview.
+Run `just household-browser-config-test` to check allocation, build-time origin,
+local defaults, and strict server configuration without a database or browser.
 Household writes commit in a function-scoped dependency before sending success
 headers, preventing an immediate browser refetch from racing an uncommitted save.
 An in-memory boundary regression checks commit-before-headers and commit failure

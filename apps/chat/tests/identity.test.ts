@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { AuthenticationError, UpstreamResponseError } from "../src/errors.js";
 import {
   bindTrustedIdentity,
   decryptOAuthState,
@@ -132,5 +133,60 @@ describe("identity and OAuth", () => {
     );
     expect(refreshed.accessToken).toBe("access-2");
     expect(refreshed.refreshToken).toBe("refresh-2");
+  });
+
+  it("classifies HTTP 200 GitHub OAuth grant errors without echoing upstream text", async () => {
+    const config = {
+      clientId: "client",
+      clientSecret: "secret",
+      authorizeUrl: "https://github.com/login/oauth/authorize",
+      tokenUrl: "https://github.com/login/oauth/access_token",
+      apiUrl: "https://api.github.com",
+    };
+    const errorBody = (error: string) => async () =>
+      new Response(
+        JSON.stringify({
+          error,
+          error_description: "synthetic-upstream-marker <script>",
+          error_uri: "https://docs.github.com/synthetic",
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    const state = generateOAuthState(
+      "actor_0123456789abcdef0123456789abcdef",
+      "https://penge.example.test/oauth/github/callback",
+    );
+
+    const expired = exchangeGitHubCode(
+      config,
+      "expired-code",
+      state,
+      errorBody("bad_verification_code"),
+    );
+    await expect(expired).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(expired).rejects.toThrow(
+      "GitHub OAuth exchange was rejected: bad_verification_code",
+    );
+
+    const revoked = refreshGitHubToken(config, bundle, errorBody("bad_refresh_token"));
+    await expect(revoked).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(revoked).rejects.toThrow("GitHub OAuth refresh was rejected: bad_refresh_token");
+
+    const unknown = exchangeGitHubCode(config, "code", state, errorBody("synthetic-attacker-code"));
+    await expect(unknown).rejects.toThrow("GitHub OAuth exchange was rejected: unrecognized_error");
+
+    for (const attempt of [expired, revoked, unknown]) {
+      const message = await attempt.then(
+        () => "",
+        (error: unknown) => String(error),
+      );
+      expect(message).not.toContain("synthetic-upstream-marker");
+      expect(message).not.toContain("synthetic-attacker-code");
+    }
+
+    const malformed = exchangeGitHubCode(config, "code", state, async () =>
+      Response.json({ token_type: "bearer" }),
+    );
+    await expect(malformed).rejects.toBeInstanceOf(UpstreamResponseError);
   });
 });

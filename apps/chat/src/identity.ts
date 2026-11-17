@@ -10,7 +10,7 @@ import type { IncomingHttpHeaders } from "node:http";
 
 import { z } from "zod/v3";
 
-import { AuthenticationError } from "./errors.js";
+import { AuthenticationError, UpstreamResponseError } from "./errors.js";
 
 export const TrustedIdentitySchema = z
   .object({
@@ -63,10 +63,19 @@ const GitHubTokenResponseSchema = z
     refresh_token_expires_in: z.number().int().positive().optional(),
     scope: z.string().default(""),
     token_type: z.string().transform((value) => value.toLowerCase()),
-    error: z.string().optional(),
-    error_description: z.string().optional(),
   })
   .passthrough();
+
+// GitHub reports OAuth grant failures (for example an expired or reused code) as HTTP 200 bodies.
+const GitHubOAuthErrorSchema = z.object({ error: z.string().min(1) }).passthrough();
+const KNOWN_GITHUB_OAUTH_ERRORS = new Set([
+  "bad_verification_code",
+  "bad_refresh_token",
+  "unsupported_grant_type",
+  "incorrect_client_credentials",
+  "redirect_uri_mismatch",
+  "invalid_grant",
+]);
 
 const GitHubUserSchema = z
   .object({
@@ -180,6 +189,28 @@ async function parseGitHubResponse(response: Response): Promise<unknown> {
   return body;
 }
 
+function parseGitHubTokenResponse(
+  body: unknown,
+  operation: "exchange" | "refresh",
+): z.infer<typeof GitHubTokenResponseSchema> {
+  const oauthError = GitHubOAuthErrorSchema.safeParse(body);
+  if (oauthError.success) {
+    // GitHub-supplied descriptions are never echoed; only a reviewed error code is retained.
+    const code = KNOWN_GITHUB_OAUTH_ERRORS.has(oauthError.data.error)
+      ? oauthError.data.error
+      : "unrecognized_error";
+    throw new AuthenticationError(`GitHub OAuth ${operation} was rejected: ${code}`);
+  }
+  const token = GitHubTokenResponseSchema.safeParse(body);
+  if (!token.success) {
+    throw new UpstreamResponseError(`GitHub OAuth ${operation} returned a malformed response`);
+  }
+  if (token.data.token_type !== "bearer") {
+    throw new AuthenticationError(`GitHub OAuth ${operation} returned an unsupported token type`);
+  }
+  return token.data;
+}
+
 export async function exchangeGitHubCode(
   config: GitHubOAuthConfig,
   code: string,
@@ -199,10 +230,7 @@ export async function exchangeGitHubCode(
     }),
     signal: AbortSignal.timeout(15_000),
   });
-  const token = GitHubTokenResponseSchema.parse(await parseGitHubResponse(response));
-  if (token.error !== undefined || token.token_type !== "bearer") {
-    throw new AuthenticationError(token.error_description ?? token.error ?? "invalid token type");
-  }
+  const token = parseGitHubTokenResponse(await parseGitHubResponse(response), "exchange");
 
   const userResponse = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/user`, {
     headers: {
@@ -245,10 +273,7 @@ export async function refreshGitHubToken(
     }),
     signal: AbortSignal.timeout(15_000),
   });
-  const token = GitHubTokenResponseSchema.parse(await parseGitHubResponse(response));
-  if (token.error !== undefined || token.token_type !== "bearer") {
-    throw new AuthenticationError(token.error_description ?? token.error ?? "invalid token type");
-  }
+  const token = parseGitHubTokenResponse(await parseGitHubResponse(response), "refresh");
   return TokenBundleSchema.parse({
     ...current,
     accessToken: token.access_token,

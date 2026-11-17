@@ -129,6 +129,36 @@ describe("chat runtime isolation and lifecycle", () => {
     expect(JSON.stringify(store.audits)).not.toContain("Explain my synthetic report");
   });
 
+  it("treats transport disconnect after a terminal session as an idempotent no-op", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const events: StreamEvent[] = [];
+    const completed = await runtime.start("actor-a", "Synthetic question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.get(completed)?.prompt).toBeDefined());
+    copilot.emit(completed, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+    await vi.waitFor(() => expect(copilot.runs.get(completed)?.closed).toBe(true));
+
+    await expect(runtime.disconnect("actor-a", completed)).resolves.toBeUndefined();
+    const shutdown = await runtime.start("actor-a", "Second synthetic question", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.get(shutdown)?.prompt).toBeDefined());
+    await runtime.close();
+    await expect(runtime.disconnect("actor-a", shutdown)).resolves.toBeUndefined();
+
+    const live = await runtime.start("actor-a", "Third synthetic question", () => undefined);
+    await expect(runtime.disconnect("actor-b", live)).rejects.toThrow(/does not belong/);
+    expect(events.filter((event) => event.type === "completion")).toHaveLength(1);
+    expect(store.audits.filter((audit) => audit.status === "cancelled")).toHaveLength(1);
+    await runtime.close();
+  });
+
   it("accepts adversarial wording and relies on typed tool denial", async () => {
     const copilot = new FakeCopilotRuntime();
     const runtime = new ChatRuntime(

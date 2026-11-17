@@ -395,6 +395,11 @@ export class ChatRuntime {
   }
 
   async disconnect(actorId: string, sessionId: string): Promise<void> {
+    // Transport close can race a terminal event, idle cleanup, or shutdown that already
+    // finished the session; disconnect is therefore idempotent for released sessions.
+    if (!this.sessions.has(sessionId)) {
+      return;
+    }
     const session = this.ownedSession(actorId, sessionId);
     await this.finish(session, "cancelled", undefined, true);
   }

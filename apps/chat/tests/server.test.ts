@@ -6,6 +6,7 @@ import pino from "pino";
 import { describe, expect, it, vi } from "vitest";
 
 import { FeatureDisabledError, PengeError, SessionLimitError } from "../src/errors.js";
+import { exchangeGitHubCode, generateOAuthState } from "../src/identity.js";
 import { startChatServer } from "../src/server.js";
 import type { StreamEvent } from "../src/stream.js";
 import { syntheticConfig } from "./helpers.js";
@@ -408,6 +409,61 @@ describe("loopback HTTP service", () => {
       const body = JSON.stringify(await response.json());
       expect(body).toContain("invalid_request");
       expect(body).not.toContain("synthetic secret diagnostic");
+    } finally {
+      await server.close();
+    }
+  });
+
+  it("maps expired GitHub authorization codes to 401 and malformed upstream bodies to 502", async () => {
+    const tokenBodies: unknown[] = [
+      { error: "bad_verification_code", error_description: "synthetic-upstream-marker" },
+      { token_type: "bearer" },
+    ];
+    const oauthConfig = {
+      clientId: "client",
+      clientSecret: "secret",
+      authorizeUrl: "https://github.com/login/oauth/authorize",
+      tokenUrl: "https://github.com/login/oauth/access_token",
+      apiUrl: "https://api.github.com",
+    };
+    const invalidateActor = vi.fn(async () => undefined);
+    const server = await startChatServer(syntheticConfig(), {
+      runtime: {
+        start: async () => "00000000-0000-4000-8000-000000000001",
+        cancel: async () => undefined,
+        disconnect: async () => undefined,
+        cleanupIdle: async () => 0,
+        close: async () => undefined,
+        isModelAvailable: () => true,
+        ensureModelAvailable: async () => true,
+        invalidateActor,
+      },
+      oauth: {
+        begin: async () => "https://github.com/login/oauth/authorize",
+        complete: async (actorId, _state, code) => {
+          const state = generateOAuthState(actorId, "https://penge.example.test/cb");
+          await exchangeGitHubCode(oauthConfig, code, state, async () =>
+            Response.json(tokenBodies.shift()),
+          );
+          return "synthetic-user";
+        },
+        status: async () => ({ state: "not-linked" as const, login: null }),
+        unlink: async () => undefined,
+      },
+    });
+
+    try {
+      const callbackUrl = `${server.origin}/oauth/github/callback?state=synthetic-state&code=expired`;
+      const expired = await fetch(callbackUrl, { headers, redirect: "manual" });
+      expect(expired.status).toBe(401);
+      const expiredBody = JSON.stringify(await expired.json());
+      expect(expiredBody).toContain("auth_expired");
+      expect(expiredBody).not.toContain("synthetic-upstream-marker");
+
+      const malformed = await fetch(callbackUrl, { headers, redirect: "manual" });
+      expect(malformed.status).toBe(502);
+      expect(await malformed.json()).toMatchObject({ code: "session_interrupted" });
+      expect(invalidateActor).not.toHaveBeenCalled();
     } finally {
       await server.close();
     }

@@ -36,6 +36,7 @@ The external API base is a trailing-slash URL so reverse-proxy path prefixes sur
 The reverse proxy must overwrite and supply `X-Penge-Auth-Issuer`, immutable Google `X-Penge-Auth-Subject`, and a mounted-secret-backed `X-Penge-Proxy-Secret`; direct or ambiguous headers are rejected.
 State-changing requests additionally require the configured application origin, chat/stop requests require `application/json`, and request bodies remain byte-bounded while accommodating every valid 8,000-code-unit question.
 SSE delivery has a bounded process buffer and drain deadline that remains active until terminal output finishes flushing; a stalled client is disconnected through the normal cancellation path.
+Transport disconnect is idempotent: a close that races a terminal event, idle cleanup, or shutdown is a no-op for an already-released session rather than a lifecycle failure.
 
 Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE.
 The database stores only an HMAC state lookup and an encrypted versioned state envelope, never raw state or a plaintext verifier.
@@ -43,6 +44,8 @@ Access and refresh tokens use AES-256-GCM envelopes carrying a key ID.
 A mounted versioned keyring retains old keys for decryption while one current key encrypts new and refreshed credentials.
 Per-actor PostgreSQL advisory locks serialize refresh, relink, status, and unlink operations across service processes so rotating refresh tokens cannot be redeemed concurrently or overwrite a newer link.
 The same lock serializes OAuth state creation/consumption with unlink, which removes every pending state before it reports success.
+GitHub reports grant failures such as an expired or reused code (`bad_verification_code`) or a revoked refresh token (`bad_refresh_token`) as HTTP 200 error bodies; these are classified as authentication failures (HTTP 401, relink required) and only a reviewed error code is retained internally, never GitHub's free-text description.
+A token response that is neither a recognised error nor a valid bearer grant is an upstream failure (HTTP 502).
 Callback state deletion commits before token exchange while the session-level actor lock remains held, so a failed callback cannot redeem the same one-time state again.
 Pool acquisition, statements, transactions, and advisory-lock waits are bounded; OAuth transactions use a separate bound that covers the upstream refresh deadline, and idle pool failures initiate metadata-only controlled shutdown.
 

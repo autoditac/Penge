@@ -12,6 +12,7 @@ import {
   PengeError,
   ServerStartupError,
   SessionLimitError,
+  UpstreamResponseError,
 } from "./errors.js";
 import { bindTrustedIdentity } from "./identity.js";
 import type { ChatRuntime } from "./runtime.js";
@@ -146,6 +147,7 @@ function errorStatus(error: unknown): number {
   if (error instanceof FeatureDisabledError || error instanceof HydraFusionUnavailableError) {
     return 503;
   }
+  if (error instanceof UpstreamResponseError) return 502;
   if (error instanceof z.ZodError) return 400;
   if (error instanceof PengeError) return 400;
   return 500;
@@ -166,6 +168,9 @@ function publicError(error: unknown): { code: string; message: string } {
   }
   if (error instanceof AuthorizationError) {
     return { code: "not_found", message: "The requested chat session was not found." };
+  }
+  if (error instanceof UpstreamResponseError) {
+    return { code: "session_interrupted", message: "The request could not be completed." };
   }
   if (error instanceof z.ZodError || error instanceof PengeError) {
     return { code: "invalid_request", message: "The request was invalid." };

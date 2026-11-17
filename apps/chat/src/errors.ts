@@ -64,6 +64,13 @@ export class CopilotRuntimeError extends PengeError {
   }
 }
 
+export class UpstreamResponseError extends PengeError {
+  constructor(message: string) {
+    super("chat/upstream_response", message);
+    this.name = "UpstreamResponseError";
+  }
+}
+
 export class ServerStartupError extends PengeError {
   constructor(message: string) {
     super("chat/server_startup", message);

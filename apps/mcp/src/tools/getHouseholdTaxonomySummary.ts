@@ -40,6 +40,7 @@ const OutputSchema = z
   .strict();
 
 const RowSchema = EntrySchema.extend({
+  name: z.string(),
   total_count: z.coerce.number().int().nonnegative(),
   allocation_count: z.coerce.number().int().nonnegative(),
   classified_transaction_count: z.coerce.number().int().nonnegative(),

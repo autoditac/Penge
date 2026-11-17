@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import * as fs from "node:fs";
 import {
   chmodSync,
   mkdtempSync,
@@ -13,6 +14,11 @@ import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
 import { auditArgumentKeys, createAuditLogger } from "../src/audit.js";
+
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof fs>();
+  return { ...actual, writeSync: vi.fn(actual.writeSync) };
+});
 
 const SCRATCH_ROOT = join(process.cwd(), "tests", ".scratch");
 mkdirSync(SCRATCH_ROOT, { recursive: true });
@@ -159,6 +165,68 @@ describe("createAuditLogger", () => {
     writeFileSync(filePath, "occupied");
     expect(() => createAuditLogger({ logDir: filePath })).toThrow();
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  it.each([0, 5])("fails closed after an incomplete audit write of %i bytes", async (written) => {
+    const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
+    const stderr = new PassThrough();
+    const mirror = vi.spyOn(stderr, "write");
+    const logger = createAuditLogger({
+      logDir: dir,
+      stderr,
+      now: () => new Date("2026-05-10T12:34:56.000Z"),
+    });
+    const write = vi.mocked(fs.writeSync);
+    write.mockReturnValueOnce(written);
+    try {
+      const entry = { tool: "_meta", args: {}, status: "ok" as const, durationMs: 1 };
+      expect(() => logger.record(entry)).toThrow(/audit.*writ/i);
+      expect(() => logger.record(entry)).toThrow(/audit.*writ/i);
+      expect(mirror).not.toHaveBeenCalled();
+      expect(write).toHaveBeenCalledTimes(1);
+    } finally {
+      write.mockClear();
+      await logger.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("counts UTF-8 bytes when checking a complete audit write", async () => {
+    const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
+    const logger = createAuditLogger({
+      logDir: dir,
+      now: () => new Date("2026-05-10T12:34:56.000Z"),
+    });
+    try {
+      logger.record({ tool: "synthetic-é", args: {}, status: "ok", durationMs: 1 });
+      const text = readFileSync(join(dir, "audit-2026-05-10.jsonl"), "utf8");
+      expect(JSON.parse(text)).toMatchObject({ tool: "synthetic-é", status: "ok" });
+    } finally {
+      await logger.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects subsequent records after an audit write error", async () => {
+    const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
+    const logger = createAuditLogger({
+      logDir: dir,
+      now: () => new Date("2026-05-10T12:34:56.000Z"),
+    });
+    const write = vi.mocked(fs.writeSync);
+    write.mockImplementationOnce(() => {
+      throw new Error("synthetic disk failure");
+    });
+    try {
+      const entry = { tool: "_meta", args: {}, status: "ok" as const, durationMs: 1 };
+      expect(() => logger.record(entry)).toThrow(/audit write failed/i);
+      expect(() => logger.record(entry)).toThrow(/audit writes are unavailable/i);
+      expect(write).toHaveBeenCalledTimes(1);
+    } finally {
+      write.mockClear();
+      await logger.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("refuses a pre-existing audit-file symlink without touching its target", () => {

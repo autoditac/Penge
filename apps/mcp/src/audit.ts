@@ -11,6 +11,8 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 
+import { AuditWriteError } from "./errors.js";
+
 const SAFE_ARGUMENT_KEY = /^[A-Za-z0-9_.-]{1,64}$/;
 const MAX_ARGUMENT_KEYS = 32;
 
@@ -84,10 +86,13 @@ export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
     throw error;
   }
   let closed = false;
+  let writeFailed = false;
 
   return {
     record(entry) {
       if (closed) throw new Error("MCP audit logger is closed");
+      if (writeFailed)
+        throw new AuditWriteError("MCP audit writes are unavailable after a failure");
       const record: AuditRecord = {
         ts: now().toISOString(),
         ...(opts.actorId === undefined ? {} : { actorId: opts.actorId }),
@@ -99,7 +104,14 @@ export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
         ...(entry.error === undefined ? {} : { error: entry.error }),
       };
       const line = `${JSON.stringify(record)}\n`;
-      writeSync(file, line);
+      try {
+        if (writeSync(file, line) !== Buffer.byteLength(line, "utf8")) {
+          throw new AuditWriteError("MCP audit write was incomplete");
+        }
+      } catch (cause) {
+        writeFailed = true;
+        throw new AuditWriteError("MCP audit write failed or was incomplete", { cause });
+      }
       opts.stderr?.write(line);
     },
     async close() {

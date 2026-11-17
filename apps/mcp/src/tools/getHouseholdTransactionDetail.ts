@@ -4,13 +4,18 @@ import { ToolDataError, ToolNotFoundError } from "../errors.js";
 import { redactTextBounded } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
 import {
+  HOUSEHOLD_TRANSACTION_PROVIDERS,
+  MAX_LINKED_PAYPAL_DETAILS,
+  MAX_TRANSACTION_ALLOCATIONS,
+} from "../sources.js";
+import {
   EFFECTIVE_REVIEW_STATE_SQL,
   type HouseholdTransactionQueryRunner,
 } from "./searchHouseholdTransactions.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL = /^-?\d+(?:\.\d+)?$/;
-const ProviderSchema = z.enum(["gls", "ebank", "lunar", "nordnet", "pfa", "growney"]);
+const ProviderSchema = z.enum(HOUSEHOLD_TRANSACTION_PROVIDERS);
 
 const InputSchema = z
   .object({
@@ -91,10 +96,10 @@ const OutputSchema = z
     ledger_semantics: z.literal("single_source_ledger"),
     transaction: TransactionSchema,
     classification: ClassificationSchema.nullable(),
-    allocations: z.array(AllocationSchema).max(100),
+    allocations: z.array(AllocationSchema).max(MAX_TRANSACTION_ALLOCATIONS),
     allocation_total: z.string().regex(DECIMAL),
     audit_evidence: z.array(AuditEvidenceSchema).max(20),
-    linked_paypal: z.array(PaypalDetailSchema).max(10),
+    linked_paypal: z.array(PaypalDetailSchema).max(MAX_LINKED_PAYPAL_DETAILS),
   })
   .strict();
 
@@ -195,7 +200,7 @@ const ALLOCATION_SQL = `
     ON classification.transaction_id = x.transaction_id
   WHERE x.transaction_id = $1::uuid
   ORDER BY c.sort_order, c.id
-  LIMIT 100
+  LIMIT ${MAX_TRANSACTION_ALLOCATIONS + 1}
 `;
 
 const AUDIT_SQL = `
@@ -215,7 +220,7 @@ const PAYPAL_SQL = `
   INNER JOIN household_payment_detail AS d ON d.id = link.detail_id
   WHERE link.transaction_id = $1::uuid AND d.provider = 'paypal'
   ORDER BY d.ts, d.id
-  LIMIT 11
+  LIMIT ${MAX_LINKED_PAYPAL_DETAILS + 1}
 `;
 
 function instant(value: Date | string): string {
@@ -248,9 +253,14 @@ export function getHouseholdTransactionDetailTool(
           throw new ToolNotFoundError(`household transaction ${args.transaction_id} was not found`);
         }
         const allocationResult = await runner.query(ALLOCATION_SQL, [args.transaction_id]);
+        if (allocationResult.rows.length > MAX_TRANSACTION_ALLOCATIONS) {
+          throw new ToolDataError(
+            "household transaction has more allocations than the bounded MCP contract can expose",
+          );
+        }
         const auditResult = await runner.query(AUDIT_SQL, [args.transaction_id]);
         const paypalResult = await runner.query(PAYPAL_SQL, [args.transaction_id]);
-        if (paypalResult.rows.length > 10) {
+        if (paypalResult.rows.length > MAX_LINKED_PAYPAL_DETAILS) {
           throw new ToolDataError(
             "household transaction has more linked PayPal detail than the bounded MCP contract can expose",
           );

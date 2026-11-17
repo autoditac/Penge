@@ -36,6 +36,14 @@ describe("source coverage tools", () => {
     expect(() => tool.inputSchema.parse({ source_ids: ["ecb_fx", "ecb_fx"] })).toThrow(/unique/);
   });
 
+  it("does not claim complete coverage for an empty source selection", async () => {
+    const tool = getSourceCoverageTool({ runner: fixedRows([]), now: () => NOW });
+    const out = await tool.handler({ source_ids: [] }, CTX);
+    tool.outputSchema.parse(out);
+    expect(out.sources).toEqual([]);
+    expect(out.complete).toBe(false);
+  });
+
   it("scopes NSI coverage observations to the NSI generation source", async () => {
     let coverageSql = "";
     const tool = getSourceCoverageTool({
@@ -60,6 +68,7 @@ describe("source coverage tools", () => {
           transaction_count: 0,
           holding_count: 0,
           evidence_count: 12,
+          inaccessible_evidence_count: 0,
           latest_observed_at: "2026-09-20T00:00:00.000Z",
         },
         {
@@ -68,6 +77,7 @@ describe("source coverage tools", () => {
           transaction_count: 0,
           holding_count: 0,
           evidence_count: 0,
+          inaccessible_evidence_count: 0,
           latest_observed_at: null,
         },
       ]),
@@ -92,6 +102,7 @@ describe("source coverage tools", () => {
           transaction_count: 0,
           holding_count: 2,
           evidence_count: 2,
+          inaccessible_evidence_count: 0,
           latest_observed_at: "2026-10-01T00:00:00.000Z",
         },
       ]),
@@ -100,6 +111,61 @@ describe("source coverage tools", () => {
     const out = await tool.handler({ source_ids: ["manual_facts"] }, CTX);
     expect(out.sources[0]?.coverage.completeness).toBe("complete");
     expect(out.sources[0]?.coverage.freshness).toBe("fresh");
+  });
+
+  it("does not report bank coverage complete without balance observations", async () => {
+    const tool = getSourceCoverageTool({
+      runner: fixedRows([
+        {
+          source_id: "gls",
+          account_count: 1,
+          transaction_count: 1,
+          holding_count: 0,
+          evidence_count: 1,
+          inaccessible_evidence_count: 0,
+          latest_observed_at: null,
+        },
+      ]),
+      now: () => NOW,
+    });
+    const out = await tool.handler({ source_ids: ["gls"] }, CTX);
+    expect(out.sources[0]?.coverage).toMatchObject({
+      completeness: "partial",
+      freshness: "unknown",
+    });
+    expect(out.complete).toBe(false);
+  });
+
+  it("reports unavailable materialized balance evidence as partial", async () => {
+    const tool = getSourceCoverageTool({
+      runner: fixedRows([
+        {
+          source_id: "gls",
+          account_count: 1,
+          transaction_count: 1,
+          holding_count: 1,
+          evidence_count: 2,
+          inaccessible_evidence_count: 1,
+          latest_observed_at: null,
+        },
+      ]),
+      now: () => NOW,
+    });
+    const out = await tool.handler({ source_ids: ["gls"] }, CTX);
+    expect(out.sources[0]?.coverage).toMatchObject({
+      completeness: "partial",
+      freshness: "unknown",
+    });
+    expect(out.complete).toBe(false);
+  });
+
+  it("rejects an unsafe configured mart identifier", () => {
+    expect(() =>
+      getSourceCoverageTool({
+        runner: fixedRows([]),
+        martTable: "analytics_marts.mart_net_worth_daily; DROP TABLE account",
+      }),
+    ).toThrow(ToolDataError);
   });
 
   it.each([
@@ -146,7 +212,13 @@ describe("source coverage tools", () => {
   ])("marks $source_id evidence as $expected", async (row) => {
     const { expected, ...observation } = row;
     const tool = getSourceCoverageTool({
-      runner: fixedRows([{ ...observation, latest_observed_at: "2026-10-01T00:00:00.000Z" }]),
+      runner: fixedRows([
+        {
+          ...observation,
+          inaccessible_evidence_count: 0,
+          latest_observed_at: "2026-10-01T00:00:00.000Z",
+        },
+      ]),
       now: () => NOW,
     });
     const out = await tool.handler({ source_ids: [row.source_id] }, CTX);
@@ -154,19 +226,25 @@ describe("source coverage tools", () => {
   });
 
   it("derives Enable Banking coverage from its weakest constituent bank", async () => {
-    const observed = (source_id: string, transactions: number, latest: string | null) => ({
+    const observed = (
+      source_id: string,
+      transactions: number,
+      holdings: number,
+      latest: string | null,
+    ) => ({
       source_id,
       account_count: 1,
       transaction_count: transactions,
-      holding_count: 0,
-      evidence_count: transactions,
+      holding_count: holdings,
+      evidence_count: transactions + holdings,
+      inaccessible_evidence_count: 0,
       latest_observed_at: latest,
     });
     const params: ReadonlyArray<unknown>[] = [];
     const rows = [
-      observed("gls", 4, "2026-10-01T00:00:00.000Z"),
-      observed("ebank", 2, "2026-09-30T00:00:00.000Z"),
-      observed("lunar", 0, null),
+      observed("gls", 4, 1, "2026-10-01T00:00:00.000Z"),
+      observed("ebank", 2, 1, "2026-09-30T00:00:00.000Z"),
+      observed("lunar", 0, 0, null),
     ];
     const tool = getSourceCoverageTool({
       runner: {
@@ -186,17 +264,63 @@ describe("source coverage tools", () => {
       latest_observed_at: null,
       account_count: 3,
       transaction_count: 6,
-      evidence_count: 6,
+      holding_count: 2,
+      evidence_count: 8,
     });
     expect(out.complete).toBe(false);
 
-    rows[2] = observed("lunar", 1, "2026-09-29T00:00:00.000Z");
+    rows[2] = observed("lunar", 1, 1, "2026-09-29T00:00:00.000Z");
     const complete = await tool.handler({ source_ids: ["enable_banking"] }, CTX);
     expect(complete.sources[0]?.coverage).toMatchObject({
       completeness: "complete",
       latest_observed_at: "2026-09-29T00:00:00.000Z",
       transaction_count: 7,
+      holding_count: 3,
+      evidence_count: 10,
     });
+  });
+
+  it.each([
+    { count: 2, inaccessible: 2, latest: null, completeness: "partial", freshness: "unknown" },
+    {
+      count: 2,
+      inaccessible: 1,
+      latest: "2026-09-01T00:00:00.000Z",
+      completeness: "partial",
+      freshness: "stale",
+    },
+    {
+      count: 2,
+      inaccessible: 0,
+      latest: "2026-10-01T00:00:00.000Z",
+      completeness: "complete",
+      freshness: "fresh",
+    },
+  ])("uses PayPal accessibility for completeness and freshness", async (observation) => {
+    const tool = getSourceCoverageTool({
+      runner: fixedRows([
+        {
+          source_id: "paypal",
+          account_count: 0,
+          transaction_count: 0,
+          holding_count: 0,
+          evidence_count: observation.count,
+          inaccessible_evidence_count: observation.inaccessible,
+          latest_observed_at: observation.latest,
+        },
+      ]),
+      now: () => NOW,
+    });
+    const out = await tool.handler({ source_ids: ["paypal"] }, CTX);
+    tool.outputSchema.parse(out);
+    expect(out.sources[0]?.coverage).toMatchObject({
+      evidence_count: observation.count,
+      completeness: observation.completeness,
+      freshness: observation.freshness,
+      latest_observed_at: observation.latest,
+    });
+    expect(out.complete).toBe(observation.completeness === "complete");
+    expect(out.sources[0]?.coverage).not.toHaveProperty("inaccessible_evidence_count");
   });
 
   it("rejects future observations instead of treating them as fresh", async () => {
@@ -208,6 +332,7 @@ describe("source coverage tools", () => {
           transaction_count: 0,
           holding_count: 0,
           evidence_count: 1,
+          inaccessible_evidence_count: 0,
           latest_observed_at: "2026-10-05T00:00:00.000Z",
         },
       ]),
@@ -452,7 +577,7 @@ describe("source coverage tools", () => {
     expect(out.linked_paypal[0]?.ledger_semantics).toBe("enrichment_only");
     expect(out.ledger_semantics).toBe("single_source_ledger");
     expect(usedSnapshot).toBe(true);
-    expect(allocationSql).toMatch(/LIMIT 100/);
+    expect(allocationSql).toMatch(/LIMIT 101/);
     expect(transactionSql).not.toMatch(/left\(t\.(description|counterparty)/);
     expect(out.transaction.description).toContain("[REDACTED]");
     expect(out.transaction.counterparty).toContain("[REDACTED]");
@@ -514,6 +639,23 @@ describe("source coverage tools", () => {
     await expect(tool.handler({ transaction_id: TX }, CTX)).rejects.toThrow(
       "more linked PayPal detail",
     );
+  });
+
+  it("fails closed rather than returning an incomplete allocation list", async () => {
+    const runner = {
+      async query(sql: string) {
+        return {
+          rows: sql.includes("FROM household_allocation AS x")
+            ? Array.from({ length: 101 }, () => ({}))
+            : [{}],
+        };
+      },
+      async readSnapshot<T>(operation: (snapshotRunner: typeof runner) => Promise<T>): Promise<T> {
+        return await operation(runner);
+      },
+    };
+    const tool = getHouseholdTransactionDetailTool({ runner, now: () => NOW });
+    await expect(tool.handler({ transaction_id: TX }, CTX)).rejects.toThrow("more allocations");
   });
 
   it("maps bounded taxonomy, rule, and merchant summary rows", async () => {
@@ -601,6 +743,39 @@ describe("source coverage tools", () => {
     });
   });
 
+  it.each([
+    {
+      name: `${"\u{1F9FE}".repeat(94)} DE89370400440532013000`,
+      expected: `${"\u{1F9FE}".repeat(94)} [REDACTED]`,
+    },
+    {
+      name: `${"A".repeat(199)}\u{1F9FE}`,
+      expected: "A".repeat(199),
+    },
+  ])("redacts and bounds Unicode category names after reading the complete value", async (row) => {
+    const tool = getHouseholdTaxonomySummaryTool({
+      runner: fixedRows([
+        {
+          category_id: CATEGORY,
+          name: row.name,
+          kind: "expense",
+          parent_id: null,
+          sort_order: 1,
+          archived: false,
+          revision: 1,
+          allocation_count: 1,
+          classified_transaction_count: 1,
+          total_count: 1,
+        },
+      ]),
+      now: () => NOW,
+    });
+    const out = await tool.handler({ include_archived: false, limit: 25, offset: 0 }, CTX);
+    tool.outputSchema.parse(out);
+    expect(out.entries[0]?.name).toBe(row.expected);
+    expect(out.entries[0]?.name).not.toContain("DE89370400440532013000");
+  });
+
   it("uses the oldest required evidence stream for source freshness", async () => {
     let capturedSql = "";
     const tool = getSourceCoverageTool({
@@ -615,6 +790,7 @@ describe("source coverage tools", () => {
                 transaction_count: 1,
                 holding_count: 1,
                 evidence_count: 2,
+                inaccessible_evidence_count: 0,
                 latest_observed_at: "2026-08-01T00:00:00.000Z",
               },
             ],

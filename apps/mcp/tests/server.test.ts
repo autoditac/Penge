@@ -4,6 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { z } from "zod/v3";
 
 import type { AuditLogger } from "../src/audit.js";
+import { AuditWriteError } from "../src/errors.js";
 import {
   assertRegisteredToolAllowlist,
   assertSourceCatalogCoverage,
@@ -23,6 +24,15 @@ it("fails closed when a supported source lacks an MCP evidence path", () => {
     "supported source gls has no MCP evidence path",
   );
 });
+
+it.each(["gls", "ebank", "lunar", "enable_banking"])(
+  "declares the account-grouped net-worth evidence path for %s balances",
+  (id) => {
+    const source = SOURCE_CATALOG.find((entry) => entry.id === id);
+    expect(source?.capabilities).toContain("balances");
+    expect(source?.evidence_paths.map((path) => path.tool)).toContain("query_net_worth");
+  },
+);
 
 it("fails closed when registered tools differ from the stdio allowlist", () => {
   expect(() => assertRegisteredToolAllowlist(MCP_READ_ONLY_TOOL_ALLOWLIST)).not.toThrow();
@@ -94,6 +104,24 @@ describe("MCP server skeleton", () => {
 
       expect(audit.entries).toHaveLength(1);
       expect(audit.entries[0]).toMatchObject({ tool: "_meta", status: "ok" });
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  it("does not return a tool result when audit recording fails", async () => {
+    const audit: AuditLogger = {
+      record() {
+        throw new AuditWriteError("synthetic audit failure");
+      },
+      async close() {},
+    };
+    const { client, server } = await newConnectedClient(audit);
+    try {
+      await expect(client.callTool({ name: "_meta", arguments: {} })).rejects.toThrow(
+        "synthetic audit failure",
+      );
     } finally {
       await client.close();
       await server.close();

@@ -11,6 +11,7 @@ export const STALE_ECB_COVERAGE_ROW = {
   transaction_count: 0,
   holding_count: 0,
   evidence_count: 10,
+  inaccessible_evidence_count: 0,
   latest_observed_at: "2026-09-20T00:00:00.000Z",
 };
 

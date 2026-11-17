@@ -3,10 +3,11 @@ import { z } from "zod/v3";
 import { ToolDataError } from "../errors.js";
 import { redactTextBounded } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
+import { HOUSEHOLD_TRANSACTION_PROVIDERS } from "../sources.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL = /^-?\d+(?:\.\d+)?$/;
-const ProviderSchema = z.enum(["gls", "ebank", "lunar", "nordnet", "pfa", "growney"]);
+const ProviderSchema = z.enum(HOUSEHOLD_TRANSACTION_PROVIDERS);
 
 const InputSchema = z
   .object({

@@ -12,6 +12,7 @@ import pg from "pg";
 
 import { connect } from "../src/db.js";
 import { getHouseholdMerchantSummaryTool } from "../src/tools/getHouseholdMerchantSummary.js";
+import { getHouseholdTaxonomySummaryTool } from "../src/tools/getHouseholdTaxonomySummary.js";
 import { getHouseholdTransactionDetailTool } from "../src/tools/getHouseholdTransactionDetail.js";
 import {
   getSourceCoverageTool,
@@ -67,6 +68,14 @@ async function isolateCoverageFacts(
     [SYNTHETIC_HOLDING_ID],
   );
   await client.query(
+    `CREATE TEMP TABLE mart_net_worth_daily
+     (LIKE analytics_marts.mart_net_worth_daily INCLUDING DEFAULTS)`,
+  );
+  await client.query(
+    "CREATE TEMP TABLE import_session (LIKE public.import_session INCLUDING DEFAULTS)",
+  );
+  await client.query("CREATE TEMP TABLE import_row (LIKE public.import_row INCLUDING DEFAULTS)");
+  await client.query(
     `CREATE TEMP TABLE fx_rate AS
      SELECT *
      FROM public.fx_rate
@@ -102,6 +111,14 @@ async function isolateCoverageFacts(
      WHERE provider = 'paypal'
      ORDER BY last_seen_at DESC
      LIMIT 1`,
+  );
+  await client.query(
+    `CREATE TEMP TABLE household_payment_detail_link AS
+     SELECT link.*
+     FROM public.household_payment_detail_link AS link
+     INNER JOIN household_payment_detail AS detail ON detail.id = link.detail_id
+     WHERE link.transaction_id = $1::uuid`,
+    [transactionId],
   );
   await client.query(
     `CREATE TEMP TABLE merchant_reference_generation AS
@@ -366,9 +383,35 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
                WHERE id = $1::uuid`,
               [transactionId],
             );
+            await coverageClient.query(
+              `INSERT INTO holding_snapshot
+                 (id, account_id, instrument_id, as_of, quantity, market_value, created_at)
+               VALUES (gen_random_uuid(), $1::uuid, $2::uuid, '2026-12-30', 1, 100,
+                 '2026-12-30T12:00:00Z')`,
+              [accountId, SYNTHETIC_INSTRUMENT_ID],
+            );
+            await coverageClient.query(
+              `INSERT INTO mart_net_worth_daily
+                 (entity_id, account_id, account_currency, as_of, balance_acct_ccy,
+                  balance_eur, balance_dkk)
+               SELECT entity_id, id, currency, '2026-12-30', 100, 100, 745
+               FROM account WHERE id = $1::uuid`,
+              [accountId],
+            );
+            await coverageClient.query(
+              `INSERT INTO mart_net_worth_daily
+                 (entity_id, account_id, account_currency, as_of, balance_acct_ccy,
+                  balance_eur, balance_dkk)
+               SELECT a.entity_id, a.id, a.currency, h.as_of, h.market_value,
+                 h.market_value, h.market_value * 7.45
+               FROM holding_snapshot AS h INNER JOIN account AS a ON a.id = h.account_id
+               WHERE h.id = $1::uuid`,
+              [SYNTHETIC_HOLDING_ID],
+            );
             await coverageClient.query("BEGIN TRANSACTION READ ONLY");
             const coverage = getSourceCoverageTool({
               runner: coverageClient,
+              martTable: "pg_temp.mart_net_worth_daily",
               now: () => new Date("2026-12-31T00:00:00Z"),
             });
             try {
@@ -392,7 +435,7 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
               throw error;
             }
           } finally {
-            coverageClient.release();
+            coverageClient.release(true);
           }
           expect(matrix.sources).toHaveLength(6);
           expect(matrix.sources.find((source) => source.id === "gls")?.coverage.account_count).toBe(
@@ -595,6 +638,11 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
     const generation = "f7f7f7f7-f7f7-4f7f-8f7f-f7f7f7f7f7f7";
     const labelOnly = "f8f8f8f8-f8f8-4f8f-8f8f-f8f8f8f8f8f8";
     const aliased = "f9f9f9f9-f9f9-4f9f-8f9f-f9f9f9f9f9f9";
+    const category = "fafafafa-fafa-4afa-8afa-fafafafafafa";
+    const unsupportedAccount = "fbfbfbfb-fbfb-4bfb-8bfb-fbfbfbfbfbfb";
+    const nordnet = "fcfcfcfc-fcfc-4cfc-8cfc-fcfcfcfcfcfc";
+    const transactionImport = "fdfdfdfd-fdfd-4dfd-8dfd-fdfdfdfdfdfd";
+    const holdingImport = "fefefefe-fefe-4efe-8efe-fefefefefefe";
     const pool = new pg.Pool({ connectionString: url.toString() });
     const client = await pool.connect();
     let destroy = false;
@@ -603,8 +651,19 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
       for (const table of [
         "account",
         "transaction",
+        "holding_snapshot",
+        "fx_rate",
         "household_classification",
+        "household_category",
         "household_merchant",
+        "household_merchant_alias",
+        "household_rule",
+        "household_allocation",
+        "household_audit",
+        "household_payment_detail",
+        "household_payment_detail_link",
+        "import_session",
+        "import_row",
         "merchant_reference_generation",
         "merchant_reference",
         "merchant_reference_alias",
@@ -613,6 +672,10 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
         await client.query(`CREATE TEMP TABLE ${table} (LIKE public.${table} INCLUDING DEFAULTS)`);
       }
       await client.query(
+        `CREATE TEMP TABLE mart_net_worth_daily
+         (LIKE analytics_marts.mart_net_worth_daily INCLUDING DEFAULTS)`,
+      );
+      await client.query(
         `INSERT INTO account (id, entity_id, provider, name, kind, currency) VALUES
            ($1::uuid, $1::uuid, 'gls', 'Synthetic GLS', 'checking', 'EUR'),
            ($2::uuid, $2::uuid, 'ebank', 'Synthetic EBank', 'checking', 'EUR'),
@@ -620,12 +683,13 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
         [gls, ebank, lunar],
       );
       await client.query(
-        `INSERT INTO transaction (id, account_id, ts, value_date, kind, amount, counterparty)
+        `INSERT INTO transaction
+           (id, account_id, ts, value_date, kind, amount, counterparty, created_at)
          VALUES
            ($1::uuid, $3::uuid, '2026-06-01T10:00:00Z', '2026-06-01', 'payment', -4.00,
-            '\u00c6ble Bager'),
+            '\u00c6ble Bager', '2026-10-03T00:00:00Z'),
            ($2::uuid, $4::uuid, '2026-06-01T11:00:00Z', '2026-06-01', 'payment', -5.00,
-            'Synthetic Shop')`,
+            'Synthetic Shop', '2026-10-03T00:00:00Z')`,
         [aeTxn, dottedTxn, gls, ebank],
       );
       await client.query(
@@ -697,6 +761,16 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
       expect(merchantPage.total).toBe(1);
       expect(merchantPage.merchants.map((entry) => entry.merchant_id)).toEqual([merchant]);
 
+      const unicodeName = `${"\u{1F9FE}".repeat(94)} DE89370400440532013000`;
+      await client.query(
+        `INSERT INTO household_category (id, name, kind) VALUES ($1::uuid, $2, 'expense')`,
+        [category, unicodeName],
+      );
+      const taxonomy = getHouseholdTaxonomySummaryTool({ runner: client });
+      const categoryPage = await taxonomy.handler(taxonomy.inputSchema.parse({}), context);
+      taxonomy.outputSchema.parse(categoryPage);
+      expect(categoryPage.entries[0]?.name).toBe(`${"\u{1F9FE}".repeat(94)} [REDACTED]`);
+
       const references = searchMerchantReferenceTool({ runner: client });
       for (const [args, expected] of [
         [{ query: "STRA\u00dfE" }, [labelOnly]],
@@ -710,7 +784,18 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
         expect(page.total).toBe(expected.length);
       }
 
-      const coverage = getSourceCoverageTool({ runner: client });
+      const coverage = getSourceCoverageTool({
+        runner: client,
+        martTable: "pg_temp.mart_net_worth_daily",
+        now: () => new Date("2026-10-04T08:00:00.000Z"),
+      });
+      const bankWithoutBalance = await coverage.handler({ source_ids: ["gls"] }, context);
+      expect(bankWithoutBalance.sources[0]?.coverage).toMatchObject({
+        completeness: "partial",
+        freshness: "unknown",
+        transaction_count: 1,
+        holding_count: 0,
+      });
       const partial = await coverage.handler(
         coverage.inputSchema.parse({ source_ids: ["enable_banking"] }),
         context,
@@ -723,22 +808,451 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
         latest_observed_at: null,
         account_count: 3,
         transaction_count: 2,
+        holding_count: 0,
       });
 
       await client.query(
-        `INSERT INTO transaction (id, account_id, ts, value_date, kind, amount, counterparty)
+        `INSERT INTO transaction
+           (id, account_id, ts, value_date, kind, amount, counterparty, created_at)
          VALUES (gen_random_uuid(), $1::uuid, '2026-06-01T12:00:00Z', '2026-06-01', 'payment',
-           -6.00, 'Synthetic Cafe')`,
+           -6.00, 'Synthetic Cafe', '2026-10-03T00:00:00Z')`,
         [lunar],
+      );
+      await client.query(
+        `INSERT INTO holding_snapshot
+           (id, account_id, instrument_id, as_of, quantity, market_value, created_at)
+         VALUES
+           (gen_random_uuid(), $1::uuid, $4::uuid, '2026-10-02', 1, 10, '2026-10-02T00:00:00Z'),
+           (gen_random_uuid(), $2::uuid, $4::uuid, '2026-10-03', 1, 20, '2026-10-03T00:00:00Z'),
+           (gen_random_uuid(), $3::uuid, $4::uuid, '2026-10-01', 1, 30, '2026-10-01T00:00:00Z')`,
+        [gls, ebank, lunar, SYNTHETIC_INSTRUMENT_ID],
+      );
+      const missingMart = await coverage.handler({ source_ids: ["enable_banking"] }, context);
+      expect(missingMart.sources[0]?.coverage).toMatchObject({
+        completeness: "partial",
+        freshness: "unknown",
+        holding_count: 3,
+      });
+      await client.query(
+        `INSERT INTO mart_net_worth_daily
+           (entity_id, account_id, account_currency, as_of, balance_acct_ccy,
+            balance_eur, balance_dkk)
+         VALUES
+           ($1::uuid, $1::uuid, 'EUR', '2026-10-02', 10, 10, 74.5),
+           ($2::uuid, $2::uuid, 'EUR', '2026-10-03', 20, 20, 149),
+           ($3::uuid, $3::uuid, 'DKK', '2026-10-01', 30, 4, 30)`,
+        [gls, ebank, lunar],
       );
       const complete = await coverage.handler({ source_ids: ["enable_banking"] }, context);
       expect(complete.sources[0]?.coverage).toMatchObject({
         completeness: "complete",
         freshness: "fresh",
         transaction_count: 3,
+        holding_count: 3,
+        evidence_count: 6,
+        latest_observed_at: "2026-10-01T00:00:00.000Z",
       });
+      await client.query("UPDATE holding_snapshot SET market_value = 11 WHERE account_id = $1", [
+        gls,
+      ]);
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({ completeness: "partial", freshness: "unknown" });
+
+      await client.query(
+        `INSERT INTO account (id, entity_id, provider, external_id, name, kind, currency)
+         VALUES ($1::uuid, $1::uuid, 'nordnet', 'synthetic-broker-account',
+           'Synthetic Nordnet', 'brokerage', 'EUR')`,
+        [nordnet],
+      );
+      await client.query(
+        `INSERT INTO transaction
+           (id, account_id, ts, value_date, kind, amount, counterparty, created_at)
+         VALUES (gen_random_uuid(), $1::uuid, '2026-08-01T10:00:00Z', '2026-08-01',
+           'payment', -1, 'Synthetic Shop', '2026-08-01T00:00:00Z')`,
+        [nordnet],
+      );
+      await client.query(
+        `INSERT INTO holding_snapshot
+           (id, account_id, instrument_id, as_of, quantity, market_value, created_at)
+         VALUES (gen_random_uuid(), $1::uuid, $2::uuid, '2026-08-01', 1, 100,
+           '2026-08-01T00:00:00Z')`,
+        [nordnet, SYNTHETIC_INSTRUMENT_ID],
+      );
+      await client.query(
+        `INSERT INTO mart_net_worth_daily
+           (entity_id, account_id, account_currency, as_of, balance_acct_ccy,
+            balance_eur, balance_dkk)
+         VALUES ($1::uuid, $1::uuid, 'EUR', '2026-08-01', 100, 100, 745)`,
+        [nordnet],
+      );
+      const readNordnet = async () =>
+        (await coverage.handler({ source_ids: ["nordnet"] }, context)).sources[0]?.coverage;
+      expect(await readNordnet()).toMatchObject({ completeness: "complete", freshness: "stale" });
+      await client.query(
+        `INSERT INTO import_session
+           (id, source, original_filename, content_sha256, stored_path, status, params,
+            expires_at, committed_at)
+         VALUES
+           ($1::uuid, 'nordnet_transactions', 'synthetic.csv', repeat('a', 64), 'synthetic',
+            'committed', '{}'::jsonb, '2026-12-01T00:00:00Z', '2026-10-03T00:00:00Z'),
+           ($2::uuid, 'nordnet_holdings', 'synthetic.csv', repeat('b', 64), 'synthetic',
+            'staged', jsonb_build_object('account_number', 'synthetic-broker-account'),
+            '2026-12-01T00:00:00Z', NULL)`,
+        [transactionImport, holdingImport],
+      );
+      await client.query(
+        `INSERT INTO import_row (id, session_id, row_index, kind, payload, excluded)
+         VALUES
+           (gen_random_uuid(), $1::uuid, 0, 'transaction',
+            jsonb_build_object('account_number', 'synthetic-broker-account'), true),
+           (gen_random_uuid(), $2::uuid, 0, 'holding', '{}'::jsonb, false)`,
+        [transactionImport, holdingImport],
+      );
+      expect(await readNordnet()).toMatchObject({ freshness: "stale" });
+      await client.query("UPDATE import_row SET excluded = false WHERE session_id = $1", [
+        transactionImport,
+      ]);
+      expect(await readNordnet()).toMatchObject({ freshness: "stale" });
+      await client.query(
+        `UPDATE import_session SET status = 'committed', committed_at = '2026-10-02T00:00:00Z'
+         WHERE id = $1`,
+        [holdingImport],
+      );
+      expect(await readNordnet()).toMatchObject({
+        freshness: "fresh",
+        latest_observed_at: "2026-10-02T00:00:00.000Z",
+      });
+      await client.query("DELETE FROM pg_temp.import_row WHERE session_id = $1", [holdingImport]);
+      expect(await readNordnet()).toMatchObject({ freshness: "stale" });
+      await client.query(
+        `UPDATE import_session
+         SET params = params || '{"empty_snapshot_confirmed": true}'::jsonb WHERE id = $1`,
+        [holdingImport],
+      );
+      await client.query(
+        `UPDATE holding_snapshot SET as_of = '2026-10-02', market_value = 0
+         WHERE account_id = $1`,
+        [nordnet],
+      );
+      await client.query(
+        `UPDATE mart_net_worth_daily
+         SET as_of = '2026-10-02', balance_acct_ccy = 0, balance_eur = 0, balance_dkk = 0
+         WHERE account_id = $1`,
+        [nordnet],
+      );
+      expect(await readNordnet()).toMatchObject({
+        freshness: "fresh",
+        latest_observed_at: "2026-10-02T00:00:00.000Z",
+      });
+      await client.query(
+        `UPDATE mart_net_worth_daily
+         SET balance_acct_ccy = 11, balance_eur = 11, balance_dkk = 81.95
+         WHERE account_id = $1`,
+        [gls],
+      );
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({ completeness: "complete", freshness: "fresh" });
+      await client.query(
+        "UPDATE mart_net_worth_daily SET balance_dkk = NULL WHERE account_id = $1",
+        [gls],
+      );
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({ completeness: "partial", freshness: "unknown" });
+      await client.query(
+        "UPDATE mart_net_worth_daily SET balance_dkk = 81.95 WHERE account_id = $1",
+        [gls],
+      );
+      await client.query(
+        `INSERT INTO account (id, entity_id, provider, name, kind, currency)
+         VALUES ($1::uuid, $1::uuid, 'gls', 'Synthetic second account', 'checking', 'EUR')`,
+        [unsupportedAccount],
+      );
+      await client.query(
+        `INSERT INTO transaction
+           (id, account_id, ts, value_date, kind, amount, counterparty, created_at)
+         VALUES (gen_random_uuid(), $1::uuid, '2026-06-01T10:00:00Z', '2026-06-01',
+           'payment', -1, 'Synthetic Shop', '2026-10-03T00:00:00Z')`,
+        [unsupportedAccount],
+      );
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({
+        completeness: "partial",
+        freshness: "unknown",
+        transaction_count: 2,
+        holding_count: 1,
+      });
+      await client.query(
+        `INSERT INTO holding_snapshot
+           (id, account_id, instrument_id, as_of, quantity, market_value, created_at)
+         VALUES (gen_random_uuid(), $1::uuid, $2::uuid, '2026-10-03', 1, 1,
+           '2026-10-03T00:00:00Z')`,
+        [unsupportedAccount, SYNTHETIC_INSTRUMENT_ID],
+      );
+      await client.query(
+        `INSERT INTO mart_net_worth_daily
+           (entity_id, account_id, account_currency, as_of, balance_acct_ccy,
+            balance_eur, balance_dkk)
+         VALUES ($1::uuid, $1::uuid, 'EUR', '2026-10-03', 1, 1, 7.45)`,
+        [unsupportedAccount],
+      );
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({ completeness: "complete", freshness: "fresh", holding_count: 2 });
+      await client.query("UPDATE account SET currency = 'USD' WHERE id = $1", [unsupportedAccount]);
+      await client.query(
+        "UPDATE mart_net_worth_daily SET account_currency = 'USD' WHERE account_id = $1",
+        [unsupportedAccount],
+      );
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({ completeness: "partial", freshness: "unknown" });
     } finally {
       // Destroying the session drops every temp shadow table.
+      client.release(destroy);
+      await pool.end();
+    }
+  });
+
+  it("reports PayPal coverage only for details accessible through bounded transaction links", async () => {
+    const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
+    if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {
+      throw new Error("Explicit disposable test database opt-in is required");
+    }
+    const url = new URL(rawUrl.replace(/^postgresql\+psycopg:/, "postgresql:"));
+    if (
+      !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+      !url.pathname.endsWith("_test")
+    ) {
+      throw new Error("Only a loopback test-suffixed PostgreSQL database is permitted");
+    }
+    const account = "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1";
+    const manual = "a2a2a2a2-a2a2-4a2a-8a2a-a2a2a2a2a2a2";
+    const foreign = "a3a3a3a3-a3a3-4a3a-8a3a-a3a3a3a3a3a3";
+    const bankTx = "a4a4a4a4-a4a4-4a4a-8a4a-a4a4a4a4a4a4";
+    const manualTx = "a5a5a5a5-a5a5-4a5a-8a5a-a5a5a5a5a5a5";
+    const foreignTx = "a6a6a6a6-a6a6-4a6a-8a6a-a6a6a6a6a6a6";
+    const firstDetail = "a7a7a7a7-a7a7-4a7a-8a7a-a7a7a7a7a7a7";
+    const secondDetail = "a8a8a8a8-a8a8-4a8a-8a8a-a8a8a8a8a8a8";
+    const pool = new pg.Pool({ connectionString: url.toString() });
+    const client = await pool.connect();
+    let destroy = false;
+    try {
+      for (const table of [
+        "account",
+        "transaction",
+        "holding_snapshot",
+        "fx_rate",
+        "household_classification",
+        "household_category",
+        "household_merchant",
+        "household_allocation",
+        "household_audit",
+        "household_payment_detail",
+        "household_payment_detail_link",
+        "import_session",
+        "import_row",
+        "merchant_reference_generation",
+      ]) {
+        destroy = true;
+        await client.query(`CREATE TEMP TABLE ${table} (LIKE public.${table} INCLUDING DEFAULTS)`);
+      }
+      await client.query(
+        `CREATE TEMP TABLE mart_net_worth_daily
+         (LIKE analytics_marts.mart_net_worth_daily INCLUDING DEFAULTS)`,
+      );
+      await client.query(
+        `INSERT INTO account (id, entity_id, provider, name, kind, currency)
+         VALUES
+           ($1::uuid, $1::uuid, 'gls', 'Synthetic EUR account', 'checking', 'EUR'),
+           ($2::uuid, $2::uuid, 'manual', 'Synthetic manual account', 'checking', 'EUR'),
+           ($3::uuid, $3::uuid, 'gls', 'Synthetic USD account', 'checking', 'USD')`,
+        [account, manual, foreign],
+      );
+      await client.query(
+        `INSERT INTO transaction (id, account_id, ts, value_date, kind, amount, counterparty)
+         VALUES
+           ($1::uuid, $4::uuid, '2026-06-01T10:00:00Z', '2026-06-01', 'payment', -10, 'Shop'),
+           ($2::uuid, $5::uuid, '2026-06-01T10:00:00Z', '2026-06-01', 'payment', -10, 'Shop'),
+           ($3::uuid, $6::uuid, '2026-06-01T10:00:00Z', '2026-06-01', 'payment', -10, 'Shop')`,
+        [bankTx, manualTx, foreignTx, account, manual, foreign],
+      );
+      await client.query(
+        `INSERT INTO household_classification
+           (transaction_id, treatment, review_state, identity_confirmed, provenance,
+            source_amount, source_currency, source_ts, source_counterparty, source_kind, explanation)
+         SELECT t.id, 'expense', 'classified', false, 'manual', t.amount, a.currency, t.ts,
+           t.counterparty, t.kind, 'synthetic'
+         FROM transaction AS t INNER JOIN account AS a ON a.id = t.account_id`,
+      );
+
+      const context = { serverName: "postgres-test", serverVersion: "test" };
+      const coverage = getSourceCoverageTool({
+        runner: client,
+        martTable: "pg_temp.mart_net_worth_daily",
+        now: () => new Date("2026-10-04T08:00:00.000Z"),
+      });
+      const readCoverage = async () => {
+        const out = await coverage.handler({ source_ids: ["paypal"] }, context);
+        coverage.outputSchema.parse(out);
+        return out;
+      };
+      const missing = await readCoverage();
+      expect(missing.complete).toBe(false);
+      expect(missing.sources[0]?.coverage).toMatchObject({
+        completeness: "missing",
+        freshness: "unknown",
+        evidence_count: 0,
+      });
+
+      await client.query(
+        `INSERT INTO household_payment_detail
+           (id, provider, source_account_id, external_id, ts, amount, currency, event_kind,
+            source_fields, revision, last_seen_at)
+         VALUES ($1::uuid, 'paypal', 'synthetic', 'detail-1', '2026-06-01T09:00:00Z',
+           -10, 'EUR', 'purchase', '{}'::jsonb, 1, '2026-09-01T00:00:00Z')`,
+        [firstDetail],
+      );
+      const unlinked = await readCoverage();
+      expect(unlinked.complete).toBe(false);
+      expect(unlinked.sources[0]?.coverage).toMatchObject({
+        completeness: "partial",
+        freshness: "unknown",
+        latest_observed_at: null,
+        evidence_count: 1,
+      });
+      await client.query(
+        `INSERT INTO household_payment_detail_link
+           (transaction_id, detail_id, bank_amount, detail_revision)
+         VALUES ($1::uuid, $3::uuid, -10, 1), ($2::uuid, $3::uuid, -10, 1)`,
+        [manualTx, foreignTx, firstDetail],
+      );
+      expect((await readCoverage()).sources[0]?.coverage).toMatchObject({
+        completeness: "partial",
+        freshness: "unknown",
+      });
+
+      await client.query(
+        `INSERT INTO household_payment_detail_link
+           (transaction_id, detail_id, bank_amount, detail_revision)
+         VALUES ($1::uuid, $2::uuid, -10, 1)`,
+        [bankTx, firstDetail],
+      );
+      const linked = await readCoverage();
+      expect(linked.complete).toBe(true);
+      expect(linked.sources[0]?.coverage).toMatchObject({
+        completeness: "complete",
+        freshness: "stale",
+        latest_observed_at: "2026-09-01T00:00:00.000Z",
+      });
+
+      await client.query(
+        `INSERT INTO household_payment_detail
+           (id, provider, source_account_id, external_id, ts, amount, currency, event_kind,
+            source_fields, revision, last_seen_at)
+         VALUES ($1::uuid, 'paypal', 'synthetic', 'detail-2', '2026-06-01T09:00:00Z',
+           -10, 'EUR', 'purchase', '{}'::jsonb, 1, '2026-10-03T00:00:00Z')`,
+        [secondDetail],
+      );
+      expect((await readCoverage()).sources[0]?.coverage).toMatchObject({
+        completeness: "partial",
+        freshness: "stale",
+        latest_observed_at: "2026-09-01T00:00:00.000Z",
+        evidence_count: 2,
+      });
+      await client.query(
+        `INSERT INTO household_payment_detail_link
+           (transaction_id, detail_id, bank_amount, detail_revision)
+         VALUES ($1::uuid, $2::uuid, -10, 1)`,
+        [bankTx, secondDetail],
+      );
+      expect((await readCoverage()).sources[0]?.coverage).toMatchObject({
+        completeness: "complete",
+        freshness: "fresh",
+        latest_observed_at: "2026-10-03T00:00:00.000Z",
+      });
+
+      await client.query(
+        `WITH inserted AS (
+           INSERT INTO household_payment_detail
+             (id, provider, source_account_id, external_id, ts, amount, currency, event_kind,
+              source_fields, revision, last_seen_at)
+           SELECT gen_random_uuid(), 'paypal', 'synthetic', 'extra-' || n::text,
+             '2026-06-01T09:00:00Z'::timestamptz, -1, 'EUR', 'purchase',
+             '{}'::jsonb, 1, '2026-10-03T00:00:00Z'::timestamptz
+           FROM generate_series(1, 9) AS n
+           RETURNING id
+         )
+         INSERT INTO household_payment_detail_link
+           (transaction_id, detail_id, bank_amount, detail_revision)
+         SELECT $1::uuid, id, -1, 1 FROM inserted`,
+        [bankTx],
+      );
+      const overBound = await readCoverage();
+      expect(overBound.complete).toBe(false);
+      expect(overBound.sources[0]?.coverage).toMatchObject({
+        completeness: "partial",
+        freshness: "unknown",
+        latest_observed_at: null,
+        evidence_count: 11,
+      });
+      const detail = getHouseholdTransactionDetailTool({
+        runner: {
+          query: (sql, params) => client.query(sql, [...params]),
+          readSnapshot: (operation) => operation(client),
+        },
+      });
+      await expect(detail.handler({ transaction_id: bankTx }, context)).rejects.toThrow(
+        "more linked PayPal detail",
+      );
+      await client.query(
+        `DELETE FROM pg_temp.household_payment_detail_link
+         WHERE detail_id IN (
+           SELECT id FROM pg_temp.household_payment_detail WHERE external_id LIKE 'extra-%'
+         )`,
+      );
+      await client.query(
+        "DELETE FROM pg_temp.household_payment_detail WHERE external_id LIKE 'extra-%'",
+      );
+      await client.query(
+        `WITH categories AS (
+           INSERT INTO household_category (id, name, kind)
+           SELECT gen_random_uuid(), 'Synthetic category ' || n::text, 'expense'
+           FROM generate_series(1, 100) AS n
+           RETURNING id
+         )
+         INSERT INTO household_allocation (transaction_id, category_id, amount)
+         SELECT $1::uuid, id, -0.10 FROM categories`,
+        [bankTx],
+      );
+      const bounded = await detail.handler({ transaction_id: bankTx }, context);
+      detail.outputSchema.parse(bounded);
+      expect(bounded.allocations).toHaveLength(100);
+      expect(bounded.allocation_total).toBe("-10.0000");
+      expect((await readCoverage()).sources[0]?.coverage.completeness).toBe("complete");
+
+      await client.query(
+        `WITH category AS (
+           INSERT INTO household_category (id, name, kind)
+           VALUES (gen_random_uuid(), 'Synthetic extra category', 'expense')
+           RETURNING id
+         )
+         INSERT INTO household_allocation (transaction_id, category_id, amount)
+         SELECT $1::uuid, id, 0 FROM category`,
+        [bankTx],
+      );
+      await expect(detail.handler({ transaction_id: bankTx }, context)).rejects.toThrow(
+        "more allocations",
+      );
+      expect((await readCoverage()).sources[0]?.coverage).toMatchObject({
+        completeness: "partial",
+        freshness: "unknown",
+        evidence_count: 2,
+      });
+    } finally {
       client.release(destroy);
       await pool.end();
     }

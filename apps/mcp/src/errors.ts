@@ -38,3 +38,9 @@ export class SourceCoverageError extends PengeError {
     super(message, "source/coverage_invalid", options);
   }
 }
+
+export class AuditWriteError extends PengeError {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, "audit/write_failed", options);
+  }
+}

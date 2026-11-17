@@ -18,6 +18,18 @@ export const SourceIdSchema = z.enum([
 ]);
 export type SourceId = z.infer<typeof SourceIdSchema>;
 
+export const HOUSEHOLD_TRANSACTION_PROVIDERS = [
+  "gls",
+  "ebank",
+  "lunar",
+  "nordnet",
+  "pfa",
+  "growney",
+] as const satisfies readonly SourceId[];
+
+export const MAX_LINKED_PAYPAL_DETAILS = 10;
+export const MAX_TRANSACTION_ALLOCATIONS = 100;
+
 export const SourceKindSchema = z.enum([
   "bank",
   "brokerage",
@@ -116,7 +128,11 @@ const entries = {
         tool: "query_household_report",
         evidence: "Exact EUR/DKK household allocations and missing-FX evidence.",
       },
-      { tool: "get_source_coverage", evidence: "Account and transaction freshness counts." },
+      {
+        tool: "query_net_worth",
+        evidence: "Daily bank balances grouped by account UUID.",
+      },
+      { tool: "get_source_coverage", evidence: "Account, transaction, and balance observations." },
     ],
     stale_after_days: 8,
   },
@@ -138,7 +154,11 @@ const entries = {
         tool: "query_household_report",
         evidence: "Exact EUR/DKK household allocations and missing-FX evidence.",
       },
-      { tool: "get_source_coverage", evidence: "Account and transaction freshness counts." },
+      {
+        tool: "query_net_worth",
+        evidence: "Daily bank balances grouped by account UUID.",
+      },
+      { tool: "get_source_coverage", evidence: "Account, transaction, and balance observations." },
     ],
     stale_after_days: 8,
   },
@@ -160,7 +180,11 @@ const entries = {
         tool: "query_household_report",
         evidence: "Exact EUR/DKK household allocations and missing-FX evidence.",
       },
-      { tool: "get_source_coverage", evidence: "Account and transaction freshness counts." },
+      {
+        tool: "query_net_worth",
+        evidence: "Daily bank balances grouped by account UUID.",
+      },
+      { tool: "get_source_coverage", evidence: "Account, transaction, and balance observations." },
     ],
     stale_after_days: 8,
   },
@@ -177,6 +201,10 @@ const entries = {
       {
         tool: "query_cashflow",
         evidence: "Bounded provider-backed cashflow aggregates.",
+      },
+      {
+        tool: "query_net_worth",
+        evidence: "Daily bank balances grouped by account UUID.",
       },
       { tool: "get_source_coverage", evidence: "Aggregate provider-layer freshness." },
     ],
@@ -315,7 +343,7 @@ const entries = {
       },
       {
         tool: "get_source_coverage",
-        evidence: "Payment-detail count and latest observed revision.",
+        evidence: "Payment-detail count and accessible linked-detail freshness.",
       },
     ],
     stale_after_days: 8,

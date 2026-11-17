@@ -82,7 +82,7 @@ The dbt workflow reserves API ports 18001/18002/18003 and preview ports
 15001/15002/15003 for `penge-1`/`penge-2`/`penge-3` respectively.
 Each runner executes only one job at a time; unknown runner names fail explicitly
 until their own disjoint pair is allocated.
-`PENGE_BROWSER_API_PORT` and `PENGE_BROWSER_WEB_PORT` select those ports for
+`PENGE_E2E_API_PORT` and `PENGE_E2E_WEB_PORT` select those ports for
 the production build, API listener, CORS origin, preview, and browser assertions.
 Without overrides, local defaults remain API 8000 and preview 5173.
 Both servers refuse reuse, and preview uses strict port binding: an occupied

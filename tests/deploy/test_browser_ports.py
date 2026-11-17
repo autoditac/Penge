@@ -37,8 +37,8 @@ def test_workflow_browser_port_allocation(runner: str, tmp_path: Path) -> None:
         assert result.returncode == 0, result.stderr
         slot = int(runner[-1])
         assert env_file.read_text().splitlines() == [
-            f"PENGE_BROWSER_API_PORT={18000 + slot}",
-            f"PENGE_BROWSER_WEB_PORT={15000 + slot}",
+            f"PENGE_E2E_API_PORT={18000 + slot}",
+            f"PENGE_E2E_WEB_PORT={15000 + slot}",
         ]
 
 
@@ -51,9 +51,9 @@ def test_browser_build_uses_selected_api_port(port: str | None, tmp_path: Path) 
     pnpm.write_text('#!/bin/bash\nprintf "%s\\n" "$VITE_PENGE_API_URL" "$VITE_PENGE_DEMO"\n')
     pnpm.chmod(0o755)
     env = {**os.environ, "PATH": f"{tmp_path}:{os.environ['PATH']}"}
-    env.pop("PENGE_BROWSER_API_PORT", None)
+    env.pop("PENGE_E2E_API_PORT", None)
     if port is not None:
-        env["PENGE_BROWSER_API_PORT"] = port
+        env["PENGE_E2E_API_PORT"] = port
     result = subprocess.run(  # noqa: S603  # Execute only the repository-owned build recipe.
         ["/bin/bash", "-eu", "-c", build],
         env=env,

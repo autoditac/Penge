@@ -285,7 +285,7 @@ household-mcp-postgres-test:
     pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts
 
 household-browser-test:
-    VITE_PENGE_DEMO=false VITE_PENGE_API_URL="http://127.0.0.1:${PENGE_BROWSER_API_PORT:-8000}" pnpm --filter @penge/web build
+    VITE_PENGE_DEMO=false VITE_PENGE_API_URL="http://127.0.0.1:${PENGE_E2E_API_PORT:-8000}" pnpm --filter @penge/web build
     pnpm --filter @penge/web exec playwright test
 
 household-browser-config-test:

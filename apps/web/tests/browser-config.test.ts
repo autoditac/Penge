@@ -6,8 +6,8 @@ afterEach(() => {
 });
 
 async function config(apiPort?: string, webPort?: string) {
-  vi.stubEnv("PENGE_BROWSER_API_PORT", apiPort);
-  vi.stubEnv("PENGE_BROWSER_WEB_PORT", webPort);
+  vi.stubEnv("PENGE_E2E_API_PORT", apiPort);
+  vi.stubEnv("PENGE_E2E_WEB_PORT", webPort);
   return (await import("../playwright.config")).default;
 }
 

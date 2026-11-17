@@ -175,6 +175,7 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     assert "location = /ask {" not in nginx
     assert "location ^~ /ask/ {" not in nginx
     assert "location ^~ /ask/api/ {" in nginx
+    assert "location ^~ /ask/api/ {\n    access_log off;" in nginx
     assert "proxy_pass http://127.0.0.1:8123/;" in nginx
     assert 'proxy_set_header X-Forwarded-User "";' in nginx
     assert 'proxy_set_header X-Forwarded-Email "";' in nginx
@@ -513,6 +514,60 @@ def test_ready_validator_rejects_additional_database_grant(tmp_path: Path) -> No
 
     assert excessive.returncode != 0
     assert "unexpected GRANT or REVOKE shape" in excessive.stderr
+
+
+def test_ready_validator_rejects_widened_existing_database_grants(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    safe_database = database.read_text()
+    mutations = (
+        (
+            "GRANT INSERT\n    ON TABLE oauth.chat_audit_event",
+            "GRANT SELECT, INSERT, UPDATE, DELETE\n    ON TABLE oauth.chat_audit_event",
+            "exact approved database privilege shape",
+        ),
+        (
+            "oauth.chat_oauth_state\n",
+            "oauth.chat_oauth_state,\n        oauth.other_table\n",
+            "exact approved database privilege shape",
+        ),
+        (
+            "COMMIT;",
+            "ALTER TABLE oauth.chat_audit_event OWNER TO penge_chat_oauth;\nCOMMIT;",
+            "chat database privilege targets are incomplete",
+        ),
+    )
+
+    for original, replacement, expected_error in mutations:
+        assert original in safe_database
+        database.write_text(safe_database.replace(original, replacement))
+        rejected = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+            [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+        )
+        assert rejected.returncode != 0
+        assert expected_error in rejected.stderr
+
+
+def test_ready_validator_rejects_nginx_request_logging(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    nginx = validator.parent / "penge-chat.nginx.conf.in"
+    safe_nginx = nginx.read_text()
+    mutations = (
+        safe_nginx.replace("    access_log off;\n", ""),
+        safe_nginx.replace("    access_log off;\n", "    access_log /tmp/chat-access.log;\n"),
+        safe_nginx.replace(
+            "    access_log off;\n", "    access_log off;\n    access_log /tmp/chat-access.log;\n"
+        ),
+    )
+
+    for mutated in mutations:
+        assert mutated != safe_nginx
+        nginx.write_text(mutated)
+        rejected = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+            [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+        )
+        assert rejected.returncode != 0
+        assert "disable chat API access logging" in rejected.stderr
 
 
 def test_ready_validator_rejects_host_network_and_privileged_role(

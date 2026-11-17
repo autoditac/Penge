@@ -5,6 +5,7 @@
 # The web SPA owns /ask; only /ask/api/ reaches the chat backend.
 
 location ^~ /ask/api/ {
+    access_log off;
     auth_request /oauth2/auth;
     error_page 401 = /oauth2/sign_in;
 

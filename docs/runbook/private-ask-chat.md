@@ -251,6 +251,7 @@ The candidate route template:
 - proxies only bounded `/ask/api/` to the loopback chat service and strips that prefix;
 - overwrites only the trusted issuer, immutable subject, and mounted proxy-secret headers;
 - does not forward mutable user, email, login, or client-ID identity;
+- disables access logging for the entire API route, including the OAuth callback query string;
 - contains no `script-src 'unsafe-inline'`;
 - disables caching of private responses; and
 - leaves immutable-subject extraction, proxy-secret loading, and streaming values unresolved until #346 and #349 publish matching tests.

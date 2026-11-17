@@ -106,6 +106,21 @@ if grep -q 'proxy_pass http://127.0.0.1:8123' "$nginx_live"; then
 fi
 grep -q 'return 404;' "$nginx_live"
 grep -q 'location ^~ /ask/api/ {' "$nginx_template"
+if ! awk '
+  /^location \^~ \/ask\/api\/ \{$/ { routes++; in_route = 1; next }
+  in_route && /^}/ { in_route = 0; next }
+  in_route && /^[[:space:]]*#/ { next }
+  in_route && /access_log/ {
+    if ($0 ~ /^[[:space:]]*access_log[[:space:]]+off;[[:space:]]*$/) {
+      disabled++
+    } else {
+      unsafe = 1
+    }
+  }
+  END { exit !(routes == 1 && disabled == 1 && !unsafe) }
+' "$nginx_template"; then
+  fail "candidate nginx must disable chat API access logging"
+fi
 if grep -Eq '^location[[:space:]]+(=[[:space:]]+/ask|\^~[[:space:]]+/ask/)[[:space:]]*\{' \
   "$nginx_template"; then
   fail "chat nginx template must leave /ask frontend routing to the web SPA"
@@ -365,6 +380,52 @@ for privilege_role in "${privilege_roles[@]}"; do
   [[ $privilege_role == "$created_role" ]] \
     || fail "chat database privilege target differs from the created role"
 done
+
+if ! uv run --no-project python - "$db_template" "$guard_name" "$created_role" "$role_creation" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+path, database, role, role_creation = sys.argv[1:]
+sql = "\n".join(
+    line for line in Path(path).read_text().splitlines()
+    if not line.lstrip().startswith("--")
+)
+schemas = re.findall(
+    rf"(?m)^GRANT USAGE ON SCHEMA ([a-z_][a-z0-9_]*) TO {re.escape(role)};$",
+    sql,
+)
+if len(schemas) != 1:
+    raise SystemExit("expected exactly one OAuth schema usage grant")
+schema = schemas[0]
+expected = f"""\\set ON_ERROR_STOP on
+BEGIN;
+DO $$
+BEGIN
+    IF current_database() <> '{database}' THEN
+        RAISE EXCEPTION 'must run against the dedicated chat OAuth database';
+    END IF;
+END
+$$;
+REVOKE ALL ON DATABASE "{database}" FROM PUBLIC;
+REVOKE ALL ON SCHEMA public FROM PUBLIC;
+{role_creation}
+REVOKE ALL ON DATABASE "{database}" FROM {role};
+REVOKE ALL ON SCHEMA public FROM {role};
+GRANT CONNECT ON DATABASE "{database}" TO {role};
+GRANT USAGE ON SCHEMA {schema} TO {role};
+GRANT SELECT, INSERT, UPDATE, DELETE
+    ON TABLE {schema}.chat_oauth_link, {schema}.chat_oauth_state
+    TO {role};
+GRANT INSERT ON TABLE {schema}.chat_audit_event TO {role};
+GRANT USAGE, SELECT ON SEQUENCE {schema}.chat_audit_event_id_seq TO {role};
+COMMIT;"""
+if sql.split() != expected.split():
+    raise SystemExit("database statements differ from the approved shape")
+PY
+then
+  fail "resolved SQL must match the exact approved database privilege shape"
+fi
 
 for path in "$root/apps/chat/package.json" "$root/apps/chat/Containerfile"; do
   [[ -r $path ]] || fail "missing backend packaging contract $path"

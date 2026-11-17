@@ -1,7 +1,7 @@
 import type { GitHubTokenProvider, SessionEvent } from "@github/copilot-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { MCP_REGISTRATION_ALLOWLIST } from "../src/config.js";
+import { MCP_REGISTRATION_ALLOWLIST, MCP_SOURCE_ALLOWLIST } from "../src/config.js";
 import { ChatRuntime, projectEvidence, summarizeEvidence } from "../src/runtime.js";
 import type { ActiveCopilotRun, CopilotEventSink, CopilotRuntime } from "../src/sdk.js";
 import type { StreamEvent } from "../src/stream.js";
@@ -347,6 +347,7 @@ describe("chat runtime isolation and lifecycle", () => {
                 coverage: { completeness: "partial", freshness: "fresh" },
               },
             ],
+            complete: false,
           },
         },
       },
@@ -407,6 +408,7 @@ describe("chat runtime isolation and lifecycle", () => {
             sources: [
               { id: "nordnet", coverage: { completeness: "complete", freshness: "fresh" } },
             ],
+            complete: true,
           },
         },
       },
@@ -449,6 +451,131 @@ describe("chat runtime isolation and lifecycle", () => {
     expect(store.audits).toContainEqual(
       expect.objectContaining({ tool: "query_net_worth", status: "error", argumentKeys: [] }),
     );
+  });
+
+  it("does not promote an incomplete source-coverage flag to a full streamed completion", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-get_source_coverage",
+        mcpToolName: "get_source_coverage",
+        mcpConfigServerName: "penge",
+        toolCallId: "coverage",
+        arguments: {},
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: {
+        success: true,
+        toolCallId: "coverage",
+        result: {
+          content: "redacted",
+          structuredContent: {
+            tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+            sources: [{ id: "gls", coverage: { completeness: "complete", freshness: "fresh" } }],
+            complete: false,
+          },
+        },
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "completion" }));
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "evidence", coverage: "partial", freshness: "fresh" }),
+    );
+    expect(events.at(-1)).toMatchObject({ type: "completion", coverage: "partial" });
+    await runtime.close();
+  });
+
+  it("projects source completeness and Enable Banking freshness conservatively", () => {
+    const gls = {
+      id: "gls",
+      label: "GLS",
+      kind: "bank",
+      capabilities: ["transactions", "balances"],
+      evidence_paths: [{ tool: "search_household_transactions", evidence: "Synthetic evidence" }],
+      coverage: {
+        completeness: "complete",
+        freshness: "fresh",
+        latest_observed_at: "2026-01-01T00:00:00.000Z",
+        stale_after_days: 7,
+        account_count: 1,
+        transaction_count: 1,
+        holding_count: 0,
+        evidence_count: 1,
+      },
+    };
+    const enableBanking = {
+      id: "enable_banking",
+      label: "Enable Banking",
+      kind: "bank",
+      capabilities: ["transactions", "balances"],
+      evidence_paths: [{ tool: "search_household_transactions", evidence: "Synthetic evidence" }],
+      coverage: {
+        completeness: "partial",
+        freshness: "unknown",
+        latest_observed_at: null,
+        stale_after_days: 7,
+        account_count: 2,
+        transaction_count: 2,
+        holding_count: 0,
+        evidence_count: 2,
+      },
+    };
+    const base = {
+      generated_at: "2026-01-02T00:00:00.000Z",
+      transport: "stdio",
+      read_only: true,
+      source_allowlist: [...MCP_SOURCE_ALLOWLIST],
+      tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+    };
+
+    expect(
+      projectEvidence("get_source_coverage", { ...base, sources: [gls], complete: true }),
+    ).toMatchObject({ source: "gls", coverage: "full", freshness: "fresh" });
+    expect(
+      projectEvidence("get_source_coverage", {
+        ...base,
+        sources: [gls, enableBanking],
+        complete: false,
+      }),
+    ).toMatchObject({
+      source: "enable_banking, gls",
+      coverage: "partial",
+      freshness: "stale",
+    });
+    expect(
+      projectEvidence("get_source_coverage", {
+        ...base,
+        sources: [gls, enableBanking],
+        complete: true,
+      }),
+    ).toMatchObject({ coverage: "partial", freshness: "stale" });
+    expect(
+      projectEvidence("get_source_coverage", { ...base, sources: [], complete: true }),
+    ).toMatchObject({ coverage: "partial", freshness: "missing" });
   });
 
   it("derives evidence only from declared metadata keys", () => {

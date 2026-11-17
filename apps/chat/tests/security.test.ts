@@ -65,6 +65,7 @@ describe("read-only MCP policy", () => {
     const ok = {
       tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
       sources: [{ id: "nordnet", coverage: { completeness: "partial", freshness: "fresh" } }],
+      complete: false,
     };
     expect(() => projectEvidence("get_source_coverage", ok)).not.toThrow();
 
@@ -103,6 +104,37 @@ describe("read-only MCP policy", () => {
         tool_allowlist: reordered,
       }),
     ).toThrow(/expected\[0\]=_meta/);
+  });
+
+  it("rejects malformed source coverage metadata instead of claiming full coverage", () => {
+    const source = { id: "gls", coverage: { completeness: "complete", freshness: "fresh" } };
+    const base = { tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST], sources: [source] };
+
+    expect(() => projectEvidence("get_source_coverage", base)).toThrow(/malformed/);
+    expect(() => projectEvidence("get_source_coverage", { ...base, complete: "true" })).toThrow(
+      /malformed/,
+    );
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...base,
+        complete: true,
+        sources: [{ ...source, id: "unknown_source" }],
+      }),
+    ).toThrow(/malformed/);
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...base,
+        complete: true,
+        sources: [source, source],
+      }),
+    ).toThrow(/malformed/);
+    expect(() =>
+      projectEvidence("get_source_coverage", {
+        ...base,
+        complete: true,
+        sources: [{ ...source, coverage: { completeness: "full", freshness: "fresh" } }],
+      }),
+    ).toThrow(/malformed/);
   });
 
   it("passes only mounted credential paths to the local MCP child", () => {

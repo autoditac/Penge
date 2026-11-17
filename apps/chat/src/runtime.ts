@@ -10,7 +10,12 @@ import {
   HydraFusionUnavailableError,
   SessionLimitError,
 } from "./errors.js";
-import { assertExactToolAllowlist, assertMcpToolAllowed, type McpToolName } from "./mcp.js";
+import {
+  assertExactToolAllowlist,
+  assertMcpToolAllowed,
+  McpSourceNameSchema,
+  type McpToolName,
+} from "./mcp.js";
 import type { ActiveCopilotRun, CopilotRuntime } from "./sdk.js";
 import { assertPromptIsSafe, ToolPolicyError } from "./security.js";
 import { createEventFactory, type StreamEvent, type StreamEventInput } from "./stream.js";
@@ -60,18 +65,20 @@ const StructuredContentSchema = z.record(z.string(), JsonValueSchema);
 const SOURCE_SET = new Set<string>(MCP_SOURCE_ALLOWLIST);
 const SourceCoverageSchema = z.object({
   tool_allowlist: z.array(z.string()).min(1),
-  sources: z.array(
-    z.object({
-      id: z.string(),
-      coverage: z.object({
-        completeness: z.enum(["complete", "full", "partial", "missing"]),
-        freshness: z.enum(["fresh", "stale", "unknown", "missing"]),
+  sources: z
+    .array(
+      z.object({
+        id: McpSourceNameSchema,
+        coverage: z.object({
+          completeness: z.enum(["complete", "partial", "missing"]),
+          freshness: z.enum(["fresh", "stale", "unknown"]),
+        }),
       }),
-    }),
-  ),
+    )
+    .max(MCP_SOURCE_ALLOWLIST.length)
+    .refine((sources) => new Set(sources.map((source) => source.id)).size === sources.length),
+  complete: z.boolean(),
   currency: z.enum(["EUR", "DKK"]).optional(),
-  completeness: z.enum(["complete", "full", "partial", "missing"]).optional(),
-  freshness: z.enum(["fresh", "stale", "unknown", "missing"]).optional(),
   _meta: z.object({}).passthrough().optional(),
 });
 
@@ -152,35 +159,16 @@ export function projectEvidence(
       throw new ToolPolicyError("get_source_coverage structuredContent is malformed");
     }
     assertExactToolAllowlist(coverage.data.tool_allowlist);
-    const sourceNames = coverage.data.sources
-      .map((source) => source.id)
-      .filter((id) => SOURCE_SET.has(id));
-    const coverageSet = new Set<string>();
-    const freshnessSet = new Set<string>();
-    for (const entry of coverage.data.sources) {
-      const completeness = entry.coverage.completeness;
-      const freshness = entry.coverage.freshness;
-      if (completeness === "missing" || completeness === "partial") {
-        coverageSet.add(completeness);
-      }
-      if (freshness === "missing" || freshness === "unknown" || freshness === "stale") {
-        freshnessSet.add(freshness);
-      }
-      if (completeness === "full" || completeness === "complete") {
-        coverageSet.add("complete");
-      }
-      if (freshness === "fresh") {
-        freshnessSet.add("fresh");
-      }
-    }
+    const sourceNames = coverage.data.sources.map((source) => source.id);
+    const freshnessSet = new Set(coverage.data.sources.map((source) => source.coverage.freshness));
     const effectiveCoverage =
-      coverageSet.has("missing") || coverageSet.has("partial")
-        ? "partial"
-        : coverageSet.has("complete") || sourceNames.length > 0
-          ? "full"
-          : "partial";
+      coverage.data.complete &&
+      sourceNames.length > 0 &&
+      coverage.data.sources.every((source) => source.coverage.completeness === "complete")
+        ? "full"
+        : "partial";
     const effectiveFreshness =
-      freshnessSet.has("stale") || freshnessSet.has("missing") || freshnessSet.has("unknown")
+      freshnessSet.has("stale") || freshnessSet.has("unknown")
         ? "stale"
         : freshnessSet.has("fresh")
           ? "fresh"

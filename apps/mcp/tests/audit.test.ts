@@ -10,6 +10,7 @@ import {
   symlinkSync,
   writeFileSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { PassThrough } from "node:stream";
 
@@ -247,5 +248,26 @@ describe("createAuditLogger", () => {
     expect(statSync(targetPath).mode & 0o777).toBe(0o644);
 
     rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("rejects a pre-existing audit-file FIFO without blocking startup", () => {
+    const dir = mkdtempSync(join(SCRATCH_ROOT, "audit-"));
+    const auditPath = join(dir, "audit-2026-05-10.jsonl");
+    execFileSync("mkfifo", ["-m", "600", auditPath]);
+    const create = () =>
+      createAuditLogger({ logDir: dir, now: () => new Date("2026-05-10T12:34:56.000Z") });
+    try {
+      // No reader: a blocking O_WRONLY open would hang; non-blocking fails with ENXIO.
+      expect(create).toThrow(/ENXIO/);
+      // With a reader present the open succeeds, so fstat() must reject it.
+      const reader = fs.openSync(auditPath, fs.constants.O_RDONLY | fs.constants.O_NONBLOCK);
+      try {
+        expect(create).toThrow(/regular file/);
+      } finally {
+        fs.closeSync(reader);
+      }
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

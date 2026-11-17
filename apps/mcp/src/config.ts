@@ -36,7 +36,12 @@ function databaseUrl(env: NodeJS.ProcessEnv): string | undefined {
 
   let file: number | undefined;
   try {
-    file = openSync(env.PENGE_DB_URL_FILE!, constants.O_RDONLY | constants.O_NOFOLLOW);
+    // O_NONBLOCK keeps a FIFO from blocking open() before fstat() can reject it;
+    // it has no effect on regular-file reads.
+    file = openSync(
+      env.PENGE_DB_URL_FILE!,
+      constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK,
+    );
     const metadata = fstatSync(file);
     if (!metadata.isFile()) {
       throw new ConfigError("PENGE_DB_URL_FILE must reference a regular file");

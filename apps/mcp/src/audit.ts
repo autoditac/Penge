@@ -67,9 +67,15 @@ export function createAuditLogger(opts: AuditLoggerOptions): AuditLogger {
   if ((statSync(opts.logDir).mode & 0o077) !== 0) {
     throw new Error("MCP audit directory permissions must be 0700");
   }
+  // O_NONBLOCK makes a FIFO fail (ENXIO) or open immediately instead of
+  // blocking startup before fstat() can reject it; regular-file appends are unaffected.
   const file = openSync(
     filePath,
-    constants.O_APPEND | constants.O_CREAT | constants.O_WRONLY | constants.O_NOFOLLOW,
+    constants.O_APPEND |
+      constants.O_CREAT |
+      constants.O_WRONLY |
+      constants.O_NOFOLLOW |
+      constants.O_NONBLOCK,
     0o600,
   );
   try {

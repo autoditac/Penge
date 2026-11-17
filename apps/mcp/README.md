@@ -34,15 +34,19 @@ by adding the snippet from ADR-0023 to `claude_desktop_config.json`.
 
 Production stdio workers mount `PENGE_DB_URL_FILE`; the file must be owned by
 the MCP process user, owner-readable, inaccessible to group/other users,
-non-symlinked, and no larger than 16 KiB.
+non-symlinked, and no larger than 16 KiB. It is opened non-blocking, so a FIFO
+or other special file is rejected immediately instead of stalling startup.
 
 ## Audit log
 
 Every tool invocation is logged to `logs/mcp/audit-YYYY-MM-DD.jsonl`.
 Records contain at most 32 sorted top-level argument key names matching
 `[A-Za-z0-9_.-]{1,64}`, but no argument values.
-The directory and file modes are enforced as `0700` and `0600`, respectively,
-and audit records are not mirrored to the MCP process stderr by default.
+The directory and file modes are enforced as `0700` and `0600`, respectively;
+the file is opened non-blocking without following symlinks and must be a
+regular file, so a planted symlink or FIFO fails closed instead of redirecting
+or stalling writes.
+Audit records are not mirrored to the MCP process stderr by default.
 Audit write and permission failures are surfaced instead of silently dropping
 records.
 Audit attribution is pseudonymous and process-scoped; names, email addresses,

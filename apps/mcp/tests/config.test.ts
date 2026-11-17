@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { chmodSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -82,6 +83,22 @@ describe("loadConfig", () => {
           PENGE_DUCKDB_PATH: "x.duckdb",
         }),
       ).toThrow(/could not be read securely/);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a FIFO database URL file without blocking on open", () => {
+    const dir = mkdtempSync(join(tmpdir(), "penge-mcp-config-"));
+    const fifo = join(dir, "database-url");
+    execFileSync("mkfifo", ["-m", "600", fifo]);
+    try {
+      expect(() =>
+        loadConfig({
+          PENGE_DB_URL_FILE: fifo,
+          PENGE_DUCKDB_PATH: "x.duckdb",
+        }),
+      ).toThrow(/must reference a regular file/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

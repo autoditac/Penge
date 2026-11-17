@@ -257,7 +257,7 @@ persisted.
 Invalid and unknown calls use empty argument metadata and a fixed unknown-tool
 name.
 No argument values are persisted, including dates, source IDs, stable transaction IDs, prompts, queries, or nested values.
-The audit directory and file modes are enforced as `0700` and `0600`, respectively; failures are surfaced.
+The audit directory and file modes are enforced as `0700` and `0600`, respectively; the audit file and `PENGE_DB_URL_FILE` are opened non-blocking without following symlinks and must be regular files, so a planted symlink or FIFO fails closed instead of stalling startup; failures are surfaced.
 Short, zero-byte, or failed audit writes fail the tool call and disable further
 writes on that logger; operators must inspect and repair any partial JSONL
 record before restarting the process.

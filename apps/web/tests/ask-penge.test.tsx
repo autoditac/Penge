@@ -110,12 +110,21 @@ describe("AskPengePage", () => {
     useMediaQueryMock.mockReturnValue(true);
   });
 
-  it("renders an injected stream and allows cancelling the bounded session", async () => {
+  it("renders an injected stream and allows cancelling the bounded session", () => {
+    vi.useFakeTimers();
+    try {
+      renderCancellableInjectedStream();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  function renderCancellableInjectedStream(): void {
     render(
       <AskPengePage
         authState="linked"
         modelAvailable
-        transport={createTransport([
+        transport={createImmediateTransport([
           {
             ...envelope(0),
             type: "tool",
@@ -148,28 +157,25 @@ describe("AskPengePage", () => {
       />,
     );
 
-    await startInjectedStream();
-    await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent("synthetic household balance"),
-    );
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: /Open evidence sheet/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(120));
+    expect(screen.getByRole("status")).toHaveTextContent("synthetic household balance");
+
+    fireEvent.click(screen.getByRole("button", { name: /Open evidence sheet/i }));
     expect(screen.getByText("Synthetic Penge report lookup")).toBeInTheDocument();
     expect(screen.getByText(/Synthetic DKK 1\.42M and EUR 194k/i)).toBeInTheDocument();
     expect(screen.getByText("full")).toBeInTheDocument();
     expect(screen.getByText("fresh")).toBeInTheDocument();
     expect(screen.getByText("mixed")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Close evidence sheet" }));
-    await waitFor(() =>
-      expect(
-        screen.queryByRole("region", { name: "Answer evidence sheet" }),
-      ).not.toBeInTheDocument(),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "Close evidence sheet" }));
+    act(() => vi.runOnlyPendingTimers());
+    expect(screen.queryByRole("region", { name: "Answer evidence sheet" })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Stop" }));
+    fireEvent.click(screen.getByRole("button", { name: "Stop" }));
     expect(screen.getByText(/Answer cancelled/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
-  });
+  }
 
   it("does not let a completed stop clean up a retried session", async () => {
     let resolveFirstStop: (() => void) | undefined;

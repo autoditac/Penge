@@ -1,5 +1,6 @@
 import {
   CopilotClient,
+  RuntimeConnection,
   ToolSet,
   type CopilotClientOptions,
   type GitHubTokenProvider,
@@ -52,13 +53,15 @@ interface CopilotClientLike {
 
 export type CopilotClientFactory = (options: CopilotClientOptions) => CopilotClientLike;
 
-function safeRuntimeEnvironment(): Record<string, string | undefined> {
-  return {
-    PATH: process.env.PATH,
-    TMPDIR: process.env.TMPDIR,
-    XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
-    LANG: process.env.LANG,
-  };
+function safeRuntimeEnvironment(): Record<string, string> {
+  const environment: Record<string, string> = {};
+  for (const name of ["PATH", "TMPDIR", "XDG_RUNTIME_DIR", "LANG"] as const) {
+    const value = process.env[name];
+    if (value !== undefined) {
+      environment[name] = value;
+    }
+  }
+  return environment;
 }
 
 export function buildSessionConfig(
@@ -222,6 +225,8 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
 
     let runtimePid: number | undefined;
     const client = this.createClient({
+      // Never inherit COPILOT_SDK_DEFAULT_CONNECTION; the runtime must stay an owned stdio child.
+      connection: RuntimeConnection.forStdio({ env: safeRuntimeEnvironment() }),
       mode: "empty",
       sessionFs: {
         initialCwd: this.config.mcpWorkingDirectory,
@@ -231,7 +236,6 @@ export class GitHubCopilotRuntime implements CopilotRuntime {
       workingDirectory: this.config.mcpWorkingDirectory,
       useLoggedInUser: false,
       logLevel: "none",
-      env: safeRuntimeEnvironment(),
       onRuntimeProcessSpawned: (pid) => {
         runtimePid = pid;
       },

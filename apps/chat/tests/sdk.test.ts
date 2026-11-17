@@ -294,6 +294,55 @@ describe("Copilot SDK policy", () => {
     ).rejects.toThrow(/disabled until/);
   });
 
+  it("pins an owned stdio runtime with minimal env despite ambient transport overrides", async () => {
+    vi.stubEnv("COPILOT_SDK_DEFAULT_CONNECTION", "inprocess");
+    vi.stubEnv("PENGE_SYNTHETIC_SENSITIVE_ENV", "synthetic-sensitive-env-marker");
+    vi.stubEnv("PATH", "/synthetic/bin");
+    let clientOptions: CopilotClientOptions | undefined;
+    const runtime = new GitHubCopilotRuntime(syntheticConfig(), (options) => {
+      clientOptions = options;
+      return {
+        start: async () => {
+          throw new Error("synthetic start stop");
+        },
+        createSession: async () => {
+          throw new Error("unreachable");
+        },
+        stop: async () => [],
+        forceStop: async () => undefined,
+      };
+    });
+    try {
+      await expect(
+        runtime.createRun({
+          actorId: "actor-a",
+          sessionId: "session-a",
+          tokenProvider: provider,
+          sink: { onEvent: () => undefined },
+        }),
+      ).rejects.toThrow();
+      expect(clientOptions?.mode).toBe("empty");
+      expect(clientOptions?.env).toBeUndefined();
+      const connection = clientOptions?.connection;
+      expect(connection?.kind).toBe("stdio");
+      const env = connection?.kind === "stdio" ? connection.env : undefined;
+      expect(env?.PATH).toBe("/synthetic/bin");
+      expect(
+        Object.keys(env ?? {}).every((name) =>
+          ["PATH", "TMPDIR", "XDG_RUNTIME_DIR", "LANG"].includes(name),
+        ),
+      ).toBe(true);
+      expect(JSON.stringify(env)).not.toContain("synthetic-sensitive-env-marker");
+
+      const client = new CopilotClient(clientOptions);
+      expect(
+        (client as unknown as { connectionConfig: { kind: string } }).connectionConfig.kind,
+      ).toBe("stdio");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("checks exact-model session creation with the linked actor token and never listModels", async () => {
     const listModels = vi.fn();
     const tokenProvider = vi.fn(provider);

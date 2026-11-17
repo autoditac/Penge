@@ -49,6 +49,7 @@ The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedIn
 The SDK permission handler approves each invocation once only for the configured Penge server and an exact reviewed MCP tool name; all other permissions and requests requiring explicit managed approval are rejected.
 SDK session files use a bounded process-memory provider and persistent workspaces are disabled, so crashes cannot leave transcripts on disk.
 Large-output file spilling and runtime diagnostics are disabled; the pinned SDK transport captures child stderr without forwarding it into service logs and reports its process-group leader so forced cleanup can terminate all MCP descendants.
+The Copilot runtime transport is explicitly an owned stdio child with a minimal connection-level environment, so ambient SDK defaults such as `COPILOT_SDK_DEFAULT_CONNECTION` cannot select in-process or external transports.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
 Exact-model session creation with that provider is the per-actor entitlement check; client-global unauthenticated model listing is not used.
 A bounded, immediately closed exact-model session lets authenticated status checks establish readiness before the browser submits its first question.

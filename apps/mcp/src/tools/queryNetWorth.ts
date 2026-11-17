@@ -72,7 +72,9 @@ const InputSchema = z
       ),
     currency: z.enum(["EUR", "DKK"]),
     breakdown_by: z.enum(["asset_class", "account", "none"]),
-    source: z.enum(["nordnet", "pfa", "growney", "manual_facts"]).optional(),
+    source: z
+      .enum(["gls", "ebank", "lunar", "nordnet", "pfa", "growney", "manual_facts"])
+      .optional(),
   })
   .strict();
 
@@ -218,7 +220,7 @@ export function queryNetWorthTool(
       "in `currency`. `breakdown_by` controls grouping: `none` sums across the " +
       "household, `account` groups by account UUID, `asset_class` groups by " +
       "`account.kind` (bank / brokerage / pension / cash). `source` optionally " +
-      "restricts results to one holdings provider. Results fail closed above 5,000 rows. " +
+      "restricts results to one account provider (bank, brokerage, pension, or manual facts). Results fail closed above 5,000 rows. " +
       "Aggregates only — never returns transactions or account numbers.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,

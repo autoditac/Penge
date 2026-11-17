@@ -61,9 +61,9 @@ Coverage metadata alone is not a data-bearing evidence path.
 
 | Source ID                  | Capabilities                                 | Data-bearing MCP evidence                            | Freshness observation                       |
 | -------------------------- | -------------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |
-| `gls`                      | transactions, balances                       | transaction search/detail; account-grouped net worth | transaction and balance observations        |
-| `ebank`                    | transactions, balances                       | transaction search/detail; account-grouped net worth | transaction and balance observations        |
-| `lunar`                    | transactions, balances                       | transaction search/detail; account-grouped net worth | transaction and balance observations        |
+| `gls`                      | transactions, balances                       | transaction search/detail; source-filtered net worth | transaction and balance observations        |
+| `ebank`                    | transactions, balances                       | transaction search/detail; source-filtered net worth | transaction and balance observations        |
+| `lunar`                    | transactions, balances                       | transaction search/detail; source-filtered net worth | transaction and balance observations        |
 | `enable_banking`           | transactions, balances                       | transaction search; cashflow; account net worth      | oldest GLS/EBank/Lunar observation          |
 | `nordnet`                  | transactions, holdings, balances             | transaction search/detail; source-filtered net worth | transaction and holding observations        |
 | `pfa`                      | transactions, holdings, balances             | transaction search; source-filtered net worth        | transaction and holding observations        |

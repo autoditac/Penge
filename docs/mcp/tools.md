@@ -33,12 +33,12 @@ requested date range, valued in the requested currency.
 
 ### Input
 
-| Field          | Type                                                | Notes                                                    |
-| -------------- | --------------------------------------------------- | -------------------------------------------------------- |
-| `date_range`   | `{ from: string; to: string }`                      | ISO `YYYY-MM-DD`; ordered; at most 367 inclusive days.   |
-| `currency`     | `"EUR" \| "DKK"`                                    | Both are first-class; pick whichever the consumer needs. |
-| `breakdown_by` | `"none" \| "account" \| "asset_class"`              | See semantics below.                                     |
-| `source`       | `"nordnet" \| "pfa" \| "growney" \| "manual_facts"` | Optional source-aware holdings filter.                   |
+| Field          | Type                                                                               | Notes                                                               |
+| -------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| `date_range`   | `{ from: string; to: string }`                                                     | ISO `YYYY-MM-DD`; ordered; at most 367 inclusive days.              |
+| `currency`     | `"EUR" \| "DKK"`                                                                   | Both are first-class; pick whichever the consumer needs.            |
+| `breakdown_by` | `"none" \| "account" \| "asset_class"`                                             | See semantics below.                                                |
+| `source`       | `"gls" \| "ebank" \| "lunar" \| "nordnet" \| "pfa" \| "growney" \| "manual_facts"` | Optional account-provider filter (bank, holdings, or manual facts). |
 
 ### Output
 

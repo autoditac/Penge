@@ -130,7 +130,7 @@ const entries = {
       },
       {
         tool: "query_net_worth",
-        evidence: "Daily bank balances grouped by account UUID.",
+        evidence: "Source-filtered daily bank balances grouped by account UUID.",
       },
       { tool: "get_source_coverage", evidence: "Account, transaction, and balance observations." },
     ],
@@ -156,7 +156,7 @@ const entries = {
       },
       {
         tool: "query_net_worth",
-        evidence: "Daily bank balances grouped by account UUID.",
+        evidence: "Source-filtered daily bank balances grouped by account UUID.",
       },
       { tool: "get_source_coverage", evidence: "Account, transaction, and balance observations." },
     ],
@@ -182,7 +182,7 @@ const entries = {
       },
       {
         tool: "query_net_worth",
-        evidence: "Daily bank balances grouped by account UUID.",
+        evidence: "Source-filtered daily bank balances grouped by account UUID.",
       },
       { tool: "get_source_coverage", evidence: "Account, transaction, and balance observations." },
     ],

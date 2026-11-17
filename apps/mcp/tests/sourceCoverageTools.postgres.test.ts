@@ -225,6 +225,58 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
     }
   });
 
+  it("filters bank balances by provider for accounts without transactions", async () => {
+    const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
+    if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {
+      throw new Error("Explicit disposable test database opt-in is required");
+    }
+    const url = rawUrl.replace(/^postgresql\+psycopg:/, "postgresql:");
+    const pool = new pg.Pool({ connectionString: url });
+    const client = await pool.connect();
+    try {
+      await client.query(`
+        CREATE TEMP TABLE account (id uuid PRIMARY KEY, provider text NOT NULL, kind text NOT NULL);
+        CREATE TEMP TABLE mart_net_worth_daily (
+          account_id uuid NOT NULL, as_of date NOT NULL, balance_eur numeric, balance_dkk numeric
+        );
+        INSERT INTO account VALUES
+          ('11111111-1111-4111-8111-111111111111', 'gls', 'bank'),
+          ('22222222-2222-4222-8222-222222222222', 'lunar', 'bank'),
+          ('33333333-3333-4333-8333-333333333333', 'nordnet', 'brokerage');
+        INSERT INTO mart_net_worth_daily VALUES
+          ('11111111-1111-4111-8111-111111111111', '2026-06-30', 250, 1865),
+          ('22222222-2222-4222-8222-222222222222', '2026-06-30', 40, 298.4),
+          ('33333333-3333-4333-8333-333333333333', '2026-06-30', 900, 6714);
+      `);
+      const tool = queryNetWorthTool({
+        runner: { query: (sql, params) => client.query(sql, [...params]) },
+        martTable: "pg_temp.mart_net_worth_daily",
+        accountTable: "pg_temp.account",
+      });
+      await expect(
+        tool.handler(
+          {
+            date_range: { from: "2026-06-30", to: "2026-06-30" },
+            currency: "EUR",
+            breakdown_by: "account",
+            source: "gls",
+          },
+          { serverName: "postgres-test", serverVersion: "test" },
+        ),
+      ).resolves.toEqual([
+        {
+          date: "2026-06-30",
+          currency: "EUR",
+          breakdown_key: "11111111-1111-4111-8111-111111111111",
+          value: 250,
+        },
+      ]);
+    } finally {
+      client.release();
+      await pool.end();
+    }
+  });
+
   it("returns net-worth and cashflow calendar dates independently of TZ", async () => {
     const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
     if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {

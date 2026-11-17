@@ -124,6 +124,24 @@ describe("query_net_worth — SQL shape", () => {
     expect(runner.calls[0]!.params).toEqual(["2024-01-01", "2024-01-31", "pfa"]);
   });
 
+  it.each(["gls", "ebank", "lunar"] as const)(
+    "accepts the %s bank provider as a source filter",
+    async (source) => {
+      const runner = makeRunner([]);
+      const tool = queryNetWorthTool({ runner });
+      const args = tool.inputSchema.parse({ ...baseArgs, breakdown_by: "account", source });
+      await tool.handler(args, ctx);
+      expect(runner.calls[0]!.params[2]).toBe(source);
+    },
+  );
+
+  it("rejects connector-only source IDs that are not account providers", () => {
+    const tool = queryNetWorthTool({ runner: makeRunner([]) });
+    expect(tool.inputSchema.safeParse({ ...baseArgs, source: "enable_banking" }).success).toBe(
+      false,
+    );
+  });
+
   it("maps the public manual_facts source ID to the stored manual provider", async () => {
     const runner = makeRunner([]);
     const tool = queryNetWorthTool({ runner });

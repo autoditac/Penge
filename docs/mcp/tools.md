@@ -57,6 +57,8 @@ The optional `source` filter is required when using this tool as
 source-specific holdings evidence.
 Queries are limited to a 367-day window and fail instead of returning a
 partial response if the result would exceed 5,000 rows.
+`date` is serialized by PostgreSQL as a calendar date, independent of the
+server time zone.
 
 ### Breakdown semantics
 
@@ -152,6 +154,8 @@ Array of:
 - Responses contain at most 367 periods. The query requests one sentinel
   row beyond that limit and fails closed rather than returning truncated
   evidence if the bound is exceeded.
+- Period dates are serialized by PostgreSQL as calendar dates, independent
+  of the server time zone.
 
 ### Example call
 

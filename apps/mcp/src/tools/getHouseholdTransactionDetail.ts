@@ -3,7 +3,10 @@ import { z } from "zod/v3";
 import { ToolDataError, ToolNotFoundError } from "../errors.js";
 import { redactTextBounded } from "../redact.js";
 import type { ToolDefinition } from "../registry.js";
-import { type HouseholdTransactionQueryRunner } from "./searchHouseholdTransactions.js";
+import {
+  EFFECTIVE_REVIEW_STATE_SQL,
+  type HouseholdTransactionQueryRunner,
+} from "./searchHouseholdTransactions.js";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DECIMAL = /^-?\d+(?:\.\d+)?$/;
@@ -101,7 +104,7 @@ const TransactionRowSchema = z
     source: ProviderSchema,
     account_id: z.string().regex(UUID),
     booked_at: z.union([z.date(), z.string()]),
-    value_date: z.union([z.date(), z.string()]).nullable(),
+    value_date: z.string().date().nullable(),
     kind: z.string(),
     amount: z.string().regex(DECIMAL),
     fee: z.string().regex(DECIMAL),
@@ -168,10 +171,10 @@ export interface GetHouseholdTransactionDetailOptions {
 
 const TRANSACTION_SQL = `
   SELECT t.id::text AS stable_id, a.provider AS source, a.id::text AS account_id,
-    t.ts AS booked_at, t.value_date, t.kind, t.amount::text AS amount,
+    t.ts AS booked_at, to_char(t.value_date, 'YYYY-MM-DD') AS value_date, t.kind, t.amount::text AS amount,
     t.fee::text AS fee, t.tax::text AS tax, a.currency,
     t.description, t.counterparty,
-    c.treatment, c.review_state, c.merchant_id::text AS merchant_id,
+    c.treatment, ${EFFECTIVE_REVIEW_STATE_SQL} AS review_state, c.merchant_id::text AS merchant_id,
     m.name AS merchant_name, c.identity_confirmed, c.provenance,
     c.rule_id::text AS rule_id, c.revision, c.explanation
   FROM transaction AS t
@@ -223,11 +226,6 @@ function instant(value: Date | string): string {
   return parsed.toISOString();
 }
 
-function date(value: Date | string | null): string | null {
-  if (value === null) return null;
-  return value instanceof Date ? value.toISOString().slice(0, 10) : value.slice(0, 10);
-}
-
 export function getHouseholdTransactionDetailTool(
   opts: GetHouseholdTransactionDetailOptions,
 ): ToolDefinition<GetHouseholdTransactionDetailInput, GetHouseholdTransactionDetailOutput> {
@@ -273,7 +271,7 @@ export function getHouseholdTransactionDetailTool(
           source: row.source,
           account_id: row.account_id,
           booked_at: instant(row.booked_at),
-          value_date: date(row.value_date),
+          value_date: row.value_date,
           kind: row.kind.slice(0, 100),
           amount: row.amount,
           fee: row.fee,

@@ -79,7 +79,7 @@ const RowSchema = z
     stable_id: z.string().regex(UUID),
     source: ProviderSchema,
     account_id: z.string().regex(UUID),
-    transaction_date: z.union([z.date(), z.string()]),
+    transaction_date: z.string().date(),
     description: z.string().nullable(),
     counterparty: z.string().nullable(),
     amount: z.string().regex(DECIMAL),
@@ -112,17 +112,43 @@ export interface SearchHouseholdTransactionsOptions {
   now?: () => Date;
 }
 
+/**
+ * Effective review state, mirroring `classification_out()` in
+ * `src/penge/household/service.py`: an approval is stale (`needs_review`) once
+ * the bank source fields captured at classification time drift or any linked
+ * payment detail moved past its approved revision.
+ */
+export const EFFECTIVE_REVIEW_STATE_SQL = `
+  CASE
+    WHEN c.transaction_id IS NULL THEN NULL
+    WHEN c.source_amount IS DISTINCT FROM t.amount
+      OR c.source_currency IS DISTINCT FROM a.currency
+      OR c.source_ts IS DISTINCT FROM t.ts
+      OR c.source_counterparty IS DISTINCT FROM t.counterparty
+      OR c.source_kind IS DISTINCT FROM t.kind
+      OR EXISTS (
+        SELECT 1
+        FROM household_payment_detail_link AS drift_link
+        INNER JOIN household_payment_detail AS drift_detail
+          ON drift_detail.id = drift_link.detail_id
+        WHERE drift_link.transaction_id = t.id
+          AND drift_detail.revision <> drift_link.detail_revision
+      )
+      THEN 'needs_review'
+    ELSE c.review_state
+  END`;
+
 const SEARCH_SQL = `
   SELECT
     t.id::text AS stable_id,
     a.provider AS source,
     a.id::text AS account_id,
-    (t.ts AT TIME ZONE 'UTC')::date AS transaction_date,
+    to_char((t.ts AT TIME ZONE 'UTC')::date, 'YYYY-MM-DD') AS transaction_date,
     t.description, t.counterparty,
     t.amount::text AS amount,
     a.currency,
     c.treatment,
-    c.review_state,
+    ${EFFECTIVE_REVIEW_STATE_SQL} AS review_state,
     c.provenance,
     c.revision,
     c.merchant_id::text AS merchant_id,
@@ -218,10 +244,7 @@ export function searchHouseholdTransactionsTool(
           stable_id: row.stable_id,
           source: row.source,
           account_id: row.account_id,
-          transaction_date:
-            row.transaction_date instanceof Date
-              ? row.transaction_date.toISOString().slice(0, 10)
-              : row.transaction_date.slice(0, 10),
+          transaction_date: row.transaction_date,
           description: row.description === null ? null : redactTextBounded(row.description, 240),
           counterparty: row.counterparty === null ? null : redactTextBounded(row.counterparty, 240),
           amount: row.amount,

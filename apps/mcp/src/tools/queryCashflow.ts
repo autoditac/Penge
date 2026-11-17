@@ -175,8 +175,8 @@ function buildSql(currency: z.infer<typeof Currency>, martTable: string): string
       WHERE m.as_of >= $1::date AND m.as_of <= $2::date
     )
     SELECT
-      GREATEST(bucket_start, $1::date) AS period_start,
-      LEAST(bucket_end, $2::date) AS period_end,
+      to_char(GREATEST(bucket_start, $1::date), 'YYYY-MM-DD') AS period_start,
+      to_char(LEAST(bucket_end, $2::date), 'YYYY-MM-DD') AS period_end,
       SUM(inflow)::float8 AS inflow,
       SUM(outflow)::float8 AS outflow,
       SUM(net)::float8 AS net

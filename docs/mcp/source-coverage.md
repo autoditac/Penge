@@ -143,6 +143,8 @@ Input:
 Output contains `generated_at`, paging metadata, total count, and at most 50 rows.
 Each row contains a stable transaction UUID, source, opaque account UUID, date, value-pattern-redacted bounded description/counterparty, exact decimal-string amount, EUR/DKK currency, current classification summary, and latest audit-event reference.
 All value-pattern redaction is applied before the final wire-length bound.
+`transaction_date` is the UTC calendar date of the booking timestamp, serialized as text by PostgreSQL so the MCP host time zone cannot shift it.
+`review_state` is the effective state: a stored approval is reported as `needs_review` once the captured source amount, currency, timestamp, counterparty, or kind drifts, or any linked payment detail has moved past its approved revision, matching `classification_out()` in the household API.
 It never contains `transaction.raw`, external account IDs, IBANs, or provider payloads.
 
 ### `get_household_transaction_detail`
@@ -159,6 +161,7 @@ Input:
 Output contains exactly one bank/brokerage ledger row, at most 100 exact decimal-string allocations, the current classification, at most 20 audit-event references, and at most 10 linked PayPal details.
 The transaction, classification, merchant, and PayPal free-text fields are value-pattern redacted before output.
 All detail reads run in one read-only repeatable-read PostgreSQL snapshot.
+`value_date` is a PostgreSQL-serialized calendar date, and `classification.review_state` uses the same effective drift-aware state as search.
 The top level always declares `ledger_semantics: "single_source_ledger"`.
 Every PayPal record declares `ledger_semantics: "enrichment_only"`.
 Raw audit snapshots and PayPal `source_fields` are never returned.

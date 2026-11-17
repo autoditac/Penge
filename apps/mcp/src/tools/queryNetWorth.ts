@@ -154,7 +154,7 @@ function buildSql(
   if (breakdownBy === "none") {
     return `
       SELECT
-        m.as_of AS date,
+        to_char(m.as_of, 'YYYY-MM-DD') AS date,
         NULL::text AS breakdown_key,
         SUM(${valueCol})::float8 AS value,
         COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
@@ -171,7 +171,7 @@ function buildSql(
   if (breakdownBy === "account") {
     return `
       SELECT
-        m.as_of AS date,
+        to_char(m.as_of, 'YYYY-MM-DD') AS date,
         m.account_id::text AS breakdown_key,
         SUM(${valueCol})::float8 AS value,
         COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count
@@ -188,7 +188,7 @@ function buildSql(
   // asset_class → account.kind
   return `
     SELECT
-      m.as_of AS date,
+      to_char(m.as_of, 'YYYY-MM-DD') AS date,
       a.kind AS breakdown_key,
       SUM(${valueCol})::float8 AS value,
       COUNT(*) FILTER (WHERE ${valueCol} IS NULL)::int AS missing_value_count

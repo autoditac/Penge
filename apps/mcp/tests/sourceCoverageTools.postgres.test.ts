@@ -17,6 +17,7 @@ import {
   type GetSourceCoverageOutput,
 } from "../src/tools/getSourceCoverage.js";
 import { MCP_READ_ONLY_TOOL_ALLOWLIST } from "../src/sources.js";
+import { queryCashflowTool } from "../src/tools/queryCashflow.js";
 import { queryNetWorthTool } from "../src/tools/queryNetWorth.js";
 import { searchHouseholdTransactionsTool } from "../src/tools/searchHouseholdTransactions.js";
 
@@ -205,6 +206,64 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
     }
   });
 
+  it("returns net-worth and cashflow calendar dates independently of TZ", async () => {
+    const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
+    if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {
+      throw new Error("Explicit disposable test database opt-in is required");
+    }
+    const url = rawUrl.replace(/^postgresql\+psycopg:/, "postgresql:");
+    const pool = new pg.Pool({ connectionString: url });
+    const client = await pool.connect();
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = "Europe/Copenhagen";
+    try {
+      await client.query(`
+        CREATE TEMP TABLE account (id uuid PRIMARY KEY, provider text NOT NULL, kind text NOT NULL);
+        CREATE TEMP TABLE mart_net_worth_daily (
+          account_id uuid NOT NULL, as_of date NOT NULL, balance_eur numeric, balance_dkk numeric
+        );
+        CREATE TEMP TABLE mart_cashflow_daily (
+          as_of date NOT NULL,
+          inflow_eur numeric, outflow_eur numeric, net_eur numeric,
+          inflow_dkk numeric, outflow_dkk numeric, net_dkk numeric
+        );
+        INSERT INTO account VALUES ('11111111-1111-4111-8111-111111111111', 'manual', 'cash');
+        INSERT INTO mart_net_worth_daily VALUES
+          ('11111111-1111-4111-8111-111111111111', '2026-06-02', 100, 746);
+        INSERT INTO mart_cashflow_daily VALUES ('2026-06-02', 10, -4, 6, 74.6, -29.84, 44.76);
+      `);
+      const context = { serverName: "postgres-test", serverVersion: "test" };
+      const netWorth = await queryNetWorthTool({
+        runner: { query: (sql, params) => client.query(sql, [...params]) },
+        martTable: "pg_temp.mart_net_worth_daily",
+        accountTable: "pg_temp.account",
+      }).handler(
+        {
+          date_range: { from: "2026-06-02", to: "2026-06-02" },
+          currency: "EUR",
+          breakdown_by: "none",
+        },
+        context,
+      );
+      expect(netWorth.map((row) => row.date)).toEqual(["2026-06-02"]);
+      const cashflow = await queryCashflowTool({
+        runner: { query: (sql, params) => client.query(sql, [...params]) },
+        martTable: "pg_temp.mart_cashflow_daily",
+      }).handler(
+        { date_range: { from: "2026-06-02", to: "2026-06-02" }, granularity: "day" },
+        context,
+      );
+      expect(cashflow.map((row) => [row.period_start, row.period_end])).toEqual([
+        ["2026-06-02", "2026-06-02"],
+      ]);
+    } finally {
+      if (previousTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTimezone;
+      client.release(true);
+      await pool.end();
+    }
+  });
+
   it("executes bounded search and stable-ID detail against synthetic facts", async () => {
     const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
     if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {
@@ -373,6 +432,143 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
     } finally {
       await cleanSyntheticFacts(fixturePool);
       await fixturePool.end();
+    }
+  });
+
+  it("serializes calendar dates and derives stale review state independently of TZ", async () => {
+    const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
+    if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {
+      throw new Error("Explicit disposable test database opt-in is required");
+    }
+    const url = new URL(rawUrl.replace(/^postgresql\+psycopg:/, "postgresql:"));
+    if (
+      !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+      !url.pathname.endsWith("_test")
+    ) {
+      throw new Error("Only a loopback test-suffixed PostgreSQL database is permitted");
+    }
+    const accountId = "e1e1e1e1-e1e1-4e1e-8e1e-e1e1e1e1e1e1";
+    const current = "e2e2e2e2-e2e2-4e2e-8e2e-e2e2e2e2e2e2";
+    const sourceDrift = "e3e3e3e3-e3e3-4e3e-8e3e-e3e3e3e3e3e3";
+    const detailDrift = "e4e4e4e4-e4e4-4e4e-8e4e-e4e4e4e4e4e4";
+    const currentDetail = "e5e5e5e5-e5e5-4e5e-8e5e-e5e5e5e5e5e5";
+    const revisedDetail = "e6e6e6e6-e6e6-4e6e-8e6e-e6e6e6e6e6e6";
+    const pool = new pg.Pool({ connectionString: url.toString() });
+    const client = await pool.connect();
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = "Europe/Copenhagen";
+    let destroy = false;
+    try {
+      // Session-local shadows keep the shared seeded tables untouched.
+      for (const table of [
+        "account",
+        "transaction",
+        "household_classification",
+        "household_merchant",
+        "household_allocation",
+        "household_audit",
+        "household_payment_detail",
+        "household_payment_detail_link",
+      ]) {
+        destroy = true;
+        await client.query(`CREATE TEMP TABLE ${table} (LIKE public.${table} INCLUDING DEFAULTS)`);
+      }
+      await client.query(
+        `INSERT INTO account (id, entity_id, provider, name, kind, currency)
+         VALUES ($1::uuid, $1::uuid, 'gls', 'Synthetic TZ account', 'checking', 'EUR')`,
+        [accountId],
+      );
+      // 22:30Z on June 1 is already June 2 in Copenhagen; the contract is the UTC date.
+      await client.query(
+        `INSERT INTO transaction (id, account_id, ts, value_date, kind, amount, counterparty)
+         VALUES
+           ($1::uuid, $4::uuid, '2026-06-01T22:30:00Z', '2026-06-02', 'payment', -12.50, 'Shop'),
+           ($2::uuid, $4::uuid, '2026-06-01T22:30:00Z', '2026-06-02', 'payment', -20.00, 'Shop'),
+           ($3::uuid, $4::uuid, '2026-06-01T22:30:00Z', '2026-06-02', 'payment', -30.00, 'Shop')`,
+        [current, sourceDrift, detailDrift, accountId],
+      );
+      await client.query(
+        `INSERT INTO household_classification (
+           transaction_id, treatment, review_state, identity_confirmed, provenance, revision,
+           source_amount, source_currency, source_ts, source_counterparty, source_kind,
+           explanation
+         )
+         SELECT t.id, 'expense', 'classified', false, 'manual', 1,
+           CASE WHEN t.id = $1::uuid THEN -21.00 ELSE t.amount END,
+           'EUR', t.ts, t.counterparty, t.kind, 'synthetic approval'
+         FROM transaction AS t`,
+        [sourceDrift],
+      );
+      await client.query(
+        `INSERT INTO household_payment_detail (
+           id, provider, source_account_id, external_id, ts, amount, currency,
+           event_kind, source_fields, revision
+         ) VALUES
+           ($1::uuid, 'paypal', 'synthetic', 'detail-current', '2026-06-01T22:00:00Z',
+            12.50, 'EUR', 'purchase', '{}'::jsonb, 1),
+           ($2::uuid, 'paypal', 'synthetic', 'detail-revised', '2026-06-01T22:00:00Z',
+            30.00, 'EUR', 'purchase', '{}'::jsonb, 2)`,
+        [currentDetail, revisedDetail],
+      );
+      await client.query(
+        `INSERT INTO household_payment_detail_link (
+           transaction_id, detail_id, bank_amount, detail_revision
+         ) VALUES ($1::uuid, $2::uuid, -12.50, 1), ($3::uuid, $4::uuid, -30.00, 1)`,
+        [current, currentDetail, detailDrift, revisedDetail],
+      );
+
+      const context = { serverName: "postgres-test", serverVersion: "test" };
+      const search = searchHouseholdTransactionsTool({ runner: client });
+      const page = await search.handler(
+        {
+          source: "gls",
+          account_ids: [accountId],
+          date_range: { from: "2026-06-01", to: "2026-06-01" },
+          limit: 10,
+          offset: 0,
+        },
+        context,
+      );
+      search.outputSchema.parse(page);
+      const states = Object.fromEntries(
+        page.items.map((item) => [item.stable_id, item.classification?.review_state]),
+      );
+      expect(states).toEqual({
+        [current]: "classified",
+        [sourceDrift]: "needs_review",
+        [detailDrift]: "needs_review",
+      });
+      expect(page.items.map((item) => item.transaction_date)).toEqual([
+        "2026-06-01",
+        "2026-06-01",
+        "2026-06-01",
+      ]);
+
+      const detail = getHouseholdTransactionDetailTool({
+        runner: {
+          query: (sql, params) => client.query(sql, [...params]),
+          readSnapshot: (operation) => operation(client),
+        },
+      });
+      for (const [transactionId, expected] of [
+        [current, "classified"],
+        [sourceDrift, "needs_review"],
+        [detailDrift, "needs_review"],
+      ] as const) {
+        const record = await detail.handler(
+          { transaction_id: transactionId, source: "gls" },
+          context,
+        );
+        detail.outputSchema.parse(record);
+        expect(record.transaction.value_date).toBe("2026-06-02");
+        expect(record.classification?.review_state).toBe(expected);
+      }
+    } finally {
+      if (previousTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTimezone;
+      // Destroying the session drops every temp shadow table.
+      client.release(destroy);
+      await pool.end();
     }
   });
 });

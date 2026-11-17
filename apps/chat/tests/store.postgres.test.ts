@@ -48,23 +48,28 @@ describe("PostgreSQL chat-role isolation", () => {
     },
   );
 
-  it.runIf(canRunFunctional)("bounds waits for a contended actor lock", async () => {
-    const actorId = "actor_0123456789abcdef0123456789abcdef";
-    const blocker = new Client({ connectionString: adminUrl });
-    const store = await PostgresChatStore.connect(databaseUrl!, expectedRole!, {
-      timeoutMs: 100,
-      connectionTimeoutMs: 1_000,
-    });
-    await blocker.connect();
-    try {
-      await blocker.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [actorId]);
-      await expect(store.withOAuthActorLock(actorId, async () => undefined)).rejects.toThrow();
-    } finally {
-      await blocker.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [actorId]);
-      await blocker.end();
-      await store.close();
-    }
-  });
+  it.runIf(canRunFunctional)(
+    "bounds waits for a contended actor lock",
+    async () => {
+      const actorId = "actor_0123456789abcdef0123456789abcdef";
+      const blocker = new Client({ connectionString: adminUrl });
+      const store = await PostgresChatStore.connect(databaseUrl!, expectedRole!);
+      const operation = vi.fn(async () => undefined);
+      await blocker.connect();
+      try {
+        await blocker.query("SELECT pg_advisory_lock(hashtextextended($1, 0))", [actorId]);
+        await expect(store.withOAuthActorLock(actorId, operation)).rejects.toThrow(
+          /timeout|canceling statement/i,
+        );
+        expect(operation).not.toHaveBeenCalled();
+      } finally {
+        await blocker.query("SELECT pg_advisory_unlock(hashtextextended($1, 0))", [actorId]);
+        await blocker.end();
+        await store.close();
+      }
+    },
+    15_000,
+  );
 
   it.runIf(canRunFunctional)(
     "keeps actor serialization through a slow successful token refresh",

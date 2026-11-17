@@ -13,6 +13,7 @@ For each linked household actor:
 4. Confirm the MCP accepts file-only `PENGE_DB_URL_FILE` configuration.
 5. Run `just chat-check` and `just chat-migration-integration`, plus process-cleanup checks.
    The integration test needs `PENGE_CHAT_MIGRATION_TEST_ADMIN_URL` for a disposable PostgreSQL superuser; it creates uniquely suffixed databases and roles, refuses to reuse existing names, and drops only resources it created.
+   The lock-contention regression uses the normal five-second database timeout and a fifteen-second test deadline, so startup privilege checks do not inherit an artificially short timeout.
 6. Confirm an accepted ADR amends [ADR-0005](../decisions/0005-llm-access-via-mcp-only.md) for bounded transaction-level records reaching `hydrafusion`, or that the transaction search/detail tools are removed from the chat allowlist.
 7. Set `PENGE_CHAT_ENABLE_PRODUCTION=1`.
 

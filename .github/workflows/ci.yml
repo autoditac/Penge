@@ -458,9 +458,11 @@ jobs:
         # install the binaries here so the OCR tests can rasterise
         # fixtures and run Tesseract in CI.
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            tesseract-ocr tesseract-ocr-dan tesseract-ocr-deu poppler-utils
+          bash scripts/ci-package-setup.sh bash -euo pipefail -c '
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends \
+              tesseract-ocr tesseract-ocr-dan tesseract-ocr-deu poppler-utils
+          '
       - name: Install dev + db deps
         run: uv sync --group dev --group db --group http --group web --group manual --group enablebanking --group parsers --group ocr --group vault --group report --group api --frozen
       - name: Run tests

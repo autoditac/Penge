@@ -155,6 +155,7 @@ export async function verifyMcpServerContract(config: ChatConfig): Promise<void>
     args: server.args ?? [],
     cwd: server.workingDirectory ?? process.cwd(),
     env: server.env ?? {},
+    stderr: "ignore",
   });
   const client = new Client(
     { name: "penge-chat-contract-check", version: "0.0.0" },

@@ -34,7 +34,7 @@ The authenticated external browser origin is separate from the listener and must
 The external API base is a trailing-slash URL so reverse-proxy path prefixes survive OAuth callback construction; the path-free app origin independently owns the `/ask` redirect.
 The reverse proxy must overwrite and supply `X-Penge-Auth-Issuer`, immutable Google `X-Penge-Auth-Subject`, and a mounted-secret-backed `X-Penge-Proxy-Secret`; direct or ambiguous headers are rejected.
 State-changing requests additionally require the configured application origin, chat/stop requests require `application/json`, and request bodies remain byte-bounded while accommodating every valid 8,000-code-unit question.
-SSE delivery has a bounded process buffer and drain deadline; a stalled client is disconnected through the normal cancellation path.
+SSE delivery has a bounded process buffer and drain deadline that remains active until terminal output finishes flushing; a stalled client is disconnected through the normal cancellation path.
 
 Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE.
 The database stores only an HMAC state lookup and an encrypted versioned state envelope, never raw state or a plaintext verifier.
@@ -46,6 +46,7 @@ Callback state deletion commits before token exchange while the session-level ac
 Pool acquisition, statements, transactions, and advisory-lock waits are bounded; OAuth transactions use a separate bound that covers the upstream refresh deadline, and idle pool failures initiate metadata-only controlled shutdown.
 
 The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedInUser: false`, actor-isolated storage, exact `hydrafusion`, no fallback, no session store, no config discovery, no skills, extensions, canvases, built-in tools, or custom tools.
+The SDK permission handler approves each invocation once only for the configured Penge server and an exact reviewed MCP tool name; all other permissions and requests requiring explicit managed approval are rejected.
 SDK session files use a bounded process-memory provider and persistent workspaces are disabled, so crashes cannot leave transcripts on disk.
 Large-output file spilling and runtime diagnostics are disabled; the pinned SDK transport captures child stderr without forwarding it into service logs and reports its process-group leader so forced cleanup can terminate all MCP descendants.
 It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
@@ -54,7 +55,7 @@ A bounded, immediately closed exact-model session lets authenticated status chec
 Readiness probes and chats share the same atomic global and per-actor admission limits; a full status probe returns `429 rate_limit` and releases its reservation after teardown.
 The MCP server is a local stdio child with a minimal explicit environment, a mounted finance database URL file, and allowlisted read-only tools.
 Each child receives only derived `actor_<ULID>` and `session_<ULID>` audit pseudonyms; trusted identity claims and internal identifiers are never forwarded.
-Startup probes the production MCP child with `connect`, `listTools`, and `close`; missing or extra registrations and missing output schemas disable production.
+Startup probes the production MCP child with `connect`, `listTools`, and `close`, discarding child stderr; missing or extra registrations and missing output schemas disable production.
 The pinned registration order matches issue #350 exactly, and every successful `get_source_coverage` result must independently report that ordered allowlist, including `_meta`; missing, extra, reordered, or duplicate entries fail closed before evidence projection.
 
 The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.

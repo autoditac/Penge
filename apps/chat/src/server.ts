@@ -307,7 +307,7 @@ export async function startChatServer(
           }
         };
         const failDelivery = (): void => {
-          if (ended || response.destroyed) return;
+          if (response.destroyed || response.writableFinished) return;
           clearDrainTimer();
           response.destroy();
           disconnect();
@@ -334,7 +334,7 @@ export async function startChatServer(
             }
             if (event.terminal) {
               ended = true;
-              clearDrainTimer();
+              armDrainTimer();
               response.end();
               return;
             }
@@ -358,18 +358,19 @@ export async function startChatServer(
         };
         response.on("drain", () => {
           blocked = false;
-          clearDrainTimer();
           if (endAfterDrain) {
             endAfterDrain = false;
             ended = true;
             response.end();
             return;
           }
+          clearDrainTimer();
           flush();
         });
+        response.on("finish", clearDrainTimer);
         response.on("close", () => {
           clearDrainTimer();
-          if (!ended) disconnect();
+          if (!response.writableFinished) disconnect();
         });
         connection.sessionId = await dependencies.runtime.start(actorId, input.question, sink);
         if (response.destroyed) {

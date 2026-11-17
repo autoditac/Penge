@@ -20,6 +20,7 @@ const headers = {
 
 describe("loopback HTTP service", () => {
   it("binds loopback, rejects direct requests, and streams terminal events", async () => {
+    const disconnect = vi.fn(async () => undefined);
     const runtime = {
       start: async (_actorId: string, _question: string, sink: (event: StreamEvent) => void) => {
         sink({
@@ -38,14 +39,14 @@ describe("loopback HTTP service", () => {
         return "00000000-0000-4000-8000-000000000001";
       },
       cancel: async () => undefined,
-      disconnect: async () => undefined,
+      disconnect,
       cleanupIdle: async () => 0,
       close: async () => undefined,
       isModelAvailable: () => true,
       ensureModelAvailable: async () => true,
       invalidateActor: async () => undefined,
     };
-    const server = await startChatServer(syntheticConfig(), {
+    const server = await startChatServer(syntheticConfig({ httpRequestTimeoutMs: 100 }), {
       runtime,
       oauth: {
         begin: async () => "https://github.com/login/oauth/authorize",
@@ -70,6 +71,8 @@ describe("loopback HTTP service", () => {
       });
       expect(response.status).toBe(200);
       expect(await response.text()).toContain('"type":"completion"');
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      expect(disconnect).not.toHaveBeenCalled();
     } finally {
       await server.close();
     }
@@ -139,6 +142,82 @@ describe("loopback HTTP service", () => {
         expect(disconnect).toHaveBeenCalledWith(expect.any(String), sessionId);
       } finally {
         write.mockRestore();
+        await server.close();
+      }
+    },
+  );
+
+  it.each(["accepted", "drained"] as const)(
+    "bounds an unfinished terminal SSE response after its write is %s",
+    async (delivery) => {
+      let sink: ((event: StreamEvent) => void) | undefined;
+      const disconnect = vi.fn(async () => undefined);
+      const write = vi
+        .spyOn(ServerResponse.prototype, "write")
+        .mockReturnValue(delivery === "accepted");
+      const end = vi.spyOn(ServerResponse.prototype, "end").mockImplementation(function (
+        this: ServerResponse,
+      ) {
+        return this;
+      });
+      const sessionId = "00000000-0000-4000-8000-000000000001";
+      const server = await startChatServer(syntheticConfig({ httpRequestTimeoutMs: 100 }), {
+        runtime: {
+          start: async (_actorId, _question, eventSink) => {
+            sink = eventSink;
+            return sessionId;
+          },
+          cancel: async () => undefined,
+          disconnect,
+          cleanupIdle: async () => 0,
+          close: async () => undefined,
+          isModelAvailable: () => true,
+          ensureModelAvailable: async () => true,
+          invalidateActor: async () => undefined,
+        },
+        oauth: {
+          begin: async () => "https://github.com/login/oauth/authorize",
+          complete: async () => "synthetic-user",
+          status: async () => ({ state: "linked" as const, login: "synthetic-user" }),
+          unlink: async () => undefined,
+        },
+      });
+      try {
+        const response = await fetch(`${server.origin}/v1/chat`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ question: "Safe question" }),
+        });
+        expect(response.status).toBe(200);
+        if (sink === undefined) throw new Error("stream sink was not registered");
+        sink({
+          version: "1.0",
+          sessionId,
+          id: "event-1",
+          sequence: 0,
+          type: "completion",
+          summary: "Synthetic completion",
+          coverage: "partial",
+          freshness: "fresh",
+          finishReason: "completed",
+          assumptions: [],
+        });
+        const outbound = write.mock.contexts[0];
+        if (!(outbound instanceof ServerResponse)) {
+          throw new Error("terminal write was not attempted");
+        }
+        if (delivery === "drained") outbound.emit("drain");
+        expect(end).toHaveBeenCalledOnce();
+        expect(outbound.writableFinished).toBe(false);
+        await vi.waitFor(() => expect(disconnect).toHaveBeenCalledOnce(), {
+          timeout: 1_000,
+          interval: 10,
+        });
+        expect(outbound.destroyed).toBe(true);
+        expect(disconnect).toHaveBeenCalledWith(expect.any(String), sessionId);
+      } finally {
+        write.mockRestore();
+        end.mockRestore();
         await server.close();
       }
     },

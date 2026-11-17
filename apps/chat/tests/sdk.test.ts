@@ -12,6 +12,7 @@ import {
 } from "@github/copilot-sdk";
 import { describe, expect, it, vi } from "vitest";
 
+import { MCP_CHAT_TOOL_ALLOWLIST } from "../src/config.js";
 import { BoundedMemorySessionFs } from "../src/memorySessionFs.js";
 import {
   buildSessionConfig,
@@ -98,6 +99,48 @@ describe("Copilot SDK policy", () => {
     await expect(fullMemoryFs.writeFile("/sessions/extra", "x")).rejects.toThrow(
       /memory is exhausted/,
     );
+  });
+
+  it("approves only individual reviewed Penge MCP lookups without overriding managed approval", async () => {
+    const session = buildSessionConfig(syntheticConfig(), "actor-1", "session-1", provider);
+    const handle = session.onPermissionRequest;
+    if (handle === undefined) throw new Error("permission handler was not installed");
+
+    const request = {
+      kind: "mcp" as const,
+      serverName: "penge",
+      toolName: "query_cashflow",
+      toolTitle: "Synthetic lookup",
+      readOnly: false,
+    };
+    const invocation = { sessionId: "session-1" };
+    for (const toolName of MCP_CHAT_TOOL_ALLOWLIST) {
+      expect(await handle({ ...request, toolName }, invocation)).toEqual({
+        kind: "approve-once",
+      });
+    }
+
+    for (const denied of [
+      { ...request, serverName: "other" },
+      { ...request, serverName: "penge-extra" },
+      { ...request, toolName: "execute_sql" },
+      { ...request, toolName: "_meta" },
+      { ...request, toolName: "QUERY_CASHFLOW" },
+      { ...request, toolName: " query_cashflow" },
+      { ...request, managedApprovalRequired: true },
+      {
+        kind: "shell" as const,
+        fullCommandText: "synthetic",
+        intention: "synthetic",
+        commands: [],
+        possiblePaths: [],
+        possibleUrls: [],
+        canOfferSessionApproval: false,
+        hasWriteFileRedirection: false,
+      },
+    ]) {
+      expect(await handle(denied, invocation)).toMatchObject({ kind: "reject" });
+    }
   });
 
   it("keeps tool output above the SDK spill threshold available to the event sink", async () => {

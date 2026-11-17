@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
 import { MCP_CHAT_TOOL_ALLOWLIST, MCP_REGISTRATION_ALLOWLIST } from "../src/config.js";
 import {
@@ -115,6 +116,58 @@ describe("read-only MCP policy", () => {
     });
     expect(server.env).not.toHaveProperty("PENGE_DB_URL");
     expect(server).not.toHaveProperty("url");
+  });
+
+  it("discards stderr from the real startup probe child", () => {
+    const marker = "synthetic-sensitive-mcp-startup-marker";
+    const cwd = fileURLToPath(new URL("..", import.meta.url));
+    const tools = MCP_REGISTRATION_ALLOWLIST.map((name) => ({
+      name,
+      description: "Synthetic tool",
+      inputSchema: { type: "object" },
+      outputSchema: { type: "object" },
+    }));
+    const childScript = [
+      `process.stderr.write(${JSON.stringify(marker)});`,
+      'process.stdin.setEncoding("utf8");',
+      'let pending = "";',
+      'process.stdin.on("data", (chunk) => {',
+      "  pending += chunk;",
+      '  const lines = pending.split("\\n");',
+      '  pending = lines.pop() ?? "";',
+      "  for (const line of lines) {",
+      "    const request = JSON.parse(line);",
+      "    if (request.id === undefined) continue;",
+      '    const result = request.method === "initialize"',
+      '      ? { protocolVersion: request.params.protocolVersion, capabilities: { tools: {} }, serverInfo: { name: "synthetic", version: "1.0.0" } }',
+      `      : { tools: ${JSON.stringify(tools)} };`,
+      '    process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: request.id, result }) + "\\n");',
+      "  }",
+      "});",
+    ].join("\n");
+    const config = syntheticConfig({
+      mcpCommand: process.execPath,
+      mcpArgs: ["-e", childScript],
+      mcpWorkingDirectory: cwd,
+    });
+    const probeScript = [
+      `import { verifyMcpServerContract } from ${JSON.stringify(new URL("../src/mcp.ts", import.meta.url).href)};`,
+      `await verifyMcpServerContract(${JSON.stringify(config)});`,
+      'process.stdout.write("probe-ok");',
+    ].join("\n");
+    const probe = spawnSync(
+      process.execPath,
+      ["--import", "tsx", "--input-type=module", "-e", probeScript],
+      {
+        cwd,
+        encoding: "utf8",
+        timeout: 10_000,
+      },
+    );
+    expect(probe.error).toBeUndefined();
+    expect(probe.status).toBe(0);
+    expect(probe.stdout).toBe("probe-ok");
+    expect(probe.stderr).not.toContain(marker);
   });
 
   it("passes opaque contract-compatible audit attribution into the MCP child", () => {

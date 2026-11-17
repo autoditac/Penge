@@ -87,10 +87,21 @@ export function buildSessionConfig(
     gitHubTokenProvider: tokenProvider,
     availableTools,
     excludedTools: new ToolSet().addBuiltIn("*").addCustom("*"),
-    onPermissionRequest: () => ({
-      kind: "reject",
-      feedback: "Penge chat denies every ambient permission request",
-    }),
+    onPermissionRequest: (request) => {
+      if (
+        request.kind === "mcp" &&
+        (request.managedApprovalRequired === undefined ||
+          request.managedApprovalRequired === false) &&
+        request.serverName === "penge" &&
+        MCP_CHAT_TOOL_ALLOWLIST.some((tool) => tool === request.toolName)
+      ) {
+        return { kind: "approve-once" };
+      }
+      return {
+        kind: "reject",
+        feedback: "Penge chat denies this permission request",
+      };
+    },
     mcpServers: {
       penge: buildMcpServerConfig(config, actorId, sessionId),
     },

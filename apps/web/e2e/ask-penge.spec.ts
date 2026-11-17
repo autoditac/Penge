@@ -20,7 +20,8 @@ test("fails closed without overflow and preserves the responsive workbench", asy
   await expect(page.getByText("Exact HydraFusion is unavailable")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask", exact: true })).toBeDisabled();
   await expect(page.getByText(/No request has been sent/i)).toBeVisible();
-  await expect(page.getByRole("status")).toHaveCount(0);
+  await expect(page.getByRole("status")).toHaveCount(1);
+  await expect(page.getByRole("status")).toHaveText("");
 
   if (testInfo.project.name === "mobile") {
     await page.getByRole("button", { name: /Open evidence sheet/i }).click();
@@ -29,9 +30,11 @@ test("fails closed without overflow and preserves the responsive workbench", asy
     await page.getByRole("button", { name: "Close evidence sheet" }).click();
   } else {
     await expect(page.getByRole("complementary", { name: "Answer evidence" })).toBeVisible();
+    await expect(page.getByText("EUR + DKK supported")).toBeVisible();
     await page.getByRole("button", { name: "Collapse evidence rail" }).click();
     await expect(page.getByRole("button", { name: "Expand evidence rail" })).toBeVisible();
   }
+  await expect(page.getByText("EUR + DKK evidence")).toHaveCount(0);
 
   const hasHorizontalOverflow = await page.evaluate(
     () => document.documentElement.scrollWidth > window.innerWidth + 1,

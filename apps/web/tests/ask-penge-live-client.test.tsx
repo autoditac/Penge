@@ -547,6 +547,43 @@ describe("Ask Penge live page", () => {
     expect(await screen.findByRole("button", { name: /Reauthenticate/i })).toBeInTheDocument();
   });
 
+  it("refreshes and gates requests after exact HydraFusion becomes unavailable", async () => {
+    const unavailable = JSON.stringify({
+      version: "1.0",
+      sessionId: "model-unavailable-session",
+      id: "error-0",
+      sequence: 0,
+      type: "error",
+      code: "hydrafusion_unavailable",
+      message: "Synthetic exact-model access loss.",
+      retryable: false,
+    });
+    let resolveRefresh: ((response: Response) => void) | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockResolvedValueOnce(streamResponse([`data: ${unavailable}\n\n`]))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRefresh = resolve;
+          }),
+      );
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("Exact HydraFusion data is unavailable")).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(screen.getByText("Checking Ask Penge status")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+
+    resolveRefresh?.(statusResponse({ available: false }));
+    expect(await screen.findByText("Exact HydraFusion unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+  });
+
   it("rejects a post-terminal live event at the protocol boundary", async () => {
     const completion = JSON.stringify({
       version: "1.0",

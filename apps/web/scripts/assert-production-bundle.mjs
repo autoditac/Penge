@@ -1,5 +1,4 @@
 import { readdir, readFile } from "node:fs/promises";
-import { join } from "node:path";
 
 const forbidden = [
     "AskPengeE2EHarness",
@@ -14,7 +13,7 @@ for (const entry of entries) {
         continue;
     }
 
-    const content = await readFile(join(assetsDirectory.pathname, entry.name), "utf8");
+    const content = await readFile(new URL(entry.name, assetsDirectory), "utf8");
     for (const marker of forbidden) {
         if (content.includes(marker)) {
             throw new Error(`Production bundle contains E2E-only marker: ${marker}`);

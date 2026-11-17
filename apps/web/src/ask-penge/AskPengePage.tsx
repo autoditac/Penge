@@ -45,6 +45,7 @@ type AskPengePageProps = {
   readonly onUnlinkGitHub?: () => void;
   readonly onRetryStatus?: () => void;
   readonly onAuthExpired?: () => void;
+  readonly onModelUnavailable?: () => void;
 };
 
 const FILTER_TABS: ReadonlyArray<{ value: FilterValue; label: string }> = [
@@ -105,6 +106,7 @@ export function AskPengePage({
   onUnlinkGitHub,
   onRetryStatus,
   onAuthExpired,
+  onModelUnavailable,
 }: AskPengePageProps): React.JSX.Element {
   return (
     <AskPengeWorkbench
@@ -119,6 +121,7 @@ export function AskPengePage({
       onUnlinkGitHub={onUnlinkGitHub}
       onRetryStatus={onRetryStatus}
       onAuthExpired={onAuthExpired}
+      onModelUnavailable={onModelUnavailable}
     />
   );
 }
@@ -135,6 +138,7 @@ type AskPengeWorkbenchProps = {
   readonly onUnlinkGitHub: (() => void) | undefined;
   readonly onRetryStatus: (() => void) | undefined;
   readonly onAuthExpired: (() => void) | undefined;
+  readonly onModelUnavailable: (() => void) | undefined;
 };
 
 function AskPengeWorkbench({
@@ -149,12 +153,14 @@ function AskPengeWorkbench({
   onUnlinkGitHub,
   onRetryStatus,
   onAuthExpired,
+  onModelUnavailable,
 }: AskPengeWorkbenchProps): React.JSX.Element {
   const [events, setEvents] = useState<readonly AskStreamEvent[]>([]);
   const [answer, setAnswer] = useState<string>("");
   const [draft, setDraft] = useState<string>(
     "Which balances and tax-check items need a fresh review before the next quarter?",
   );
+  const [submittedQuestion, setSubmittedQuestion] = useState<string>("");
   const [streamState, setStreamState] = useState<StreamState>("idle");
   const [activeFilter, setActiveFilter] = useState<FilterValue>("all");
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
@@ -245,7 +251,9 @@ function AskPengeWorkbench({
     }
 
     attemptRef.current += 1;
-    const nextSession = transport.start({ question: question.trim() });
+    const normalizedQuestion = question.trim();
+    const nextSession = transport.start({ question: normalizedQuestion });
+    setSubmittedQuestion(normalizedQuestion);
     const validateEvent = createAskStreamValidator();
     let protocolFailed = false;
     sessionRef.current = nextSession;
@@ -305,6 +313,9 @@ function AskPengeWorkbench({
         finishLocalSession();
         if (event.code === "auth_expired") {
           onAuthExpired?.();
+        }
+        if (event.code === "hydrafusion_unavailable") {
+          onModelUnavailable?.();
         }
       }
       if (event.type === "completion") {
@@ -389,8 +400,12 @@ function AskPengeWorkbench({
               >
                 Stop
               </Button>
-            ) : canAsk && streamState !== "idle" ? (
-              <Button variant="contained" size="small" onClick={() => startSession(draft)}>
+            ) : canAsk && streamState !== "idle" && submittedQuestion !== "" ? (
+              <Button
+                variant="contained"
+                size="small"
+                onClick={() => startSession(submittedQuestion)}
+              >
                 Retry
               </Button>
             ) : (
@@ -482,7 +497,12 @@ function AskPengeWorkbench({
               severity="warning"
               variant="outlined"
               action={
-                <Button color="inherit" size="small" onClick={() => startSession(draft)}>
+                <Button
+                  color="inherit"
+                  size="small"
+                  disabled={submittedQuestion === ""}
+                  onClick={() => startSession(submittedQuestion)}
+                >
                   Reconnect
                 </Button>
               }
@@ -539,7 +559,7 @@ function AskPengeWorkbench({
                   aria-label="Conversation transcript"
                   sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}
                 >
-                  {answer.length === 0 ? (
+                  {answer.length === 0 && (
                     <ListItem disablePadding>
                       <Box
                         sx={{
@@ -558,33 +578,47 @@ function AskPengeWorkbench({
                             : "No request has been sent. Linkage, exact-model entitlement, and the bounded backend must be available first."}
                       </Box>
                     </ListItem>
-                  ) : (
-                    <ListItem disablePadding>
-                      <Paper
-                        variant="outlined"
-                        sx={{
-                          width: "100%",
-                          minWidth: 0,
-                          p: 1.5,
-                          borderRadius: 2,
-                          bgcolor: "background.paper",
-                          borderColor: "rgba(45, 212, 191, 0.25)",
-                          "@media (prefers-reduced-motion: reduce)": {
-                            transition: "none",
-                          },
-                        }}
-                      >
-                        <Typography
-                          role="status"
-                          aria-live="polite"
-                          aria-atomic="false"
-                          sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}
-                        >
-                          {answer}
-                        </Typography>
-                      </Paper>
-                    </ListItem>
                   )}
+                  <ListItem disablePadding>
+                    <Paper
+                      component="div"
+                      role="status"
+                      aria-live="polite"
+                      aria-atomic="false"
+                      variant="outlined"
+                      sx={
+                        answer.length === 0
+                          ? {
+                              position: "absolute",
+                              width: 1,
+                              height: 1,
+                              p: 0,
+                              m: -1,
+                              overflow: "hidden",
+                              clip: "rect(0, 0, 0, 0)",
+                              whiteSpace: "nowrap",
+                              border: 0,
+                            }
+                          : {
+                              width: "100%",
+                              minWidth: 0,
+                              p: 1.5,
+                              borderRadius: 2,
+                              bgcolor: "background.paper",
+                              borderColor: "rgba(45, 212, 191, 0.25)",
+                              "@media (prefers-reduced-motion: reduce)": {
+                                transition: "none",
+                              },
+                            }
+                      }
+                    >
+                      <Typography
+                        sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere", lineHeight: 1.6 }}
+                      >
+                        {answer}
+                      </Typography>
+                    </Paper>
+                  </ListItem>
                 </List>
 
                 <Box component="form" onSubmit={submitQuestion}>
@@ -794,7 +828,7 @@ function AskPengeWorkbench({
                       Account status
                     </Typography>
                     <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
-                      <Pill tone="good">EUR + DKK evidence</Pill>
+                      <Pill tone="info">EUR + DKK supported</Pill>
                       <Pill tone={authState === "linked" ? "good" : "watch"}>
                         {authState === "linked" ? "GitHub linked" : "GitHub not linked"}
                       </Pill>
@@ -1002,5 +1036,9 @@ export function GitHubStatusCard({
 }
 
 function completionSeverity(completion: AskStreamCompletionEvent): "success" | "warning" {
-  return completion.finishReason === "cancelled" ? "warning" : "success";
+  return completion.finishReason === "completed" &&
+    completion.coverage === "full" &&
+    completion.freshness === "fresh"
+    ? "success"
+    : "warning";
 }

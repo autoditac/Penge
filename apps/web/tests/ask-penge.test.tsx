@@ -158,7 +158,7 @@ describe("AskPengePage", () => {
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Ask" }));
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^$/);
     act(() => vi.advanceTimersByTime(120));
     expect(screen.getByRole("status")).toHaveTextContent("synthetic household balance");
 
@@ -249,9 +249,49 @@ describe("AskPengePage", () => {
       rejectFirstStop?.(new Error("synthetic stop failure"));
       await Promise.resolve();
     });
-
     expect(screen.queryByText(/could not confirm cancellation/i)).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
+  it.each([
+    ["hydrafusion_unavailable", "Retry"],
+    ["session_interrupted", "Reconnect"],
+  ] as const)("reuses the submitted question after %s", async (code, recoveryAction) => {
+    const requests: string[] = [];
+    const transport: AskTransport = {
+      start(request) {
+        requests.push(request.question);
+        const firstAttempt = requests.length === 1;
+        return {
+          stop: async () => undefined,
+          close: () => undefined,
+          subscribe: (callback) => {
+            if (firstAttempt) {
+              callback({
+                ...envelope(0),
+                type: "error",
+                id: `error-${code}`,
+                code,
+                message: `Synthetic ${code} recovery.`,
+                retryable: code === "session_interrupted",
+              });
+            }
+            return () => undefined;
+          },
+        };
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+    const user = userEvent.setup();
+    const input = screen.getByRole("textbox", { name: "Ask Penge" });
+
+    await user.clear(input);
+    await user.type(input, "Synthetic submitted question");
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await user.clear(input);
+    await user.click(screen.getByRole("button", { name: recoveryAction }));
+
+    expect(requests).toEqual(["Synthetic submitted question", "Synthetic submitted question"]);
   });
 
   it("blocks keyboard submissions while a session is streaming", async () => {
@@ -465,7 +505,34 @@ describe("AskPengePage", () => {
     expect(
       screen.getByText("Exact HydraFusion is unavailable for this linked identity."),
     ).toBeInTheDocument();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/^$/);
+  });
+
+  it("labels EUR and DKK as supported currencies, not as evidence", async () => {
+    useMediaQueryMock.mockReturnValue(false);
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        transport={createImmediateTransport([
+          {
+            ...envelope(0),
+            type: "error",
+            id: "missing-fx",
+            code: "missing_fx",
+            message: "Synthetic FX evidence is missing.",
+            retryable: true,
+          },
+        ])}
+      />,
+    );
+
+    expect(screen.getByText("EUR + DKK supported")).toBeInTheDocument();
+    expect(screen.queryByText("EUR + DKK evidence")).not.toBeInTheDocument();
+    await startInjectedStream();
+    expect(await screen.findByText("EUR/DKK FX evidence is missing")).toBeInTheDocument();
+    expect(screen.getByText("EUR + DKK supported")).toBeInTheDocument();
+    expect(screen.queryByText("EUR + DKK evidence")).not.toBeInTheDocument();
   });
 
   it("rejects unknown protocol versions and extra event fields", () => {
@@ -653,6 +720,41 @@ describe("AskPengePage", () => {
     expect(alert).not.toHaveClass("MuiAlert-colorSuccess");
   });
 
+  it.each([
+    ["partial", "fresh", "MuiAlert-colorWarning"],
+    ["full", "stale", "MuiAlert-colorWarning"],
+    ["full", "fresh", "MuiAlert-colorSuccess"],
+  ] as const)(
+    "styles a %s/%s completed answer according to its evidence quality",
+    async (coverage, freshness, severityClass) => {
+      useMediaQueryMock.mockReturnValue(false);
+      render(
+        <AskPengePage
+          authState="linked"
+          modelAvailable
+          transport={createImmediateTransport([
+            {
+              ...envelope(0),
+              type: "completion",
+              id: `completed-${coverage}-${freshness}`,
+              summary: "Synthetic completed answer.",
+              coverage,
+              freshness,
+              finishReason: "completed",
+              assumptions: [],
+            },
+          ])}
+        />,
+      );
+
+      await startInjectedStream();
+      const alert = (await screen.findByText("Synthetic completed answer.")).closest(
+        ".MuiAlert-root",
+      );
+      expect(alert).toHaveClass(severityClass);
+    },
+  );
+
   it("buffers answer announcements and flushes them when cancelled", async () => {
     vi.useFakeTimers();
     try {
@@ -681,9 +783,9 @@ describe("AskPengePage", () => {
         />,
       );
       fireEvent.click(screen.getByRole("button", { name: "Ask" }));
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(/^$/);
       act(() => vi.advanceTimersByTime(119));
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent(/^$/);
 
       fireEvent.click(screen.getByRole("button", { name: "Stop" }));
       expect(screen.getByRole("status")).toHaveTextContent("Buffered answer.");
@@ -772,6 +874,7 @@ describe("AskPengePage", () => {
   });
 
   it("fails closed without starting transport or simulating GitHub linkage", () => {
+    useMediaQueryMock.mockReturnValue(false);
     const start = vi.fn((_request: AskRequest) =>
       createTransport([]).start({ question: "unused" }),
     );
@@ -782,6 +885,8 @@ describe("AskPengePage", () => {
     expect(start).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "GitHub linking unavailable" })).toBeDisabled();
+    expect(screen.getByText("EUR + DKK supported")).toBeInTheDocument();
+    expect(screen.queryByText("EUR + DKK evidence")).not.toBeInTheDocument();
     expect(screen.queryByText(/DKK 1\.42M/)).not.toBeInTheDocument();
   });
 

@@ -108,6 +108,7 @@ function ConfiguredAskPengePage({
       onLinkGitHub={() => navigate(client.githubStartUrl)}
       onRetryStatus={() => void refreshStatus()}
       onAuthExpired={() => void refreshStatus()}
+      onModelUnavailable={() => void refreshStatus()}
       {...(status?.github.state === "linked" ? { onUnlinkGitHub: unlinkGitHub } : {})}
     />
   );

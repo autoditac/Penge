@@ -89,6 +89,8 @@ are recorded in ADR-0036.
   an injectable transport.
   Text deltas are buffered into bounded live-region updates, while terminal
   completion flushes remaining text and exposes typed assumptions and limits.
+  The screen-reader live region exists before the first delta, and retry or
+  reconnect resends the last submitted question rather than the editable draft.
   It keeps GitHub account linkage separate from model availability, rejects
   unknown major contracts and extra event fields, never persists transcripts,
   and does not call finance endpoints directly.
@@ -104,6 +106,11 @@ are recorded in ADR-0036.
   `POST <base>/v1/chat/stop` only after a server session ID is observed.
   Missing configuration keeps the production route disabled, exposes no
   simulated OAuth success, and permits no model fallback.
+  Exact-model errors refresh server-derived availability before another request
+  is enabled. Only completed answers with full, fresh evidence receive success
+  styling; partial, stale, and cancelled results remain warnings. The account
+  panel describes EUR and DKK support, while each evidence card identifies the
+  currencies actually present in that source.
   The incremental SSE parser handles chunk boundaries and CRLF/LF framing;
   malformed, out-of-order, cross-session, and post-terminal events fail closed.
   Synthetic streams are available only through injected transports in tests.

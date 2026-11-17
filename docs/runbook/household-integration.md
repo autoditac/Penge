@@ -85,6 +85,8 @@ until their own disjoint pair is allocated.
 `PENGE_E2E_API_PORT` and `PENGE_E2E_WEB_PORT` select those ports for
 the production build, API listener, CORS origin, preview, and browser assertions.
 Without overrides, local defaults remain API 8000 and preview 5173.
+Origins use browser URL serialization, including omission of the default HTTP
+port 80, so CORS and real-response predicates match browser requests.
 Both servers refuse reuse, and preview uses strict port binding: an occupied
 port must fail, never attach to another job's API or silently move the preview.
 Run `just household-browser-config-test` to check allocation, build-time origin,

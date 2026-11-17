@@ -17,5 +17,5 @@ const ports = z
 
 export const apiPort = ports.PENGE_E2E_API_PORT;
 export const webPort = ports.PENGE_E2E_WEB_PORT;
-export const apiUrl = `http://127.0.0.1:${apiPort}`;
-export const webUrl = `http://127.0.0.1:${webPort}`;
+export const apiUrl = new URL(`http://127.0.0.1:${apiPort}`).origin;
+export const webUrl = new URL(`http://127.0.0.1:${webPort}`).origin;

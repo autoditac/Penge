@@ -52,3 +52,20 @@ test("API and preview cannot share one port", async () => {
     "Browser API and preview ports must be different",
   );
 });
+
+test.each([
+  ["80", "5173", "http://127.0.0.1", "http://127.0.0.1:5173"],
+  ["8000", "80", "http://127.0.0.1:8000", "http://127.0.0.1"],
+])("port 80 uses browser-serialized origins (%s/%s)", async (api, web, apiUrl, webUrl) => {
+  const resolved = await config(api, web);
+  const origins = await import("../browser-env");
+  expect(origins.apiUrl).toBe(apiUrl);
+  expect(origins.webUrl).toBe(webUrl);
+  expect(resolved).toMatchObject({
+    use: { baseURL: webUrl },
+    webServer: [
+      { url: `${apiUrl}/openapi.json`, env: { PENGE_API_CORS_ORIGINS: webUrl } },
+      { url: webUrl, env: { VITE_PENGE_API_URL: apiUrl } },
+    ],
+  });
+});

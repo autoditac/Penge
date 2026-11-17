@@ -2,6 +2,8 @@
 
 import logging
 import os
+import sys
+from pathlib import Path
 from unittest.mock import Mock
 
 import pytest
@@ -30,9 +32,12 @@ def test_migration_does_not_reconfigure_parent_logging_or_environment(
     upgrade_isolated_database(url)
 
     assert runner.call_count == 1
-    assert runner.call_args.args[0][-3:] == ["alembic", "upgrade", "head"]
+    assert runner.call_args.args == ([sys.executable, "-m", "alembic", "upgrade", "head"],)
     assert runner.call_args.kwargs["env"]["DATABASE_URL"] == url
     assert runner.call_args.kwargs["check"] is True
+    assert runner.call_args.kwargs["cwd"] == Path(__file__).resolve().parents[2]
+    assert runner.call_args.kwargs["timeout"] == 120
+    assert runner.call_args.kwargs.get("shell", False) is False
     assert "DATABASE_URL" not in os.environ
     assert tuple(logging.getLogger().handlers) == handlers
     assert logger.disabled == disabled

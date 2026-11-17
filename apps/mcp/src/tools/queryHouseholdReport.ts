@@ -130,6 +130,7 @@ export interface QueryHouseholdReportOptions {
 interface MartRow extends Record<string, unknown> {
   as_of: Date | string;
   treatment: "income" | "expense" | "refund" | "unclassified";
+  reporting_treatment: "income" | "expense" | "refund" | "unclassified";
   known_allocation_amount_eur: string;
   known_allocation_amount_dkk: string;
   missing_fx_count_eur: string | number;
@@ -165,6 +166,7 @@ const REPORT_SQL = `
   SELECT
     m.as_of,
     m.treatment,
+    m.reporting_treatment,
     m.allocation_known_amount_eur::text AS known_allocation_amount_eur,
     m.allocation_known_amount_dkk::text AS known_allocation_amount_dkk,
     m.missing_fx_count_eur,
@@ -246,21 +248,15 @@ function emptyTotals(): TotalsAccumulator {
 
 function addRow(totals: TotalsAccumulator, row: MartRow): void {
   const metric =
-    row.treatment === "income"
+    row.reporting_treatment === "income"
       ? totals.income
-      : row.treatment === "refund"
+      : row.reporting_treatment === "refund"
         ? totals.refunds
         : totals.gross_expenses;
   const eurAmount = parseDecimal(row.known_allocation_amount_eur);
   const dkkAmount = parseDecimal(row.known_allocation_amount_dkk);
-  metric.eur.known +=
-    row.treatment === "expense" || row.treatment === "unclassified"
-      ? absolute(eurAmount)
-      : eurAmount;
-  metric.dkk.known +=
-    row.treatment === "expense" || row.treatment === "unclassified"
-      ? absolute(dkkAmount)
-      : dkkAmount;
+  metric.eur.known += row.reporting_treatment === "expense" ? absolute(eurAmount) : eurAmount;
+  metric.dkk.known += row.reporting_treatment === "expense" ? absolute(dkkAmount) : dkkAmount;
   metric.eur.missing += Number(row.missing_fx_count_eur);
   metric.dkk.missing += Number(row.missing_fx_count_dkk);
 }
@@ -387,8 +383,10 @@ export function queryHouseholdReportTool(
     description:
       "Returns household income, expenses, refunds, surplus, comparison, and trend from the " +
       "bank-ledger reporting mart. Both EUR and DKK values remain exact decimal strings; " +
-      "missing FX is null with its known subtotal and missing count. Aggregates only — no " +
-      "transactions, account identifiers, or payment-provider payloads.",
+      "positive unclassified movements count as income and negative ones as expenses without " +
+      "changing their unclassified status. Missing FX is null with its known subtotal and " +
+      "missing count. Aggregates only — no transactions, account identifiers, or " +
+      "payment-provider payloads.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {

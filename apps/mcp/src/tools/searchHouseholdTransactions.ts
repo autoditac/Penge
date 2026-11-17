@@ -171,6 +171,7 @@ const SEARCH_SQL = `
     LIMIT 1
   ) AS audit ON true
   WHERE a.provider = ANY($1::text[])
+    AND a.currency IN ('EUR', 'DKK')
     AND ($2::text IS NULL OR a.provider = $2)
     AND (t.ts AT TIME ZONE 'UTC')::date BETWEEN $3::date AND $4::date
     AND ($5::uuid[] IS NULL OR a.id = ANY($5::uuid[]))
@@ -189,6 +190,7 @@ const COUNT_SQL = `
   LEFT JOIN household_classification AS c ON c.transaction_id = t.id
   LEFT JOIN household_merchant AS m ON m.id = c.merchant_id
   WHERE a.provider = ANY($1::text[])
+    AND a.currency IN ('EUR', 'DKK')
     AND ($2::text IS NULL OR a.provider = $2)
     AND (t.ts AT TIME ZONE 'UTC')::date BETWEEN $3::date AND $4::date
     AND ($5::uuid[] IS NULL OR a.id = ANY($5::uuid[]))
@@ -213,7 +215,7 @@ export function searchHouseholdTransactionsTool(
   return {
     name: "search_household_transactions",
     description:
-      "Search a bounded date window of household transactions and return stable IDs, current classification state, and audit references; never raw source payloads.",
+      "Search a bounded date window of EUR/DKK household transactions and return stable IDs, current classification state, and audit references; never raw source payloads.",
     inputSchema: InputSchema,
     outputSchema: OutputSchema,
     async handler(args) {

@@ -283,6 +283,91 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
     }
   });
 
+  it("excludes unsupported currencies from transaction pages and totals", async () => {
+    const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
+    if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {
+      throw new Error("Explicit disposable test database opt-in is required");
+    }
+    const url = new URL(rawUrl.replace(/^postgresql\+psycopg:/, "postgresql:"));
+    if (
+      !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
+      !url.pathname.endsWith("_test")
+    ) {
+      throw new Error("Only a loopback test-suffixed PostgreSQL database is permitted");
+    }
+    const euroAccount = "10101010-1010-4010-8010-101010101010";
+    const dkkAccount = "20202020-2020-4020-8020-202020202020";
+    const usdAccount = "30303030-3030-4030-8030-303030303030";
+    const euroTransaction = "40404040-4040-4040-8040-404040404040";
+    const dkkTransaction = "50505050-5050-4050-8050-505050505050";
+    const usdTransaction = "60606060-6060-4060-8060-606060606060";
+    const pool = new pg.Pool({ connectionString: url.toString() });
+    const client = await pool.connect();
+    let destroy = false;
+    try {
+      for (const table of [
+        "account",
+        "transaction",
+        "household_classification",
+        "household_merchant",
+        "household_allocation",
+        "household_audit",
+        "household_payment_detail",
+        "household_payment_detail_link",
+      ]) {
+        destroy = true;
+        await client.query(`CREATE TEMP TABLE ${table} (LIKE public.${table} INCLUDING DEFAULTS)`);
+      }
+      await client.query(
+        `INSERT INTO account (id, entity_id, provider, name, kind, currency)
+         VALUES
+           ($1::uuid, $1::uuid, 'gls', 'Synthetic EUR account', 'checking', 'EUR'),
+           ($2::uuid, $2::uuid, 'lunar', 'Synthetic DKK account', 'checking', 'DKK'),
+           ($3::uuid, $3::uuid, 'gls', 'Synthetic USD account', 'checking', 'USD')`,
+        [euroAccount, dkkAccount, usdAccount],
+      );
+      await client.query(
+        `INSERT INTO transaction (id, account_id, ts, value_date, kind, amount, counterparty)
+         VALUES
+           ($1::uuid, $4::uuid, '2026-06-01T10:00:00Z', '2026-06-01', 'payment', -1, 'Euro'),
+           ($2::uuid, $5::uuid, '2026-06-01T11:00:00Z', '2026-06-01', 'payment', -2, 'Krone'),
+           ($3::uuid, $6::uuid, '2026-06-01T12:00:00Z', '2026-06-01', 'payment', -3, 'Dollar')`,
+        [euroTransaction, dkkTransaction, usdTransaction, euroAccount, dkkAccount, usdAccount],
+      );
+
+      const search = searchHouseholdTransactionsTool({ runner: client });
+      const context = { serverName: "postgres-test", serverVersion: "test" };
+      const base = { date_range: { from: "2026-06-01", to: "2026-06-01" }, limit: 1 };
+      const first = await search.handler(search.inputSchema.parse(base), context);
+      const second = await search.handler(
+        search.inputSchema.parse({ ...base, offset: 1 }),
+        context,
+      );
+      const afterLast = await search.handler(
+        search.inputSchema.parse({ ...base, offset: 2 }),
+        context,
+      );
+      const usdOnly = await search.handler(
+        search.inputSchema.parse({ ...base, account_ids: [usdAccount] }),
+        context,
+      );
+      for (const page of [first, second, afterLast, usdOnly]) search.outputSchema.parse(page);
+      expect(first.total).toBe(2);
+      expect(first.items.map((row) => [row.stable_id, row.currency])).toEqual([
+        [dkkTransaction, "DKK"],
+      ]);
+      expect(second.total).toBe(2);
+      expect(second.items.map((row) => [row.stable_id, row.currency])).toEqual([
+        [euroTransaction, "EUR"],
+      ]);
+      expect(afterLast).toMatchObject({ total: 2, items: [] });
+      expect(usdOnly).toMatchObject({ total: 0, items: [] });
+    } finally {
+      client.release(destroy);
+      await pool.end();
+    }
+  });
+
   it("executes bounded search and stable-ID detail against synthetic facts", async () => {
     const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
     if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {

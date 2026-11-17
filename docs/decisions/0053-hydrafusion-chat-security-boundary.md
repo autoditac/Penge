@@ -11,6 +11,10 @@ Issue #345 is the architecture and feasibility gate for the private Ask Penge
 feature in parent issue #341.
 Penge needs an explanation-first chat service without weakening ADR-0005's
 MCP-only data boundary or ADR-0023's process-local stdio transport.
+ADR-0005 permits the model to see aggregate tool outputs, not raw transactions.
+The proposed #344 contract includes transaction search and detail tools, so its
+model-facing allowlist is not yet approved under that boundary.
+This decision grants no exception to ADR-0005.
 
 The service eventually implemented by issue #346 must support two household
 members.
@@ -113,13 +117,22 @@ replaces the proof package.
 
 ### Tool-contract seam
 
-`issue-344-v1` is the accepted target MCP contract from #344.
-Its registration set is `_meta` plus 16 chat tools covering the
+`issue-344-v1` is the target MCP registration contract from #344.
+Its registration set is `_meta` plus 16 tools covering the
 existing eight capabilities, source coverage, bounded transaction
 search/detail, household taxonomy/rule/merchant summaries, and
 merchant-reference status/search.
-The model-facing allowlist contains only the 16 chat tools; `_meta` remains
+The proposed model-facing allowlist contains those 16 tools; `_meta` remains
 registered for MCP protocol discovery and is never exposed to the model.
+In particular, `search_household_transactions` and
+`get_household_transaction_detail` conflict with ADR-0005's aggregate-only
+model boundary.
+They must not be exposed to a model while that conflict is unresolved.
+Before production enablement, the owner must approve an ADR-0005 amendment or
+superseding decision explicitly permitting the relevant transaction-level
+outputs, or the transaction search and detail tools must be removed from the
+model-facing allowlist in an updated contract that is verified to satisfy the
+aggregate-only boundary.
 At this PR's current base, repository source defines `_meta` plus only the eight
 existing tools.
 The harness configures only those eight, but does not start the MCP child,
@@ -127,10 +140,12 @@ inspect `tools/list`, or invoke a tool.
 It raises
 `chat/mcp_contract_unavailable` when that observed set is checked against
 `issue-344-v1`.
-Production cannot claim or enable the target contract until #350 is merged and
-an independent stdio `tools/list` integration test proves all 17 names.
+Production cannot claim the target registration until #350 is merged and an
+independent stdio `tools/list` integration test proves all 17 names.
+Registration evidence alone does not authorize model exposure or resolve the
+privacy gate.
 Issue #346 must reject unknown versions rather than silently widening the tool
-set.
+set, and must verify the selected policy-compliant contract before enabling it.
 
 ### Feasibility and entitlement evidence
 
@@ -163,7 +178,8 @@ disabled, and no other model may substitute.
 
 ### Positive
 
-- The existing MCP privacy boundary remains intact.
+- MCP remains the intended data ingress; the proposed transaction-level tools'
+  compatibility with ADR-0005 remains unresolved.
 - Actor/token isolation and deny-by-default tools are executable contracts.
 - Downstream work has versioned seams instead of inferred tool names.
 - Missing HydraFusion entitlement fails explicitly.
@@ -172,9 +188,10 @@ disabled, and no other model may substitute.
 
 - Live chat cannot ship until each authorized user independently passes the
   exact model check.
-- Live chat cannot ship until the real stdio server's `tools/list` response
-  proves `issue-344-v1`.
-- Changes to the accepted #344 tool set require a new explicit contract
+- Live chat cannot ship until the ADR-0005 conflict is resolved as described
+  above and the real stdio server's `tools/list` response proves the selected
+  contract.
+- Changes to the #344 tool set require a new explicit contract
   version; registration alone never grants model access.
 - Per-user OAuth, cancellation, cleanup, and retention enforcement remain
   implementation work for #346.
@@ -188,8 +205,8 @@ disabled, and no other model may substitute.
 
 | PBI  | Contract provided by this decision                                                                                                                                                                                                                        |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #344 | Implement `issue-344-v1`: register `_meta` plus 16 chat tools, expose only the 16 chat tools to the model, and preserve declared schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields.                                      |
-| #346 | Own `apps/chat` and the SDK pin; preserve empty mode, actor/linked-identity-scoped entitlement and token providers, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
+| #344 | Implement `issue-344-v1` registration of `_meta` plus 16 tools, preserving schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields; model exposure requires resolving ADR-0005 and an explicit contract version. |
+| #346 | Own `apps/chat` and the SDK pin; keep production disabled until the ADR-0005 conflict is resolved, and preserve empty mode, actor/linked-identity-scoped entitlement and tokens, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
 | #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                                          |
 | #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists.                |
 

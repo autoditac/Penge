@@ -2,7 +2,9 @@
 
 Issue #345 supplies a synthetic architecture proof, not a live chat service.
 Production remains disabled because the currently authenticated user's
-`listModels()` response did not contain the exact `hydrafusion` ID.
+`listModels()` response did not contain the exact `hydrafusion` ID and the
+proposed transaction-level tools conflict with ADR-0005's aggregate-only model
+boundary.
 
 ## Validate the synthetic proof
 
@@ -26,10 +28,13 @@ This does not test the production entrypoint or a Copilot session.
 The planned `issue-344-v1` MCP server registers `_meta` plus 16 chat tools.
 It is not implemented on this PR's current base: repository source currently
 defines `_meta` plus eight chat tools.
-Production remains blocked until #350 lands and an independent stdio
-`tools/list` test proves the exact 17-name registration set.
-Only the 16 chat tools may then enter the SDK allowlist; `_meta` remains
-protocol-only.
+The target registration cannot be claimed until #350 lands and an independent
+stdio `tools/list` test proves the exact 17-name set.
+This proves registration, not permission to expose the 16 tools to a model.
+The proposed `search_household_transactions` and
+`get_household_transaction_detail` tools must remain excluded while their
+conflict with [ADR-0005](../decisions/0005-llm-access-via-mcp-only.md) is
+unresolved; `_meta` remains protocol-only.
 
 ## Run the token-safe entitlement check
 
@@ -73,18 +78,25 @@ Issue #346 may enable a linked actor only after all checks pass:
    GitHub login, and `hydrafusion` model ID.
    A record for another actor or linked identity is rejected.
 4. SDK and MCP child environments exclude ambient authentication variables.
-5. Real stdio `tools/list` evidence matches `issue-344-v1`.
-6. `PENGE_CHAT_MODEL=hydrafusion` and
+5. The ADR-0005 conflict is resolved by an owner-approved amendment or
+   superseding decision explicitly permitting the relevant transaction-level
+   outputs, or by removing the transaction search and detail tools from the
+   model-facing allowlist and verifying an updated contract against the
+   aggregate-only boundary.
+   No policy exception has been granted.
+6. Real stdio `tools/list` evidence matches the selected, policy-compliant
+   contract; registration alone does not authorize model exposure.
+7. `PENGE_CHAT_MODEL=hydrafusion` and
    `PENGE_CHAT_ENABLE_PRODUCTION=1` are set.
    The deployment switch never substitutes for the actor-scoped record.
-7. `PENGE_CHAT_FALLBACK_MODEL` is unset.
-8. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
+8. `PENGE_CHAT_FALLBACK_MODEL` is unset.
+9. The runtime uses `mode: "empty"`, denies built-in/custom tools and every
    non-MCP permission request, and starts only the local stdio Penge MCP server.
    It approves once only for a read-only request matching the exact `penge`
    server and configured tool allowlist.
-9. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
+10. Network tests prove no MCP, Copilot runtime, database, or raw tool port is
    reachable.
-10. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted
+11. Cancellation, timeout, process cleanup, ephemeral transcripts, redacted
    audits, token encryption/rotation, backup, and rollback tests pass.
 
 If any check fails, keep chat disabled and return a typed unavailable or

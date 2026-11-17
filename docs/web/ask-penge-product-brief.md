@@ -57,19 +57,26 @@ At minimum it needs ordered delta, sanitized tool/evidence, completion,
 cancellation, and typed error events plus stable session/event identifiers.
 The UI must reject unknown major versions.
 
-The accepted target `issue-344-v1` MCP contract registers `_meta` plus 16 chat
+The target `issue-344-v1` MCP registration contract specifies `_meta` plus 16
 tools.
 It is not yet present on this PR's base; repository source defines `_meta` plus
 eight chat tools, while this harness proves configuration only.
-Complete-source claims remain disabled until #350 lands and stdio `tools/list`
-proves the exact target set.
-Only the 16 chat tools will be model-accessible; `_meta` remains protocol-only.
-The UI may advertise complete Penge grounding only when the backend reports
-this exact contract version and renders the source-coverage evidence returned
-by `get_source_coverage`.
+The target registration cannot be claimed until #350 lands and stdio
+`tools/list` proves the exact set.
+Registration does not authorize model exposure: the proposed transaction
+search and detail tools conflict with ADR-0005's aggregate-only boundary.
+Production and complete-source claims remain blocked until that conflict is
+resolved under [ADR-0053](../decisions/0053-hydrafusion-chat-security-boundary.md)
+and the selected contract is independently verified.
+Only tools in the resulting policy-compliant allowlist may be model-accessible;
+`_meta` remains protocol-only.
+The UI may advertise complete Penge grounding only when the backend reports the
+approved contract version and renders the source-coverage evidence returned by
+`get_source_coverage`.
 
 ## Current availability
 
 The #345 harness is synthetic and makes no model call.
 The token-safe 2026-10-04 model-list check did not return `hydrafusion`, so the
-production feature remains disabled.
+production feature remains disabled, independently of the unresolved
+transaction-level privacy gate.

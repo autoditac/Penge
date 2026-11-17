@@ -214,6 +214,136 @@ describe("AskPengePage", () => {
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 
+  it("ignores a stale stop failure after a newer attempt starts", async () => {
+    let rejectFirstStop: ((error: Error) => void) | undefined;
+    let starts = 0;
+    const transport: AskTransport = {
+      start() {
+        starts += 1;
+        const isFirst = starts === 1;
+        return {
+          stop: isFirst
+            ? () =>
+                new Promise<void>((_resolve, reject) => {
+                  rejectFirstStop = reject;
+                })
+            : async () => undefined,
+          close: () => undefined,
+          subscribe: () => () => undefined,
+        };
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    await act(async () => {
+      rejectFirstStop?.(new Error("synthetic stop failure"));
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText(/could not confirm cancellation/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
+  it("blocks keyboard submissions while a session is streaming", async () => {
+    let starts = 0;
+    const transport: AskTransport = {
+      start() {
+        starts += 1;
+        return {
+          stop: async () => undefined,
+          close: () => undefined,
+          subscribe: () => () => undefined,
+        };
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    const input = screen.getByRole("textbox", { name: "Ask Penge" });
+    fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+    fireEvent.keyDown(input, { key: "Enter", metaKey: true });
+
+    expect(starts).toBe(1);
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
+  it("latches protocol failure so later events cannot modify the answer", async () => {
+    const transport: AskTransport = {
+      start() {
+        return {
+          stop: async () => undefined,
+          close: () => undefined,
+          subscribe: (callback) => {
+            callback({
+              ...envelope(1),
+              type: "text",
+              id: "out-of-order",
+              stream: "answer",
+              delta: "Out of order.",
+              source: "assistant",
+            });
+            callback({
+              ...envelope(0),
+              type: "text",
+              id: "after-failure",
+              stream: "answer",
+              delta: "Must not render.",
+              source: "assistant",
+            });
+            callback({
+              ...envelope(1),
+              type: "completion",
+              id: "after-failure-completion",
+              summary: "Synthetic completion after failure.",
+              coverage: "full",
+              freshness: "fresh",
+              finishReason: "completed",
+              assumptions: [],
+            });
+            return () => undefined;
+          },
+        };
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+
+    await startInjectedStream();
+    expect(await screen.findByText("Unsupported answer stream")).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(screen.queryByText(/Must not render/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Synthetic completion after failure.")).not.toBeInTheDocument();
+  });
+
+  it("requests an authoritative status refresh when authorization expires", async () => {
+    const onAuthExpired = vi.fn();
+    render(
+      <AskPengePage
+        authState="linked"
+        modelAvailable
+        onAuthExpired={onAuthExpired}
+        transport={createImmediateTransport([
+          {
+            ...envelope(0),
+            type: "error",
+            id: "expired",
+            code: "auth_expired",
+            message: "Synthetic expired authorization.",
+            retryable: false,
+          },
+        ])}
+      />,
+    );
+
+    await startInjectedStream();
+    expect(await screen.findByText("GitHub session expired")).toBeInTheDocument();
+    expect(onAuthExpired).toHaveBeenCalledOnce();
+  });
+
   it("exposes pressed evidence filters and preserves empty filtered results", async () => {
     useMediaQueryMock.mockReturnValue(false);
     render(

@@ -44,6 +44,7 @@ type AskPengePageProps = {
   readonly onLinkGitHub?: () => void;
   readonly onUnlinkGitHub?: () => void;
   readonly onRetryStatus?: () => void;
+  readonly onAuthExpired?: () => void;
 };
 
 const FILTER_TABS: ReadonlyArray<{ value: FilterValue; label: string }> = [
@@ -103,6 +104,7 @@ export function AskPengePage({
   onLinkGitHub,
   onUnlinkGitHub,
   onRetryStatus,
+  onAuthExpired,
 }: AskPengePageProps): React.JSX.Element {
   return (
     <AskPengeWorkbench
@@ -116,6 +118,7 @@ export function AskPengePage({
       onLinkGitHub={onLinkGitHub}
       onUnlinkGitHub={onUnlinkGitHub}
       onRetryStatus={onRetryStatus}
+      onAuthExpired={onAuthExpired}
     />
   );
 }
@@ -131,6 +134,7 @@ type AskPengeWorkbenchProps = {
   readonly onLinkGitHub: (() => void) | undefined;
   readonly onUnlinkGitHub: (() => void) | undefined;
   readonly onRetryStatus: (() => void) | undefined;
+  readonly onAuthExpired: (() => void) | undefined;
 };
 
 function AskPengeWorkbench({
@@ -144,6 +148,7 @@ function AskPengeWorkbench({
   onLinkGitHub,
   onUnlinkGitHub,
   onRetryStatus,
+  onAuthExpired,
 }: AskPengeWorkbenchProps): React.JSX.Element {
   const [events, setEvents] = useState<readonly AskStreamEvent[]>([]);
   const [answer, setAnswer] = useState<string>("");
@@ -158,6 +163,7 @@ function AskPengeWorkbench({
   const [contractError, setContractError] = useState<string | null>(null);
   const sessionRef = useRef<AskTransportSession | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const attemptRef = useRef<number>(0);
   const answerRef = useRef<string>("");
   const answerBufferRef = useRef<string>("");
   const answerTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -202,6 +208,7 @@ function AskPengeWorkbench({
   }
 
   async function stopSession(): Promise<void> {
+    const attempt = attemptRef.current;
     const session = sessionRef.current;
     const unsubscribe = unsubscribeRef.current;
     if (sessionRef.current === session) {
@@ -216,29 +223,31 @@ function AskPengeWorkbench({
     try {
       await session?.stop();
     } catch {
-      setContractError(
-        "The server could not confirm cancellation. The local stream was closed; reconnect before asking again.",
-      );
-      setStreamState("disconnected");
+      if (attemptRef.current === attempt) {
+        setContractError(
+          "The server could not confirm cancellation. The local stream was closed; reconnect before asking again.",
+        );
+        setStreamState("disconnected");
+      }
     } finally {
       session?.close();
     }
   }
 
   function startSession(question: string): void {
-    if (!question.trim() || !canAsk || transport === undefined) {
+    // Keyboard shortcuts bypass the disabled Ask button, so an active session must block here too.
+    if (!question.trim() || !canAsk || transport === undefined || sessionRef.current !== null) {
       return;
     }
 
-    if (sessionRef.current !== null) {
-      sessionRef.current.close();
-    }
     if (unsubscribeRef.current !== null) {
       unsubscribeRef.current();
     }
 
+    attemptRef.current += 1;
     const nextSession = transport.start({ question: question.trim() });
     const validateEvent = createAskStreamValidator();
+    let protocolFailed = false;
     sessionRef.current = nextSession;
     flushBufferedAnswer(false);
     answerRef.current = "";
@@ -266,10 +275,14 @@ function AskPengeWorkbench({
       unsubscribeAfterDispatch();
     };
     unsubscribe = nextSession.subscribe((candidate) => {
+      if (protocolFailed) {
+        return;
+      }
       let event: AskStreamEvent;
       try {
         event = validateEvent(candidate);
       } catch {
+        protocolFailed = true;
         flushBufferedAnswer();
         finishLocalSession();
         setContractError(
@@ -290,6 +303,9 @@ function AskPengeWorkbench({
         setStreamError(event);
         setStreamState(event.code === "session_interrupted" ? "disconnected" : "error");
         finishLocalSession();
+        if (event.code === "auth_expired") {
+          onAuthExpired?.();
+        }
       }
       if (event.type === "completion") {
         flushBufferedAnswer();

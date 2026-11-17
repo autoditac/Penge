@@ -107,6 +107,7 @@ function ConfiguredAskPengePage({
       serviceError={serviceError}
       onLinkGitHub={() => navigate(client.githubStartUrl)}
       onRetryStatus={() => void refreshStatus()}
+      onAuthExpired={() => void refreshStatus()}
       {...(status?.github.state === "linked" ? { onUnlinkGitHub: unlinkGitHub } : {})}
     />
   );

@@ -10,7 +10,7 @@ import {
   householdTransactionsResponseSchema,
 } from "../src/api/schemas";
 
-const api = "http://127.0.0.1:8000";
+const api = `http://127.0.0.1:${process.env.PENGE_E2E_API_PORT ?? "8000"}`;
 
 function apiResponse(response: Response, path: string, method = "GET", status = 200): boolean {
   const url = new URL(response.url());

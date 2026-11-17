@@ -520,6 +520,33 @@ describe("Ask Penge live page", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "DELETE" });
   });
 
+  it("refreshes authoritative status after a streamed auth_expired error", async () => {
+    const expired = JSON.stringify({
+      version: "1.0",
+      sessionId: "expired-session",
+      id: "error-0",
+      sequence: 0,
+      type: "error",
+      code: "auth_expired",
+      message: "Synthetic expired authorization.",
+      retryable: false,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockResolvedValueOnce(streamResponse([`data: ${expired}\n\n`]))
+      .mockResolvedValueOnce(statusResponse({ state: "expired" }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("GitHub session expired")).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/chat/v1/auth/status");
+    expect(await screen.findByRole("button", { name: /Reauthenticate/i })).toBeInTheDocument();
+  });
+
   it("rejects a post-terminal live event at the protocol boundary", async () => {
     const completion = JSON.stringify({
       version: "1.0",

@@ -5,7 +5,7 @@ import { householdCategoriesResponseSchema } from "../src/api/schemas";
 function isCategoryResponse(response: Response, method: "GET" | "POST"): boolean {
   const url = new URL(response.url());
   return (
-    url.origin === "http://127.0.0.1:8000" &&
+    url.origin === `http://127.0.0.1:${process.env.PENGE_E2E_API_PORT ?? "8000"}` &&
     url.pathname === "/household/categories" &&
     response.request().method() === method &&
     response.status() === (method === "POST" ? 201 : 200) &&

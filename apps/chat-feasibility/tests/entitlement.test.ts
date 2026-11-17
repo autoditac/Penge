@@ -1,3 +1,4 @@
+import { spawn, type ChildProcess } from "node:child_process";
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -94,30 +95,47 @@ describe("bounded entitlement probe", () => {
     await rm(baseDirectory, { recursive: true, force: true });
   }, 10_000);
 
-  it("does not list models if SDK startup finishes after the deadline", async () => {
+  it("stops a runtime that starts after the probe deadline", async () => {
     const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
     let finishStartup: () => void = () => {
       throw new Error("synthetic startup was not initialized");
     };
+    let child: ChildProcess | undefined;
     const startup = new Promise<void>((resolve) => {
       finishStartup = resolve;
     });
     const listModels = vi.fn(async () => [{ id: hydraFusionModel }]);
-    const forceStop = vi.fn(async () => {});
+    const forceStop = vi.fn(async () => {
+      child?.kill("SIGKILL");
+    });
     const client: EntitlementProbeClient = {
-      start: () => startup,
+      start: async () => {
+        await startup;
+        child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+          stdio: "ignore",
+        });
+      },
       listModels,
       stop: async () => [],
       forceStop,
     };
 
-    await expect(
-      probeEntitlement(client, baseDirectory, { probeMs: 50, shutdownMs: 500 }),
-    ).rejects.toBeInstanceOf(SdkCleanupError);
-    finishStartup();
-    await vi.waitFor(() => expect(forceStop).toHaveBeenCalledTimes(2));
-    expect(listModels).not.toHaveBeenCalled();
-    await expect(stat(baseDirectory)).resolves.toBeDefined();
-    await rm(baseDirectory, { recursive: true, force: true });
+    try {
+      await expect(
+        probeEntitlement(client, baseDirectory, { probeMs: 50, shutdownMs: 500 }),
+      ).rejects.toBeInstanceOf(SdkCleanupError);
+      expect(forceStop).toHaveBeenCalledOnce();
+      finishStartup();
+      await vi.waitFor(() => expect(forceStop).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(child?.signalCode).toBe("SIGKILL"));
+      expect(listModels).not.toHaveBeenCalled();
+      await expect(stat(baseDirectory)).resolves.toBeDefined();
+    } finally {
+      if (child && child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+        await vi.waitFor(() => expect(child?.signalCode).toBe("SIGKILL"));
+      }
+      await rm(baseDirectory, { recursive: true, force: true });
+    }
   });
 });

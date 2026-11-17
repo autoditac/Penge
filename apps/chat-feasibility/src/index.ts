@@ -1,4 +1,5 @@
 import {
+  RuntimeConnection,
   ToolSet,
   type CopilotClientOptions,
   type GitHubTokenProvider,
@@ -365,6 +366,7 @@ export function buildCopilotSdkProof(options: {
     registeredMcpTools: implementedPengeMcpRegisteredTools,
     chatExposedMcpTools: implementedPengeMcpChatTools,
     client: {
+      connection: RuntimeConnection.forStdio(),
       mode: "empty",
       baseDirectory,
       workingDirectory: options.workingDirectory,

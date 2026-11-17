@@ -78,7 +78,7 @@ export async function probeEntitlement(
     const operation = (async () => {
       await client.start();
       if (!probeActive) {
-        await client.forceStop();
+        await withDeadline(client.forceStop(), timeouts.shutdownMs, "Late SDK shutdown");
         throw new EntitlementProbeTimeoutError("SDK startup completed after the probe deadline");
       }
       startCompleted = true;

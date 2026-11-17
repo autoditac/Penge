@@ -55,8 +55,9 @@ an explicit, versioned contract.
 Every production SDK client and session must preserve the executable contract
 in `apps/chat-feasibility`:
 
-- `CopilotClient` uses `mode: "empty"`, an actor-isolated `baseDirectory`,
-  `useLoggedInUser: false`, and error-only SDK logging.
+- `CopilotClient` uses an explicit stdio connection, `mode: "empty"`, an
+  actor-isolated `baseDirectory`, `useLoggedInUser: false`, and error-only SDK
+  logging; an ambient SDK transport override cannot select in-process hosting.
 - The session sets `model` and `allowedModels` to exactly `hydrafusion`, enables
   streaming, disables session-store/config discovery, and includes no built-in
   skills, canvases, or extensions.

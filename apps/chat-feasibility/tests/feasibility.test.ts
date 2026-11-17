@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import type { PermissionRequest, SessionEvent } from "@github/copilot-sdk";
+import { describe, expect, it, vi } from "vitest";
+import { CopilotClient, type PermissionRequest, type SessionEvent } from "@github/copilot-sdk";
 
 import {
   ChatFeatureDisabledError,
@@ -81,10 +81,17 @@ describe("HydraFusion Copilot SDK feasibility proof", () => {
     });
 
     expect(proof.client).toMatchObject({
+      connection: { kind: "stdio" },
       mode: "empty",
       useLoggedInUser: false,
       logLevel: "error",
     });
+    vi.stubEnv("COPILOT_SDK_DEFAULT_CONNECTION", "inprocess");
+    try {
+      expect(() => new CopilotClient(proof.client)).not.toThrow();
+    } finally {
+      vi.unstubAllEnvs();
+    }
     expect(proof.toolContractVersion).toBe(implementedChatToolContractVersion);
     expect(proof.registeredMcpTools).toEqual(["_meta", ...implementedPengeMcpChatTools]);
     expect(proof.chatExposedMcpTools).toEqual(implementedPengeMcpChatTools);

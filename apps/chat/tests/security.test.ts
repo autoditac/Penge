@@ -150,7 +150,8 @@ describe("read-only MCP policy", () => {
     expect(server).not.toHaveProperty("url");
   });
 
-  it("discards stderr from the real startup probe child", () => {
+  // The synchronous tsx cold start can exceed vitest's 5 s default on loaded shared runners.
+  it("discards stderr from the real startup probe child", { timeout: 30_000 }, () => {
     const marker = "synthetic-sensitive-mcp-startup-marker";
     const cwd = fileURLToPath(new URL("..", import.meta.url));
     const tools = MCP_REGISTRATION_ALLOWLIST.map((name) => ({
@@ -193,7 +194,7 @@ describe("read-only MCP policy", () => {
       {
         cwd,
         encoding: "utf8",
-        timeout: 10_000,
+        timeout: 20_000,
       },
     );
     expect(probe.error).toBeUndefined();

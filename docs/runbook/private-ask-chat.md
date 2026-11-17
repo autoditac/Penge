@@ -46,7 +46,8 @@ The #345 architecture contract fixes these requirements:
 The stable model assignment is tracked in `deploy/nas/private-ask-chat.contract.env.in`.
 Unknown environment names remain tokens instead of guessed defaults.
 The rootless service also requires `%h/.config/penge/private-ask-chat.approval.manifest`.
-Do not create that manifest until every readiness and acceptance item below has evidence and an identified reviewer records an approving GitHub review.
+Do not create that manifest until the [pre-deployment artifact approval](#pre-deployment-artifact-approval) evidence is complete and an identified reviewer records an approving GitHub review.
+The reviewer must sign the complete manifest; record [post-deployment live acceptance](#post-deployment-live-acceptance) separately after installation.
 
 ## Packaging and CI gate
 

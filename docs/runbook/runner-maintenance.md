@@ -127,6 +127,35 @@ Three cases need explicit enumeration rather than a prune:
 There is no unconditional `docker system prune` anywhere, and non-BuildKit
 containers are never matched.
 
+## Browser CI setup on shared runners
+
+The dbt smoke workflow sets `UV_CACHE_DIR` before setup-uv restores its cache,
+and passes the same directory as `cache-local-path`.
+Both uv's mutable cache and `PLAYWRIGHT_BROWSERS_PATH` live under the runner's
+temporary directory, isolated across the three runner instances.
+The uv path is job-scoped and stable across runs so setup-uv can reuse archives;
+the browser path additionally includes run ID and attempt.
+Cache archives can still be reused across runs, but extraction, pruning and
+browser downloads never write into another active job's directory.
+Frozen uv/pnpm installs and the workspace's prohibited koffi build remain unchanged.
+
+`just ci-browser-deps` serializes Playwright's system-package installation using
+`scripts/ci-package-setup.sh` and `flock` on `$HOME/.cache/penge-ci/package-setup.lock`.
+The main CI workflow wraps its OCR apt setup in the same helper and lock.
+All three runner instances use the same host user and home, so the lock is
+deliberately outside their distinct temporary/workspace directories.
+Lock acquisition fails explicitly after 300 seconds.
+Uncoordinated host apt activity can still contend: only explicit apt lock errors
+are retried, at most three attempts with ten seconds between attempts.
+Other install failures fail immediately, with the original output and exit status.
+No apt locks are deleted and no package-manager processes are killed.
+Chromium archive installation runs separately, in the job-local browser directory.
+The existing 30-minute job timeout remains the overall execution bound.
+
+Run `just ci-setup-test` for synthetic cache-wiring, concurrency, timeout and
+error-propagation regressions; these tests never invoke apt or change the host.
+This setup is independent of browser port allocation and does not permit server reuse.
+
 ## Installing the host units
 
 Requires root on the runner VM. Run from a checkout of `main`:

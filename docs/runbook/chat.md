@@ -49,6 +49,9 @@ only `exactModel`, `entitled`, and `matchCount`, and deletes the directory only
 after a confirmed graceful SDK shutdown.
 The probe has a 30-second deadline and allows five seconds for graceful shutdown
 before requesting a forced stop.
+If SDK startup or the runtime handshake is still pending at the deadline, the
+probe forces a stop. It then waits up to five more seconds for startup to settle,
+so a late-starting runtime cannot outlive the command unnoticed.
 If termination cannot be confirmed, the command fails without a model result and
 retains its `penge-copilot-entitlement-*` temporary directory.
 After confirming that the corresponding runtime is no longer running, remove

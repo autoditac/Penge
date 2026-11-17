@@ -27,7 +27,9 @@ process.stdin.on("data", (chunk) => {
         const request = JSON.parse(buffered.subarray(headerEnd + 4, messageEnd).toString());
         buffered = buffered.subarray(messageEnd);
 
-        if (request.method === "connect") {
+        if (request.method === "connect" && process.env.PENGE_FAKE_HANDSHAKE === "never") {
+            continue;
+        } else if (request.method === "connect") {
             respond(request.id, { protocolVersion: 3 });
         } else if (
             request.method === "runtime.shutdown" &&

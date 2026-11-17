@@ -73,9 +73,10 @@ export async function probeEntitlement(
   let probeFailed = false;
   let probeError: unknown;
   let result: EntitlementProbeResult | undefined;
+  let operation: Promise<readonly Pick<ModelInfo, "id">[]> | undefined;
 
   try {
-    const operation = (async () => {
+    operation = (async () => {
       await client.start();
       if (!probeActive) {
         await withDeadline(client.forceStop(), timeouts.shutdownMs, "Late SDK shutdown");
@@ -112,6 +113,21 @@ export async function probeEntitlement(
       await withDeadline(client.forceStop(), timeouts.shutdownMs, "Forced SDK shutdown");
     } catch (error) {
       cleanupErrors.push(error);
+    }
+    if (!startCompleted && operation !== undefined) {
+      // A startup that never settles could still spawn or hold a runtime after the deadline.
+      try {
+        await withDeadline(
+          operation.then(
+            () => undefined,
+            () => undefined,
+          ),
+          timeouts.shutdownMs,
+          "SDK startup settlement",
+        );
+      } catch (error) {
+        cleanupErrors.push(error);
+      }
     }
     if (probeFailed) cleanupErrors.unshift(probeError);
     throw new SdkCleanupError(

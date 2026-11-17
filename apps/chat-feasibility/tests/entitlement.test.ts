@@ -16,7 +16,11 @@ import { SdkCleanupError, hydraFusionModel } from "../src/index.js";
 
 const fixture = fileURLToPath(new URL("./fixtures/unresponsive-runtime.mjs", import.meta.url));
 
-function syntheticClient(baseDirectory: string, shutdown: "graceful" | "stubborn"): CopilotClient {
+function syntheticClient(
+  baseDirectory: string,
+  shutdown: "graceful" | "stubborn",
+  handshake: "complete" | "never" = "complete",
+): CopilotClient {
   return new CopilotClient({
     connection: RuntimeConnection.forStdio({ path: process.execPath, args: [fixture] }),
     mode: "empty",
@@ -26,8 +30,37 @@ function syntheticClient(baseDirectory: string, shutdown: "graceful" | "stubborn
     env: {
       PENGE_FAKE_PID_FILE: join(baseDirectory, "runtime.pid"),
       PENGE_FAKE_SHUTDOWN: shutdown,
+      PENGE_FAKE_HANDSHAKE: handshake,
     },
   });
+}
+
+async function expectProcessGone(pid: number): Promise<void> {
+  await vi.waitFor(
+    () => {
+      expect(() => process.kill(pid, 0)).toThrowError(expect.objectContaining({ code: "ESRCH" }));
+    },
+    { timeout: 3_000, interval: 25 },
+  );
+}
+
+function trackStartup(client: CopilotClient): {
+  probeClient: EntitlementProbeClient;
+  startup: () => Promise<void> | undefined;
+} {
+  let startup: Promise<void> | undefined;
+  return {
+    probeClient: {
+      start: () => {
+        startup = client.start();
+        return startup;
+      },
+      listModels: () => client.listModels(),
+      stop: () => client.stop(),
+      forceStop: () => client.forceStop(),
+    },
+    startup: () => startup,
+  };
 }
 
 describe("bounded entitlement probe", () => {
@@ -86,12 +119,7 @@ describe("bounded entitlement probe", () => {
     const pid = Number(await readFile(join(baseDirectory, "runtime.pid"), "utf8"));
     expect(Number.isInteger(pid) && pid > 0).toBe(true);
     await expect(stat(baseDirectory)).resolves.toBeDefined();
-    await vi.waitFor(
-      () => {
-        expect(() => process.kill(pid, 0)).toThrowError(expect.objectContaining({ code: "ESRCH" }));
-      },
-      { timeout: 3_000, interval: 25 },
-    );
+    await expectProcessGone(pid);
     await rm(baseDirectory, { recursive: true, force: true });
   }, 10_000);
 
@@ -138,4 +166,72 @@ describe("bounded entitlement probe", () => {
       await rm(baseDirectory, { recursive: true, force: true });
     }
   });
+
+  it("returns within a bounded window when SDK startup never settles", async () => {
+    const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+    const forceStop = vi.fn(async () => {});
+    const client: EntitlementProbeClient = {
+      start: () => new Promise<void>(() => {}),
+      listModels: vi.fn(async () => [{ id: hydraFusionModel }]),
+      stop: async () => [],
+      forceStop,
+    };
+
+    try {
+      const startedAt = Date.now();
+      const failure = await probeEntitlement(client, baseDirectory, {
+        probeMs: 50,
+        shutdownMs: 100,
+      }).catch((error: unknown) => error);
+      expect(Date.now() - startedAt).toBeLessThan(1_000);
+      expect(failure).toBeInstanceOf(SdkCleanupError);
+      const causes = ((failure as SdkCleanupError).cause as AggregateError).errors;
+      expect(causes.map((cause) => (cause as Error).message)).toContain(
+        "SDK startup settlement timed out after 100ms",
+      );
+      expect(forceStop).toHaveBeenCalledOnce();
+      await expect(stat(baseDirectory)).resolves.toBeDefined();
+    } finally {
+      await rm(baseDirectory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([1, 300])(
+    "kills a runtime whose handshake never completes and settles startup (deadline %ims)",
+    async (probeMs) => {
+      const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+      const { probeClient, startup } = trackStartup(
+        syntheticClient(baseDirectory, "stubborn", "never"),
+      );
+
+      try {
+        await expect(
+          probeEntitlement(probeClient, baseDirectory, { probeMs, shutdownMs: 1_000 }),
+        ).rejects.toBeInstanceOf(SdkCleanupError);
+        // The runtime was spawned before the deadline, so startup must already have settled.
+        const pending = startup();
+        expect(pending).toBeDefined();
+        const settled = await Promise.race([
+          pending?.then(
+            () => "resolved",
+            () => "rejected",
+          ),
+          new Promise((resolve) => setTimeout(() => resolve("pending"), 0)),
+        ]);
+        expect(settled).toBe("rejected");
+        const pidText = await readFile(join(baseDirectory, "runtime.pid"), "utf8").catch(
+          (error: unknown) => {
+            // With a 1ms deadline the runtime may be killed before it can record its PID.
+            if (probeMs === 1 && (error as NodeJS.ErrnoException).code === "ENOENT") return null;
+            throw error;
+          },
+        );
+        if (pidText !== null) await expectProcessGone(Number(pidText));
+        await expect(stat(baseDirectory)).resolves.toBeDefined();
+      } finally {
+        await rm(baseDirectory, { recursive: true, force: true });
+      }
+    },
+    10_000,
+  );
 });

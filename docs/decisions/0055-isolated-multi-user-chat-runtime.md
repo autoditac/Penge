@@ -19,6 +19,7 @@ The reviewed issue #344 allowlist also includes bounded, redacted transaction se
 - Fail closed unless the linked actor is entitled to the exact experimental model ID `hydrafusion`.
 - Deny ambient tools, permissions, credentials, config discovery, and transcript storage.
 - Propagate stop, disconnect, timeout, concurrency limits, and idle cleanup to Copilot and MCP child processes.
+  A global and per-actor concurrency slot stays reserved until both the pending Copilot/MCP setup has settled (including tearing down a run created after a stop) and the stop's abort/close teardown has finished, so overlapping stop/start cannot exceed either limit.
 - Give the chat database role no finance-table privileges.
 
 ## Considered Options

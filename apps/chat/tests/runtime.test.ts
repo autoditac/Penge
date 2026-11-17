@@ -20,6 +20,7 @@ class FakeCopilotRuntime implements CopilotRuntime {
   sendGate?: Promise<void>;
   createGate?: Promise<void>;
   closeError?: Error;
+  closeGate: Promise<void> | undefined;
   emitIdleOnAbort = false;
 
   async createRun(options: {
@@ -48,6 +49,7 @@ class FakeCopilotRuntime implements CopilotRuntime {
         }
       },
       close: async () => {
+        await this.closeGate;
         state.closed = true;
         if (this.closeError !== undefined) {
           throw this.closeError;
@@ -268,6 +270,64 @@ describe("chat runtime isolation and lifecycle", () => {
     const sessionId = await runtime.start("actor-a", "After readiness", () => undefined);
     await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
     await runtime.cancel("actor-a", sessionId);
+  });
+
+  it("holds capacity until a stopped setup settles and its late run is torn down", async () => {
+    let releaseCreate: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    copilot.createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessions: 1, maxConcurrentSessionsPerActor: 1 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const first = await runtime.start("actor-a", "First", () => undefined);
+    await runtime.cancel("actor-a", first);
+    await expect(runtime.start("actor-b", "During setup", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+    await expect(runtime.ensureModelAvailable("actor-b")).rejects.toThrow(/concurrency limit/);
+
+    releaseCreate?.();
+    await vi.waitFor(() =>
+      expect(copilot.runs.get(first)).toMatchObject({ aborted: true, closed: true }),
+    );
+    await vi.waitFor(async () => {
+      const next = await runtime.start("actor-b", "After setup", () => undefined);
+      await runtime.cancel("actor-b", next);
+    });
+  });
+
+  it("holds capacity until stop teardown completes", async () => {
+    let releaseClose: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessions: 1, maxConcurrentSessionsPerActor: 1 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const first = await runtime.start("actor-a", "First", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.has(first)).toBe(true));
+    copilot.closeGate = new Promise<void>((resolve) => {
+      releaseClose = resolve;
+    });
+    const stopping = runtime.cancel("actor-a", first);
+    await vi.waitFor(() => expect(copilot.runs.get(first)?.aborted).toBe(true));
+    await expect(runtime.start("actor-b", "During teardown", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+
+    releaseClose?.();
+    await stopping;
+    copilot.closeGate = undefined;
+    const next = await runtime.start("actor-b", "After teardown", () => undefined);
+    await runtime.cancel("actor-b", next);
   });
 
   it("returns the session id before send admission and can cancel immediately", async () => {

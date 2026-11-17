@@ -44,6 +44,8 @@ interface ActiveSession {
   timeout: NodeJS.Timeout;
   terminal: boolean;
   releaseCapacity: () => void;
+  launchSettled: boolean;
+  teardownSettled: boolean;
   toolsByCallId: Map<string, { tool: McpToolName; allSourcesRequested: boolean }>;
   eventQueue: Promise<void>;
   evidence: ToolEvidence[];
@@ -383,12 +385,19 @@ export class ChatRuntime {
       timeout,
       terminal: false,
       releaseCapacity,
+      launchSettled: false,
+      teardownSettled: false,
       toolsByCallId: new Map(),
       eventQueue: Promise.resolve(),
       evidence: [],
     };
     this.sessions.set(sessionId, session);
-    this.track(this.launch(session, question));
+    this.track(
+      this.launch(session, question).finally(() => {
+        session.launchSettled = true;
+        this.releaseWhenSettled(session);
+      }),
+    );
     return sessionId;
   }
 
@@ -477,6 +486,14 @@ export class ChatRuntime {
         this.backgroundTasks.delete(tracked);
       });
     this.backgroundTasks.add(tracked);
+  }
+
+  // Capacity covers the whole Copilot/MCP lifetime: a stop during setup must not free the
+  // slot until the pending launch has settled, and teardown must finish abort/close first.
+  private releaseWhenSettled(session: ActiveSession): void {
+    if (session.launchSettled && session.teardownSettled) {
+      session.releaseCapacity();
+    }
   }
 
   private reserveCapacity(actorId: string): () => void {
@@ -790,8 +807,20 @@ export class ChatRuntime {
     session.terminal = true;
     clearTimeout(session.timeout);
     this.sessions.delete(session.sessionId);
-    session.releaseCapacity();
+    try {
+      await this.teardown(session, status, terminalEvent, abort);
+    } finally {
+      session.teardownSettled = true;
+      this.releaseWhenSettled(session);
+    }
+  }
 
+  private async teardown(
+    session: ActiveSession,
+    status: TerminalStatus,
+    terminalEvent: StreamEventInput | undefined,
+    abort: boolean,
+  ): Promise<void> {
     const failures: unknown[] = [];
     if (abort && session.run !== undefined) {
       try {

@@ -285,8 +285,12 @@ household-mcp-postgres-test:
     pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts
 
 household-browser-test:
-    VITE_PENGE_DEMO=false VITE_PENGE_API_URL=http://127.0.0.1:8000 pnpm --filter @penge/web build
+    VITE_PENGE_DEMO=false VITE_PENGE_API_URL="http://127.0.0.1:${PENGE_E2E_API_PORT:-8000}" pnpm --filter @penge/web build
     pnpm --filter @penge/web exec playwright test
+
+household-browser-config-test:
+    uv run --group dev pytest tests/deploy/test_browser_ports.py -q
+    pnpm --filter @penge/web exec vitest run tests/browser-config.test.ts
 
 # Requires a separately authorized disposable Postgres database.
 household-test:

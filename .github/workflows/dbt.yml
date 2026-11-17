@@ -162,11 +162,26 @@ jobs:
           PENGE_MCP_REPORT_PG_TEST: "1"
         run: just household-mcp-postgres-test
 
+      - name: Isolate browser ports by runner
+        # Each runner executes one job at a time, but all three share a host.
+        # Reserve disjoint ports below the ephemeral Postgres port range.
+        run: |
+          set -euo pipefail
+          case "$RUNNER_NAME" in
+            penge-1) slot=1 ;;
+            penge-2) slot=2 ;;
+            penge-3) slot=3 ;;
+            *) echo "No browser port allocation for runner: $RUNNER_NAME" >&2; exit 1 ;;
+          esac
+          {
+            echo "PENGE_E2E_API_PORT=$((18000 + slot))"
+            echo "PENGE_E2E_WEB_PORT=$((15000 + slot))"
+          } >> "$GITHUB_ENV"
+
       - name: Household desktop and mobile real-API browser acceptance
         env:
           PENGE_HOUSEHOLD_ENABLED: "true"
           PENGE_REFRESH_STATE_DIR: ${{ runner.temp }}/household-browser-refresh
-          PENGE_API_CORS_ORIGINS: http://127.0.0.1:5173
         run: just household-browser-test
 
       - name: Preserve synthetic browser failure evidence

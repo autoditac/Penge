@@ -1,7 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const apiPort = process.env.PENGE_E2E_API_PORT ?? "8000";
-const webPort = process.env.PENGE_E2E_WEB_PORT ?? "5173";
+import { apiPort, apiUrl, webPort, webUrl } from "./browser-env";
 
 export default defineConfig({
   testDir: "./e2e",
@@ -11,7 +10,7 @@ export default defineConfig({
   expect: { timeout: 15_000 },
   reporter: "line",
   use: {
-    baseURL: `http://127.0.0.1:${webPort}`,
+    baseURL: webUrl,
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -21,20 +20,16 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command:
-        "uv run --project ../.. --group api --group db --group http --group parsers --group manual --group enablebanking penge-api",
-      url: `http://127.0.0.1:${apiPort}/openapi.json`,
-      reuseExistingServer: !process.env.CI,
-      env: { PENGE_API_PORT: apiPort },
+      command: `uv run --project ../.. --group api --group db --group http --group parsers --group manual --group enablebanking penge-api --host 127.0.0.1 --port ${apiPort}`,
+      url: `${apiUrl}/openapi.json`,
+      reuseExistingServer: false,
+      env: { PENGE_API_CORS_ORIGINS: webUrl },
     },
     {
-      command: `pnpm exec vite build --mode e2e && pnpm exec vite preview --host 127.0.0.1 --port ${webPort}`,
-      url: `http://127.0.0.1:${webPort}`,
-      reuseExistingServer: !process.env.CI,
-      env: {
-        VITE_PENGE_DEMO: "false",
-        VITE_PENGE_API_URL: `http://127.0.0.1:${apiPort}`,
-      },
+      command: `pnpm exec vite build --mode e2e && pnpm exec vite preview --host 127.0.0.1 --port ${webPort} --strictPort`,
+      url: webUrl,
+      reuseExistingServer: false,
+      env: { VITE_PENGE_DEMO: "false", VITE_PENGE_API_URL: apiUrl },
     },
   ],
 });

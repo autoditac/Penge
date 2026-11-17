@@ -1,7 +1,7 @@
 # Runner maintenance (`gh-runner-ubuntu`)
 
 Operational procedures for the self-hosted GitHub Actions runner that builds
-Penge's container images. Its VM disk is ~19 GB, which is enough for CI only
+Penge's container images. Its root filesystem is ~29 GB, which is enough for CI only
 if Docker's growth is actively bounded.
 
 ## The failure mode
@@ -43,7 +43,7 @@ recovered only 1.58 GB until the containers themselves were removed.
 
 A survey taken while CI was failing at **92 % full** found the split below. It
 is worth re-reading before assuming a disk alert is a Docker problem: the root
-filesystem is **19 GB, shared by three runner instances**, and Docker was the
+filesystem was **19 GB, shared by three runner instances**, and Docker was the
 smaller half.
 
 | Path | Size | Reclaimed by |
@@ -58,11 +58,16 @@ smaller half.
 | `/var/lib/containerd` | 1.6 GB | ❌ not touched |
 | `/usr` | 2.5 GB | ❌ the OS |
 
-The structural problem is three runners on a 19 GB disk: ~4 GB of the tool
+The structural problem is three runners sharing one disk: ~4 GB of the tool
 cache and runner runtime is triplicated by design and cannot be swept. The
 sweeps buy headroom; they do not change that arithmetic. If the host starts
 alerting again with both timers healthy, the answer is a bigger disk, not a
 more aggressive sweep.
+
+The WebUI CI test step limits Vitest to two workers to match the VM's two
+CPUs and allows 60 seconds per test to accommodate concurrent runner jobs.
+Both limits prevent load-related test timeouts from blocking image publishing;
+local test defaults are unchanged.
 
 #### Why the workspace sweep is narrower than it could be
 
@@ -121,6 +126,36 @@ Three cases need explicit enumeration rather than a prune:
 
 There is no unconditional `docker system prune` anywhere, and non-BuildKit
 containers are never matched.
+
+## Browser CI setup on shared runners
+
+The dbt smoke workflow sets `UV_CACHE_DIR` before setup-uv restores its cache,
+and passes the same directory as `cache-local-path`.
+Both uv's mutable cache and `PLAYWRIGHT_BROWSERS_PATH` live under the runner's
+temporary directory, isolated across the three runner instances.
+The uv path is job-scoped and stable across runs so setup-uv can reuse archives;
+the browser path additionally includes run ID and attempt.
+Cache archives can still be reused across runs, but extraction, pruning and
+browser downloads never write into another active job's directory.
+Frozen uv/pnpm installs and the workspace's prohibited koffi build remain unchanged.
+
+`just ci-browser-deps` serializes Playwright's system-package installation using
+`scripts/ci-package-setup.sh` and `flock` on `$HOME/.cache/penge-ci/package-setup.lock`.
+The main CI workflow's OCR apt setup and the backup workflow's PostgreSQL/age and
+ShellCheck apt setup use the same helper and lock.
+All three runner instances use the same host user and home, so the lock is
+deliberately outside their distinct temporary/workspace directories.
+Lock acquisition fails explicitly after 300 seconds.
+Uncoordinated host apt activity can still contend: only explicit apt lock errors
+are retried, at most three attempts with ten seconds between attempts.
+Other install failures fail immediately, with the original output and exit status.
+No apt locks are deleted and no package-manager processes are killed.
+Chromium archive installation runs separately, in the job-local browser directory.
+The existing 30-minute job timeout remains the overall execution bound.
+
+Run `just ci-setup-test` for synthetic cache-wiring, concurrency, timeout and
+error-propagation regressions; these tests never invoke apt or change the host.
+This setup is independent of browser port allocation and does not permit server reuse.
 
 ## Installing the host units
 

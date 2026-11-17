@@ -104,7 +104,7 @@ describe("source coverage tools", () => {
 
   it.each([
     {
-      source_id: "enable_banking" as const,
+      source_id: "gls" as const,
       account_count: 1,
       transaction_count: 0,
       holding_count: 0,
@@ -151,6 +151,52 @@ describe("source coverage tools", () => {
     });
     const out = await tool.handler({ source_ids: [row.source_id] }, CTX);
     expect(out.sources[0]?.coverage.completeness).toBe(expected);
+  });
+
+  it("derives Enable Banking coverage from its weakest constituent bank", async () => {
+    const observed = (source_id: string, transactions: number, latest: string | null) => ({
+      source_id,
+      account_count: 1,
+      transaction_count: transactions,
+      holding_count: 0,
+      evidence_count: transactions,
+      latest_observed_at: latest,
+    });
+    const params: ReadonlyArray<unknown>[] = [];
+    const rows = [
+      observed("gls", 4, "2026-10-01T00:00:00.000Z"),
+      observed("ebank", 2, "2026-09-30T00:00:00.000Z"),
+      observed("lunar", 0, null),
+    ];
+    const tool = getSourceCoverageTool({
+      runner: {
+        async query(_sql, values) {
+          params.push(values);
+          return { rows };
+        },
+      },
+      now: () => NOW,
+    });
+    const out = await tool.handler({ source_ids: ["enable_banking"] }, CTX);
+    expect(params[0]?.[1]).toEqual(["gls", "ebank", "lunar"]);
+    expect(out.sources.map((source) => source.id)).toEqual(["enable_banking"]);
+    expect(out.sources[0]?.coverage).toMatchObject({
+      completeness: "partial",
+      freshness: "unknown",
+      latest_observed_at: null,
+      account_count: 3,
+      transaction_count: 6,
+      evidence_count: 6,
+    });
+    expect(out.complete).toBe(false);
+
+    rows[2] = observed("lunar", 1, "2026-09-29T00:00:00.000Z");
+    const complete = await tool.handler({ source_ids: ["enable_banking"] }, CTX);
+    expect(complete.sources[0]?.coverage).toMatchObject({
+      completeness: "complete",
+      latest_observed_at: "2026-09-29T00:00:00.000Z",
+      transaction_count: 7,
+    });
   });
 
   it("rejects future observations instead of treating them as fresh", async () => {
@@ -583,7 +629,6 @@ describe("source coverage tools", () => {
       /least\(transactions\.latest_transaction_at, holdings\.latest_holding_at\)/,
     );
     expect(capturedSql).not.toMatch(/accounts\.latest_account_at|account.*updated_at/i);
-    expect(capturedSql).toMatch(/min\(latest_observed_at\)/);
   });
 
   it("keeps summary totals when requested pages are empty", async () => {
@@ -627,9 +672,47 @@ describe("source coverage tools", () => {
       },
       now: () => NOW,
     });
-    await search.handler({ query: "  STRA\u00dfE\u3000MARKT  ", limit: 10, offset: 0 }, CTX);
-    expect(params[0]?.[0]).toBe("strasse markt");
-    expect(params[1]?.[0]).toBe("strasse markt");
+    await search.handler(
+      {
+        query: "  STRA\u00dfE\u3000MARKT  ",
+        category_prefix: " Shop\u3000/ STRA\u00dfE ",
+        limit: 10,
+        offset: 0,
+      },
+      CTX,
+    );
+    // Alias matching uses the Python-folded needle; labels/categories use an
+    // unfolded NFKC needle so PostgreSQL lower() applies symmetrically.
+    expect(params[0]?.slice(0, 3)).toEqual([
+      "strasse markt",
+      "Shop / STRA\u00dfE",
+      "STRA\u00dfE MARKT",
+    ]);
+    expect(params[1]?.slice(0, 3)).toEqual(params[0]?.slice(0, 3));
+    expect(params[1]?.slice(3)).toEqual([10, 0]);
+  });
+
+  it("uses identical alias and label predicates for NSI totals and rows", async () => {
+    const statements: string[] = [];
+    const search = searchMerchantReferenceTool({
+      runner: {
+        async query(sql) {
+          statements.push(sql);
+          return statements.length === 1 ? { rows: [{ total_count: 0 }] } : { rows: [] };
+        },
+      },
+      now: () => NOW,
+    });
+    await search.handler({ query: "Stra\u00dfe", limit: 10, offset: 0 }, CTX);
+    const predicate = (sql: string) => {
+      const start = sql.indexOf("AND ($2::text");
+      return sql.slice(start, sql.indexOf("\n    )\n", start));
+    };
+    expect(statements).toHaveLength(2);
+    const [count, rows] = statements as [string, string];
+    expect(predicate(count)).toContain("position($1 in match_alias.normalized_alias)");
+    expect(predicate(count)).toBe(predicate(rows));
+    expect(rows).not.toMatch(/lower\(\$1\)/);
   });
 
   it("uses full Unicode case folding for NSI queries", async () => {

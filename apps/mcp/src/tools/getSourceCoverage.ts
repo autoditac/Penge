@@ -127,11 +127,7 @@ const COVERAGE_SQL = `
       account_count, transaction_count, holding_count,
       transaction_count + holding_count, latest_observed_at
     FROM account_sources
-    UNION ALL
-    SELECT 'enable_banking', coalesce(sum(account_count), 0)::int,
-      coalesce(sum(transaction_count), 0)::int, 0,
-      coalesce(sum(transaction_count), 0)::int, min(latest_observed_at)
-    FROM account_sources WHERE source_id IN ('gls', 'ebank', 'lunar')
+
     UNION ALL
     SELECT 'ecb_fx', 0, 0, 0, count(*)::int, max(as_of)::timestamptz FROM fx_rate
       WHERE base_ccy = 'EUR' AND quote_ccy = 'DKK'
@@ -167,6 +163,15 @@ function iso(value: Date | string | null): string | null {
   return parsed.toISOString();
 }
 
+/** Enable Banking is the transport for these sources; it is never observed on its own. */
+const ENABLE_BANKING_CONSTITUENTS = [
+  "gls",
+  "ebank",
+  "lunar",
+] as const satisfies readonly SourceId[];
+
+type Coverage = z.infer<typeof CoverageSchema>;
+
 function completeness(sourceId: SourceId, row: z.infer<typeof ObservationRowSchema>) {
   if (
     row.evidence_count === 0 &&
@@ -177,7 +182,7 @@ function completeness(sourceId: SourceId, row: z.infer<typeof ObservationRowSche
     return "missing" as const;
   }
   if (
-    (["gls", "ebank", "lunar", "enable_banking"] as SourceId[]).includes(sourceId) &&
+    (ENABLE_BANKING_CONSTITUENTS as readonly SourceId[]).includes(sourceId) &&
     (row.account_count === 0 || row.transaction_count === 0)
   ) {
     return "partial" as const;
@@ -211,8 +216,15 @@ export function getSourceCoverageTool(
     outputSchema: OutputSchema,
     async handler(args) {
       const requested = args.source_ids ?? [...SOURCE_ALLOWLIST];
+      const observed = [
+        ...new Set(
+          requested.flatMap((sourceId) =>
+            sourceId === "enable_banking" ? [...ENABLE_BANKING_CONSTITUENTS] : [sourceId],
+          ),
+        ),
+      ];
       const providers = ["gls", "ebank", "lunar", "nordnet", "pfa", "growney", "manual"];
-      const result = await opts.runner.query(COVERAGE_SQL, [providers, requested]);
+      const result = await opts.runner.query(COVERAGE_SQL, [providers, observed]);
       const observations = new Map(
         result.rows.map((raw) => {
           const row = ObservationRowSchema.parse(raw);
@@ -220,9 +232,18 @@ export function getSourceCoverageTool(
         }),
       );
       const now = opts.now?.() ?? new Date();
-      const sources = requested.map((sourceId) => {
+      const catalogEntry = (sourceId: SourceId) => {
         const catalog = SOURCE_CATALOG.find((entry) => entry.id === sourceId);
         if (!catalog) throw new ToolDataError(`catalog entry missing for ${sourceId}`);
+        return catalog;
+      };
+      const freshnessOf = (latest: string | null, staleAfterDays: number) => {
+        if (latest === null) return "unknown" as const;
+        return now.valueOf() - Date.parse(latest) <= staleAfterDays * 86_400_000
+          ? ("fresh" as const)
+          : ("stale" as const);
+      };
+      const observedCoverage = (sourceId: SourceId): Coverage => {
         const observation =
           observations.get(sourceId) ??
           ObservationRowSchema.parse({
@@ -237,27 +258,51 @@ export function getSourceCoverageTool(
         if (latest !== null && Date.parse(latest) > now.valueOf() + 300_000) {
           throw new ToolDataError(`source ${sourceId} returned a future observation timestamp`);
         }
-        const ageMs = latest === null ? null : now.valueOf() - Date.parse(latest);
-        const freshness =
-          ageMs === null
-            ? ("unknown" as const)
-            : ageMs <= catalog.stale_after_days * 86_400_000
-              ? ("fresh" as const)
-              : ("stale" as const);
-        const sourceCompleteness = completeness(sourceId, observation);
-        const { stale_after_days: staleAfterDays, ...metadata } = catalog;
+        const staleAfterDays = catalogEntry(sourceId).stale_after_days;
+        return {
+          completeness: completeness(sourceId, observation),
+          freshness: freshnessOf(latest, staleAfterDays),
+          latest_observed_at: latest,
+          stale_after_days: staleAfterDays,
+          account_count: observation.account_count,
+          transaction_count: observation.transaction_count,
+          holding_count: observation.holding_count,
+          evidence_count: observation.evidence_count,
+        };
+      };
+      // The aggregate is only as complete and fresh as its weakest constituent bank.
+      const enableBankingCoverage = (): Coverage => {
+        const parts = ENABLE_BANKING_CONSTITUENTS.map(observedCoverage);
+        const latests = parts.map((part) => part.latest_observed_at);
+        const latest = latests.some((value) => value === null)
+          ? null
+          : (latests as string[]).reduce((oldest, value) =>
+              Date.parse(value) < Date.parse(oldest) ? value : oldest,
+            );
+        const staleAfterDays = catalogEntry("enable_banking").stale_after_days;
+        const sum = (key: "account_count" | "transaction_count") =>
+          parts.reduce((total, part) => total + part[key], 0);
+        return {
+          completeness: parts.every((part) => part.completeness === "complete")
+            ? "complete"
+            : parts.every((part) => part.completeness === "missing")
+              ? "missing"
+              : "partial",
+          freshness: freshnessOf(latest, staleAfterDays),
+          latest_observed_at: latest,
+          stale_after_days: staleAfterDays,
+          account_count: sum("account_count"),
+          transaction_count: sum("transaction_count"),
+          holding_count: 0,
+          evidence_count: sum("transaction_count"),
+        };
+      };
+      const sources = requested.map((sourceId) => {
+        const { stale_after_days: _staleAfterDays, ...metadata } = catalogEntry(sourceId);
         return {
           ...metadata,
-          coverage: {
-            completeness: sourceCompleteness,
-            freshness,
-            latest_observed_at: latest,
-            stale_after_days: staleAfterDays,
-            account_count: observation.account_count,
-            transaction_count: observation.transaction_count,
-            holding_count: observation.holding_count,
-            evidence_count: observation.evidence_count,
-          },
+          coverage:
+            sourceId === "enable_banking" ? enableBankingCoverage() : observedCoverage(sourceId),
         };
       });
       return {

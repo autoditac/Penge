@@ -114,7 +114,8 @@ export function getHouseholdMerchantSummaryTool(
     async handler(args) {
       const filterParams = [
         args.include_archived,
-        args.query?.toLocaleLowerCase("en") ?? null,
+        // Case folding happens only in SQL so both sides share PostgreSQL's lower().
+        args.query ?? null,
       ] as const;
       const countResult = await opts.runner.query(MERCHANT_COUNT_SQL, filterParams);
       const total = z.coerce

@@ -223,7 +223,8 @@ export function searchHouseholdTransactionsTool(
         args.date_range.from,
         args.date_range.to,
         args.account_ids ?? null,
-        args.query?.toLocaleLowerCase("en") ?? null,
+        // Case folding happens only in SQL so both sides share PostgreSQL's lower().
+        args.query ?? null,
         args.limit,
         args.offset,
       ] as const;

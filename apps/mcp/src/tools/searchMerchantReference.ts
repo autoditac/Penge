@@ -93,20 +93,20 @@ const SEARCH_SQL = `
     AND generation.source_id = 'name-suggestion-index'
     AND ($2::text IS NULL OR position(lower($2) in lower(r.category_path)) = 1)
     AND (
-      position(lower($1) in lower(r.label)) > 0
+      position(lower($3) in lower(r.label)) > 0
       OR EXISTS (
         SELECT 1 FROM merchant_reference_alias AS match_alias
         WHERE match_alias.reference_id = r.id
-          AND position(lower($1) in match_alias.normalized_alias) > 0
+          AND position($1 in match_alias.normalized_alias) > 0
       )
     )
   ORDER BY
-    CASE WHEN lower(r.label) = lower($1) THEN 0
-         WHEN position(lower($1) in lower(r.label)) = 1 THEN 1
+    CASE WHEN lower(r.label) = lower($3) THEN 0
+         WHEN position(lower($3) in lower(r.label)) = 1 THEN 1
          ELSE 2 END,
     r.label,
     r.id
-  LIMIT $3 OFFSET $4
+  LIMIT $4 OFFSET $5
 `;
 
 const SEARCH_COUNT_SQL = `
@@ -117,7 +117,7 @@ const SEARCH_COUNT_SQL = `
     AND generation.source_id = 'name-suggestion-index'
     AND ($2::text IS NULL OR position(lower($2) in lower(r.category_path)) = 1)
     AND (
-      position(lower($1) in lower(r.label)) > 0
+      position(lower($3) in lower(r.label)) > 0
       OR EXISTS (
         SELECT 1 FROM merchant_reference_alias AS match_alias
         WHERE match_alias.reference_id = r.id
@@ -126,8 +126,18 @@ const SEARCH_COUNT_SQL = `
     )
 `;
 
+function normalizeText(value: string): string {
+  return value.normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Mirrors `normalize_alias()` in `src/penge/api/merchant_reference/store.py`
+ * (NFKC, full case folding, whitespace collapse). Only `normalized_alias` was
+ * folded that way, so free-text columns are matched with an unfolded needle
+ * under PostgreSQL `lower()` on both sides instead.
+ */
 function normalizeAlias(value: string): string {
-  return caseFold(value.normalize("NFKC")).trim().replace(/\s+/g, " ");
+  return caseFold(normalizeText(value));
 }
 
 function instant(value: Date | string): string {
@@ -150,7 +160,8 @@ export function searchMerchantReferenceTool(
     async handler(args) {
       const filterParams = [
         normalizeAlias(args.query),
-        args.category_prefix === undefined ? null : normalizeAlias(args.category_prefix),
+        args.category_prefix === undefined ? null : normalizeText(args.category_prefix),
+        normalizeText(args.query),
       ] as const;
       const countResult = await opts.runner.query(SEARCH_COUNT_SQL, filterParams);
       const total = z.coerce

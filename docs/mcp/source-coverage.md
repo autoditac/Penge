@@ -61,7 +61,7 @@ Coverage metadata alone is not a data-bearing evidence path.
 | `gls`                      | transactions, balances                       | transaction search/detail; household report          | latest transaction observation              |
 | `ebank`                    | transactions, balances                       | transaction search/detail; household report          | latest transaction observation              |
 | `lunar`                    | transactions, balances                       | transaction search/detail; household report          | latest transaction observation              |
-| `enable_banking`           | transactions, balances                       | transaction search; cashflow                         | aggregate GLS/EBank/Lunar timestamps        |
+| `enable_banking`           | transactions, balances                       | transaction search; cashflow                         | oldest GLS/EBank/Lunar observation          |
 | `nordnet`                  | transactions, holdings, balances             | transaction search/detail; source-filtered net worth | transaction and holding observations        |
 | `pfa`                      | transactions, holdings, balances             | transaction search; source-filtered net worth        | transaction and holding observations        |
 | `growney`                  | transactions, holdings, balances             | transaction search; source-filtered net worth        | transaction and holding observations        |
@@ -78,6 +78,12 @@ or DKK valuation; null aggregates never become false zero balances.
 Nordnet, PFA, and Growney are complete only when account, transaction, and
 holding evidence are all observed; manual facts require account and holding
 evidence.
+`enable_banking` is derived from the GLS, EBank, and Lunar coverage rather
+than from summed counts: it is complete only when every constituent is
+complete, missing only when every constituent is missing, and otherwise
+partial. Its `latest_observed_at` is the oldest constituent observation and
+is null (freshness `unknown`) when any constituent has no observation, so one
+fresh bank never masks another incomplete or unobserved bank.
 
 ## New tool schemas
 
@@ -184,6 +190,14 @@ The `unicode-case-folding` package is intentionally used after NFKC
 normalization because ECMAScript locale lowercasing is not Unicode case
 folding and diverges from the Python index writer for values such as Greek
 final sigma.
+That folded needle is compared only with `normalized_alias`, which the Python
+writer folded the same way. Labels and category prefixes are not stored
+folded, so they use an NFKC/whitespace-normalized but unfolded needle with
+PostgreSQL `lower()` applied to both sides; the result rows and `total` use
+identical predicates.
+`search_household_transactions` and `get_household_merchant_summary` likewise
+pass the query unchanged and let PostgreSQL `lower()` fold both the needle and
+the stored text, so JavaScript and database case mappings cannot diverge.
 
 ## Audit attribution contract
 

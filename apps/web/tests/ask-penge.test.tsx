@@ -6,12 +6,14 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AskPengePage } from "../src/ask-penge/AskPengePage";
+import { AskPengeLivePage } from "../src/ask-penge/AskPengeLivePage";
 import {
   ASK_STREAM_PROTOCOL_VERSION,
   askStreamEventSchema,
   createAskStreamValidator,
 } from "../src/ask-penge/contract";
 import type { AskRequest, AskStreamEvent, AskTransport } from "../src/ask-penge/contract";
+import type { FetchLike } from "../src/ask-penge/liveClient";
 
 const useMediaQueryMock = vi.fn();
 
@@ -108,6 +110,73 @@ async function startInjectedStream(): Promise<void> {
 describe("AskPengePage", () => {
   beforeEach(() => {
     useMediaQueryMock.mockReturnValue(true);
+  });
+
+  it("does not restore linked status from a stale refresh after unlinking", async () => {
+    let resolveStaleStatus!: (response: Response) => void;
+    const staleStatus = new Promise<Response>((resolve) => {
+      resolveStaleStatus = resolve;
+    });
+    let statusCalls = 0;
+    const linkedStatus = {
+      github: { state: "linked" as const, login: "synthetic-user" },
+      model: { id: "hydrafusion" as const, available: true },
+      featureEnabled: true,
+    };
+    const notLinkedStatus = {
+      github: { state: "not-linked" as const, login: null },
+      model: { id: "hydrafusion" as const, available: true },
+      featureEnabled: true,
+    };
+    const fetchFn: FetchLike = vi.fn(async (input, init) => {
+      const url = new URL(String(input));
+      const method = init?.method ?? "GET";
+      if (url.pathname.endsWith("/v1/auth/status")) {
+        statusCalls += 1;
+        if (statusCalls === 1) {
+          return Response.json(linkedStatus);
+        }
+        if (statusCalls === 2) {
+          return staleStatus;
+        }
+        return Response.json(notLinkedStatus);
+      }
+      if (url.pathname.endsWith("/v1/auth/github") && method === "DELETE") {
+        return Response.json({ status: "unlinked" });
+      }
+      if (url.pathname.endsWith("/v1/chat") && method === "POST") {
+        const event = {
+          version: ASK_STREAM_PROTOCOL_VERSION,
+          sessionId: "synthetic-live-session",
+          id: "expired",
+          sequence: 0,
+          type: "error",
+          code: "auth_expired",
+          message: "Synthetic expired authorization.",
+          retryable: false,
+        };
+        return new Response(`data: ${JSON.stringify(event)}\n\n`, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }
+      throw new Error(`Unexpected synthetic request: ${method} ${url.pathname}`);
+    });
+
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={fetchFn} />);
+    await screen.findByRole("button", { name: "Ask" });
+    await userEvent.setup().click(screen.getByRole("button", { name: "Ask" }));
+    await screen.findByText("GitHub session expired");
+    await waitFor(() => expect(statusCalls).toBe(2));
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    await screen.findByRole("button", { name: "Link GitHub account" });
+    await act(async () => {
+      resolveStaleStatus(Response.json(linkedStatus));
+      await staleStatus;
+    });
+
+    expect(screen.queryByRole("button", { name: "Unlink GitHub account" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Link GitHub account" })).toBeInTheDocument();
   });
 
   it("renders an injected stream and allows cancelling the bounded session", () => {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { AskPengePage } from "./AskPengePage";
 import { AskChatClientError, createAskChatClient } from "./liveClient";
@@ -59,15 +59,23 @@ function ConfiguredAskPengePage({
   const [status, setStatus] = useState<AskAuthStatus | null>(null);
   const [serviceState, setServiceState] = useState<"loading" | "ready" | "error">("loading");
   const [serviceError, setServiceError] = useState<string | null>(null);
+  const statusRequestId = useRef(0);
 
   const refreshStatus = useCallback(async (): Promise<void> => {
+    const requestId = ++statusRequestId.current;
     setServiceState("loading");
     setServiceError(null);
     try {
       const nextStatus = await client.getStatus();
+      if (requestId !== statusRequestId.current) {
+        return;
+      }
       setStatus(nextStatus);
       setServiceState("ready");
     } catch {
+      if (requestId !== statusRequestId.current) {
+        return;
+      }
       setStatus(null);
       setServiceError(
         "The trusted GitHub, feature, and model status could not be loaded. No request will be sent.",
@@ -81,6 +89,7 @@ function ConfiguredAskPengePage({
   }, [refreshStatus]);
 
   const unlinkGitHub = (): void => {
+    statusRequestId.current += 1;
     void (async () => {
       setServiceState("loading");
       setServiceError(null);

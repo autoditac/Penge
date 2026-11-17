@@ -7,7 +7,7 @@
 
 ## Context and Problem Statement
 
-Issue #346 implements the production service boundary approved by the HydraFusion feasibility work in issue #345.
+Issue #346 implements the production service boundary approved by the Copilot Fusion feasibility work in issue #345.
 Two household members must be able to use their own GitHub and Copilot identities without sharing credentials, sessions, transcripts, or quotas.
 The chat service must preserve [ADR-0005](0005-llm-access-via-mcp-only.md) and [ADR-0023](0023-mcp-server-architecture.md): finance evidence reaches the model only through bounded read-only Penge MCP tools over process-local stdio.
 The reviewed issue #344 allowlist also includes bounded, redacted transaction search and detail records, which exceed ADR-0005's aggregate-only privacy boundary; see the production gate below.
@@ -16,7 +16,7 @@ The reviewed issue #344 allowlist also includes bounded, redacted transaction se
 
 - Bind every request to an immutable Google subject supplied by the trusted reverse proxy.
 - Use a separate per-actor GitHub OAuth grant with state, PKCE, refresh, and key rotation.
-- Fail closed unless the linked actor is entitled to the exact experimental model ID `hydrafusion`.
+- Fail closed unless the linked actor is entitled to the exact experimental Copilot Fusion model ID `hydrafusion`.
 - Deny ambient tools, permissions, credentials, config discovery, and transcript storage.
 - Propagate stop, disconnect, timeout, concurrency limits, and idle cleanup to Copilot and MCP child processes.
   A global and per-actor concurrency slot stays reserved until both the pending Copilot/MCP setup has settled (including tearing down a run created after a stop) and the stop's abort/close teardown has finished, so overlapping stop/start cannot exceed either limit.
@@ -27,7 +27,7 @@ The reviewed issue #344 allowlist also includes bounded, redacted transaction se
 1. **Loopback Node service with actor-scoped SDK clients and local MCP** — chosen.
 2. **Shared household GitHub/Copilot identity** — rejected because it breaks credential and quota isolation.
 3. **Network MCP or direct finance database queries** — rejected because it breaks the existing data boundary.
-4. **Fallback model when HydraFusion is unavailable** — rejected because it changes reviewed behavior.
+4. **Fallback model when Copilot Fusion is unavailable** — rejected because it changes reviewed behavior.
 
 ## Decision
 

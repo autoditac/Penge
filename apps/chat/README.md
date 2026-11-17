@@ -4,7 +4,7 @@
 It binds an immutable Google oauth2-proxy subject to a separate per-user GitHub OAuth grant, runs the Copilot SDK in `mode: "empty"` with exact model `hydrafusion`, and exposes only accepted read-only Penge MCP tools over a local stdio child.
 
 Production is deliberately disabled unless `PENGE_CHAT_ENABLE_PRODUCTION=1`.
-Each actor's exact `hydrafusion` entitlement is checked by creating the SDK session with that actor's token provider; an unavailable-model failure is terminal and no fallback is configured.
+Each actor's Copilot Fusion entitlement (exact model ID `hydrafusion`) is checked by creating the SDK session with that actor's token provider; an unavailable-model failure is terminal and no fallback is configured.
 
 ## Trust boundaries
 

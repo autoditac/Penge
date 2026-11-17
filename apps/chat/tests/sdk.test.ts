@@ -54,7 +54,7 @@ async function waitForProcessExit(pid: number): Promise<void> {
 }
 
 describe("Copilot SDK policy", () => {
-  it("pins empty mode session semantics to exact HydraFusion with local stdio MCP", async () => {
+  it("pins empty mode session semantics to exact Copilot Fusion with local stdio MCP", async () => {
     const session = buildSessionConfig(syntheticConfig(), "actor-1", "session-1", provider);
     expect(session).toMatchObject({
       model: "hydrafusion",
@@ -282,7 +282,7 @@ describe("Copilot SDK policy", () => {
     },
   );
 
-  it("fails before process creation while HydraFusion is feature-disabled", async () => {
+  it("fails before process creation while Copilot Fusion is feature-disabled", async () => {
     const runtime = new GitHubCopilotRuntime(syntheticConfig({ productionEnabled: false }));
     await expect(
       runtime.createRun({

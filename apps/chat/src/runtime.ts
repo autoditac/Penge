@@ -593,7 +593,7 @@ export class ChatRuntime {
               : "session_interrupted",
           message:
             error instanceof HydraFusionUnavailableError
-              ? "HydraFusion is unavailable for the linked GitHub identity."
+              ? "Copilot Fusion is unavailable for the linked GitHub identity."
               : publicErrorMessage(),
           retryable: !(error instanceof HydraFusionUnavailableError),
         },

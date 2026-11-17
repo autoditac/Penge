@@ -155,7 +155,7 @@ function errorStatus(error: unknown): number {
 
 function publicError(error: unknown): { code: string; message: string } {
   if (error instanceof HydraFusionUnavailableError) {
-    return { code: "hydrafusion_unavailable", message: "HydraFusion is unavailable." };
+    return { code: "hydrafusion_unavailable", message: "Copilot Fusion is unavailable." };
   }
   if (error instanceof FeatureDisabledError) {
     return { code: "hydrafusion_unavailable", message: "Ask Penge is not enabled." };

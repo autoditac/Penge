@@ -96,6 +96,8 @@ balance matches the sum of the latest observed position values, and that
 both EUR and DKK values exist.
 A missing or mismatched row, or a missing valuation, makes that source partial
 with unknown freshness.
+A latest position with no market value counts as a missing valuation, even
+though the net-worth mart values it as 0.
 If the mart itself is unavailable or cannot be read, the coverage call fails
 closed.
 These checks do not certify historical mart rows, FX accuracy, per-account

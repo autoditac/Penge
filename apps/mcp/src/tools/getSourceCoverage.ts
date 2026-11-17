@@ -115,28 +115,32 @@ function coverageSql(martTable: string): string {
   ),
   latest_holding_positions AS (
     SELECT DISTINCT ON (h.account_id, h.instrument_id)
-      h.account_id, h.instrument_id, h.as_of, coalesce(h.market_value, 0)::numeric(20, 4) AS value
+      h.account_id, h.instrument_id, h.as_of, h.market_value::numeric(20, 4) AS value
     FROM holding_snapshot AS h
     INNER JOIN account AS a ON a.id = h.account_id
     WHERE a.provider = ANY($1::text[])
     ORDER BY h.account_id, h.instrument_id, h.as_of DESC
   ),
   latest_holding_accounts AS (
-    SELECT account_id, max(as_of) AS as_of, sum(value)::numeric(20, 4) AS expected_balance
+    -- The net-worth mart values a NULL market_value as 0, so an unvalued latest
+    -- position must not be able to satisfy the balance match below.
+    SELECT account_id, max(as_of) AS as_of, sum(value)::numeric(20, 4) AS expected_balance,
+      bool_or(value IS NULL) AS has_unvalued_position
     FROM latest_holding_positions
     GROUP BY account_id
   ),
   holding_account_access AS (
     SELECT h.account_id,
       count(m.account_id) = 1 AND bool_and(
-        m.entity_id = a.entity_id AND m.account_currency = a.currency
+        NOT h.has_unvalued_position
+        AND m.entity_id = a.entity_id AND m.account_currency = a.currency
         AND m.balance_acct_ccy = h.expected_balance
         AND m.balance_eur IS NOT NULL AND m.balance_dkk IS NOT NULL
       ) AS accessible
     FROM latest_holding_accounts AS h
     INNER JOIN account AS a ON a.id = h.account_id
     LEFT JOIN ${martTable} AS m ON m.account_id = h.account_id AND m.as_of = h.as_of
-    GROUP BY h.account_id, h.expected_balance, a.entity_id, a.currency
+    GROUP BY h.account_id, h.expected_balance, h.has_unvalued_position, a.entity_id, a.currency
   ),
   holding_counts AS (
     SELECT a.provider, count(*)::int AS holding_count, max(h.created_at) AS latest_holding_at,

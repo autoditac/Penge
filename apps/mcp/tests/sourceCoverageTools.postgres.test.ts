@@ -1050,6 +1050,31 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
         "UPDATE mart_net_worth_daily SET balance_dkk = 81.95 WHERE account_id = $1",
         [gls],
       );
+      // An unvalued latest position is mart-valued as 0; a matching 0 balance must not
+      // make the account complete or fresh.
+      await client.query("UPDATE holding_snapshot SET market_value = NULL WHERE account_id = $1", [
+        gls,
+      ]);
+      await client.query(
+        `UPDATE mart_net_worth_daily SET balance_acct_ccy = 0, balance_eur = 0, balance_dkk = 0
+         WHERE account_id = $1`,
+        [gls],
+      );
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({ completeness: "partial", freshness: "unknown", holding_count: 1 });
+      await client.query("UPDATE holding_snapshot SET market_value = 11 WHERE account_id = $1", [
+        gls,
+      ]);
+      await client.query(
+        `UPDATE mart_net_worth_daily SET balance_acct_ccy = 11, balance_eur = 11,
+           balance_dkk = 81.95
+         WHERE account_id = $1`,
+        [gls],
+      );
+      expect(
+        (await coverage.handler({ source_ids: ["gls"] }, context)).sources[0]?.coverage,
+      ).toMatchObject({ completeness: "complete", freshness: "fresh" });
       await client.query(
         `INSERT INTO account (id, entity_id, provider, name, kind, currency)
          VALUES ($1::uuid, $1::uuid, 'gls', 'Synthetic second account', 'checking', 'EUR')`,

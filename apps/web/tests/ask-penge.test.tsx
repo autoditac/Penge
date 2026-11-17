@@ -112,6 +112,21 @@ describe("AskPengePage", () => {
     useMediaQueryMock.mockReturnValue(true);
   });
 
+  it.each([true, false])(
+    "labels the exact model as experimental when availability is %s",
+    (modelAvailable) => {
+      render(
+        <AskPengePage
+          authState="linked"
+          modelAvailable={modelAvailable}
+          transport={createImmediateTransport([])}
+        />,
+      );
+
+      expect(screen.getByText("Copilot Fusion (experimental · hydrafusion)")).toBeVisible();
+    },
+  );
+
   it("does not restore linked status from a stale refresh after unlinking", async () => {
     let resolveStaleStatus!: (response: Response) => void;
     const staleStatus = new Promise<Response>((resolve) => {
@@ -364,6 +379,7 @@ describe("AskPengePage", () => {
   });
 
   it("blocks keyboard submissions while a session is streaming", async () => {
+    useMediaQueryMock.mockReturnValue(false);
     let starts = 0;
     const transport: AskTransport = {
       start() {
@@ -385,6 +401,7 @@ describe("AskPengePage", () => {
 
     expect(starts).toBe(1);
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+    expect(screen.getByText("Answer streaming")).toBeInTheDocument();
   });
 
   it("latches protocol failure so later events cannot modify the answer", async () => {
@@ -433,6 +450,67 @@ describe("AskPengePage", () => {
     expect(screen.queryByText(/Must not render/)).not.toBeInTheDocument();
     expect(screen.queryByText("Synthetic completion after failure.")).not.toBeInTheDocument();
   });
+
+  it.each([
+    ["desktop", false],
+    ["mobile", true],
+  ] as const)(
+    "does not present a rejected completion as successful on %s",
+    async (_viewport, isMobile) => {
+      useMediaQueryMock.mockReturnValue(isMobile);
+      const transport: AskTransport = {
+        start() {
+          return {
+            stop: async () => undefined,
+            close: () => undefined,
+            subscribe: (callback) => {
+              callback({
+                ...envelope(0),
+                type: "text",
+                id: "partial-before-completion",
+                stream: "answer",
+                delta: "Validated partial answer.",
+                source: "assistant",
+              });
+              callback({
+                ...envelope(1),
+                type: "completion",
+                id: "rejected-completion",
+                summary: "Synthetic answer complete.",
+                coverage: "full",
+                freshness: "fresh",
+                finishReason: "completed",
+                assumptions: ["Synthetic completion assumption."],
+              });
+              callback({
+                ...envelope(2),
+                type: "text",
+                id: "after-terminal",
+                stream: "answer",
+                delta: "Invalid extra text.",
+                source: "assistant",
+              });
+              return () => undefined;
+            },
+          };
+        },
+      };
+      render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+
+      await startInjectedStream();
+      expect(screen.getByText("Unsupported answer stream")).toBeInTheDocument();
+      expect(screen.getByRole("status")).toHaveTextContent("Validated partial answer.");
+      if (isMobile) {
+        await userEvent.click(screen.getByRole("button", { name: /Open evidence sheet/i }));
+      } else {
+        expect(screen.getByText("Answer incomplete")).toBeInTheDocument();
+      }
+      expect(screen.queryByText("Synthetic answer complete.")).not.toBeInTheDocument();
+      expect(screen.queryByText("Synthetic completion assumption.")).not.toBeInTheDocument();
+      expect(screen.queryByText("Answer ready")).not.toBeInTheDocument();
+      expect(screen.queryByText("Invalid extra text.")).not.toBeInTheDocument();
+    },
+  );
 
   it("requests an authoritative status refresh when authorization expires", async () => {
     const onAuthExpired = vi.fn();
@@ -560,7 +638,7 @@ describe("AskPengePage", () => {
             type: "error",
             id: "error-1",
             code: "hydrafusion_unavailable",
-            message: "Exact HydraFusion is unavailable for this linked identity.",
+            message: "Synthetic model-unavailable detail.",
             retryable: false,
           },
         ])}
@@ -569,11 +647,9 @@ describe("AskPengePage", () => {
 
     await startInjectedStream();
     await waitFor(() =>
-      expect(screen.getByText("Exact HydraFusion data is unavailable")).toBeInTheDocument(),
+      expect(screen.getByText("Exact Copilot Fusion model is unavailable")).toBeInTheDocument(),
     );
-    expect(
-      screen.getByText("Exact HydraFusion is unavailable for this linked identity."),
-    ).toBeInTheDocument();
+    expect(screen.getByText("Synthetic model-unavailable detail.")).toBeInTheDocument();
     expect(screen.getByRole("status")).toHaveTextContent(/^$/);
   });
 
@@ -674,6 +750,7 @@ describe("AskPengePage", () => {
   });
 
   it("offers reconnect after an interrupted injected session", async () => {
+    useMediaQueryMock.mockReturnValue(false);
     render(
       <AskPengePage
         authState="linked"
@@ -696,6 +773,8 @@ describe("AskPengePage", () => {
       expect(screen.getByRole("button", { name: "Reconnect" })).toBeInTheDocument(),
     );
     expect(screen.getByText(/no transcript was persisted/i)).toBeInTheDocument();
+    expect(screen.getByText("Answer interrupted")).toBeInTheDocument();
+    expect(screen.queryByText("Answer ready")).not.toBeInTheDocument();
   });
 
   it.each([
@@ -787,15 +866,17 @@ describe("AskPengePage", () => {
     );
     expect(alert).toHaveClass("MuiAlert-colorWarning");
     expect(alert).not.toHaveClass("MuiAlert-colorSuccess");
+    expect(screen.getByText("Answer stopped")).toBeInTheDocument();
+    expect(screen.queryByText("Answer ready")).not.toBeInTheDocument();
   });
 
   it.each([
-    ["partial", "fresh", "MuiAlert-colorWarning"],
-    ["full", "stale", "MuiAlert-colorWarning"],
-    ["full", "fresh", "MuiAlert-colorSuccess"],
+    ["partial", "fresh", "MuiAlert-colorWarning", "Answer needs review"],
+    ["full", "stale", "MuiAlert-colorWarning", "Answer needs review"],
+    ["full", "fresh", "MuiAlert-colorSuccess", "Answer ready"],
   ] as const)(
     "styles a %s/%s completed answer according to its evidence quality",
-    async (coverage, freshness, severityClass) => {
+    async (coverage, freshness, severityClass, statusLabel) => {
       useMediaQueryMock.mockReturnValue(false);
       render(
         <AskPengePage
@@ -821,6 +902,7 @@ describe("AskPengePage", () => {
         ".MuiAlert-root",
       );
       expect(alert).toHaveClass(severityClass);
+      expect(screen.getByText(statusLabel)).toBeInTheDocument();
     },
   );
 

@@ -399,7 +399,7 @@ async function mapChatHttpError(response: Response): Promise<{
   if (publicCode === "hydrafusion_unavailable") {
     return {
       code: publicCode,
-      message: "Exact HydraFusion is unavailable for the linked GitHub account.",
+      message: "Exact Copilot Fusion (hydrafusion) is unavailable for the linked GitHub account.",
       retryable: false,
     };
   }

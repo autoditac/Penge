@@ -80,7 +80,7 @@ function streamErrorTitle(error: AskStreamErrorEvent): string {
     case "auth_expired":
       return "GitHub session expired";
     case "hydrafusion_unavailable":
-      return "Exact HydraFusion data is unavailable";
+      return "Exact Copilot Fusion model is unavailable";
     case "rate_limit":
       return "Copilot rate limit reached";
     case "session_interrupted":
@@ -339,13 +339,14 @@ function AskPengeWorkbench({
     [events],
   );
 
-  const completion = useMemo(
-    () =>
-      events
-        .filter((event): event is AskStreamCompletionEvent => event.type === "completion")
-        .at(-1),
-    [events],
-  );
+  const completion = useMemo(() => {
+    if (streamState !== "complete" && streamState !== "cancelled") {
+      return undefined;
+    }
+    return events
+      .filter((event): event is AskStreamCompletionEvent => event.type === "completion")
+      .at(-1);
+  }, [events, streamState]);
 
   const visibleEvidence = useMemo(() => {
     if (activeFilter === "all") {
@@ -375,15 +376,21 @@ function AskPengeWorkbench({
       : serviceState === "error"
         ? { tone: "critical" as const, label: "Ask Penge status unavailable" }
         : serviceState === "ready" && featureEnabled && modelAvailable
-          ? { tone: "good" as const, label: "Exact HydraFusion available" }
-          : { tone: "critical" as const, label: "Exact HydraFusion unavailable" };
+          ? { tone: "good" as const, label: "Exact Copilot Fusion available" }
+          : { tone: "critical" as const, label: "Exact Copilot Fusion unavailable" };
+  const answerStatus = answerStatusBadge(streamState, completion);
 
   const content = (
     <>
       <PageHeader
         title="Ask Penge"
         description="Evidence-first answers with visible tool progress, clear source freshness, and EUR/DKK context — no chain-of-thought leaks and no direct finance data access."
-        badge={<Pill tone={availabilityBadge.tone}>{availabilityBadge.label}</Pill>}
+        badge={
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: "wrap" }}>
+            <Pill tone="info">Copilot Fusion (experimental · hydrafusion)</Pill>
+            <Pill tone={availabilityBadge.tone}>{availabilityBadge.label}</Pill>
+          </Stack>
+        }
       />
 
       <Panel
@@ -419,7 +426,7 @@ function AskPengeWorkbench({
         <Stack spacing={2}>
           {serviceState === "loading" ? (
             <Alert severity="info" variant="outlined" sx={{ borderRadius: 2 }}>
-              Checking the server-derived GitHub linkage, feature gate, and exact HydraFusion
+              Checking the server-derived GitHub linkage, feature gate, and exact Copilot Fusion
               availability.
             </Alert>
           ) : serviceState === "error" ? (
@@ -451,7 +458,7 @@ function AskPengeWorkbench({
           ) : !modelAvailable ? (
             <Alert severity="warning" variant="outlined" sx={{ borderRadius: 2 }}>
               <Box component="strong" sx={{ display: "block" }}>
-                Exact HydraFusion is unavailable
+                Exact Copilot Fusion is unavailable
               </Box>
               The exact <Box component="code">hydrafusion</Box> entitlement is unavailable or the
               chat backend is not configured. Ask Penge will not send a request or substitute
@@ -832,9 +839,7 @@ function AskPengeWorkbench({
                       <Pill tone={authState === "linked" ? "good" : "watch"}>
                         {authState === "linked" ? "GitHub linked" : "GitHub not linked"}
                       </Pill>
-                      <Pill tone={completion ? "good" : "info"}>
-                        {completion ? "Answer ready" : "Awaiting answer"}
-                      </Pill>
+                      <Pill tone={answerStatus.tone}>{answerStatus.label}</Pill>
                     </Stack>
                     <Typography color="text.secondary" sx={{ mt: 1, fontSize: "0.82rem" }}>
                       Freshness is computed from the latest exact source timestamps; partial
@@ -1017,7 +1022,7 @@ export function GitHubStatusCard({
                 ? "This GitHub authorization expired. Reauthenticate before a live bounded session."
                 : authState === "not-configured"
                   ? "GitHub account linking is not configured. No local control can simulate a verified identity."
-                  : "Connect your own account before asking for exact HydraFusion or Copilot-backed household answers."}
+                  : "Connect your own account before asking for exact Copilot Fusion or Copilot-backed household answers."}
             </Typography>
             {onLink ? (
               <Link component="button" type="button" onClick={onLink} sx={{ textAlign: "left" }}>
@@ -1041,4 +1046,29 @@ function completionSeverity(completion: AskStreamCompletionEvent): "success" | "
     completion.freshness === "fresh"
     ? "success"
     : "warning";
+}
+
+function answerStatusBadge(
+  streamState: StreamState,
+  completion: AskStreamCompletionEvent | undefined,
+): { readonly tone: Tone; readonly label: string } {
+  switch (streamState) {
+    case "idle":
+      return { tone: "info", label: "Awaiting answer" };
+    case "streaming":
+      return { tone: "info", label: "Answer streaming" };
+    case "complete":
+      if (completion === undefined) {
+        return { tone: "critical", label: "Answer incomplete" };
+      }
+      return completionSeverity(completion) === "success"
+        ? { tone: "good", label: "Answer ready" }
+        : { tone: "watch", label: "Answer needs review" };
+    case "cancelled":
+      return { tone: "watch", label: "Answer stopped" };
+    case "error":
+      return { tone: "critical", label: "Answer incomplete" };
+    case "disconnected":
+      return { tone: "watch", label: "Answer interrupted" };
+  }
 }

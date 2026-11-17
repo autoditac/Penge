@@ -17,7 +17,8 @@ test("fails closed without overflow and preserves the responsive workbench", asy
   await page.goto("/ask");
 
   await expect(page.getByRole("heading", { name: "Ask Penge" })).toBeVisible();
-  await expect(page.getByText("Exact HydraFusion is unavailable")).toBeVisible();
+  await expect(page.getByText("Copilot Fusion (experimental · hydrafusion)")).toBeVisible();
+  await expect(page.getByText("Exact Copilot Fusion is unavailable")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask", exact: true })).toBeDisabled();
   await expect(page.getByText(/No request has been sent/i)).toBeVisible();
   await expect(page.getByRole("status")).toHaveCount(1);
@@ -47,7 +48,7 @@ test("does not simulate GitHub linkage or a synthetic financial answer", async (
 
   await expect(page.getByRole("button", { name: "GitHub linking unavailable" })).toBeDisabled();
   await expect(page.getByText(/No local control can simulate a verified identity/i)).toBeVisible();
-  await expect(page.getByText("Exact HydraFusion unavailable")).toBeVisible();
+  await expect(page.getByText("Exact Copilot Fusion unavailable")).toBeVisible();
   await expect(page.getByText(/DKK 1\.42M/)).toHaveCount(0);
 });
 
@@ -56,6 +57,7 @@ test("exercises the isolated synthetic stream, cancellation, evidence, and assum
 }, testInfo) => {
   await page.goto("/ask/e2e");
 
+  await expect(page.getByText("Copilot Fusion (experimental · hydrafusion)")).toBeVisible();
   await expect(page.getByRole("button", { name: "Ask", exact: true })).toBeEnabled();
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   if (testInfo.project.name === "desktop") {

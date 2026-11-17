@@ -99,17 +99,20 @@ are recorded in ADR-0036.
   Production enables the fetch-stream adapter only when
   `VITE_PENGE_CHAT_BASE_URL` is set to a same-origin base path. The adapter reads
   GitHub linkage, the backend feature gate, and exact `hydrafusion` availability
-  from `GET <base>/v1/auth/status`; it never derives identity or entitlement in
-  the browser. Linking navigates to `<base>/oauth/github/start`, unlinking uses
-  `DELETE <base>/v1/auth/github`, and bounded questions (maximum 8,000
+  from `GET <base>/v1/auth/status`; the interface labels Copilot Fusion as
+  experimental and shows its exact model ID. It never derives identity or
+  entitlement in the browser. Linking navigates to `<base>/oauth/github/start`,
+  unlinking uses `DELETE <base>/v1/auth/github`, and bounded questions (maximum 8,000
   characters) stream from `POST <base>/v1/chat`. Concurrent status refreshes
   cannot overwrite a newer unlink result. User cancellation calls
   `POST <base>/v1/chat/stop` only after a server session ID is observed.
   Missing configuration keeps the production route disabled, exposes no
   simulated OAuth success, and permits no model fallback.
   Exact-model errors refresh server-derived availability before another request
-  is enabled. Only completed answers with full, fresh evidence receive success
-  styling; partial, stale, and cancelled results remain warnings. The account
+  is enabled. A rejected stream cannot show a completion summary or ready badge,
+  although validated partial answer text remains visible. Only completed answers
+  with full, fresh evidence receive success styling; partial, stale, and
+  cancelled results remain warnings. The account
   panel describes EUR and DKK support, while each evidence card identifies the
   currencies actually present in that source.
   The incremental SSE parser handles chunk boundaries and CRLF/LF framing;

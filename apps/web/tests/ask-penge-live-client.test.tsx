@@ -237,6 +237,7 @@ describe("Ask Penge live client", () => {
     ).resolves.toMatchObject({
       type: "error",
       code: "hydrafusion_unavailable",
+      message: "Exact Copilot Fusion (hydrafusion) is unavailable for the linked GitHub account.",
       retryable: false,
     });
   });
@@ -445,7 +446,7 @@ describe("Ask Penge live page", () => {
 
     render(<AskPengeLivePage configuredBaseUrl="" fetchFn={asFetch(fetchMock)} />);
 
-    expect(screen.getByText("Exact HydraFusion is unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Exact Copilot Fusion is unavailable")).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -484,7 +485,7 @@ describe("Ask Penge live page", () => {
       <AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />,
     );
 
-    expect(await screen.findByText("Exact HydraFusion is unavailable")).toBeInTheDocument();
+    expect(await screen.findByText("Exact Copilot Fusion is unavailable")).toBeInTheDocument();
     rerender(
       <AskPengeLivePage
         key="feature-disabled"
@@ -547,7 +548,7 @@ describe("Ask Penge live page", () => {
     expect(await screen.findByRole("button", { name: /Reauthenticate/i })).toBeInTheDocument();
   });
 
-  it("refreshes and gates requests after exact HydraFusion becomes unavailable", async () => {
+  it("refreshes and gates requests after exact Copilot Fusion becomes unavailable", async () => {
     const unavailable = JSON.stringify({
       version: "1.0",
       sessionId: "model-unavailable-session",
@@ -574,13 +575,15 @@ describe("Ask Penge live page", () => {
     await screen.findByText(/linked as @synthetic-user/i);
     await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
-    expect(await screen.findByText("Exact HydraFusion data is unavailable")).toBeInTheDocument();
+    expect(
+      await screen.findByText("Exact Copilot Fusion model is unavailable"),
+    ).toBeInTheDocument();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
     expect(screen.getByText("Checking Ask Penge status")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
 
     resolveRefresh?.(statusResponse({ available: false }));
-    expect(await screen.findByText("Exact HydraFusion unavailable")).toBeInTheDocument();
+    expect(await screen.findByText("Exact Copilot Fusion unavailable")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
   });
 
@@ -618,5 +621,7 @@ describe("Ask Penge live page", () => {
 
     expect(await screen.findByText("Unsupported answer stream")).toBeInTheDocument();
     expect(screen.queryByText("Must not render")).not.toBeInTheDocument();
+    expect(screen.queryByText("Synthetic completion")).not.toBeInTheDocument();
+    expect(screen.queryByText("Answer ready")).not.toBeInTheDocument();
   });
 });

@@ -18,7 +18,7 @@ def upgrade_isolated_database(database_url: str) -> None:
     )
     env = dict(os.environ)
     env["DATABASE_URL"] = validated_url
-    subprocess.run(  # noqa: S603 -- fixed Alembic argv and guarded disposable database
+    subprocess.run(
         [sys.executable, "-m", "alembic", "upgrade", "head"],
         env=env,
         cwd=Path(__file__).resolve().parents[2],

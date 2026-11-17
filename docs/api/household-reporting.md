@@ -24,9 +24,11 @@ See [ADR-0052](../decisions/0052-household-reporting-projection.md).
 - Explicit own-account transfers and excluded movements are neither income
   nor expense. The report's default scope is checking accounts, but transfer
   recognition considers owned accounts outside the selected report scope.
-- Negative unclassified bank movements remain in expense totals and are
-  separately quantified. Positive unclassified credits are not presumed to be
-  income.
+- Unclassified bank movements use signed polarity for headline cashflow:
+  positive credits contribute to income and negative debits to gross expenses.
+  They remain unclassified review items without category allocations or learning
+  evidence. The API, reporting mart, and MCP share this fallback; the mart exposes
+  it as `reporting_treatment` without changing the stored treatment.
 - A transaction split conserves the exact signed bank-currency amount.
   Selecting a category filters its allocation lines and descendants; a
   transaction with multiple selected splits is still counted once.

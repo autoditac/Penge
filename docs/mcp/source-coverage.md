@@ -11,15 +11,18 @@ configuring both is rejected.
 
 ## Exact read-only registration contract reference
 
-The table below is the exact Penge-only registration and chat allowlist that
-PBI #346 must pin independently in the chat backend.
+The table below is the exact 17-name Penge MCP registration set.
+PBI #346 must pin that set independently in the chat backend.
+The chat model's allowlist contains the 16 names below other than the
+server-metadata tool `_meta`; `_meta` is not exposed as a model-callable tool.
 MCP stdio `tools/list` and `get_source_coverage.tool_allowlist` are
 server-reported evidence only; neither value is authoritative for the chat
 security boundary.
-At startup, PBI #346 must compare `tools/list` against its pinned set.
+At startup, PBI #346 must compare `tools/list` against its pinned
+17-name registration set.
 It must also compare every returned `get_source_coverage.tool_allowlist`
-against that same independently pinned set and fail closed on any missing,
-additional, or changed tool.
+against that same independently pinned registration set and fail closed on
+any missing, additional, or changed tool.
 
 | Tool                               | Evidence class                                                 |
 | ---------------------------------- | -------------------------------------------------------------- |
@@ -261,9 +264,9 @@ The chat service must not put prompts, transcripts, identities, OAuth tokens, or
 
 - Spawn a local stdio MCP process; never connect to or expose a network MCP endpoint.
 - Generate per-person and per-session opaque audit IDs and pass them only through the two environment variables above.
-- Independently pin the exact registration and chat allowlist shown above; never derive the trusted set from MCP output.
-- Compare stdio `tools/list` and every returned `get_source_coverage.tool_allowlist` separately against that pinned set, failing startup or the call closed on any mismatch.
-- Allow only the independently pinned tools and validate every tool result against its MCP schema.
+- Independently pin the 17-name registration set and the 16-name model-callable set above; never derive either trusted set from MCP output.
+- Compare stdio `tools/list` and every returned `get_source_coverage.tool_allowlist` separately against the pinned registration set, failing startup or the call closed on any mismatch.
+- Expose only the 16 independently pinned model-callable tools and validate every tool result against its MCP schema.
 - For a full-evidence gate, request all sources and compare the returned source IDs with an independently expected complete source set.
 - Require top-level `complete: true` and every returned source's completeness to be `complete`; evaluate freshness separately.
 - Prefer MCP `structuredContent` over reparsing model-facing text.

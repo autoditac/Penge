@@ -1,5 +1,6 @@
 import { expect, test, type Page, type Response } from "@playwright/test";
 
+import { apiUrl as api } from "../browser-env";
 import {
   householdClassificationSchema,
   householdMerchantsResponseSchema,
@@ -9,8 +10,6 @@ import {
   householdTransactionSchema,
   householdTransactionsResponseSchema,
 } from "../src/api/schemas";
-
-const api = "http://127.0.0.1:8000";
 
 function apiResponse(response: Response, path: string, method = "GET", status = 200): boolean {
   const url = new URL(response.url());

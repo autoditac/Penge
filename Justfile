@@ -39,6 +39,12 @@ logs:
 lint:
     pre-commit run --all-files
 
+ci-setup-test:
+    uv run --group dev pytest tests/scripts/test_ci_package_setup.py -q
+
+ci-browser-deps:
+    bash scripts/ci-package-setup.sh pnpm --filter @penge/web exec playwright install-deps chromium
+
 test:
     uv run pytest tests/ -q
 

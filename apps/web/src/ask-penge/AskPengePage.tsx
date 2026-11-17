@@ -166,7 +166,10 @@ function AskPengeWorkbench({
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
   const [railCollapsed, setRailCollapsed] = useState<boolean>(false);
   const [streamError, setStreamError] = useState<AskStreamErrorEvent | null>(null);
-  const [contractError, setContractError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<{
+    readonly title: string;
+    readonly message: string;
+  } | null>(null);
   const sessionRef = useRef<AskTransportSession | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const attemptRef = useRef<number>(0);
@@ -230,9 +233,11 @@ function AskPengeWorkbench({
       await session?.stop();
     } catch {
       if (attemptRef.current === attempt) {
-        setContractError(
-          "The server could not confirm cancellation. The local stream was closed; reconnect before asking again.",
-        );
+        setLocalError({
+          title: "Cancellation could not be confirmed",
+          message:
+            "The server could not confirm cancellation. The local stream was closed; reconnect before asking again.",
+        });
         setStreamState("disconnected");
       }
     } finally {
@@ -264,7 +269,7 @@ function AskPengeWorkbench({
     setEvents([]);
     setStreamState("streaming");
     setStreamError(null);
-    setContractError(null);
+    setLocalError(null);
 
     let unsubscribe = (): void => undefined;
     const unsubscribeAfterDispatch = (): void => {
@@ -293,9 +298,11 @@ function AskPengeWorkbench({
         protocolFailed = true;
         flushBufferedAnswer();
         finishLocalSession();
-        setContractError(
-          "The answer stream did not match Ask Penge protocol 1.0. Reconnect after the backend contract is updated.",
-        );
+        setLocalError({
+          title: "Unsupported answer stream",
+          message:
+            "The answer stream did not match Ask Penge protocol 1.0. Reconnect after the backend contract is updated.",
+        });
         setStreamState("error");
         return;
       }
@@ -473,12 +480,12 @@ function AskPengeWorkbench({
             onUnlink={onUnlinkGitHub}
           />
 
-          {contractError !== null ? (
+          {localError !== null ? (
             <Alert severity="error" variant="outlined" sx={{ borderRadius: 2 }}>
               <Box component="strong" sx={{ display: "block" }}>
-                Unsupported answer stream
+                {localError.title}
               </Box>
-              {contractError}
+              {localError.message}
             </Alert>
           ) : null}
 

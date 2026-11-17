@@ -337,6 +337,35 @@ describe("AskPengePage", () => {
     expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
   });
 
+  it("reports an unconfirmed stop without mislabeling the stream and allows reconnecting", async () => {
+    let starts = 0;
+    const transport: AskTransport = {
+      start() {
+        starts += 1;
+        return {
+          stop: async () => {
+            throw new Error("synthetic stop failure");
+          },
+          close: () => undefined,
+          subscribe: () => () => undefined,
+        };
+      },
+    };
+    render(<AskPengePage authState="linked" modelAvailable transport={transport} />);
+    const user = userEvent.setup();
+
+    await user.click(screen.getByRole("button", { name: "Ask" }));
+    await user.click(screen.getByRole("button", { name: "Stop" }));
+
+    expect(await screen.findByText("Cancellation could not be confirmed")).toBeInTheDocument();
+    expect(screen.getByText(/server could not confirm cancellation/i)).toBeInTheDocument();
+    expect(screen.queryByText("Unsupported answer stream")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reconnect" }));
+    expect(starts).toBe(2);
+    expect(screen.queryByText("Cancellation could not be confirmed")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop" })).toBeInTheDocument();
+  });
+
   it.each([
     ["hydrafusion_unavailable", "Retry"],
     ["session_interrupted", "Reconnect"],

@@ -50,8 +50,11 @@ after a confirmed graceful SDK shutdown.
 The probe has a 30-second deadline and allows five seconds for graceful shutdown
 before requesting a forced stop.
 If SDK startup or the runtime handshake is still pending at the deadline, the
-probe forces a stop. It then waits up to five more seconds for startup to settle,
-so a late-starting runtime cannot outlive the command unnoticed.
+probe forces a stop. Because the SDK may spawn its runtime after that first stop,
+the probe repeats forced stops for up to five more seconds until startup settles.
+This also kills a runtime spawned after the deadline whose handshake never completes.
+If startup still has not settled, the command sends a final synchronous forced
+stop and exits immediately, so no runtime can be spawned after the command ends.
 If termination cannot be confirmed, the command fails without a model result and
 retains its `penge-copilot-entitlement-*` temporary directory.
 After confirming that the corresponding runtime is no longer running, remove

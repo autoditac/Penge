@@ -35,12 +35,61 @@ export interface EntitlementProbeResult {
 interface ProbeTimeouts {
   probeMs: number;
   shutdownMs: number;
+  stopRetryMs?: number;
 }
 
 const defaultTimeouts: ProbeTimeouts = {
   probeMs: 30_000,
   shutdownMs: 5_000,
 };
+
+const defaultStopRetryMs = 50;
+
+function sleep(ms: number): { done: Promise<void>; cancel: () => void } {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const done = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, ms);
+  });
+  return { done, cancel: () => clearTimeout(timer) };
+}
+
+/**
+ * SDK 1.0.16 may still be resolving its bundled runtime when the probe deadline fires, so a
+ * forced stop can run before the child exists and the child's handshake may never complete.
+ * Keep forcing a stop until startup settles; killing the child rejects the pending handshake.
+ */
+async function stopUntilStartupSettles(
+  client: EntitlementProbeClient,
+  startup: Promise<unknown>,
+  timeouts: ProbeTimeouts,
+): Promise<void> {
+  let settled = false;
+  const settlement = startup.then(
+    () => {
+      settled = true;
+    },
+    () => {
+      settled = true;
+    },
+  );
+  const deadline = Date.now() + timeouts.shutdownMs;
+  const retryMs = timeouts.stopRetryMs ?? defaultStopRetryMs;
+  while (!settled) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) {
+      throw new EntitlementProbeTimeoutError(
+        `SDK startup settlement timed out after ${timeouts.shutdownMs}ms`,
+      );
+    }
+    await withDeadline(client.forceStop(), remaining, "Forced SDK shutdown");
+    const pause = sleep(Math.min(retryMs, Math.max(deadline - Date.now(), 0)));
+    try {
+      await Promise.race([settlement, pause.done]);
+    } finally {
+      pause.cancel();
+    }
+  }
+}
 
 async function withDeadline<T>(
   operation: Promise<T>,
@@ -115,16 +164,8 @@ export async function probeEntitlement(
       cleanupErrors.push(error);
     }
     if (!startCompleted && operation !== undefined) {
-      // A startup that never settles could still spawn or hold a runtime after the deadline.
       try {
-        await withDeadline(
-          operation.then(
-            () => undefined,
-            () => undefined,
-          ),
-          timeouts.shutdownMs,
-          "SDK startup settlement",
-        );
+        await stopUntilStartupSettles(client, operation, timeouts);
       } catch (error) {
         cleanupErrors.push(error);
       }

@@ -152,9 +152,10 @@ describe("bounded entitlement probe", () => {
       await expect(
         probeEntitlement(client, baseDirectory, { probeMs: 50, shutdownMs: 500 }),
       ).rejects.toBeInstanceOf(SdkCleanupError);
-      expect(forceStop).toHaveBeenCalledOnce();
+      const stopsBeforeLateStartup = forceStop.mock.calls.length;
+      expect(stopsBeforeLateStartup).toBeGreaterThan(0);
       finishStartup();
-      await vi.waitFor(() => expect(forceStop).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(forceStop).toHaveBeenCalledTimes(stopsBeforeLateStartup + 1));
       await vi.waitFor(() => expect(child?.signalCode).toBe("SIGKILL"));
       expect(listModels).not.toHaveBeenCalled();
       await expect(stat(baseDirectory)).resolves.toBeDefined();
@@ -189,49 +190,72 @@ describe("bounded entitlement probe", () => {
       expect(causes.map((cause) => (cause as Error).message)).toContain(
         "SDK startup settlement timed out after 100ms",
       );
-      expect(forceStop).toHaveBeenCalledOnce();
+      // A runtime may appear after any stop, so stopping repeats until the settlement window ends.
+      expect(forceStop.mock.calls.length).toBeGreaterThan(1);
       await expect(stat(baseDirectory)).resolves.toBeDefined();
     } finally {
       await rm(baseDirectory, { recursive: true, force: true });
     }
   });
 
-  it.each([1, 300])(
-    "kills a runtime whose handshake never completes and settles startup (deadline %ims)",
-    async (probeMs) => {
-      const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
-      const { probeClient, startup } = trackStartup(
-        syntheticClient(baseDirectory, "stubborn", "never"),
-      );
+  it("kills a runtime whose handshake never completes and settles startup", async () => {
+    const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+    const { probeClient, startup } = trackStartup(
+      syntheticClient(baseDirectory, "stubborn", "never"),
+    );
 
-      try {
-        await expect(
-          probeEntitlement(probeClient, baseDirectory, { probeMs, shutdownMs: 1_000 }),
-        ).rejects.toBeInstanceOf(SdkCleanupError);
-        // The runtime was spawned before the deadline, so startup must already have settled.
-        const pending = startup();
-        expect(pending).toBeDefined();
-        const settled = await Promise.race([
-          pending?.then(
-            () => "resolved",
-            () => "rejected",
-          ),
-          new Promise((resolve) => setTimeout(() => resolve("pending"), 0)),
-        ]);
-        expect(settled).toBe("rejected");
-        const pidText = await readFile(join(baseDirectory, "runtime.pid"), "utf8").catch(
-          (error: unknown) => {
-            // With a 1ms deadline the runtime may be killed before it can record its PID.
-            if (probeMs === 1 && (error as NodeJS.ErrnoException).code === "ENOENT") return null;
-            throw error;
-          },
-        );
-        if (pidText !== null) await expectProcessGone(Number(pidText));
-        await expect(stat(baseDirectory)).resolves.toBeDefined();
-      } finally {
-        await rm(baseDirectory, { recursive: true, force: true });
-      }
-    },
-    10_000,
-  );
+    try {
+      await expect(
+        probeEntitlement(probeClient, baseDirectory, { probeMs: 300, shutdownMs: 1_000 }),
+      ).rejects.toBeInstanceOf(SdkCleanupError);
+      await expect(startup()).rejects.toBeDefined();
+      const pid = Number(await readFile(join(baseDirectory, "runtime.pid"), "utf8"));
+      await expectProcessGone(pid);
+      await expect(stat(baseDirectory)).resolves.toBeDefined();
+    } finally {
+      await rm(baseDirectory, { recursive: true, force: true });
+    }
+  }, 10_000);
+
+  it("kills a runtime spawned after the deadline whose handshake never completes", async () => {
+    const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+    const probeMs = 50;
+    const spawnDelayMs = 300;
+    const sdkClient = syntheticClient(baseDirectory, "stubborn", "never");
+    let startup: Promise<void> | undefined;
+    let spawnedAfterMs: number | undefined;
+    const probeStartedAt = Date.now();
+    // Models SDK runtime-path resolution outlasting the deadline: no child exists at the first stop.
+    const probeClient: EntitlementProbeClient = {
+      start: async () => {
+        await new Promise((resolve) => setTimeout(resolve, spawnDelayMs));
+        spawnedAfterMs = Date.now() - probeStartedAt;
+        startup = sdkClient.start();
+        return startup;
+      },
+      listModels: () => sdkClient.listModels(),
+      stop: () => sdkClient.stop(),
+      forceStop: () => sdkClient.forceStop(),
+    };
+
+    try {
+      await expect(
+        // The retry gap lets the late runtime record its PID before the next forced stop.
+        probeEntitlement(probeClient, baseDirectory, {
+          probeMs,
+          shutdownMs: 3_000,
+          stopRetryMs: 1_000,
+        }),
+      ).rejects.toBeInstanceOf(SdkCleanupError);
+      expect(spawnedAfterMs).toBeGreaterThan(probeMs);
+      const pid = Number(await readFile(join(baseDirectory, "runtime.pid"), "utf8"));
+      expect(Number.isInteger(pid) && pid > 0).toBe(true);
+      await expectProcessGone(pid);
+      await expect(startup).rejects.toBeDefined();
+      await expect(stat(baseDirectory)).resolves.toBeDefined();
+    } finally {
+      await sdkClient.forceStop();
+      await rm(baseDirectory, { recursive: true, force: true });
+    }
+  }, 10_000);
 });

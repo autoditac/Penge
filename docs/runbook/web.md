@@ -113,6 +113,10 @@ just web-ui-test
 just web-ui-lint
 ```
 
+In CI, the `WebUI build, lint, test` job runs a frozen install, build, the full
+Vitest suite and lint in that order with a 20-minute budget. The shared
+self-hosted runner can exceed a 10-minute budget under concurrent load.
+
 The WebUI also has a container image.
 See [Container images](container-images.md) for local builds and release image
 publishing.

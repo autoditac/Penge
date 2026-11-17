@@ -104,7 +104,8 @@ are recorded in ADR-0036.
   entitlement in the browser. Linking navigates to `<base>/oauth/github/start`,
   unlinking uses `DELETE <base>/v1/auth/github`, and bounded questions (maximum 8,000
   characters) stream from `POST <base>/v1/chat`. Concurrent status refreshes
-  cannot overwrite a newer unlink result. User cancellation calls
+  cannot overwrite a newer unlink result. Unlink requests cannot overlap, and
+  a successful unlink is followed by a status refresh. User cancellation calls
   `POST <base>/v1/chat/stop` only after a server session ID is observed.
   Missing configuration keeps the production route disabled, exposes no
   simulated OAuth success, and permits no model fallback.

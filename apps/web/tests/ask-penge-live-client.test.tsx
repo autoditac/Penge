@@ -521,6 +521,91 @@ describe("Ask Penge live page", () => {
     expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "DELETE" });
   });
 
+  it("allows only one unlink at a time and refreshes after it succeeds", async () => {
+    let resolveUnlink!: (response: Response) => void;
+    const pendingUnlink = new Promise<Response>((resolve) => {
+      resolveUnlink = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockReturnValueOnce(pendingUnlink)
+      .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    const unlink = screen.getByRole("button", { name: "Unlink GitHub account" });
+    fireEvent.click(unlink);
+    fireEvent.click(unlink);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
+
+    resolveUnlink(jsonResponse({ status: "unlinked" }));
+    expect(await screen.findByRole("button", { name: "Link GitHub account" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.queryByText(/could not be unlinked/i)).not.toBeInTheDocument();
+  });
+
+  it("allows unlinking to be retried after a failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockRejectedValueOnce(new TypeError("synthetic unlink failure"))
+      .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }))
+      .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    expect(await screen.findByText(/could not be unlinked/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    expect(await screen.findByRole("button", { name: "Link GitHub account" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not refresh status from a stream error while unlinking is pending", async () => {
+    let resolveUnlink!: (response: Response) => void;
+    const pendingUnlink = new Promise<Response>((resolve) => {
+      resolveUnlink = resolve;
+    });
+    let streamController!: ReadableStreamDefaultController<Uint8Array>;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        streamController = controller;
+      },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockResolvedValueOnce(new Response(stream))
+      .mockReturnValueOnce(pendingUnlink)
+      .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    const expired = {
+      version: "1.0",
+      sessionId: "synthetic-session",
+      id: "expired",
+      sequence: 0,
+      type: "error",
+      code: "auth_expired",
+      message: "Synthetic expired authorization.",
+      retryable: false,
+    };
+    streamController.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(expired)}\n\n`));
+
+    expect(await screen.findByText("GitHub session expired")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
+
+    resolveUnlink(jsonResponse({ status: "unlinked" }));
+    expect(await screen.findByRole("button", { name: "Link GitHub account" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
   it("refreshes authoritative status after a streamed auth_expired error", async () => {
     const expired = JSON.stringify({
       version: "1.0",

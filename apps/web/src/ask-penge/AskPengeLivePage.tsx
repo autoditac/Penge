@@ -60,6 +60,7 @@ function ConfiguredAskPengePage({
   const [serviceState, setServiceState] = useState<"loading" | "ready" | "error">("loading");
   const [serviceError, setServiceError] = useState<string | null>(null);
   const statusRequestId = useRef(0);
+  const unlinkPending = useRef(false);
 
   const refreshStatus = useCallback(async (): Promise<void> => {
     const requestId = ++statusRequestId.current;
@@ -88,7 +89,17 @@ function ConfiguredAskPengePage({
     void refreshStatus();
   }, [refreshStatus]);
 
+  const refreshStatusUnlessUnlinking = (): void => {
+    if (!unlinkPending.current) {
+      void refreshStatus();
+    }
+  };
+
   const unlinkGitHub = (): void => {
+    if (unlinkPending.current) {
+      return;
+    }
+    unlinkPending.current = true;
     statusRequestId.current += 1;
     void (async () => {
       setServiceState("loading");
@@ -101,6 +112,8 @@ function ConfiguredAskPengePage({
           "The GitHub account could not be unlinked. Refresh status before asking again.",
         );
         setServiceState("error");
+      } finally {
+        unlinkPending.current = false;
       }
     })();
   };
@@ -115,9 +128,9 @@ function ConfiguredAskPengePage({
       serviceState={serviceState}
       serviceError={serviceError}
       onLinkGitHub={() => navigate(client.githubStartUrl)}
-      onRetryStatus={() => void refreshStatus()}
-      onAuthExpired={() => void refreshStatus()}
-      onModelUnavailable={() => void refreshStatus()}
+      onRetryStatus={refreshStatusUnlessUnlinking}
+      onAuthExpired={refreshStatusUnlessUnlinking}
+      onModelUnavailable={refreshStatusUnlessUnlinking}
       {...(status?.github.state === "linked" ? { onUnlinkGitHub: unlinkGitHub } : {})}
     />
   );

@@ -415,9 +415,14 @@ describe("loopback HTTP service", () => {
   });
 
   it("maps expired GitHub authorization codes to 401 and malformed upstream bodies to 502", async () => {
-    const tokenBodies: unknown[] = [
-      { error: "bad_verification_code", error_description: "synthetic-upstream-marker" },
-      { token_type: "bearer" },
+    const tokenResponses = [
+      Response.json({
+        error: "bad_verification_code",
+        error_description: "synthetic-upstream-marker",
+      }),
+      Response.json({ token_type: "bearer" }),
+      new Response("{invalid", { headers: { "content-type": "application/json" } }),
+      new Response("synthetic outage", { status: 503 }),
     ];
     const oauthConfig = {
       clientId: "client",
@@ -442,9 +447,7 @@ describe("loopback HTTP service", () => {
         begin: async () => "https://github.com/login/oauth/authorize",
         complete: async (actorId, _state, code) => {
           const state = generateOAuthState(actorId, "https://penge.example.test/cb");
-          await exchangeGitHubCode(oauthConfig, code, state, async () =>
-            Response.json(tokenBodies.shift()),
-          );
+          await exchangeGitHubCode(oauthConfig, code, state, async () => tokenResponses.shift()!);
           return "synthetic-user";
         },
         status: async () => ({ state: "not-linked" as const, login: null }),
@@ -463,6 +466,13 @@ describe("loopback HTTP service", () => {
       const malformed = await fetch(callbackUrl, { headers, redirect: "manual" });
       expect(malformed.status).toBe(502);
       expect(await malformed.json()).toMatchObject({ code: "session_interrupted" });
+      for (const _ of [1, 2]) {
+        const upstream = await fetch(callbackUrl, { headers, redirect: "manual" });
+        expect(upstream.status).toBe(502);
+        const upstreamBody = JSON.stringify(await upstream.json());
+        expect(upstreamBody).toContain("session_interrupted");
+        expect(upstreamBody).not.toContain("synthetic outage");
+      }
       expect(invalidateActor).not.toHaveBeenCalled();
     } finally {
       await server.close();

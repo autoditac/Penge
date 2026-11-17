@@ -76,6 +76,11 @@ const KNOWN_GITHUB_OAUTH_ERRORS = new Set([
   "redirect_uri_mismatch",
   "invalid_grant",
 ]);
+const GITHUB_OAUTH_GRANT_ERRORS = new Set([
+  "bad_verification_code",
+  "bad_refresh_token",
+  "invalid_grant",
+]);
 
 const GitHubUserSchema = z
   .object({
@@ -174,17 +179,69 @@ export function buildGitHubAuthorisationUrl(
 }
 
 function futureIso(seconds: number | undefined, now: number): string | null {
-  return seconds === undefined ? null : new Date(now + seconds * 1000).toISOString();
+  if (seconds === undefined) {
+    return null;
+  }
+  const date = new Date(now + seconds * 1000);
+  if (!Number.isFinite(date.getTime())) {
+    throw new UpstreamResponseError("GitHub OAuth returned an invalid token expiration");
+  }
+  return date.toISOString();
 }
 
-async function parseGitHubResponse(response: Response): Promise<unknown> {
-  const contentType = response.headers.get("content-type") ?? "";
-  if (!contentType.includes("application/json")) {
-    throw new AuthenticationError("GitHub OAuth returned a non-JSON response");
+async function fetchGitHub(
+  fetcher: typeof fetch,
+  url: string,
+  init: RequestInit,
+): Promise<Response> {
+  try {
+    return await fetcher(url, init);
+  } catch (error) {
+    if (
+      error instanceof TypeError ||
+      (error instanceof DOMException && ["TimeoutError", "AbortError"].includes(error.name))
+    ) {
+      throw new UpstreamResponseError("GitHub request could not be completed");
+    }
+    throw error;
   }
-  const body: unknown = await response.json();
-  if (!response.ok) {
-    throw new AuthenticationError(`GitHub OAuth request failed with status ${response.status}`);
+}
+
+async function parseGitHubResponse(
+  response: Response,
+  endpoint: "token" | "user",
+): Promise<unknown> {
+  if (!response.ok && !(endpoint === "token" && response.status === 400)) {
+    if (endpoint === "user" && response.status === 401) {
+      throw new AuthenticationError("GitHub rejected the user token");
+    }
+    throw new UpstreamResponseError(`GitHub request failed with status ${response.status}`);
+  }
+  const contentType = (response.headers.get("content-type") ?? "")
+    .split(";")[0]
+    ?.trim()
+    .toLowerCase();
+  if (
+    contentType !== "application/json" &&
+    !(contentType?.startsWith("application/") && contentType.endsWith("+json"))
+  ) {
+    throw new UpstreamResponseError("GitHub returned a non-JSON response");
+  }
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch (error) {
+    if (
+      error instanceof SyntaxError ||
+      error instanceof TypeError ||
+      (error instanceof DOMException && ["TimeoutError", "AbortError"].includes(error.name))
+    ) {
+      throw new UpstreamResponseError("GitHub returned an unreadable JSON response");
+    }
+    throw error;
+  }
+  if (!response.ok && !GitHubOAuthErrorSchema.safeParse(body).success) {
+    throw new UpstreamResponseError(`GitHub request failed with status ${response.status}`);
   }
   return body;
 }
@@ -199,14 +256,18 @@ function parseGitHubTokenResponse(
     const code = KNOWN_GITHUB_OAUTH_ERRORS.has(oauthError.data.error)
       ? oauthError.data.error
       : "unrecognized_error";
-    throw new AuthenticationError(`GitHub OAuth ${operation} was rejected: ${code}`);
+    const message = `GitHub OAuth ${operation} was rejected: ${code}`;
+    if (GITHUB_OAUTH_GRANT_ERRORS.has(code)) {
+      throw new AuthenticationError(message);
+    }
+    throw new UpstreamResponseError(message);
   }
   const token = GitHubTokenResponseSchema.safeParse(body);
   if (!token.success) {
     throw new UpstreamResponseError(`GitHub OAuth ${operation} returned a malformed response`);
   }
   if (token.data.token_type !== "bearer") {
-    throw new AuthenticationError(`GitHub OAuth ${operation} returned an unsupported token type`);
+    throw new UpstreamResponseError(`GitHub OAuth ${operation} returned an unsupported token type`);
   }
   return token.data;
 }
@@ -218,7 +279,7 @@ export async function exchangeGitHubCode(
   fetcher: typeof fetch = fetch,
   now = Date.now(),
 ): Promise<TokenBundle> {
-  const response = await fetcher(config.tokenUrl, {
+  const response = await fetchGitHub(fetcher, config.tokenUrl, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify({
@@ -230,9 +291,9 @@ export async function exchangeGitHubCode(
     }),
     signal: AbortSignal.timeout(15_000),
   });
-  const token = parseGitHubTokenResponse(await parseGitHubResponse(response), "exchange");
+  const token = parseGitHubTokenResponse(await parseGitHubResponse(response, "token"), "exchange");
 
-  const userResponse = await fetcher(`${config.apiUrl.replace(/\/$/, "")}/user`, {
+  const userResponse = await fetchGitHub(fetcher, `${config.apiUrl.replace(/\/$/, "")}/user`, {
     headers: {
       accept: "application/vnd.github+json",
       authorization: `Bearer ${token.access_token}`,
@@ -240,7 +301,10 @@ export async function exchangeGitHubCode(
     },
     signal: AbortSignal.timeout(15_000),
   });
-  const user = GitHubUserSchema.parse(await parseGitHubResponse(userResponse));
+  const user = GitHubUserSchema.safeParse(await parseGitHubResponse(userResponse, "user"));
+  if (!user.success) {
+    throw new UpstreamResponseError("GitHub user endpoint returned a malformed response");
+  }
   return TokenBundleSchema.parse({
     accessToken: token.access_token,
     refreshToken: token.refresh_token ?? null,
@@ -248,8 +312,8 @@ export async function exchangeGitHubCode(
     refreshTokenExpiresAt: futureIso(token.refresh_token_expires_in, now),
     scope: token.scope.split(/[,\s]+/).filter(Boolean),
     tokenType: "bearer",
-    githubUserId: user.id,
-    githubLogin: user.login,
+    githubUserId: user.data.id,
+    githubLogin: user.data.login,
   });
 }
 
@@ -262,7 +326,7 @@ export async function refreshGitHubToken(
   if (current.refreshToken === null) {
     throw new AuthenticationError("GitHub token is expired and has no refresh token");
   }
-  const response = await fetcher(config.tokenUrl, {
+  const response = await fetchGitHub(fetcher, config.tokenUrl, {
     method: "POST",
     headers: { accept: "application/json", "content-type": "application/json" },
     body: JSON.stringify({
@@ -273,7 +337,7 @@ export async function refreshGitHubToken(
     }),
     signal: AbortSignal.timeout(15_000),
   });
-  const token = parseGitHubTokenResponse(await parseGitHubResponse(response), "refresh");
+  const token = parseGitHubTokenResponse(await parseGitHubResponse(response, "token"), "refresh");
   return TokenBundleSchema.parse({
     ...current,
     accessToken: token.access_token,

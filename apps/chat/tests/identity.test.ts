@@ -173,6 +173,7 @@ describe("identity and OAuth", () => {
     await expect(revoked).rejects.toThrow("GitHub OAuth refresh was rejected: bad_refresh_token");
 
     const unknown = exchangeGitHubCode(config, "code", state, errorBody("synthetic-attacker-code"));
+    await expect(unknown).rejects.toBeInstanceOf(UpstreamResponseError);
     await expect(unknown).rejects.toThrow("GitHub OAuth exchange was rejected: unrecognized_error");
 
     for (const attempt of [expired, revoked, unknown]) {
@@ -188,5 +189,96 @@ describe("identity and OAuth", () => {
       Response.json({ token_type: "bearer" }),
     );
     await expect(malformed).rejects.toBeInstanceOf(UpstreamResponseError);
+  });
+
+  it.each([
+    ["server outage", () => new Response("synthetic outage", { status: 503 })],
+    ["rate limit", () => Response.json({ message: "rate limited" }, { status: 429 })],
+    [
+      "invalid JSON",
+      () => new Response("{invalid", { headers: { "content-type": "application/json" } }),
+    ],
+    ["non-JSON success", () => new Response("synthetic HTML")],
+    ["OAuth server error", () => Response.json({ error: "server_error" })],
+  ])("reports GitHub %s as an upstream failure", async (_label, response) => {
+    const config = {
+      clientId: "client",
+      clientSecret: "secret",
+      authorizeUrl: "https://github.com/login/oauth/authorize",
+      tokenUrl: "https://github.com/login/oauth/access_token",
+      apiUrl: "https://api.github.com",
+    };
+    const state = generateOAuthState(
+      "actor_0123456789abcdef0123456789abcdef",
+      "https://penge.example.test/oauth/github/callback",
+    );
+    await expect(
+      exchangeGitHubCode(config, "code", state, async () => response()),
+    ).rejects.toBeInstanceOf(UpstreamResponseError);
+  });
+
+  it("distinguishes GitHub transport and malformed user data from rejected user credentials", async () => {
+    const config = {
+      clientId: "client",
+      clientSecret: "secret",
+      authorizeUrl: "https://github.com/login/oauth/authorize",
+      tokenUrl: "https://github.com/login/oauth/access_token",
+      apiUrl: "https://api.github.com",
+    };
+    const state = generateOAuthState(
+      "actor_0123456789abcdef0123456789abcdef",
+      "https://penge.example.test/oauth/github/callback",
+    );
+    await expect(
+      exchangeGitHubCode(config, "code", state, async () => {
+        throw new TypeError("synthetic network failure");
+      }),
+    ).rejects.toBeInstanceOf(UpstreamResponseError);
+
+    const fetchWithUser = (userResponse: Response): typeof fetch => {
+      const responses = [
+        Response.json({ access_token: "synthetic-token", token_type: "bearer" }),
+        userResponse,
+      ];
+      return async () => responses.shift()!;
+    };
+    await expect(
+      exchangeGitHubCode(config, "code", state, fetchWithUser(Response.json({ id: 42 }))),
+    ).rejects.toBeInstanceOf(UpstreamResponseError);
+    await expect(
+      exchangeGitHubCode(
+        config,
+        "code",
+        state,
+        fetchWithUser(new Response("unauthorized", { status: 401 })),
+      ),
+    ).rejects.toBeInstanceOf(AuthenticationError);
+  });
+
+  it("distinguishes refresh outages from an explicitly rejected refresh grant", async () => {
+    const config = {
+      clientId: "client",
+      clientSecret: "secret",
+      authorizeUrl: "https://github.com/login/oauth/authorize",
+      tokenUrl: "https://github.com/login/oauth/access_token",
+      apiUrl: "https://api.github.com",
+    };
+    await expect(
+      refreshGitHubToken(config, bundle, async () => new Response("outage", { status: 503 })),
+    ).rejects.toBeInstanceOf(UpstreamResponseError);
+    await expect(
+      refreshGitHubToken(config, bundle, async () =>
+        Response.json({ error: "bad_refresh_token" }, { status: 400 }),
+      ),
+    ).rejects.toBeInstanceOf(AuthenticationError);
+    await expect(
+      refreshGitHubToken(config, bundle, async () =>
+        Response.json({
+          access_token: "synthetic-token",
+          token_type: "bearer",
+          expires_in: 9_000_000_000_000,
+        }),
+      ),
+    ).rejects.toThrow("GitHub OAuth returned an invalid token expiration");
   });
 });

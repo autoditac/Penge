@@ -29,6 +29,9 @@ Missing or extra MCP tools fail startup.
 Each authenticated status check and chat launch verifies a fresh session-scoped model list using the linked actor token.
 Missing, disabled, unconfigured, or duplicate model-policy entries fail closed.
 
+GitHub OAuth grant rejection and a rejected user token report authentication expiry.
+GitHub outages, rate limits, invalid responses, and OAuth configuration errors report an upstream failure instead; do not ask users to relink solely because of an upstream failure.
+
 ## Incident response
 
 1. Set `PENGE_CHAT_ENABLE_PRODUCTION=0` and restart the local service.

@@ -5,7 +5,9 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import uuid
 from collections.abc import Iterator
+from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -14,10 +16,6 @@ from alembic import command
 from alembic.config import Config
 
 ADMIN_URL_ENV = "PENGE_CHAT_MIGRATION_TEST_ADMIN_URL"
-FINANCE_DATABASE = "penge_finance_migration_test"
-CHAT_DATABASE = "penge_chat_oauth_migration_test"
-EXTERNAL_ROLE = "penge_chat_oauth_migration_test"
-STORE_ROLE = "penge_chat_oauth_store_test"
 CHAT_TABLES = {"chat_oauth_link", "chat_oauth_state", "chat_audit_event"}
 
 
@@ -27,6 +25,34 @@ def _synthetic_password(suffix: str) -> str:
 
 EXTERNAL_ROLE_PASSWORD = _synthetic_password("migration")
 STORE_ROLE_PASSWORD = _synthetic_password("store")
+
+
+@dataclass(frozen=True)
+class IsolatedResources:
+    """Per-run PostgreSQL names; a unique suffix avoids touching pre-existing resources."""
+
+    finance_database: str
+    chat_database: str
+    external_role: str
+    store_role: str
+
+    @classmethod
+    def unique(cls) -> IsolatedResources:
+        suffix = uuid.uuid4().hex[:16]
+        return cls(
+            finance_database=f"penge_finance_migration_test_{suffix}",
+            chat_database=f"penge_chat_oauth_migration_test_{suffix}",
+            external_role=f"penge_chat_oauth_migration_test_{suffix}",
+            store_role=f"penge_chat_oauth_store_test_{suffix}",
+        )
+
+
+@dataclass(frozen=True)
+class IsolatedDatabases:
+    finance_url: str
+    chat_url: str
+    admin_url: str
+    resources: IsolatedResources
 
 
 def _database_url(
@@ -45,45 +71,56 @@ def _database_url(
 
 
 @pytest.fixture
-def isolated_databases() -> Iterator[tuple[str, str, str]]:
-    """Create isolated finance/chat databases and an externally managed role."""
+def isolated_databases() -> Iterator[IsolatedDatabases]:
+    """Create uniquely named finance/chat databases and roles, dropping only those created here."""
     admin_url = os.environ.get(ADMIN_URL_ENV)
     if admin_url is None:
         pytest.skip(f"{ADMIN_URL_ENV} is required for the migration integration test")
+    resources = IsolatedResources.unique()
+    created_roles: list[str] = []
+    created_databases: list[str] = []
     engine = sa.create_engine(admin_url, isolation_level="AUTOCOMMIT")
-    with engine.connect() as connection:
-        connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{FINANCE_DATABASE}"'))
-        connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{CHAT_DATABASE}"'))
-        connection.execute(sa.text(f'DROP ROLE IF EXISTS "{EXTERNAL_ROLE}"'))
-        connection.execute(sa.text(f'DROP ROLE IF EXISTS "{STORE_ROLE}"'))
-        connection.execute(
-            sa.text(
-                f"""CREATE ROLE "{EXTERNAL_ROLE}" LOGIN
-                PASSWORD '{EXTERNAL_ROLE_PASSWORD}'"""
-            )
-        )
-        connection.execute(
-            sa.text(f"""CREATE ROLE "{STORE_ROLE}" LOGIN PASSWORD '{STORE_ROLE_PASSWORD}'""")
-        )
-        connection.execute(sa.text(f'CREATE DATABASE "{FINANCE_DATABASE}"'))
-        connection.execute(sa.text(f'CREATE DATABASE "{CHAT_DATABASE}" OWNER "{EXTERNAL_ROLE}"'))
     try:
-        yield (
-            _database_url(admin_url, FINANCE_DATABASE),
-            _database_url(
+        with engine.connect() as connection:
+            # CREATE fails if a same-named resource exists; nothing pre-existing is dropped.
+            connection.execute(
+                sa.text(
+                    f"""CREATE ROLE "{resources.external_role}" LOGIN
+                    PASSWORD '{EXTERNAL_ROLE_PASSWORD}'"""
+                )
+            )
+            created_roles.append(resources.external_role)
+            connection.execute(
+                sa.text(
+                    f"CREATE ROLE \"{resources.store_role}\" LOGIN PASSWORD '{STORE_ROLE_PASSWORD}'"
+                )
+            )
+            created_roles.append(resources.store_role)
+            connection.execute(sa.text(f'CREATE DATABASE "{resources.finance_database}"'))
+            created_databases.append(resources.finance_database)
+            connection.execute(
+                sa.text(
+                    f'CREATE DATABASE "{resources.chat_database}" OWNER "{resources.external_role}"'
+                )
+            )
+            created_databases.append(resources.chat_database)
+        yield IsolatedDatabases(
+            finance_url=_database_url(admin_url, resources.finance_database),
+            chat_url=_database_url(
                 admin_url,
-                CHAT_DATABASE,
-                username=EXTERNAL_ROLE,
+                resources.chat_database,
+                username=resources.external_role,
                 password=EXTERNAL_ROLE_PASSWORD,
             ),
-            admin_url,
+            admin_url=admin_url,
+            resources=resources,
         )
     finally:
         with engine.connect() as connection:
-            connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{FINANCE_DATABASE}"'))
-            connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{CHAT_DATABASE}"'))
-            connection.execute(sa.text(f'DROP ROLE IF EXISTS "{EXTERNAL_ROLE}"'))
-            connection.execute(sa.text(f'DROP ROLE IF EXISTS "{STORE_ROLE}"'))
+            for database in reversed(created_databases):
+                connection.execute(sa.text(f'DROP DATABASE IF EXISTS "{database}" WITH (FORCE)'))
+            for role in reversed(created_roles):
+                connection.execute(sa.text(f'DROP ROLE IF EXISTS "{role}"'))
         engine.dispose()
 
 
@@ -117,18 +154,19 @@ def _run_store_vitest(env: dict[str, str]) -> None:
     assert " passed" in result.stdout, result.stdout + result.stderr
 
 
-def _run_store_postgres_tests(admin_url: str) -> None:
-    chat_admin_url = _database_url(admin_url, CHAT_DATABASE)
+def _run_store_postgres_tests(admin_url: str, resources: IsolatedResources) -> None:
+    store_role = resources.store_role
+    chat_admin_url = _database_url(admin_url, resources.chat_database)
     chat_admin_engine = sa.create_engine(chat_admin_url)
     store_url = _database_url(
         admin_url,
-        CHAT_DATABASE,
-        username=STORE_ROLE,
+        resources.chat_database,
+        username=store_role,
         password=STORE_ROLE_PASSWORD,
     )
     rejection_env = {
         "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
-        "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
+        "PENGE_CHAT_STORE_TEST_ROLE": store_role,
         "PENGE_CHAT_STORE_EXPECT_PRIVILEGE_REJECTION": "1",
     }
     try:
@@ -136,21 +174,21 @@ def _run_store_postgres_tests(admin_url: str) -> None:
             connection.execute(
                 sa.text("CREATE TABLE finance_shadow (id integer PRIMARY KEY, amount numeric)")
             )
-            connection.execute(sa.text(f'GRANT USAGE ON SCHEMA public TO "{STORE_ROLE}"'))
+            connection.execute(sa.text(f'GRANT USAGE ON SCHEMA public TO "{store_role}"'))
             connection.execute(
                 sa.text(
                     f"GRANT SELECT, INSERT, UPDATE, DELETE ON "
-                    f'chat_oauth_link, chat_oauth_state TO "{STORE_ROLE}"'
+                    f'chat_oauth_link, chat_oauth_state TO "{store_role}"'
                 )
             )
-            connection.execute(sa.text(f'GRANT INSERT ON chat_audit_event TO "{STORE_ROLE}"'))
+            connection.execute(sa.text(f'GRANT INSERT ON chat_audit_event TO "{store_role}"'))
             connection.execute(
                 sa.text(
-                    f'GRANT USAGE, SELECT ON SEQUENCE chat_audit_event_id_seq TO "{STORE_ROLE}"'
+                    f'GRANT USAGE, SELECT ON SEQUENCE chat_audit_event_id_seq TO "{store_role}"'
                 )
             )
             connection.execute(
-                sa.text(f'GRANT SELECT (amount) ON finance_shadow TO "{STORE_ROLE}"')
+                sa.text(f'GRANT SELECT (amount) ON finance_shadow TO "{store_role}"')
             )
         _run_store_vitest(
             {
@@ -167,9 +205,9 @@ def _run_store_postgres_tests(admin_url: str) -> None:
                     "SELECT 1::integer AS id, 100::numeric AS amount"
                 )
             )
-            connection.execute(sa.text(f'GRANT USAGE ON SCHEMA finance_marts TO "{STORE_ROLE}"'))
+            connection.execute(sa.text(f'GRANT USAGE ON SCHEMA finance_marts TO "{store_role}"'))
             connection.execute(
-                sa.text(f'GRANT SELECT ON finance_marts.net_worth_shadow TO "{STORE_ROLE}"')
+                sa.text(f'GRANT SELECT ON finance_marts.net_worth_shadow TO "{store_role}"')
             )
         _run_store_vitest(
             {
@@ -183,7 +221,7 @@ def _run_store_postgres_tests(admin_url: str) -> None:
             {
                 "PENGE_CHAT_STORE_TEST_DATABASE_URL": store_url,
                 "PENGE_CHAT_STORE_TEST_ADMIN_URL": chat_admin_url,
-                "PENGE_CHAT_STORE_TEST_ROLE": STORE_ROLE,
+                "PENGE_CHAT_STORE_TEST_ROLE": store_role,
             }
         )
     finally:
@@ -191,12 +229,15 @@ def _run_store_postgres_tests(admin_url: str) -> None:
 
 
 def test_dedicated_chat_migration_roundtrip(
-    isolated_databases: tuple[str, str, str],
+    isolated_databases: IsolatedDatabases,
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Round-trip chat storage without touching finance schema or role lifecycle."""
-    finance_url, chat_url, admin_url = isolated_databases
+    finance_url = isolated_databases.finance_url
+    chat_url = isolated_databases.chat_url
+    admin_url = isolated_databases.admin_url
+    resources = isolated_databases.resources
     assert "%40" in chat_url
     finance_config = Config("alembic.ini")
     monkeypatch.setenv("DATABASE_URL", finance_url)
@@ -232,7 +273,7 @@ def test_dedicated_chat_migration_roundtrip(
         chat_engine.dispose()
     assert _table_names(finance_url) == finance_before
 
-    _run_store_postgres_tests(admin_url)
+    _run_store_postgres_tests(admin_url, resources)
 
     command.downgrade(chat_config, "base")
     assert _table_names(chat_url).isdisjoint(CHAT_TABLES)
@@ -243,11 +284,11 @@ def test_dedicated_chat_migration_roundtrip(
         with admin_engine.connect() as connection:
             role_exists = connection.scalar(
                 sa.text("SELECT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = :role)"),
-                {"role": EXTERNAL_ROLE},
+                {"role": resources.external_role},
             )
             database_exists = connection.scalar(
                 sa.text("SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = :database)"),
-                {"database": CHAT_DATABASE},
+                {"database": resources.chat_database},
             )
         assert role_exists is True
         assert database_exists is True

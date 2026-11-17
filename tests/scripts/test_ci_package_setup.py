@@ -132,19 +132,39 @@ def test_busy_host_lock_fails_without_installing(tmp_path: Path) -> None:
     assert not (tmp_path / "calls").exists()
 
 
-def test_workflow_isolates_caches_before_restore_and_keeps_frozen_installs() -> None:
+def test_workflow_isolates_caches_before_restore_and_keeps_frozen_installs(tmp_path: Path) -> None:
     workflow = yaml.safe_load((ROOT / ".github/workflows/dbt.yml").read_text())
     job = workflow["jobs"]["build"]
     steps = job["steps"]
     uv = next(step for step in steps if "setup-uv@" in step.get("uses", ""))
     assert uv["with"]["enable-cache"] is True
     assert uv["with"]["cache-local-path"] == "${{ env.UV_CACHE_DIR }}"
-    path = job["env"]["UV_CACHE_DIR"]
-    assert path == "${{ runner.temp }}/uv-${{ github.job }}"
-    browser_path = job["env"]["PLAYWRIGHT_BROWSERS_PATH"]
-    assert browser_path.startswith("${{ runner.temp }}/")
-    for context in ("github.run_id", "github.run_attempt", "github.job"):
-        assert "${{ " + context + " }}" in browser_path
+    isolate = next(
+        step for step in steps if step.get("name") == "Isolate mutable dependency caches"
+    )
+    assert steps.index(isolate) < steps.index(uv)
+    caches = []
+    for runner, attempt in (("penge-1", "1"), ("penge-2", "1"), ("penge-1", "2")):
+        output = tmp_path / f"{runner}-{attempt}.env"
+        result = subprocess.run(
+            ["/bin/bash", "-c", isolate["run"]],
+            env=dict(
+                os.environ,
+                RUNNER_TEMP=str(tmp_path / runner),
+                GITHUB_JOB="build",
+                GITHUB_RUN_ID="123",
+                GITHUB_RUN_ATTEMPT=attempt,
+                GITHUB_ENV=str(output),
+            ),
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        caches.append(dict(line.split("=", 1) for line in output.read_text().splitlines()))
+    assert caches[0]["UV_CACHE_DIR"] != caches[1]["UV_CACHE_DIR"]
+    assert caches[0]["UV_CACHE_DIR"] == caches[2]["UV_CACHE_DIR"]
+    assert len({cache["PLAYWRIGHT_BROWSERS_PATH"] for cache in caches}) == 3
     installs = next(
         step["run"] for step in steps if step.get("name") == "Install db + dbt + test deps"
     )
@@ -169,3 +189,16 @@ def test_ocr_installer_uses_same_lock_and_propagates_apt_errors() -> None:
         "bash scripts/ci-package-setup.sh pnpm --filter @penge/web exec "
         "playwright install-deps chromium" in justfile
     )
+
+
+def test_all_repository_apt_steps_coordinate_on_the_host_lock() -> None:
+    installers = []
+    for path in (ROOT / ".github/workflows").glob("*.yml"):
+        workflow = yaml.safe_load(path.read_text())
+        for job in workflow["jobs"].values():
+            for step in job.get("steps", []):
+                command = step.get("run", "")
+                if "sudo apt-get" in command:
+                    installers.append((path.name, step.get("name")))
+                    assert "bash scripts/ci-package-setup.sh bash -euo pipefail -c" in command
+    assert len(installers) == 3

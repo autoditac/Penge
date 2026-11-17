@@ -97,10 +97,15 @@ jobs:
       PGPASSWORD: penge
       PGDATABASE: penge_household_test
       PGSSLMODE: disable
-      # Stable across runs for cache reuse, isolated across active runners/jobs.
-      UV_CACHE_DIR: ${{ runner.temp }}/uv-${{ github.job }}
-      PLAYWRIGHT_BROWSERS_PATH: ${{ runner.temp }}/playwright-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.job }}
     steps:
+      - name: Isolate mutable dependency caches
+        run: |
+          set -euo pipefail
+          {
+            echo "UV_CACHE_DIR=${RUNNER_TEMP}/uv-${GITHUB_JOB}"
+            echo "PLAYWRIGHT_BROWSERS_PATH=${RUNNER_TEMP}/playwright-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          } >> "$GITHUB_ENV"
+
       - name: Resolve the Postgres host port
         # `job.services` is only readable inside steps, never in a job-level
         # `env:` block -- putting it there makes the whole workflow fail to

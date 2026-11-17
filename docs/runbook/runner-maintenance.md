@@ -141,7 +141,8 @@ Frozen uv/pnpm installs and the workspace's prohibited koffi build remain unchan
 
 `just ci-browser-deps` serializes Playwright's system-package installation using
 `scripts/ci-package-setup.sh` and `flock` on `$HOME/.cache/penge-ci/package-setup.lock`.
-The main CI workflow wraps its OCR apt setup in the same helper and lock.
+The main CI workflow's OCR apt setup and the backup workflow's PostgreSQL/age and
+ShellCheck apt setup use the same helper and lock.
 All three runner instances use the same host user and home, so the lock is
 deliberately outside their distinct temporary/workspace directories.
 Lock acquisition fails explicitly after 300 seconds.

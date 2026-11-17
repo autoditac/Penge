@@ -379,6 +379,39 @@ describe("chat runtime isolation and lifecycle", () => {
       freshness: "fresh",
       currency: "mixed",
     });
+    expect(events.at(-1)).toMatchObject({
+      summary: "Answer completed with partial evidence coverage.",
+      finishReason: "completed",
+    });
+  });
+
+  it("does not describe an SDK-aborted answer as completed", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: true },
+    });
+    await vi.waitFor(() =>
+      expect(events.at(-1)).toMatchObject({
+        type: "completion",
+        summary: "Answer stopped before completion.",
+        finishReason: "cancelled",
+      }),
+    );
+    await runtime.close();
   });
 
   it("does not let earlier full coverage mask a failed financial lookup", async () => {
@@ -700,7 +733,14 @@ describe("chat runtime isolation and lifecycle", () => {
 
     await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "completion" }));
     expect(events).toContainEqual(expect.objectContaining({ type: "evidence", coverage }));
-    expect(events.at(-1)).toMatchObject({ type: "completion", coverage });
+    expect(events.at(-1)).toMatchObject({
+      type: "completion",
+      coverage,
+      summary:
+        coverage === "partial"
+          ? "Answer completed with partial evidence coverage."
+          : "Answer completed from bounded Penge evidence.",
+    });
     if (coverage === "partial") {
       expect(events).toContainEqual(
         expect.objectContaining({

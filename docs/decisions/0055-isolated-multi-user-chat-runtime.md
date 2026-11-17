@@ -70,6 +70,7 @@ Unknown or duplicate source IDs and invalid completeness or freshness values are
 The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.
 Events are zod-validated, ordered, session-bound, and terminal after completion or error.
 A failed lookup counts as missing evidence, so earlier successful coverage cannot make the final result appear full or fresh.
+Completion summaries explicitly state partial coverage, even when a client does not separately render the structured coverage field.
 Prompt and transcript content are process-memory-only and removed when a bounded request ends.
 Audit storage contains only pseudonymous actor/session IDs, fixed tool identifiers, status, and duration; model-controlled argument names and values are never retained.
 Request logging uses fixed recognized-route identifiers and never caller-controlled paths.

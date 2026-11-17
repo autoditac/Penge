@@ -725,7 +725,11 @@ export class ChatRuntime {
           event.data.aborted ? "cancelled" : "completed",
           {
             type: "completion",
-            summary: "Answer completed from bounded Penge evidence.",
+            summary: event.data.aborted
+              ? "Answer stopped before completion."
+              : evidenceSummary.coverage === "partial"
+                ? "Answer completed with partial evidence coverage."
+                : "Answer completed from bounded Penge evidence.",
             ...evidenceSummary,
             finishReason: event.data.aborted ? "cancelled" : "completed",
             assumptions: [],

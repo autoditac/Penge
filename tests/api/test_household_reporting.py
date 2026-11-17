@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 from penge.api import data
+from penge.api.household_models import HouseholdCurrencyAmount
 
 if TYPE_CHECKING:
     import pytest
@@ -19,9 +20,9 @@ def _fact(
     booking_date: date,
     amount: str,
     treatment: str,
-    category_id: str,
-    category_name: str,
-    category_kind: str,
+    category_id: str | None,
+    category_name: str | None,
+    category_kind: str | None,
     eur: str,
     dkk: str,
 ) -> dict[str, object]:
@@ -88,6 +89,17 @@ def _facts() -> list[dict[str, object]]:
             category_kind="income",
             eur="100.00",
             dkk="746.00",
+        ),
+        _fact(
+            transaction_id="t3",
+            booking_date=date(2025, 7, 12),
+            amount="25.00",
+            treatment="unclassified",
+            category_id=None,
+            category_name=None,
+            category_kind=None,
+            eur="25.00",
+            dkk="186.50",
         ),
     ]
 
@@ -230,14 +242,15 @@ def test_summary_uses_bank_ledger_once_and_returns_equal_previous_window(
     assert body["filters"]["account_ids"] == ["a1"]
     assert body["filters"]["entity_ids"] == ["e1"]
     assert body["current"]["totals"]["gross_expenses"]["eur"]["amount"] == "12.50"
-    assert body["current"]["totals"]["income"]["eur"]["amount"] == "100.00"
-    assert body["current"]["totals"]["surplus"]["eur"]["amount"] == "87.50"
+    assert body["current"]["totals"]["income"]["eur"]["amount"] == "125.00"
+    assert body["current"]["totals"]["surplus"]["eur"]["amount"] == "112.50"
     assert body["previous"]["since"] == "2025-05-31"
     assert body["previous"]["until"] == "2025-06-30"
     assert body["previous"]["totals"]["gross_expenses"]["eur"]["amount"] == "20.00"
     assert body["coverage"]["payment_detail_link_count"] == 1
     assert body["coverage"]["payment_detail_reconciled_count"] == 1
     assert body["coverage"]["payment_detail_unmatched_count"] == 1
+    assert body["coverage"]["unclassified_transaction_count"] == 1
 
 
 def test_category_report_rolls_descendants_once_and_filters_branch(
@@ -293,6 +306,35 @@ def test_transaction_drilldown_keeps_bank_amount_and_detail_as_sidecar(
     assert item["payment_details"][0]["event_kind"] == "unknown"
 
 
+def test_transaction_drilldown_keeps_positive_unclassified_credit_reportable(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _mock_household_data(monkeypatch)
+    credit = next(row for row in _facts() if row["transaction_id"] == "t3")
+    monkeypatch.setattr(
+        data,
+        "fetch_household_transaction_page",
+        lambda **kwargs: ([credit], 1),
+    )
+
+    response = client.get(
+        "/household/reports/transactions",
+        params={
+            "since": "2025-07-01",
+            "until": "2025-07-31",
+        },
+    )
+
+    assert response.status_code == 200
+    item = response.json()["items"][0]
+    assert item["treatment"] == "unclassified"
+    assert item["signed_amount_native"] == "25.00"
+    assert item["matching_split_amount_native"] == "25.00"
+    assert item["matching_split_amount_reporting"]["eur"]["amount"] == "25.00"
+    assert item["allocations"][0]["category_id"] is None
+
+
 def test_category_filtered_transaction_keeps_full_bank_amount_separate_from_split(
     client: TestClient,
     monkeypatch: pytest.MonkeyPatch,
@@ -344,3 +386,18 @@ def test_category_filtered_transaction_keeps_full_bank_amount_separate_from_spli
     assert item["matching_split_amount_native"] == "-60.00"
     assert item["matching_split_amount_reporting"]["eur"]["amount"] == "-60.00"
     assert len(item["allocations"]) == 2
+
+
+def test_currency_amounts_serialise_zero_with_scale_in_fixed_point() -> None:
+    scaled_zero = Decimal("1.000000000000") - Decimal("1.000000000000")
+    assert str(scaled_zero) == "0E-12"
+
+    payload = HouseholdCurrencyAmount(
+        amount=scaled_zero,
+        known_subtotal=scaled_zero,
+        complete=True,
+        missing_count=0,
+    ).model_dump(mode="json")
+
+    assert payload["amount"] == "0.000000000000"
+    assert payload["known_subtotal"] == "0.000000000000"

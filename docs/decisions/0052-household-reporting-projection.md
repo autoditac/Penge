@@ -53,9 +53,14 @@ Expense allocations are stored signed like the bank movement and reported as
 positive gross expense magnitudes. Refund allocations are positive, belong to
 an expense category, and reduce that category's net expense on the bank
 refund's own value date. Transfers and explicitly excluded movements do not
-become income or expense. Negative unclassified bank movements remain included
-as unclassified expenses; positive unclassified credits are not presumed to be
-income.
+become income or expense. Unclassified bank movements use a signed-polarity
+fallback: positive credits contribute to headline income and negative debits
+to gross expenses. They remain `treatment='unclassified'` review items with no
+category allocation or learning evidence. The mart exposes this fallback as
+`reporting_treatment`, shared by the API, mart, and MCP consumer.
+This keeps headline cashflow truthful while classification is pending;
+otherwise unreviewed salary credits would show zero income and an incorrect
+surplus.
 
 ## Consequences
 
@@ -77,6 +82,8 @@ income.
   expenses, and must handle unavailable currency totals.
 - A dbt shadow refresh must build and promote the new marts with the existing
   guarded reporting refresh.
+- An unreviewed positive transfer can temporarily inflate headline income
+  until it is explicitly classified as a transfer.
 
 ### Neutral
 

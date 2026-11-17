@@ -17,6 +17,7 @@ export const STALE_ECB_COVERAGE_ROW = {
 export const MISSING_FX_REPORT_ROW = {
   as_of: "2026-06-02",
   treatment: "expense",
+  reporting_treatment: "expense",
   known_allocation_amount_eur: "-50.00000000",
   known_allocation_amount_dkk: "-373.00000000",
   missing_fx_count_eur: 1,

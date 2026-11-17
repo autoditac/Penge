@@ -126,18 +126,30 @@ const SEARCH_COUNT_SQL = `
     )
 `;
 
+// Exactly Python's str.isspace() set, which drives `" ".join(value.split())`.
+// JavaScript `\s` differs: it omits U+001C..U+001F and U+0085 but adds U+FEFF.
+const PYTHON_WHITESPACE_RUN =
+  /[\t\n\v\f\r\u001c-\u001f \u0085\u00a0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+/u;
+
+function collapsePythonWhitespace(value: string): string {
+  return value
+    .split(PYTHON_WHITESPACE_RUN)
+    .filter((part) => part.length > 0)
+    .join(" ");
+}
+
 function normalizeText(value: string): string {
-  return value.normalize("NFKC").trim().replace(/\s+/g, " ");
+  return collapsePythonWhitespace(value.normalize("NFKC"));
 }
 
 /**
  * Mirrors `normalize_alias()` in `src/penge/api/merchant_reference/store.py`
- * (NFKC, full case folding, whitespace collapse). Only `normalized_alias` was
- * folded that way, so free-text columns are matched with an unfolded needle
- * under PostgreSQL `lower()` on both sides instead.
+ * (NFKC, full case folding, then `str.split()` whitespace collapse). Only
+ * `normalized_alias` was folded that way, so free-text columns are matched
+ * with an unfolded needle under PostgreSQL `lower()` on both sides instead.
  */
 function normalizeAlias(value: string): string {
-  return caseFold(normalizeText(value));
+  return collapsePythonWhitespace(caseFold(value.normalize("NFKC")));
 }
 
 function instant(value: Date | string): string {

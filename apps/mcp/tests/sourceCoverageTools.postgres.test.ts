@@ -818,8 +818,10 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
       await client.query(
         `INSERT INTO merchant_reference_alias (
            id, generation_id, reference_id, alias, normalized_alias
-         ) VALUES (gen_random_uuid(), $1::uuid, $2::uuid, 'Gro\u00dfmarkt', 'grossmarkt')`,
-        [generation, aliased],
+         ) VALUES
+           (gen_random_uuid(), $1::uuid, $2::uuid, 'Gro\u00dfmarkt', 'grossmarkt'),
+           (gen_random_uuid(), $1::uuid, $3::uuid, 'Zeichen\ufeffKiosk', 'zeichen\ufeffkiosk')`,
+        [generation, aliased, labelOnly],
       );
 
       const context = { serverName: "postgres-test", serverVersion: "test" };
@@ -862,6 +864,9 @@ describe.skipIf(!enabled)("source coverage tools on disposable PostgreSQL", () =
         [{ query: "nord", category_prefix: "SHOP/STRA\u00dfE" }, [labelOnly]],
         [{ query: "GROSSMARKT" }, [aliased]],
         [{ query: "Gro\u00dfmarkt" }, [aliased]],
+        // Python str.split() whitespace: U+001C..U+001F/U+0085 collapse, U+FEFF does not.
+        [{ query: "\u001cGRO\u00dfMARKT\u0085" }, [aliased]],
+        [{ query: "ZEICHEN\ufeffKIOSK" }, [labelOnly]],
       ] as const) {
         const page = await references.handler(references.inputSchema.parse(args), context);
         references.outputSchema.parse(page);

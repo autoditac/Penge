@@ -868,6 +868,29 @@ describe("source coverage tools", () => {
     expect(params[1]?.slice(3)).toEqual([10, 0]);
   });
 
+  it("collapses NSI query whitespace exactly like Python str.split()", async () => {
+    const params: ReadonlyArray<unknown>[] = [];
+    const search = searchMerchantReferenceTool({
+      runner: {
+        async query(_sql, values) {
+          params.push(values);
+          return params.length % 2 === 1 ? { rows: [{ total_count: 0 }] } : { rows: [] };
+        },
+      },
+      now: () => NOW,
+    });
+    // Goldens from Python: " ".join(unicodedata.normalize("NFKC", v).casefold().split())
+    for (const [query, expected] of [
+      ["\u001cGRO\u00dfmarkt\u001fNORD\u0085", "grossmarkt nord"],
+      ["\u2028Gro\u00dfmarkt\u0085 Nord\u001d", "grossmarkt nord"],
+      ["Gro\ufeffmarkt", "gro\ufeffmarkt"],
+    ] as const) {
+      params.length = 0;
+      await search.handler(search.inputSchema.parse({ query }), CTX);
+      expect(params[0]?.[0]).toBe(expected);
+    }
+  });
+
   it("uses identical alias and label predicates for NSI totals and rows", async () => {
     const statements: string[] = [];
     const search = searchMerchantReferenceTool({

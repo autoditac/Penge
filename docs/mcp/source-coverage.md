@@ -233,6 +233,9 @@ The `unicode-case-folding` package is intentionally used after NFKC
 normalization because ECMAScript locale lowercasing is not Unicode case
 folding and diverges from the Python index writer for values such as Greek
 final sigma.
+Whitespace collapse uses exactly Python's `str.split()` whitespace set
+(including U+001C..U+001F and U+0085, excluding U+FEFF) rather than
+ECMAScript `\s`, so the needle matches what `normalize_alias()` stored.
 That folded needle is compared only with `normalized_alias`, which the Python
 writer folded the same way. Labels and category prefixes are not stored
 folded, so they use an NFKC/whitespace-normalized but unfolded needle with

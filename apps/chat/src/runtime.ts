@@ -113,11 +113,30 @@ function publicErrorMessage(): string {
   return "The chat session was interrupted without retaining its transcript.";
 }
 
-function launchErrorEvent(
-  error: unknown,
-  credentialRejected: boolean,
-): Extract<StreamEventInput, { type: "error" }> {
-  if (error instanceof AuthenticationError || credentialRejected) {
+// The SDK invokes the token provider over its runtime RPC boundary and rejects session
+// creation with a wrapped error, so record credential rejection at the provider itself.
+function trackCredentialRejection(provider: GitHubTokenProvider): {
+  tokenProvider: GitHubTokenProvider;
+  rejection: () => AuthenticationError | undefined;
+} {
+  let rejection: AuthenticationError | undefined;
+  return {
+    tokenProvider: async (args) => {
+      try {
+        return await provider(args);
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          rejection = error;
+        }
+        throw error;
+      }
+    },
+    rejection: () => rejection,
+  };
+}
+
+function launchErrorEvent(error: unknown): Extract<StreamEventInput, { type: "error" }> {
+  if (error instanceof AuthenticationError) {
     return {
       type: "error",
       code: "auth_expired",
@@ -550,11 +569,12 @@ export class ChatRuntime {
 
   private async probeModelAvailability(actorId: string, generation: number): Promise<boolean> {
     let run: ActiveCopilotRun | undefined;
+    const credentials = trackCredentialRejection(this.tokenService.providerFor(actorId));
     try {
       run = await this.copilot.createRun({
         actorId,
         sessionId: randomUUID(),
-        tokenProvider: this.tokenService.providerFor(actorId),
+        tokenProvider: credentials.tokenProvider,
         sink: { onEvent: () => undefined },
       });
       await run.close();
@@ -571,25 +591,12 @@ export class ChatRuntime {
       if (run !== undefined) {
         await run.close().catch(() => undefined);
       }
-      throw error;
+      throw credentials.rejection() ?? error;
     }
   }
 
   private async launch(session: ActiveSession, question: string): Promise<void> {
-    // The SDK invokes the token provider over its runtime RPC boundary and surfaces a
-    // wrapped error, so record rejected credentials here to keep them non-retryable.
-    let credentialRejected = false;
-    const provider = this.tokenService.providerFor(session.actorId);
-    const tokenProvider: GitHubTokenProvider = async (args) => {
-      try {
-        return await provider(args);
-      } catch (error) {
-        if (error instanceof AuthenticationError) {
-          credentialRejected = true;
-        }
-        throw error;
-      }
-    };
+    const credentials = trackCredentialRejection(this.tokenService.providerFor(session.actorId));
     try {
       await this.store.appendAudit({
         actorId: session.actorId,
@@ -605,7 +612,7 @@ export class ChatRuntime {
       const run = await this.copilot.createRun({
         actorId: session.actorId,
         sessionId: session.sessionId,
-        tokenProvider,
+        tokenProvider: credentials.tokenProvider,
         sink: {
           onEvent: (event) => this.enqueueSdkEvent(session.sessionId, event),
         },
@@ -622,7 +629,12 @@ export class ChatRuntime {
       if (error instanceof HydraFusionUnavailableError) {
         this.availableActors.delete(session.actorId);
       }
-      await this.finish(session, "error", launchErrorEvent(error, credentialRejected), false);
+      await this.finish(
+        session,
+        "error",
+        launchErrorEvent(credentials.rejection() ?? error),
+        false,
+      );
     }
   }
 

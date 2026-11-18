@@ -30,7 +30,7 @@ Each authenticated status check and chat launch verifies a fresh session-scoped 
 Missing, disabled, unconfigured, or duplicate model-policy entries fail closed.
 
 GitHub OAuth grant rejection and a rejected user token report authentication expiry.
-A token refresh rejected while a chat launches ends the stream with non-retryable `auth_expired`, even though the SDK wraps the token-provider failure.
+A token refresh rejected during a status probe or chat launch reports authentication expiry (HTTP 401 or non-retryable stream `auth_expired`), even though the SDK wraps the token-provider failure.
 GitHub outages, rate limits, invalid responses, and OAuth configuration errors report an upstream failure instead; do not ask users to relink solely because of an upstream failure.
 
 ## Incident response

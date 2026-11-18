@@ -161,6 +161,21 @@ describe("chat runtime isolation and lifecycle", () => {
     await runtime.close();
   });
 
+  it("reports a rejected refresh during a status probe as an authentication failure", async () => {
+    const copilot = new FakeCopilotRuntime();
+    copilot.acquireTokenOnCreate = true;
+    const rejection = new AuthenticationError("GitHub rejected the refresh token");
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      { providerFor: (): GitHubTokenProvider => () => Promise.reject(rejection) },
+      new MemoryChatStore(),
+    );
+    await expect(runtime.ensureModelAvailable("actor-a")).rejects.toBe(rejection);
+    expect(runtime.isModelAvailable("actor-a")).toBe(false);
+    await runtime.close();
+  });
+
   it.each([
     {
       name: "rejected refresh token",

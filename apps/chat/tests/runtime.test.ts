@@ -2,7 +2,11 @@ import type { GitHubTokenProvider, SessionEvent } from "@github/copilot-sdk";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { MCP_REGISTRATION_ALLOWLIST, MCP_SOURCE_ALLOWLIST } from "../src/config.js";
-import { HydraFusionUnavailableError } from "../src/errors.js";
+import {
+  AuthenticationError,
+  HydraFusionUnavailableError,
+  UpstreamResponseError,
+} from "../src/errors.js";
 import { ChatRuntime, projectEvidence, summarizeEvidence } from "../src/runtime.js";
 import type { ActiveCopilotRun, CopilotEventSink, CopilotRuntime } from "../src/sdk.js";
 import type { StreamEvent } from "../src/stream.js";
@@ -21,6 +25,7 @@ class FakeCopilotRuntime implements CopilotRuntime {
   sendGate?: Promise<void>;
   createGate?: Promise<void>;
   createError?: Error;
+  acquireTokenOnCreate = false;
   closeError?: Error;
   closeGate: Promise<void> | undefined;
   emitIdleOnAbort = false;
@@ -32,6 +37,18 @@ class FakeCopilotRuntime implements CopilotRuntime {
     sink: CopilotEventSink;
   }): Promise<ActiveCopilotRun> {
     await this.createGate;
+    if (this.acquireTokenOnCreate) {
+      try {
+        await options.tokenProvider({
+          host: "github.com",
+          sessionId: options.sessionId,
+          reason: "initial",
+        });
+      } catch {
+        // The SDK reports provider failures through its runtime RPC, not the original error.
+        throw new Error("synthetic session.create token acquisition failed");
+      }
+    }
     if (this.createError !== undefined) throw this.createError;
     const state = { sink: options.sink, aborted: false, closed: false };
     this.runs.set(options.sessionId, state);
@@ -141,6 +158,35 @@ describe("chat runtime isolation and lifecycle", () => {
       }),
     );
     expect(copilot.runs.size).toBe(1);
+    await runtime.close();
+  });
+
+  it.each([
+    {
+      name: "rejected refresh token",
+      error: new AuthenticationError("GitHub rejected the refresh token"),
+      expected: { code: "auth_expired", retryable: false },
+    },
+    {
+      name: "GitHub refresh outage",
+      error: new UpstreamResponseError("GitHub token endpoint is unavailable"),
+      expected: { code: "session_interrupted", retryable: true },
+    },
+  ])("classifies a $name during chat launch", async ({ error, expected }) => {
+    const copilot = new FakeCopilotRuntime();
+    copilot.acquireTokenOnCreate = true;
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      {
+        providerFor: (): GitHubTokenProvider => () => Promise.reject(error),
+      },
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    await runtime.start("actor-a", "Synthetic question", (event) => events.push(event));
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "error", ...expected }));
+    expect(copilot.runs.size).toBe(0);
     await runtime.close();
   });
 

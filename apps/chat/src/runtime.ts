@@ -5,6 +5,7 @@ import { z } from "zod/v3";
 
 import { MCP_SOURCE_ALLOWLIST, type ChatConfig } from "./config.js";
 import {
+  AuthenticationError,
   AuthorizationError,
   FeatureDisabledError,
   HydraFusionUnavailableError,
@@ -110,6 +111,34 @@ function requestedAllSources(args: unknown): boolean {
 
 function publicErrorMessage(): string {
   return "The chat session was interrupted without retaining its transcript.";
+}
+
+function launchErrorEvent(
+  error: unknown,
+  credentialRejected: boolean,
+): Extract<StreamEventInput, { type: "error" }> {
+  if (error instanceof AuthenticationError || credentialRejected) {
+    return {
+      type: "error",
+      code: "auth_expired",
+      message: "GitHub authorization expired. Reconnect GitHub to continue.",
+      retryable: false,
+    };
+  }
+  if (error instanceof HydraFusionUnavailableError) {
+    return {
+      type: "error",
+      code: "hydrafusion_unavailable",
+      message: "Copilot Fusion is unavailable for the linked GitHub identity.",
+      retryable: false,
+    };
+  }
+  return {
+    type: "error",
+    code: "session_interrupted",
+    message: publicErrorMessage(),
+    retryable: true,
+  };
 }
 
 function collectEvidenceSignals(
@@ -547,6 +576,20 @@ export class ChatRuntime {
   }
 
   private async launch(session: ActiveSession, question: string): Promise<void> {
+    // The SDK invokes the token provider over its runtime RPC boundary and surfaces a
+    // wrapped error, so record rejected credentials here to keep them non-retryable.
+    let credentialRejected = false;
+    const provider = this.tokenService.providerFor(session.actorId);
+    const tokenProvider: GitHubTokenProvider = async (args) => {
+      try {
+        return await provider(args);
+      } catch (error) {
+        if (error instanceof AuthenticationError) {
+          credentialRejected = true;
+        }
+        throw error;
+      }
+    };
     try {
       await this.store.appendAudit({
         actorId: session.actorId,
@@ -562,7 +605,7 @@ export class ChatRuntime {
       const run = await this.copilot.createRun({
         actorId: session.actorId,
         sessionId: session.sessionId,
-        tokenProvider: this.tokenService.providerFor(session.actorId),
+        tokenProvider,
         sink: {
           onEvent: (event) => this.enqueueSdkEvent(session.sessionId, event),
         },
@@ -579,23 +622,7 @@ export class ChatRuntime {
       if (error instanceof HydraFusionUnavailableError) {
         this.availableActors.delete(session.actorId);
       }
-      await this.finish(
-        session,
-        "error",
-        {
-          type: "error",
-          code:
-            error instanceof HydraFusionUnavailableError
-              ? "hydrafusion_unavailable"
-              : "session_interrupted",
-          message:
-            error instanceof HydraFusionUnavailableError
-              ? "Copilot Fusion is unavailable for the linked GitHub identity."
-              : publicErrorMessage(),
-          retryable: !(error instanceof HydraFusionUnavailableError),
-        },
-        false,
-      );
+      await this.finish(session, "error", launchErrorEvent(error, credentialRejected), false);
     }
   }
 

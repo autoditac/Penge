@@ -16,7 +16,7 @@
         <link rel="prev" href="../../api/household-reporting/">
       
       
-        <link rel="next" href="../../sim/personas/">
+        <link rel="next" href="../source-coverage/">
       
       
         
@@ -1051,6 +1051,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1847,6 +1851,62 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../source-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Source coverage contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../evals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden evals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -4949,7 +5009,17 @@ an example call/response.</p>
 <p>The MCP server is <strong>read-only</strong> by construction: every Postgres
 connection is forced to <code>default_transaction_read_only = on</code>, and tool
 output schemas are validated before being returned to the host. Tools
-return aggregates only — never raw transactions or account numbers.</p>
+return aggregates or explicitly bounded canonical records by stable ID.
+They never return <code>transaction.raw</code>, external account identifiers, IBANs, or
+provider payloads.
+The exact source matrix, new evidence-tool schemas, and downstream chat/UI
+contracts are documented in the
+<a href="../source-coverage/">MCP source coverage contract</a>.
+Tool discovery publishes each Zod-derived output contract as MCP
+<code>outputSchema</code>, and successful calls include the validated value in
+<code>structuredContent</code>.
+Top-level arrays and scalars are wrapped as <code>{ "result": ... }</code> to satisfy the
+MCP object-only structured-output contract.</p>
 <h2 id="_meta"><code>_meta</code><a class="headerlink" href="#_meta" title="Permanent link">&para;</a></h2>
 <p>Health-check tool. Returns server identity, the list of registered tool
 names, and a UTC timestamp. Useful for clients to verify connectivity
@@ -4971,7 +5041,7 @@ requested date range, valued in the requested currency.</p>
 <tr>
 <td><code>date_range</code></td>
 <td><code>{ from: string; to: string }</code></td>
-<td>ISO <code>YYYY-MM-DD</code>. <code>from</code> must be on or before <code>to</code>.</td>
+<td>ISO <code>YYYY-MM-DD</code>; ordered; at most 367 inclusive days.</td>
 </tr>
 <tr>
 <td><code>currency</code></td>
@@ -4982,6 +5052,11 @@ requested date range, valued in the requested currency.</p>
 <td><code>breakdown_by</code></td>
 <td><code>"none" \| "account" \| "asset_class"</code></td>
 <td>See semantics below.</td>
+</tr>
+<tr>
+<td><code>source</code></td>
+<td><code>"gls" \| "ebank" \| "lunar" \| "nordnet" \| "pfa" \| "growney" \| "manual_facts"</code></td>
+<td>Optional account-provider filter (bank, holdings, or manual facts).</td>
 </tr>
 </tbody>
 </table>
@@ -4994,6 +5069,12 @@ requested date range, valued in the requested currency.</p>
   "value": 123456.78, // numeric, summed across the breakdown
 }
 </code></pre></div>
+<p>The optional <code>source</code> filter is required when using this tool as
+source-specific holdings evidence.
+Queries are limited to a 367-day window and fail instead of returning a
+partial response if the result would exceed 5,000 rows.
+<code>date</code> is serialized by PostgreSQL as a calendar date, independent of the
+server time zone.</p>
 <h3 id="breakdown-semantics">Breakdown semantics<a class="headerlink" href="#breakdown-semantics" title="Permanent link">&para;</a></h3>
 <ul>
 <li><strong><code>none</code></strong> — one row per <code>as_of</code>, value summed across all accounts in
@@ -5035,7 +5116,7 @@ requested date range, valued in the requested currency.</p>
 </ul>
 <h3 id="audit">Audit<a class="headerlink" href="#audit" title="Permanent link">&para;</a></h3>
 <p>Every call is recorded by the MCP audit logger
-(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, argument key names (never values),
 status, and duration.</p>
 <h2 id="query_cashflow"><code>query_cashflow</code><a class="headerlink" href="#query_cashflow" title="Permanent link">&para;</a></h2>
 <p>Aggregated cashflow from the dbt mart <code>mart_cashflow_daily</code>, rolled up
@@ -5055,7 +5136,7 @@ movement valued in the requested currency.</p>
 <tr>
 <td><code>date_range</code></td>
 <td><code>{ from: string; to: string }</code></td>
-<td>ISO <code>YYYY-MM-DD</code>. <code>from</code> must be on or before <code>to</code>.</td>
+<td>ISO <code>YYYY-MM-DD</code>; ordered and limited to 367 inclusive days.</td>
 </tr>
 <tr>
 <td><code>granularity</code></td>
@@ -5090,6 +5171,11 @@ movement valued in the requested currency.</p>
   consumer should treat absence as zero, not as an error.</li>
 <li>Week boundaries follow Postgres <code>date_trunc('week', ...)</code>, i.e.
   ISO weeks starting Monday.</li>
+<li>Responses contain at most 367 periods. The query requests one sentinel
+  row beyond that limit and fails closed rather than returning truncated
+  evidence if the bound is exceeded.</li>
+<li>Period dates are serialized by PostgreSQL as calendar dates, independent
+  of the server time zone.</li>
 </ul>
 <h3 id="example-call_1">Example call<a class="headerlink" href="#example-call_1" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
@@ -5138,7 +5224,7 @@ movement valued in the requested currency.</p>
 </ul>
 <h3 id="audit_1">Audit<a class="headerlink" href="#audit_1" title="Permanent link">&para;</a></h3>
 <p>Every call is recorded by the MCP audit logger
-(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, argument key names (never values),
 status, and duration.</p>
 <h2 id="compute_tax_year"><code>compute_tax_year</code><a class="headerlink" href="#compute_tax_year" title="Permanent link">&para;</a></h2>
 <p>Computes a per-jurisdiction tax report for a single tax year by
@@ -5297,7 +5383,7 @@ currency.</p>
 </ul>
 <h3 id="audit_2">Audit<a class="headerlink" href="#audit_2" title="Permanent link">&para;</a></h3>
 <p>Every call is recorded by the MCP audit logger
-(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, argument key names (never values),
 status, and duration. The Python subprocess does not log financial
 data to stderr beyond the canonical <code>error: …</code> prefix on failure.</p>
 <h2 id="run_scenario"><code>run_scenario</code><a class="headerlink" href="#run_scenario" title="Permanent link">&para;</a></h2>
@@ -5406,17 +5492,11 @@ malformed baseline JSON is a hard error (no safe empty default).</p>
 <div class="highlight"><pre><span></span><code>{
   "baseline": {
     "p10": { "2025": 209028.14, "2026": 218463.81 /* ... */ },
-    "p50": {
-      /* ... */
-    },
-    "p90": {
-      /* ... */
-    },
+    "p50": {/* ... */},
+    "p90": {/* ... */},
     "fire_year_distribution": { "2032": 17, "2033": 23 }, // empty when no path met the goal
   },
-  "scenario": {
-    /* same shape */
-  },
+  "scenario": {/* same shape */},
   "deltas": {
     "p50_value_eur": -54321.0, // terminal-year p50 delta (scenario - baseline)
     "fire_year_shift_years": 2, // median-FIRE-year shift, or null if undefined
@@ -5453,7 +5533,7 @@ median FIRE year is undefined (fewer than 50 % of paths met the goal).</p>
 </ul>
 <h3 id="audit_3">Audit<a class="headerlink" href="#audit_3" title="Permanent link">&para;</a></h3>
 <p>Every call is recorded by the MCP audit logger
-(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, argument key names (never values),
 status, and duration.</p>
 <h2 id="search_documents"><code>search_documents</code><a class="headerlink" href="#search_documents" title="Permanent link">&para;</a></h2>
 <p>Search the on-disk document vault by filename, classifier metadata
@@ -5548,9 +5628,9 @@ confidence (which is not persisted in the index today).</p>
   DK CPR numbers (<code>\d{6}-?\d{4}</code>) and long digit runs (<code>\d{8,}</code>) —
   typical of account / customer numbers — are replaced with
   <code>[REDACTED]</code>.</li>
-<li>The audit logger additionally redacts the <code>query</code> argument (and any
-  other key whose name matches the standard redaction policy in
-  <code>audit.ts</code>) before writing the audit record.</li>
+<li>The audit logger records only top-level argument key names, so the
+  <code>query</code> value and all other argument values are absent from the audit
+  record.</li>
 </ul>
 <h3 id="example-call_4">Example call<a class="headerlink" href="#example-call_4" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
@@ -5567,7 +5647,7 @@ confidence (which is not persisted in the index today).</p>
 </ul>
 <h3 id="audit_4">Audit<a class="headerlink" href="#audit_4" title="Permanent link">&para;</a></h3>
 <p>Every call is recorded by the MCP audit logger
-(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, argument key names (never values),
 status, and duration.</p>
 <h2 id="answer_planning_question"><code>answer_planning_question</code><a class="headerlink" href="#answer_planning_question" title="Permanent link">&para;</a></h2>
 <p>Explanation-first household planning surface for common FIRE-planning questions.
@@ -5641,17 +5721,27 @@ it is not a personal plan and contains no real financial data.</p>
       "question_id": "can_we_retire",
       "status": "watch",
       "answer": "The plan is watch for retirement in 2029...",
-      "evidence": [{ "label": "planned_retirement_year", "value": "2029", "source": "RetirementReadinessReport" }],
+      "evidence": [
+        {
+          "label": "planned_retirement_year",
+          "value": "2029",
+          "source": "RetirementReadinessReport",
+        },
+      ],
       "risk_codes": ["de_vorabpauschale_not_in_household_plan"],
       "assumption_keys": ["planned_retirement_year", "annual_spending_plan"],
       "limitation_codes": ["planning_grade_not_filing_advice"],
-      "docs": ["docs/sim/planning-outputs.md"]
-    }
+      "docs": ["docs/sim/planning-outputs.md"],
+    },
   ],
   "risks": [{ "code": "de_vorabpauschale_not_in_household_plan", "severity": "warning" }],
-  "assumptions": [{ "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" }],
-  "limitations": [{ "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] }],
-  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"]
+  "assumptions": [
+    { "key": "planned_retirement_year", "value": "2029", "source": "HouseholdPlan.members" },
+  ],
+  "limitations": [
+    { "code": "planning_grade_not_filing_advice", "docs": ["docs/sim/planning-outputs.md"] },
+  ],
+  "docs": ["docs/sim/planning-outputs.md", "docs/tax/dk.md", "docs/tax/de.md"],
 }
 </code></pre></div>
 <p>The <code>risk_codes</code>, <code>assumption_keys</code>, and <code>limitation_codes</code> fields are deliberate:
@@ -5700,7 +5790,7 @@ reviewable. Excluded rows are skipped.</p>
     "id": "0b6c1a52-…",
     "source": "nordnet_transactions",
     "status": "staged",
-    "rows_considered": 3
+    "rows_considered": 3,
   },
   "suggestions": [
     {
@@ -5710,9 +5800,9 @@ reviewable. Excluded rows are skipped.</p>
       "field": "category", // "category" | "counterparty" | "asset_class"
       "value": "investment.trade.buy",
       "confidence": 0.9, // 0..1, rule strength
-      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category"
-    }
-  ]
+      "reason": "canonical nordnet_transactions transaction kind 'buy' maps directly to this category",
+    },
+  ],
 }
 </code></pre></div>
 <h3 id="rules-and-confidence-tiers">Rules and confidence tiers<a class="headerlink" href="#rules-and-confidence-tiers" title="Permanent link">&para;</a></h3>
@@ -5821,7 +5911,8 @@ gross expenses, without changing their unclassified treatment.</p>
 inclusive number of days as <code>date_range</code>. The result includes current and
 previous totals, their difference, and a zero-filled current-window trend.
 Requests are limited to 4000 inclusive calendar days so daily trend output
-remains bounded.</p>
+remains bounded.
+Report dates are calendar dates independent of the server time zone.</p>
 <h3 id="output_7">Output<a class="headerlink" href="#output_7" title="Permanent link">&para;</a></h3>
 <p>Each measure (<code>income</code>, <code>gross_expenses</code>, <code>refunds</code>, <code>net_expenses</code>, and
 <code>surplus</code>) contains both <code>eur</code> and <code>dkk</code>. Each currency amount has this
@@ -5849,7 +5940,7 @@ other source-level rows.</p>
 </ul>
 <h3 id="audit_5">Audit<a class="headerlink" href="#audit_5" title="Permanent link">&para;</a></h3>
 <p>Every call is recorded by the MCP audit logger
-(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, redacted arguments,
+(<code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>) with tool name, argument key names (never values),
 status, and duration.</p>
 
 

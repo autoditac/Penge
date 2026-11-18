@@ -13,6 +13,10 @@
         <link rel="canonical" href="https://autoditac.github.io/Penge/mcp/evals/">
       
       
+        <link rel="prev" href="../source-coverage/">
+      
+      
+        <link rel="next" href="../../sim/personas/">
       
       
         
@@ -23,7 +27,7 @@
     
     
       
-        <title>MCP golden-question evals - Penge</title>
+        <title>Golden evals - Penge</title>
       
     
     
@@ -110,7 +114,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              MCP golden-question evals
+              Golden evals
             
           </span>
         </div>
@@ -1038,10 +1042,16 @@
       
   
   
+    
   
   
+  
     
     
+      
+        
+      
+        
       
         
       
@@ -1054,11 +1064,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
         
           
           <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
@@ -1079,7 +1089,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1113,6 +1123,192 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../source-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Source coverage contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden evals
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden evals
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#running-the-suite" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running the suite
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layout
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#coverage-30-goldens" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Coverage (30 goldens)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-new-golden" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a new golden
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-deterministic-not-llm-in-the-loop" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why deterministic, not LLM-in-the-loop?
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Why deterministic, not LLM-in-the-loop?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#scope-of-this-pr-vs-issue-54" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scope of this PR vs issue #54
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-a-golden-fails" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When a golden fails
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -3525,10 +3721,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#coverage-26-goldens" class="md-nav__link">
+  <a href="#coverage-30-goldens" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Coverage (26 goldens)
+        Coverage (30 goldens)
       
     </span>
   </a>
@@ -3613,7 +3809,7 @@
 <h1 id="mcp-golden-question-evals">MCP golden-question evals<a class="headerlink" href="#mcp-golden-question-evals" title="Permanent link">&para;</a></h1>
 <p>The MCP server is the only sanctioned LLM data path in Penge. Every
 new release of the tool layer is gated by a deterministic eval suite:
-twenty-six fixture-backed "golden questions" that exercise the real tool
+thirty fixture-backed "golden questions" that exercise the real tool
 handlers and assert structural and numeric invariants.</p>
 <p>The suite is <strong>not</strong> an LLM-in-the-loop test. It runs entirely in
 TypeScript with pre-seeded fixtures so it is fast (sub-second locally)
@@ -3644,10 +3840,10 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 │   ├── scenarioPayloads.ts # canned run_scenario payloads
 │   ├── taxPayloads.ts      # canned compute_tax_year payloads
 │   └── vaultDocs.ts        # synthetic vault layout + helpers
-├── goldens.ts              # the 26 golden questions
+├── goldens.ts              # the 30 golden questions
 └── runner.ts               # vitest harness (one it() per golden)
 </code></pre></div>
-<h2 id="coverage-26-goldens">Coverage (26 goldens)<a class="headerlink" href="#coverage-26-goldens" title="Permanent link">&para;</a></h2>
+<h2 id="coverage-30-goldens">Coverage (30 goldens)<a class="headerlink" href="#coverage-30-goldens" title="Permanent link">&para;</a></h2>
 <table>
 <thead>
 <tr>
@@ -3697,6 +3893,11 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <td>3</td>
 <td>canonical kinds map to documented categories at 0.9; suggestion values/reasons never leak account numbers; identical runs are byte-identical</td>
 </tr>
+<tr>
+<td>Source coverage</td>
+<td>4</td>
+<td>stale ECB FX; explicit missing FX; PayPal non-duplication; exact signed allocation strings</td>
+</tr>
 </tbody>
 </table>
 <h2 id="adding-a-new-golden">Adding a new golden<a class="headerlink" href="#adding-a-new-golden" title="Permanent link">&para;</a></h2>
@@ -3732,7 +3933,7 @@ the eval harness itself (assertion helpers, fixture loaders) live in
 <li>
 <p>Update the count in the dataset-shape check at the top of
    <code>runner.ts</code> if the new golden changes the total count (the runner
-   asserts <code>GOLDENS.length === 26</code>).</p>
+   asserts <code>GOLDENS.length === 30</code>).</p>
 </li>
 <li>
 <p>Run the suite locally:</p>

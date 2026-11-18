@@ -1049,6 +1049,10 @@
       
         
       
+        
+      
+        
+      
     
     
     
@@ -1109,6 +1113,62 @@
     
   
     Tool reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcp/source-coverage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Source coverage contract
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../mcp/evals/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Golden evals
   
 
     
@@ -3964,7 +4024,7 @@ auth surface, audit logging — that the first set of tools (issues <code>#45</c
 <li>Boots locally with <code>just mcp-dev</code> and is reachable from Claude Desktop.</li>
 <li>Connects read-only to Postgres (operational tables) and DuckDB (mart
    tables produced by dbt — see ADR-0001).</li>
-<li>Logs every tool call with redacted arguments so the audit trail is real
+<li>Logs every tool call with argument key names but no values so the audit trail is real
    from day one, before any tool ships.</li>
 <li>Is type-safe end-to-end and refuses to start with a misconfigured env.</li>
 </ol>
@@ -3992,7 +4052,7 @@ official <code>@modelcontextprotocol/sdk</code>, communicating over stdio.</p>
 <h3 id="layout">Layout<a class="headerlink" href="#layout" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code>apps/mcp/
   src/
-    audit.ts        # JSONL audit log + key-based redactor
+    audit.ts        # keys-only JSONL audit log
     config.ts       # zod-validated env loader (PENGE_DB_URL, ...)
     db.ts           # pg.Pool (read-only) + DuckDB path holder
     registry.ts     # ToolRegistry, ToolDefinition&lt;I, O&gt;
@@ -4018,12 +4078,12 @@ official <code>@modelcontextprotocol/sdk</code>, communicating over stdio.</p>
   zod input schema, a zod output schema, a description, and a handler.
   <code>server.ts</code> derives the JSON Schema sent to the host via
   <code>zod-to-json-schema</code>. Tools never see raw JSON-RPC.</li>
-<li><strong>Audit log:</strong> <code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>, mirrored to stderr.
-  Every record carries <code>ts</code>, <code>tool</code>, redacted <code>args</code>, <code>status</code>, <code>durationMs</code>,
-  optional <code>error</code>. Argument values for fields whose name matches
-  <code>account|iban|cpr|tax_id|name|email</code> (case-insensitive) are replaced with
-  <code>"[REDACTED]"</code> <em>before</em> the record is written. The redactor is recursive
-  (objects and arrays).</li>
+<li><strong>Audit log:</strong> <code>logs/mcp/audit-YYYY-MM-DD.jsonl</code>.
+  Every record carries <code>ts</code>, <code>tool</code>, sorted top-level <code>argumentKeys</code>,
+  <code>status</code>, <code>durationMs</code>, and an optional bounded error code.
+  Argument values and tool results are never written.
+  Directory and file modes are enforced as <code>0700</code> and <code>0600</code>, and records
+  are not mirrored to the MCP process stderr by default.</li>
 <li><strong>Built-in <code>_meta</code> tool:</strong> returns server name, version, and the list of
   registered tools. Lets the loop be tested before any real tool exists,
   and gives MCP hosts a stable health probe.</li>

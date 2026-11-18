@@ -12,6 +12,7 @@ import {
   SessionLimitError,
 } from "../src/errors.js";
 import { exchangeGitHubCode, generateOAuthState } from "../src/identity.js";
+import { closeServiceResources } from "../src/lifecycle.js";
 import { startChatServer } from "../src/server.js";
 import type { StreamEvent } from "../src/stream.js";
 import { syntheticConfig } from "./helpers.js";
@@ -411,6 +412,73 @@ describe("loopback HTTP service", () => {
     await expect(server.close()).rejects.toThrow(/chat server cleanup failed/);
     await expect(fetch(`${server.origin}/health`)).rejects.toThrow();
   });
+
+  it.each(["status", "chat"] as const)(
+    "drains a delayed %s handler before runtime and store shutdown",
+    async (route) => {
+      let releaseStatus: (() => void) | undefined;
+      let signalStatus: (() => void) | undefined;
+      const statusEntered = new Promise<void>((resolve) => {
+        signalStatus = resolve;
+      });
+      const statusGate = new Promise<void>((resolve) => {
+        releaseStatus = resolve;
+      });
+      const start = vi.fn(async () => "00000000-0000-4000-8000-000000000001");
+      const ensureModelAvailable = vi.fn(async () => true);
+      const closeRuntime = vi.fn(async () => undefined);
+      const closeStore = vi.fn(async () => undefined);
+      const server = await startChatServer(syntheticConfig(), {
+        runtime: {
+          start,
+          cancel: async () => undefined,
+          disconnect: async () => undefined,
+          cleanupIdle: async () => 0,
+          close: closeRuntime,
+          isModelAvailable: () => false,
+          ensureModelAvailable,
+          invalidateActor: async () => undefined,
+        },
+        oauth: {
+          begin: async () => "https://github.com/login/oauth/authorize",
+          complete: async () => "synthetic-user",
+          status: async () => {
+            signalStatus?.();
+            await statusGate;
+            return { state: "linked" as const, login: "synthetic-user" };
+          },
+          unlink: async () => undefined,
+        },
+      });
+      const request =
+        route === "status"
+          ? fetch(`${server.origin}/v1/auth/status`, { headers }).catch(() => undefined)
+          : fetch(`${server.origin}/v1/chat`, {
+              method: "POST",
+              headers,
+              body: JSON.stringify({ question: "Safe question" }),
+            }).catch(() => undefined);
+      await statusEntered;
+      const closing = closeServiceResources(server, { close: closeStore });
+      try {
+        await request;
+        const state = await Promise.race([
+          closing.then(() => "closed"),
+          new Promise<"pending">((resolve) => setTimeout(() => resolve("pending"), 50)),
+        ]);
+        expect(state).toBe("pending");
+        expect(closeRuntime).not.toHaveBeenCalled();
+        expect(closeStore).not.toHaveBeenCalled();
+      } finally {
+        releaseStatus?.();
+        await closing;
+      }
+      expect(start).not.toHaveBeenCalled();
+      expect(ensureModelAvailable).not.toHaveBeenCalled();
+      expect(closeRuntime).toHaveBeenCalledOnce();
+      expect(closeStore).toHaveBeenCalledOnce();
+    },
+  );
 
   it("does not expose internal PengeError messages", async () => {
     const server = await startChatServer(syntheticConfig(), {

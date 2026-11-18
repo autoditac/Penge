@@ -9,6 +9,7 @@ import {
   AuthorizationError,
   FeatureDisabledError,
   HydraFusionUnavailableError,
+  ServiceShuttingDownError,
   SessionLimitError,
 } from "./errors.js";
 import {
@@ -328,6 +329,8 @@ export class ChatRuntime {
   private readonly actorCapacity = new Map<string, number>();
   private readonly backgroundTasks = new Set<Promise<void>>();
   private readonly backgroundErrors: unknown[] = [];
+  private closing = false;
+  private closePromise: Promise<void> | undefined;
 
   constructor(
     private readonly config: ChatConfig,
@@ -349,6 +352,7 @@ export class ChatRuntime {
   }
 
   async ensureModelAvailable(actorId: string): Promise<boolean> {
+    this.assertAccepting();
     if (!this.config.productionEnabled) {
       return false;
     }
@@ -393,6 +397,7 @@ export class ChatRuntime {
   }
 
   async start(actorId: string, question: string, sink: StreamSink): Promise<string> {
+    this.assertAccepting();
     if (!this.config.productionEnabled) {
       throw new FeatureDisabledError("Ask Penge is not enabled");
     }
@@ -495,7 +500,13 @@ export class ChatRuntime {
     return idle.length;
   }
 
-  async close(): Promise<void> {
+  close(): Promise<void> {
+    this.closing = true;
+    this.closePromise ??= this.closeResources();
+    return this.closePromise;
+  }
+
+  private async closeResources(): Promise<void> {
     const failures: unknown[] = [];
     const readinessResults = await Promise.allSettled([...this.readinessTasks.values()]);
     for (const result of readinessResults) {
@@ -516,9 +527,16 @@ export class ChatRuntime {
     while (this.backgroundTasks.size > 0) {
       await Promise.allSettled([...this.backgroundTasks]);
     }
+    this.availableActors.clear();
     failures.push(...this.backgroundErrors.splice(0));
     if (failures.length > 0) {
       throw new AggregateError(failures, "chat background lifecycle failures");
+    }
+  }
+
+  private assertAccepting(): void {
+    if (this.closing) {
+      throw new ServiceShuttingDownError("chat runtime is shutting down");
     }
   }
 
@@ -578,7 +596,7 @@ export class ChatRuntime {
         sink: { onEvent: () => undefined },
       });
       await run.close();
-      if ((this.actorGenerations.get(actorId) ?? 0) !== generation) {
+      if (this.closing || (this.actorGenerations.get(actorId) ?? 0) !== generation) {
         return false;
       }
       this.availableActors.add(actorId);

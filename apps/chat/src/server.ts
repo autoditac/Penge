@@ -11,6 +11,7 @@ import {
   HydraFusionUnavailableError,
   PengeError,
   ServerStartupError,
+  ServiceShuttingDownError,
   SessionLimitError,
   UpstreamResponseError,
 } from "./errors.js";
@@ -142,6 +143,7 @@ function errorStatus(error: unknown): number {
   if (error instanceof AuthenticationError) return 401;
   if (error instanceof AuthorizationError) return 404;
   if (error instanceof SessionLimitError) return 429;
+  if (error instanceof ServiceShuttingDownError) return 503;
   if (error instanceof PengeError && error.code === "chat/origin_rejected") return 403;
   if (error instanceof PengeError && error.code === "chat/content_type_rejected") return 415;
   if (error instanceof FeatureDisabledError || error instanceof HydraFusionUnavailableError) {
@@ -165,6 +167,9 @@ function publicError(error: unknown): { code: string; message: string } {
   }
   if (error instanceof SessionLimitError) {
     return { code: "rate_limit", message: "The chat concurrency limit was reached." };
+  }
+  if (error instanceof ServiceShuttingDownError) {
+    return { code: "session_interrupted", message: "The chat service is shutting down." };
   }
   if (error instanceof AuthorizationError) {
     return { code: "not_found", message: "The requested chat session was not found." };
@@ -193,6 +198,9 @@ export async function startChatServer(
     });
   const backgroundTasks = new Set<Promise<void>>();
   const backgroundErrors: unknown[] = [];
+  const requestHandlers = new Set<Promise<void>>();
+  let closing = false;
+  let closePromise: Promise<void> | undefined;
   const observe = (task: Promise<void>, operation: string): void => {
     const tracked = task
       .catch((error: unknown) => {
@@ -208,7 +216,10 @@ export async function startChatServer(
     backgroundTasks.add(tracked);
   };
 
-  const server = createServer(async (request, response) => {
+  const handleRequest = async (
+    request: IncomingMessage,
+    response: ServerResponse,
+  ): Promise<void> => {
     let url: URL;
     try {
       url = new URL(request.url ?? "/", config.publicApiBase);
@@ -236,6 +247,7 @@ export async function startChatServer(
       }
       if (request.method === "GET" && url.pathname === "/v1/auth/status") {
         const github = await dependencies.oauth.status(actorId);
+        if (closing || response.destroyed) return;
         const modelAvailable =
           github.state === "linked"
             ? await dependencies.runtime.ensureModelAvailable(actorId)
@@ -287,7 +299,9 @@ export async function startChatServer(
       }
       if (request.method === "POST" && url.pathname === "/v1/chat") {
         const input = AskRequestSchema.parse(await readJson(request));
+        if (closing || response.destroyed) return;
         const github = await dependencies.oauth.status(actorId);
+        if (closing || response.destroyed) return;
         if (github.state !== "linked") {
           throw new AuthenticationError("linked GitHub identity is required");
         }
@@ -407,12 +421,40 @@ export async function startChatServer(
         },
         "chat request failed",
       );
+      if (response.destroyed) {
+        return;
+      }
       if (!response.headersSent) {
         sendJson(response, errorStatus(error), publicError(error));
       } else if (!response.destroyed) {
         response.end();
       }
     }
+  };
+  const server = createServer((request, response) => {
+    if (closing) {
+      sendJson(response, 503, {
+        code: "session_interrupted",
+        message: "The chat service is shutting down.",
+      });
+      return;
+    }
+    const handler = handleRequest(request, response)
+      .catch((error: unknown) => {
+        backgroundErrors.push(error);
+        logger.error(
+          {
+            operation: "request_handler",
+            errorType: error instanceof Error ? error.name : "UnknownError",
+          },
+          "chat request handler failed",
+        );
+        response.destroy();
+      })
+      .finally(() => {
+        requestHandlers.delete(handler);
+      });
+    requestHandlers.add(handler);
   });
   server.requestTimeout = config.httpRequestTimeoutMs;
   server.headersTimeout = config.httpRequestTimeoutMs;
@@ -443,27 +485,37 @@ export async function startChatServer(
 
   return {
     origin: `http://${address.address.includes(":") ? `[${address.address}]` : address.address}:${address.port}`,
-    close: async () => {
+    close: () => {
+      if (closePromise !== undefined) return closePromise;
+      closing = true;
       clearInterval(idleTimer);
-      const failures: unknown[] = [];
-      try {
-        await new Promise<void>((resolve, reject) => {
-          server.close((error) => (error === undefined ? resolve() : reject(error)));
-          server.closeAllConnections();
-        });
-      } catch (error) {
-        failures.push(error);
-      }
-      try {
-        await dependencies.runtime.close();
-      } catch (error) {
-        failures.push(error);
-      }
-      await Promise.all([...backgroundTasks]);
-      failures.push(...backgroundErrors);
-      if (failures.length > 0) {
-        throw new AggregateError(failures, "chat server cleanup failed");
-      }
+      closePromise = (async () => {
+        const failures: unknown[] = [];
+        try {
+          await new Promise<void>((resolve, reject) => {
+            server.close((error) => (error === undefined ? resolve() : reject(error)));
+            server.closeAllConnections();
+          });
+        } catch (error) {
+          failures.push(error);
+        }
+        while (requestHandlers.size > 0) {
+          await Promise.all([...requestHandlers]);
+        }
+        try {
+          await dependencies.runtime.close();
+        } catch (error) {
+          failures.push(error);
+        }
+        while (backgroundTasks.size > 0) {
+          await Promise.all([...backgroundTasks]);
+        }
+        failures.push(...backgroundErrors);
+        if (failures.length > 0) {
+          throw new AggregateError(failures, "chat server cleanup failed");
+        }
+      })();
+      return closePromise;
     },
   };
 }

@@ -5,6 +5,7 @@ import { MCP_REGISTRATION_ALLOWLIST, MCP_SOURCE_ALLOWLIST } from "../src/config.
 import {
   AuthenticationError,
   HydraFusionUnavailableError,
+  ServiceShuttingDownError,
   UpstreamResponseError,
 } from "../src/errors.js";
 import { ChatRuntime, projectEvidence, summarizeEvidence } from "../src/runtime.js";
@@ -117,6 +118,40 @@ afterEach(() => {
 });
 
 describe("chat runtime isolation and lifecycle", () => {
+  it("rejects new work while shutdown drains an existing readiness probe", async () => {
+    let releaseCreate: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    copilot.createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const readiness = runtime.ensureModelAvailable("actor-a");
+    const closing = runtime.close();
+    expect(runtime.close()).toBe(closing);
+    await expect(runtime.ensureModelAvailable("actor-a")).rejects.toBeInstanceOf(
+      ServiceShuttingDownError,
+    );
+    await expect(
+      runtime.start("actor-b", "After shutdown", () => undefined),
+    ).rejects.toBeInstanceOf(ServiceShuttingDownError);
+    releaseCreate?.();
+    await expect(readiness).resolves.toBe(false);
+    await closing;
+    expect(runtime.isModelAvailable("actor-a")).toBe(false);
+    expect([...copilot.runs.values()]).toEqual([
+      expect.objectContaining({ aborted: false, closed: true }),
+    ]);
+    await expect(runtime.start("actor-a", "After close", () => undefined)).rejects.toBeInstanceOf(
+      ServiceShuttingDownError,
+    );
+  });
+
   it("probes actor-authenticated model readiness with normal teardown", async () => {
     const copilot = new FakeCopilotRuntime();
     const runtime = new ChatRuntime(
@@ -232,7 +267,12 @@ describe("chat runtime isolation and lifecycle", () => {
   it("treats transport disconnect after a terminal session as an idempotent no-op", async () => {
     const copilot = new FakeCopilotRuntime();
     const store = new MemoryChatStore();
-    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessionsPerActor: 2 }),
+      copilot,
+      tokenService,
+      store,
+    );
     const events: StreamEvent[] = [];
     const completed = await runtime.start("actor-a", "Synthetic question", (event) =>
       events.push(event),
@@ -247,15 +287,15 @@ describe("chat runtime isolation and lifecycle", () => {
     await vi.waitFor(() => expect(copilot.runs.get(completed)?.closed).toBe(true));
 
     await expect(runtime.disconnect("actor-a", completed)).resolves.toBeUndefined();
+    const live = await runtime.start("actor-a", "Third synthetic question", () => undefined);
+    await expect(runtime.disconnect("actor-b", live)).rejects.toThrow(/does not belong/);
     const shutdown = await runtime.start("actor-a", "Second synthetic question", () => undefined);
     await vi.waitFor(() => expect(copilot.runs.get(shutdown)?.prompt).toBeDefined());
     await runtime.close();
     await expect(runtime.disconnect("actor-a", shutdown)).resolves.toBeUndefined();
 
-    const live = await runtime.start("actor-a", "Third synthetic question", () => undefined);
-    await expect(runtime.disconnect("actor-b", live)).rejects.toThrow(/does not belong/);
     expect(events.filter((event) => event.type === "completion")).toHaveLength(1);
-    expect(store.audits.filter((audit) => audit.status === "cancelled")).toHaveLength(1);
+    expect(store.audits.filter((audit) => audit.status === "cancelled")).toHaveLength(2);
     await runtime.close();
   });
 

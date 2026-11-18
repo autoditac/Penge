@@ -28,6 +28,7 @@ The SDK exposes only the reviewed chat subset, never `_meta`.
 Missing or extra MCP tools fail startup.
 Each authenticated status check and chat launch verifies a fresh session-scoped model list using the linked actor token.
 Missing, disabled, unconfigured, or duplicate model-policy entries fail closed.
+Shutdown stops new chat and readiness admission, disconnects clients, and drains in-flight request handlers and runtime cleanup before closing the chat store.
 
 GitHub OAuth grant rejection and a rejected user token report authentication expiry.
 A token refresh rejected during a status probe or chat launch reports authentication expiry (HTTP 401 or non-retryable stream `auth_expired`), even though the SDK wraps the token-provider failure.

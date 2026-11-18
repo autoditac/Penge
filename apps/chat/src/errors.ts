@@ -36,6 +36,13 @@ export class FeatureDisabledError extends PengeError {
   }
 }
 
+export class ServiceShuttingDownError extends PengeError {
+  constructor(message: string) {
+    super("chat/shutting_down", message);
+    this.name = "ServiceShuttingDownError";
+  }
+}
+
 export class HydraFusionUnavailableError extends PengeError {
   constructor(message: string) {
     super("chat/hydrafusion_unavailable", message);

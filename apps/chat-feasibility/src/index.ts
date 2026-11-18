@@ -49,7 +49,9 @@ export const runtimeEnvironmentKeys = [
   "NODE_EXTRA_CA_CERTS",
 ] as const;
 
-const actorIdSchema = z.string().regex(/^actor_[a-z0-9]{16,64}$/);
+const ulidPattern = "[0-7][0-9A-HJKMNP-TV-Z]{25}";
+const actorIdSchema = z.string().regex(new RegExp(`^actor_${ulidPattern}$`));
+const sessionIdSchema = z.string().regex(new RegExp(`^session_${ulidPattern}$`));
 const githubLoginSchema = z.string().regex(/^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,38})$/);
 
 export class PengeError extends Error {
@@ -193,12 +195,20 @@ export interface CopilotSdkProof {
 const McpChildEnvironmentSchema = z
   .object({
     PATH: z.string().min(1),
-    PENGE_DB_URL: z.string().url(),
+    PENGE_DB_URL: z.string().url().optional(),
+    PENGE_DB_URL_FILE: z.string().min(1).optional(),
     PENGE_DUCKDB_PATH: z.string().min(1),
     PENGE_MCP_LOG_DIR: z.string().min(1),
     PENGE_VAULT_ROOT: z.string().min(1),
+    PENGE_MCP_ACTOR_ID: actorIdSchema.optional(),
+    PENGE_MCP_SESSION_ID: sessionIdSchema.optional(),
   })
-  .strict();
+  .strict()
+  .refine(
+    (environment) =>
+      (environment.PENGE_DB_URL !== undefined) !== (environment.PENGE_DB_URL_FILE !== undefined),
+    "exactly one database credential source is required",
+  );
 
 export type McpChildEnvironment = z.infer<typeof McpChildEnvironmentSchema>;
 
@@ -235,8 +245,30 @@ export function sanitizeRuntimeEnvironment(
   return sanitized;
 }
 
-export function sanitizeMcpEnvironment(source: unknown): McpChildEnvironment {
-  return McpChildEnvironmentSchema.parse(source);
+export function sanitizeMcpEnvironment(
+  source: unknown,
+  attribution: { actorId: string; sessionId: string },
+): Record<string, string> {
+  const actorId = actorIdSchema.parse(attribution.actorId);
+  const sessionId = sessionIdSchema.parse(attribution.sessionId);
+  const environment = McpChildEnvironmentSchema.parse(source);
+  if (
+    (environment.PENGE_MCP_ACTOR_ID !== undefined && environment.PENGE_MCP_ACTOR_ID !== actorId) ||
+    (environment.PENGE_MCP_SESSION_ID !== undefined &&
+      environment.PENGE_MCP_SESSION_ID !== sessionId)
+  ) {
+    throw new UserCredentialScopeError(
+      "MCP audit attribution must match the current actor and session",
+    );
+  }
+  const result: Record<string, string> = {
+    PENGE_MCP_ACTOR_ID: actorId,
+    PENGE_MCP_SESSION_ID: sessionId,
+  };
+  for (const [key, value] of Object.entries(environment)) {
+    if (value !== undefined) result[key] = value;
+  }
+  return result;
 }
 
 export function assertPlannedMcpContractAvailable(observedTools: readonly string[]): void {
@@ -352,6 +384,7 @@ export function assertSdkCleanupSucceeded(errors: readonly Error[]): void {
 
 export function buildCopilotSdkProof(options: {
   runtime: ChatRuntimeConfig;
+  sessionId: string;
   tokenProvider: UserScopedTokenProvider;
   storageRoot: string;
   workingDirectory: string;
@@ -389,6 +422,7 @@ export function buildCopilotSdkProof(options: {
       env: sanitizeRuntimeEnvironment(options.ambientEnvironment),
     },
     session: {
+      sessionId: sessionIdSchema.parse(options.sessionId),
       model: hydraFusionModel,
       allowedModels: [hydraFusionModel],
       streaming: true,
@@ -408,7 +442,10 @@ export function buildCopilotSdkProof(options: {
           command: "pnpm",
           args: ["--filter", "@penge/mcp", "start"],
           workingDirectory: options.workingDirectory,
-          env: sanitizeMcpEnvironment(options.mcpEnvironment),
+          env: sanitizeMcpEnvironment(options.mcpEnvironment, {
+            actorId: options.runtime.actorId,
+            sessionId: options.sessionId,
+          }),
           tools: [...implementedPengeMcpChatTools],
         },
       },

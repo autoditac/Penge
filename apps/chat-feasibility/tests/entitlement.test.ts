@@ -9,12 +9,52 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   EntitlementProbeTimeoutError,
+  diagnosticClientOptions,
   probeEntitlement,
   type EntitlementProbeClient,
 } from "../src/entitlement.js";
 import { SdkCleanupError, hydraFusionModel } from "../src/index.js";
 
 const fixture = fileURLToPath(new URL("./fixtures/unresponsive-runtime.mjs", import.meta.url));
+
+describe("isolated diagnostic authentication", () => {
+  it("requires an explicit user credential without falling back to persisted or ambient auth", () => {
+    const environment = {
+      PATH: "/usr/bin:/bin",
+      GH_TOKEN: "ambient-gh",
+      GITHUB_TOKEN: "ambient-github",
+      COPILOT_GITHUB_TOKEN: "ambient-copilot",
+      COPILOT_HOME: "/persisted/copilot",
+    };
+    for (const token of [undefined, "", "   "]) {
+      expect(() =>
+        diagnosticClientOptions(
+          {
+            ...environment,
+            PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN: token,
+          },
+          "/isolated",
+        ),
+      ).toThrow("PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN");
+    }
+    const options = diagnosticClientOptions(
+      {
+        ...environment,
+        PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN: "synthetic-explicit-token",
+      },
+      "/isolated",
+    );
+    expect(options).toMatchObject({
+      mode: "empty",
+      baseDirectory: "/isolated",
+      gitHubToken: "synthetic-explicit-token",
+      useLoggedInUser: false,
+      env: { PATH: "/usr/bin:/bin" },
+    });
+    expect(options.env).toEqual({ PATH: "/usr/bin:/bin" });
+    expect(() => new CopilotClient(options)).not.toThrow();
+  });
+});
 
 function syntheticClient(
   baseDirectory: string,

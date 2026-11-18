@@ -41,8 +41,15 @@ unresolved; `_meta` remains protocol-only.
 just chat-entitlement-check
 ```
 
-The command uses the currently authenticated Copilot identity and calls only
-`listModels()`.
+Before running, supply `PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN` through a secure
+environment injection mechanism, using only your own GitHub credential with
+Copilot access.
+Never put its value in shell history, command arguments, a committed file, or logs.
+The command requires this explicit credential and calls only `listModels()`;
+it never falls back to persisted Copilot/keychain credentials, `gh` login, or
+ambient `GH_TOKEN`, `GITHUB_TOKEN`, or `COPILOT_GITHUB_TOKEN`.
+SDK empty mode and the isolated directory hide persisted credentials, so a
+desktop Copilot login alone is not sufficient.
 It creates an isolated temporary SDK directory, uses error-only logging, prints
 only `exactModel`, `entitled`, and `matchCount`, and deletes the directory only
 after a confirmed graceful SDK shutdown.
@@ -62,11 +69,16 @@ It never prints a token, login, prompt, or financial data.
 Exit status `2` means the exact ID is missing, duplicated, or blocked by policy.
 The SDK may omit policy metadata; when present, its state must be `enabled`.
 
-The 2026-10-04 result was:
+The historical 2026-10-04 result was:
 
 ```json
 { "exactModel": "hydrafusion", "entitled": false, "matchCount": 0 }
 ```
+
+That historical diagnostic used implicit authentication and does not establish
+which account supplied it.
+It is not verified entitlement evidence; rerun with the explicit credential
+before drawing any current account-specific conclusion.
 
 Do not create an entitlement record from documentation, a different account,
 a display name, or a similar model ID.
@@ -77,6 +89,22 @@ SDK 1.0.16 also exposes experimental `session.rpc.model.list()` for the
 session's own authentication context; its results are untyped JSON and must
 be validated before they are used for an actor-scoped decision.
 Successful session creation alone is not evidence that the model can execute.
+
+## MCP child credentials and attribution
+
+The proof accepts exactly one of `PENGE_DB_URL` or `PENGE_DB_URL_FILE`.
+The latter passes only the secret-file path to MCP; MCP owns secure file
+opening, ownership/mode checks, size bounds, and URL validation.
+It is not read or logged by the feasibility harness.
+No ambient authentication variables are accepted in the MCP environment.
+
+The trusted caller supplies the current actor ID and session ID as canonical
+`actor_<ULID>` and `session_<ULID>` pseudonyms.
+The proof uses the session ID for the SDK session and injects
+`PENGE_MCP_ACTOR_ID` / `PENGE_MCP_SESSION_ID` into the child environment.
+Explicit child attribution, if supplied, must match those trusted values;
+malformed or cross-actor/cross-session values are rejected.
+Browsers must not choose these IDs or overwrite audit attribution.
 
 ## Production enablement checklist
 

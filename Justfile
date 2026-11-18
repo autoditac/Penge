@@ -220,7 +220,7 @@ chat-feasibility:
     pnpm --filter @penge/chat-feasibility test
     pnpm --filter @penge/chat-feasibility lint
 
-# Query only model IDs for the currently authenticated Copilot user.
+# Require your own PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN; query only model availability.
 # Exit 2 means the exact `hydrafusion` ID is unavailable; no token is printed.
 chat-entitlement-check:
     pnpm --filter @penge/chat-feasibility build

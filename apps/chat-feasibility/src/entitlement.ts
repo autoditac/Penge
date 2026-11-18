@@ -1,6 +1,12 @@
 import { rm } from "node:fs/promises";
 
-import type { CopilotClient, ModelInfo } from "@github/copilot-sdk";
+import {
+  RuntimeConnection,
+  type CopilotClient,
+  type CopilotClientOptions,
+  type ModelInfo,
+} from "@github/copilot-sdk";
+import { z } from "zod/v3";
 
 import {
   PengeError,
@@ -8,7 +14,29 @@ import {
   assertSdkCleanupSucceeded,
   evaluateHydraFusionAvailability,
   hydraFusionModel,
+  sanitizeRuntimeEnvironment,
 } from "./index.js";
+
+export function diagnosticClientOptions(
+  environment: NodeJS.ProcessEnv,
+  baseDirectory: string,
+): CopilotClientOptions {
+  const token = z.string().trim().min(1).safeParse(environment.PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN);
+  if (!token.success) {
+    throw new PengeError(
+      "Set PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN to your own diagnostic credential",
+    );
+  }
+  return {
+    connection: RuntimeConnection.forStdio(),
+    mode: "empty",
+    baseDirectory,
+    gitHubToken: token.data,
+    useLoggedInUser: false,
+    env: sanitizeRuntimeEnvironment(environment),
+    logLevel: "error",
+  };
+}
 
 export class EntitlementProbeTimeoutError extends PengeError {
   override get name(): string {

@@ -78,6 +78,11 @@ in `apps/chat-feasibility`:
 - The only MCP server configuration has `type: "stdio"` and a bounded `tools`
   array.
   An HTTP/SSE URL is structurally absent.
+  Exactly one database credential source (`PENGE_DB_URL` or
+  `PENGE_DB_URL_FILE`) is accepted; MCP validates and reads file secrets.
+  Trusted `actor_<ULID>` and `session_<ULID>` pseudonyms bind child audit
+  attribution to the current actor and SDK session.
+  Conflicting child attribution is rejected rather than overwritten silently.
 - MCP OAuth token storage is in memory.
   Chat transcript content is not retained after the bounded session lifetime.
   Audits contain only pseudonymous actor/session identifiers, tool/status/
@@ -166,16 +171,24 @@ The separate entitlement probe has a bounded deadline and attempts graceful,
 then forced, SDK shutdown.
 It retains isolated temporary storage instead of deleting it when termination
 cannot be confirmed.
+It requires the operator's own explicit `PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN`,
+sets client `gitHubToken` and `useLoggedInUser: false`, and sanitizes the runtime
+environment.
+An isolated empty-mode client cannot rely on persisted Copilot/keychain login.
+There is no ambient or shared-account credential fallback.
 
-The token-safe check on 2026-10-04 called only `listModels()` for the currently
-authenticated user, logged at error level, and emitted only the exact-ID result:
+The historical check on 2026-10-04 called only `listModels()`, logged at error
+level, and emitted only the exact-ID result:
 
 ```json
 { "exactModel": "hydrafusion", "entitled": false, "matchCount": 0 }
 ```
 
-No token, identity, prompt, or finance data was printed or persisted.
-Therefore real entitlement is unproven, the production feature remains
+The historical check used implicit authentication and did not verify which
+account supplied the result.
+It is not current actor-specific entitlement evidence.
+No token, identity, prompt, or finance data was printed.
+Real entitlement remains unproven, the production feature remains
 disabled, and no other model may substitute.
 
 ## Consequences

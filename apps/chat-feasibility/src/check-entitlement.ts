@@ -2,9 +2,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
+import { CopilotClient } from "@github/copilot-sdk";
 
-import { probeEntitlement } from "./entitlement.js";
+import { diagnosticClientOptions, probeEntitlement } from "./entitlement.js";
 import { PengeError } from "./index.js";
 
 let client: CopilotClient | undefined;
@@ -12,13 +12,7 @@ let client: CopilotClient | undefined;
 async function main(): Promise<void> {
   const baseDirectory = await mkdtemp(join(tmpdir(), "penge-copilot-entitlement-"));
   try {
-    client = new CopilotClient({
-      connection: RuntimeConnection.forStdio(),
-      mode: "empty",
-      baseDirectory,
-      useLoggedInUser: true,
-      logLevel: "error",
-    });
+    client = new CopilotClient(diagnosticClientOptions(process.env, baseDirectory));
   } catch (error) {
     await rm(baseDirectory, { recursive: true, force: true });
     throw error;

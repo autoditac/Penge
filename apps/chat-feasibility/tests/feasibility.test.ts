@@ -26,7 +26,10 @@ import {
   validateSyntheticCopilotStream,
 } from "../src/index.js";
 
-const actorId = "actor_0123456789abcdef";
+const actorId = "actor_01ARZ3NDEKTSV4RRFFQ69G5FAV";
+const otherActorId = "actor_01ARZ3NDEKTSV4RRFFQ69G5FAW";
+const sessionId = "session_01ARZ3NDEKTSV4RRFFQ69G5FAX";
+const attribution = { actorId, sessionId };
 const githubLogin = "synthetic-user-a";
 const verifiedAt = "2026-10-04T08:00:00.000Z";
 const ambientEnvironment = {
@@ -65,6 +68,7 @@ describe("Copilot Fusion SDK feasibility proof", () => {
   it("builds the pinned SDK empty-mode session configuration for stdio-only MCP", () => {
     const proof = buildCopilotSdkProof({
       runtime: enabledRuntime(),
+      sessionId,
       tokenProvider: {
         actorId,
         githubLogin,
@@ -96,12 +100,13 @@ describe("Copilot Fusion SDK feasibility proof", () => {
     expect(proof.registeredMcpTools).toEqual(["_meta", ...implementedPengeMcpChatTools]);
     expect(proof.chatExposedMcpTools).toEqual(implementedPengeMcpChatTools);
     expect(proof.chatExposedMcpTools).not.toContain("_meta");
-    expect(proof.client.baseDirectory).toBe("/var/lib/penge/copilot/actor_0123456789abcdef");
+    expect(proof.client.baseDirectory).toBe(`/var/lib/penge/copilot/${actorId}`);
     expect(proof.client.env).toEqual({
       PATH: "/usr/local/bin:/usr/bin:/bin",
       LANG: "C.UTF-8",
     });
     expect(proof.session).toMatchObject({
+      sessionId,
       model: hydraFusionModel,
       allowedModels: [hydraFusionModel],
       streaming: true,
@@ -118,7 +123,11 @@ describe("Copilot Fusion SDK feasibility proof", () => {
         command: "pnpm",
         args: ["--filter", "@penge/mcp", "start"],
         workingDirectory: "/srv/penge",
-        env: mcpEnvironment,
+        env: {
+          ...mcpEnvironment,
+          PENGE_MCP_ACTOR_ID: actorId,
+          PENGE_MCP_SESSION_ID: sessionId,
+        },
         tools: implementedPengeMcpChatTools,
       },
     });
@@ -128,6 +137,7 @@ describe("Copilot Fusion SDK feasibility proof", () => {
   it("allows only named Penge MCP tools and denies every ambient source", () => {
     const proof = buildCopilotSdkProof({
       runtime: enabledRuntime(),
+      sessionId,
       tokenProvider: {
         actorId,
         githubLogin,
@@ -237,22 +247,77 @@ describe("Copilot Fusion SDK feasibility proof", () => {
   });
 
   it("derives non-reusable actor SDK directories under a trusted root", () => {
-    const first = deriveActorBaseDirectory("/var/lib/penge/copilot", "actor_0123456789abcdef");
-    const second = deriveActorBaseDirectory("/var/lib/penge/copilot", "actor_fedcba9876543210");
+    const first = deriveActorBaseDirectory("/var/lib/penge/copilot", actorId);
+    const second = deriveActorBaseDirectory("/var/lib/penge/copilot", otherActorId);
 
     expect(first).not.toBe(second);
-    expect(() =>
-      deriveActorBaseDirectory("relative/shared-root", "actor_0123456789abcdef"),
-    ).toThrow(UserCredentialScopeError);
+    expect(() => deriveActorBaseDirectory("relative/shared-root", actorId)).toThrow(
+      UserCredentialScopeError,
+    );
   });
 
   it("rejects ambient authentication variables in the MCP child environment", () => {
     expect(() =>
-      sanitizeMcpEnvironment({
-        ...mcpEnvironment,
-        GITHUB_TOKEN: "must-not-pass",
-      }),
+      sanitizeMcpEnvironment(
+        {
+          ...mcpEnvironment,
+          GITHUB_TOKEN: "must-not-pass",
+        },
+        attribution,
+      ),
     ).toThrow();
+  });
+
+  it("supports exactly one DB credential source and binds MCP audit attribution", () => {
+    const { PENGE_DB_URL: databaseUrl, ...base } = mcpEnvironment;
+    const fileEnvironment = { ...base, PENGE_DB_URL_FILE: "/run/secrets/mcp-db-url" };
+    expect(sanitizeMcpEnvironment(fileEnvironment, attribution)).toEqual({
+      ...fileEnvironment,
+      PENGE_MCP_ACTOR_ID: actorId,
+      PENGE_MCP_SESSION_ID: sessionId,
+    });
+    expect(
+      sanitizeMcpEnvironment(
+        {
+          ...mcpEnvironment,
+          PENGE_MCP_ACTOR_ID: actorId,
+          PENGE_MCP_SESSION_ID: sessionId,
+        },
+        attribution,
+      ).PENGE_DB_URL,
+    ).toBe(databaseUrl);
+    for (const invalid of [
+      base,
+      { ...fileEnvironment, PENGE_DB_URL: databaseUrl },
+      { ...base, PENGE_DB_URL_FILE: "" },
+      { ...mcpEnvironment, PENGE_MCP_ACTOR_ID: "actor_invalid" },
+      { ...mcpEnvironment, PENGE_MCP_SESSION_ID: "session_invalid" },
+      { ...mcpEnvironment, PENGE_MCP_ACTOR_ID: otherActorId },
+      { ...mcpEnvironment, PENGE_MCP_SESSION_ID: "session_01ARZ3NDEKTSV4RRFFQ69G5FAY" },
+      { ...fileEnvironment, COPILOT_GITHUB_TOKEN: "must-not-pass" },
+    ]) {
+      expect(() => sanitizeMcpEnvironment(invalid, attribution)).toThrow();
+    }
+
+    const proof = buildCopilotSdkProof({
+      runtime: enabledRuntime(),
+      sessionId,
+      tokenProvider: {
+        actorId,
+        githubLogin,
+        acquire: async () => ({ kind: "token", accessToken: "synthetic-token", expiresIn: 300 }),
+      },
+      storageRoot: "/var/lib/penge/copilot",
+      workingDirectory: "/srv/penge",
+      ambientEnvironment,
+      mcpEnvironment: fileEnvironment,
+    });
+    const mcpServer = proof.session.mcpServers?.penge;
+    if (mcpServer === undefined || !("env" in mcpServer)) {
+      throw new Error("expected a local MCP server environment");
+    }
+    expect(mcpServer.env).toEqual(sanitizeMcpEnvironment(fileEnvironment, attribution));
+    expect(mcpServer.env).not.toHaveProperty("PENGE_DB_URL");
   });
 
   it("requires exact model configuration and the production gate", () => {
@@ -314,7 +379,7 @@ describe("Copilot Fusion SDK feasibility proof", () => {
         {
           PENGE_CHAT_MODEL: hydraFusionModel,
           PENGE_CHAT_ENABLE_PRODUCTION: "1",
-          PENGE_CHAT_ACTOR_ID: "actor_fedcba9876543210",
+          PENGE_CHAT_ACTOR_ID: otherActorId,
           PENGE_CHAT_GITHUB_LOGIN: "synthetic-user-b",
         },
         {
@@ -378,8 +443,9 @@ describe("Copilot Fusion SDK feasibility proof", () => {
     expect(() =>
       buildCopilotSdkProof({
         runtime: enabledRuntime(),
+        sessionId,
         tokenProvider: {
-          actorId: "actor_fedcba9876543210",
+          actorId: otherActorId,
           githubLogin: "synthetic-user-b",
           acquire: async () => ({
             kind: "token",

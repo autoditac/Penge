@@ -7,6 +7,12 @@ Issue #346 replaces it with `apps/chat`.
 The package pins `@github/copilot-sdk@1.0.16` and type-checks the exact
 empty-mode, user-scoped token, streaming, local stdio MCP, and tool-filter
 configuration that the production backend must preserve.
+The isolated entitlement diagnostic requires your own explicit
+`PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN`; persisted login is not an authentication
+source for it.
+See the [chat runbook](../../docs/runbook/chat.md) for safe credential injection.
+MCP configuration accepts exactly one direct/file database credential source
+and binds canonical actor/session ULID audit pseudonyms to the trusted caller.
 After #350, repository source defines `_meta` plus 16 implemented chat tools.
 The harness proves that the SDK configuration targets those 16, excluding `_meta`; it does
 not start the MCP child, call `tools/list`, or invoke a tool.

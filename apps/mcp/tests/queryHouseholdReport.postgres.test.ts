@@ -6,7 +6,7 @@ import { queryHouseholdReportTool } from "../src/tools/queryHouseholdReport.js";
 const enabled = process.env.PENGE_MCP_REPORT_PG_TEST === "1";
 
 describe.skipIf(!enabled)("query_household_report on disposable PostgreSQL", () => {
-  it("executes every granularity with real positional parameters and synthetic marts", async () => {
+  it("uses calendar dates independently of the server timezone for every granularity", async () => {
     const rawUrl = process.env.PENGE_TEST_DATABASE_URL;
     if (!rawUrl || process.env.PENGE_ALLOW_DESTRUCTIVE_TEST_DB !== "1") {
       throw new Error("Explicit disposable test database opt-in is required");
@@ -19,6 +19,8 @@ describe.skipIf(!enabled)("query_household_report on disposable PostgreSQL", () 
       throw new Error("Only a loopback test-suffixed PostgreSQL database is permitted");
     }
     const data = await connect({ databaseUrl: url.toString(), duckdbPath: "" });
+    const previousTimezone = process.env.TZ;
+    process.env.TZ = "Europe/Copenhagen";
     try {
       const client = await data.acquire();
       try {
@@ -39,13 +41,17 @@ describe.skipIf(!enabled)("query_household_report on disposable PostgreSQL", () 
           });
           expect(report.current.totals.gross_expenses.eur.amount).toBe("125.4");
           expect(report.current.totals.gross_expenses.eur.complete).toBe(true);
+          expect(report.previous.totals.income.eur.amount).toBe("3500");
           expect(report.trend).toHaveLength(1);
+          expect(report.trend[0]?.totals.gross_expenses.eur.amount).toBe("125.4");
           expect(report.granularity).toBe(granularity);
         }
       } finally {
         client.release();
       }
     } finally {
+      if (previousTimezone === undefined) delete process.env.TZ;
+      else process.env.TZ = previousTimezone;
       await data.close();
     }
   });

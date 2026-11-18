@@ -232,7 +232,7 @@ mcp-lint:
 mcp-build:
     pnpm --filter @penge/mcp build
 
-# Run the MCP golden-question eval suite. Twenty deterministic checks
+# Run the MCP golden-question eval suite. Thirty deterministic checks
 # of the tool layer (tax, sim, cashflow, net worth, vault) backed by
 # synthetic fixtures. See docs/mcp/evals.md for how to add a golden.
 mcp-evals:
@@ -298,7 +298,7 @@ household-browser-seed:
     time uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt
 
 household-mcp-postgres-test:
-    pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts
+    pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts tests/sourceCoverageTools.postgres.test.ts
 
 household-browser-test:
     VITE_PENGE_DEMO=false VITE_PENGE_API_URL="http://127.0.0.1:${PENGE_E2E_API_PORT:-8000}" pnpm --filter @penge/web build

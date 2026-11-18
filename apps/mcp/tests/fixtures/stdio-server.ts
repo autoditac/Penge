@@ -17,6 +17,9 @@ const runner: PengeQueryRunner = {
   async query<R extends Record<string, unknown>>(): Promise<{ rows: R[] }> {
     return { rows: [] };
   },
+  async readSnapshot(operation) {
+    return await operation(runner);
+  },
 };
 
 const { server } = buildServer({

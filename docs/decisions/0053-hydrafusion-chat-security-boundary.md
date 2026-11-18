@@ -123,7 +123,7 @@ replaces the proof package.
 
 ### Tool-contract seam
 
-`issue-344-v1` is the target MCP registration contract from #344.
+`issue-344-v1` is the landed MCP registration contract from #344/#350.
 Its registration set is `_meta` plus 16 tools covering the
 existing eight capabilities, source coverage, bounded transaction
 search/detail, household taxonomy/rule/merchant summaries, and
@@ -139,15 +139,13 @@ superseding decision explicitly permitting the relevant transaction-level
 outputs, or the transaction search and detail tools must be removed from the
 model-facing allowlist in an updated contract that is verified to satisfy the
 aggregate-only boundary.
-At this PR's current base, repository source defines `_meta` plus only the eight
-existing tools.
-The harness configures only those eight, but does not start the MCP child,
+After integration of #350, repository source defines all 17 registered tools.
+The synthetic harness configures the 16 model tools, excluding `_meta`, but does not start the MCP child,
 inspect `tools/list`, or invoke a tool.
-It raises
-`chat/mcp_contract_unavailable` when that observed set is checked against
-`issue-344-v1`.
-Production cannot claim the target registration until #350 is merged and an
-independent stdio `tools/list` integration test proves all 17 names.
+It raises `chat/mcp_contract_unavailable` for missing, duplicate, or unexpected
+registered names.
+An independent stdio `tools/list` integration test proves all 17 names using
+the shared production tool factory, and invokes `query_net_worth` synthetically.
 Registration evidence alone does not authorize model exposure or resolve the
 privacy gate.
 Issue #346 must reject unknown versions rather than silently widening the tool
@@ -211,7 +209,7 @@ disabled, and no other model may substitute.
 
 | PBI  | Contract provided by this decision                                                                                                                                                                                                                        |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #344 | Implement `issue-344-v1` registration of `_meta` plus 16 tools, preserving schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields; model exposure requires resolving ADR-0005 and an explicit contract version. |
+| #344 | Landed in #350: `issue-344-v1` registration of `_meta` plus 16 tools, preserving schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields; model exposure still requires resolving ADR-0005. |
 | #346 | Own `apps/chat` and the SDK pin; keep production disabled until the ADR-0005 conflict is resolved, and preserve empty mode, actor/linked-identity-scoped entitlement and tokens, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
 | #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                                          |
 | #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists.                |

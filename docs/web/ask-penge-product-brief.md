@@ -57,12 +57,11 @@ At minimum it needs ordered delta, sanitized tool/evidence, completion,
 cancellation, and typed error events plus stable session/event identifiers.
 The UI must reject unknown major versions.
 
-The target `issue-344-v1` MCP registration contract specifies `_meta` plus 16
+The landed `issue-344-v1` MCP registration contract specifies `_meta` plus 16
 tools.
-It is not yet present on this PR's base; repository source defines `_meta` plus
-eight chat tools, while this harness proves configuration only.
-The target registration cannot be claimed until #350 lands and stdio
-`tools/list` proves the exact set.
+The separate synthetic stdio test proves the exact 17-name registration set
+using the production tool factory; the SDK harness configures only the 16 model
+tools and makes no live model call.
 Registration does not authorize model exposure: the proposed transaction
 search and detail tools conflict with ADR-0005's aggregate-only boundary.
 Production and complete-source claims remain blocked until that conflict is

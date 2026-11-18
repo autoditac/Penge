@@ -8,6 +8,7 @@ import { zodToJsonSchema } from "zod-to-json-schema";
 import { z } from "zod/v3";
 
 import type { AuditLogger } from "./audit.js";
+import { PengeError, ToolInputError, ToolUnknownError } from "./errors.js";
 import { ToolRegistry, type ToolContext, type ToolDefinition } from "./registry.js";
 import { metaTool } from "./tools/meta.js";
 
@@ -25,14 +26,41 @@ export interface BuiltServer {
   registry: ToolRegistry;
 }
 
-class ToolInputError extends Error {
-  override readonly name = "ToolInputError";
-  readonly code = "tool/input_invalid";
+function auditErrorCode(cause: unknown): string {
+  if (cause instanceof PengeError) return cause.code;
+  return "tool/internal_error";
 }
 
-class ToolUnknownError extends Error {
-  override readonly name = "ToolUnknownError";
-  readonly code = "tool/unknown";
+function outputJsonSchema(tool: ToolDefinition): NonNullable<Tool["outputSchema"]> {
+  const schema = zodToJsonSchema(tool.outputSchema, {
+    target: "jsonSchema7",
+    $refStrategy: "none",
+  });
+  const schemaRecord = schema as Record<string, unknown>;
+  if (schemaRecord.type === "object") {
+    return schema as NonNullable<Tool["outputSchema"]>;
+  }
+  return {
+    type: "object",
+    properties: { result: schema },
+    required: ["result"],
+    additionalProperties: false,
+  } as NonNullable<Tool["outputSchema"]>;
+}
+
+function inputJsonSchema(tool: ToolDefinition): Tool["inputSchema"] {
+  const schema = zodToJsonSchema(tool.inputSchema, {
+    target: "openApi3",
+    $refStrategy: "none",
+  });
+  return { ...schema, type: "object" } as Tool["inputSchema"];
+}
+
+function structuredContent(validated: unknown): Record<string, unknown> {
+  if (validated !== null && typeof validated === "object" && !Array.isArray(validated)) {
+    return Object.fromEntries(Object.entries(validated));
+  }
+  return { result: validated };
 }
 
 export function buildServer(opts: BuildServerOptions): BuiltServer {
@@ -54,13 +82,8 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
       name: tool.name,
       description: tool.description,
       annotations: { readOnlyHint: true },
-      inputSchema: {
-        ...(zodToJsonSchema(tool.inputSchema, {
-          target: "openApi3",
-          $refStrategy: "none",
-        }) as Tool["inputSchema"]),
-        type: "object",
-      },
+      inputSchema: inputJsonSchema(tool),
+      outputSchema: outputJsonSchema(tool),
     }));
     return { tools };
   });
@@ -73,11 +96,11 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
     if (!tool) {
       const err = new ToolUnknownError(`unknown tool: ${name}`);
       opts.audit.record({
-        tool: name,
-        args: rawArgs,
+        tool: "unknown_tool",
+        args: {},
         status: "error",
         durationMs: Date.now() - startedAt,
-        error: err.message,
+        error: err.code,
       });
       throw err;
     }
@@ -91,10 +114,10 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
       const err = new ToolInputError(`invalid arguments for ${name}: ${message}`);
       opts.audit.record({
         tool: name,
-        args: rawArgs,
+        args: {},
         status: "error",
         durationMs: Date.now() - startedAt,
-        error: err.message,
+        error: err.code,
       });
       throw err;
     }
@@ -104,21 +127,21 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
       const validated = tool.outputSchema.parse(result);
       opts.audit.record({
         tool: name,
-        args: rawArgs,
+        args: parsedArgs,
         status: "ok",
         durationMs: Date.now() - startedAt,
       });
       return {
         content: [{ type: "text", text: JSON.stringify(validated) }],
+        structuredContent: structuredContent(validated),
       };
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause);
       opts.audit.record({
         tool: name,
-        args: rawArgs,
+        args: parsedArgs,
         status: "error",
         durationMs: Date.now() - startedAt,
-        error: message,
+        error: auditErrorCode(cause),
       });
       throw cause;
     }

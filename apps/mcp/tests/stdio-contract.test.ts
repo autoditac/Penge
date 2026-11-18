@@ -10,6 +10,14 @@ const expectedTools = [
   "query_net_worth",
   "query_cashflow",
   "query_household_report",
+  "search_household_transactions",
+  "get_household_transaction_detail",
+  "get_household_taxonomy_summary",
+  "get_household_rule_summary",
+  "get_household_merchant_summary",
+  "get_merchant_reference_status",
+  "search_merchant_reference",
+  "get_source_coverage",
   "compute_tax_year",
   "run_scenario",
   "answer_planning_question",
@@ -35,7 +43,9 @@ describe("MCP stdio tools/list contract", () => {
       const list = await client.listTools();
 
       expect(list.tools.map((tool) => tool.name)).toEqual(expectedTools);
+      expect(list.tools).toHaveLength(17);
       expect(list.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
+      expect(list.tools.every((tool) => tool.outputSchema?.type === "object")).toBe(true);
 
       const result = await client.callTool({
         name: "query_net_worth",

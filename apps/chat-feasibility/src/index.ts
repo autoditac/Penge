@@ -12,7 +12,7 @@ import { z } from "zod/v3";
 
 export const hydraFusionModel = "hydrafusion" as const;
 export const pengeMcpServerName = "penge" as const;
-export const implementedChatToolContractVersion = "issue-345-current-v1" as const;
+export const implementedChatToolContractVersion = "issue-344-v1" as const;
 export const plannedChatToolContractVersion = "issue-344-v1" as const;
 export const implementedPengeMcpChatTools = [
   "query_net_worth",
@@ -23,9 +23,6 @@ export const implementedPengeMcpChatTools = [
   "search_documents",
   "suggest_import_mapping",
   "compute_tax_year",
-] as const;
-export const plannedPengeMcpChatTools = [
-  ...implementedPengeMcpChatTools,
   "get_source_coverage",
   "search_household_transactions",
   "get_household_transaction_detail",
@@ -35,6 +32,7 @@ export const plannedPengeMcpChatTools = [
   "get_merchant_reference_status",
   "search_merchant_reference",
 ] as const;
+export const plannedPengeMcpChatTools = implementedPengeMcpChatTools;
 export const implementedPengeMcpRegisteredTools = [
   "_meta",
   ...implementedPengeMcpChatTools,

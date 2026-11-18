@@ -7,15 +7,14 @@ Issue #346 replaces it with `apps/chat`.
 The package pins `@github/copilot-sdk@1.0.16` and type-checks the exact
 empty-mode, user-scoped token, streaming, local stdio MCP, and tool-filter
 configuration that the production backend must preserve.
-Repository source defines `_meta` plus eight implemented chat tools.
-The harness proves that the SDK configuration targets only those eight; it does
+After #350, repository source defines `_meta` plus 16 implemented chat tools.
+The harness proves that the SDK configuration targets those 16, excluding `_meta`; it does
 not start the MCP child, call `tools/list`, or invoke a tool.
 Separately, `just mcp-test` exercises stdio discovery and a synthetic
 `query_net_worth` call using the server registry and an in-memory query fixture.
 It does not start the production entrypoint or a Copilot session.
-The planned `issue-344-v1` contract is `_meta` plus 16 chat tools, but #350 is
-not merged; that registration cannot be claimed until an independent stdio
-`tools/list` result proves the exact set.
+The landed `issue-344-v1` registration contract is independently checked by
+the stdio `tools/list` test against the exact 17-name set.
 Registration does not authorize exposing transaction search or detail to a
 model: those proposed tools conflict with ADR-0005's aggregate-only boundary.
 Production also remains blocked until the policy conflict is resolved as

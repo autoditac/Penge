@@ -15,7 +15,7 @@ just mcp-test
 
 The first recipe builds, tests, and lints `@penge/chat-feasibility`.
 It proves the pinned SDK configuration shape, empty mode, streaming event
-schemas, local stdio MCP configuration for the eight currently implemented tools,
+schemas, local stdio MCP configuration for the 16 implemented model tools,
 ambient-tool denial, actor/token/storage ownership, sanitized child
 environments, and typed unavailable-model errors.
 It uses synthetic values and makes no external model call.
@@ -25,14 +25,13 @@ registry and a fake query runner, lists its read-only tools, and invokes
 `query_net_worth` with synthetic input.
 This does not test the production entrypoint or a Copilot session.
 
-The planned `issue-344-v1` MCP server registers `_meta` plus 16 chat tools.
-It is not implemented on this PR's current base: repository source currently
-defines `_meta` plus eight chat tools.
-The target registration cannot be claimed until #350 lands and an independent
-stdio `tools/list` test proves the exact 17-name set.
+The landed `issue-344-v1` MCP server registers `_meta` plus 16 chat tools.
+The independent stdio `tools/list` test proves the exact 17-name set using
+the same tool factory as the production entrypoint, including output schemas.
 This proves registration, not permission to expose the 16 tools to a model.
-The proposed `search_household_transactions` and
-`get_household_transaction_detail` tools must remain excluded while their
+The synthetic SDK configuration includes all 16 tools, but production must
+remain disabled: `search_household_transactions` and
+`get_household_transaction_detail` must not reach a live model while their
 conflict with [ADR-0005](../decisions/0005-llm-access-via-mcp-only.md) is
 unresolved; `_meta` remains protocol-only.
 

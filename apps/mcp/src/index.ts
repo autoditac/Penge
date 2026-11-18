@@ -11,37 +11,68 @@ import { loadConfig } from "./config.js";
 import { connect } from "./db.js";
 import { buildServer } from "./server.js";
 import { createPengeTools } from "./tools/index.js";
+import { assertRegisteredToolAllowlist, assertSourceCatalogCoverage } from "./sources.js";
+import type { HouseholdTransactionQueryRunner } from "./tools/searchHouseholdTransactions.js";
 
 const SERVER_NAME = "penge-mcp";
 const SERVER_VERSION = "0.0.0";
 
 async function main(): Promise<void> {
   const config = loadConfig();
-  const audit = createAuditLogger({ logDir: config.logDir });
+  const audit = createAuditLogger({
+    logDir: config.logDir,
+    ...(config.actorId === undefined ? {} : { actorId: config.actorId }),
+    ...(config.sessionId === undefined ? {} : { sessionId: config.sessionId }),
+  });
   const data = await connect({
     databaseUrl: config.databaseUrl,
     duckdbPath: config.duckdbPath,
   });
-  const runner = {
-    async query<R extends Record<string, unknown>>(
-      sql: string,
-      params: ReadonlyArray<unknown>,
-    ): Promise<{ rows: R[] }> {
+  const runner: HouseholdTransactionQueryRunner = {
+    async query(sql, params) {
       const client = await data.acquire();
       try {
-        return await client.query<R>(sql, [...params]);
+        return await client.query(sql, [...params]);
+      } finally {
+        client.release();
+      }
+    },
+  };
+  const snapshotRunner = {
+    ...runner,
+    async readSnapshot<T>(
+      operation: (transactionRunner: HouseholdTransactionQueryRunner) => Promise<T>,
+    ): Promise<T> {
+      const client = await data.acquire();
+      let transactionStarted = false;
+      try {
+        await client.query("BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY");
+        transactionStarted = true;
+        const transactionRunner: HouseholdTransactionQueryRunner = {
+          async query(sql, params) {
+            return await client.query(sql, [...params]);
+          },
+        };
+        const result = await operation(transactionRunner);
+        await client.query("COMMIT");
+        return result;
+      } catch (error) {
+        if (transactionStarted) await client.query("ROLLBACK");
+        throw error;
       } finally {
         client.release();
       }
     },
   };
 
-  const { server } = buildServer({
+  const { server, registry } = buildServer({
     name: SERVER_NAME,
     version: SERVER_VERSION,
     audit,
-    extraTools: createPengeTools({ runner, vaultRoot: config.vaultRoot }),
+    extraTools: createPengeTools({ runner: snapshotRunner, vaultRoot: config.vaultRoot }),
   });
+  assertSourceCatalogCoverage();
+  assertRegisteredToolAllowlist(registry.list().map((tool) => tool.name));
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

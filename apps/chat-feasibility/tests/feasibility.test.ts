@@ -193,7 +193,7 @@ describe("Copilot Fusion SDK feasibility proof", () => {
     }
   });
 
-  it("gates the planned issue 344 contract until stdio tools/list proves it", () => {
+  it("requires exactly 17 registered tools and exposes only 16 model tools", () => {
     expect(plannedChatToolContractVersion).toBe("issue-344-v1");
     expect(plannedPengeMcpRegisteredTools).toEqual([
       "_meta",
@@ -215,7 +215,13 @@ describe("Copilot Fusion SDK feasibility proof", () => {
       "search_merchant_reference",
     ]);
     expect(plannedPengeMcpChatTools).toEqual(plannedPengeMcpRegisteredTools.slice(1));
-    expect(() => assertPlannedMcpContractAvailable(implementedPengeMcpRegisteredTools)).toThrow(
+    expect(implementedPengeMcpChatTools).toHaveLength(16);
+    expect(implementedPengeMcpChatTools).not.toContain("_meta");
+    expect(implementedChatToolContractVersion).toBe(plannedChatToolContractVersion);
+    expect(() =>
+      assertPlannedMcpContractAvailable(implementedPengeMcpRegisteredTools),
+    ).not.toThrow();
+    expect(() => assertPlannedMcpContractAvailable(implementedPengeMcpChatTools)).toThrow(
       McpContractUnavailableError,
     );
     expect(() => assertPlannedMcpContractAvailable(plannedPengeMcpRegisteredTools)).not.toThrow();

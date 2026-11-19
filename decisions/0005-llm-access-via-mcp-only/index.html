@@ -4012,8 +4012,9 @@
 
 <h1 id="0005-llm-access-exclusively-via-mcp-server-with-typed-tools">0005 — LLM access exclusively via MCP server with typed tools<a class="headerlink" href="#0005-llm-access-exclusively-via-mcp-server-with-typed-tools" title="Permanent link">&para;</a></h1>
 <ul>
-<li><strong>Status:</strong> Accepted</li>
+<li><strong>Status:</strong> Proposed</li>
 <li><strong>Date:</strong> 2026-05-06</li>
+<li><strong>Amendment date:</strong> 2026-11-19</li>
 <li><strong>Deciders:</strong> @autoditac</li>
 <li><strong>Tags:</strong> mcp, security, sim</li>
 </ul>
@@ -4021,14 +4022,19 @@
 <p>We want to ask natural-language questions about finances ("what was my
 average monthly net savings rate over the last 12 months in EUR?",
 "project my FIRE date if I increase contributions by 500 EUR/month") and
-get numerically correct answers. The LLM must not see raw transactions or
-account credentials, must produce reproducible numbers, and must be
-swappable across providers (Claude, GPT, local models).</p>
+get numerically correct answers. The model must not receive account credentials
+or raw source payloads, and financial evidence must remain bounded and
+reproducible through typed tools.</p>
+<p>The isolated multi-user chat use case needs record-level evidence for reviewed
+questions. This decision therefore defines a narrow exception to the
+aggregate-only output boundary for two read-only MCP tools.</p>
 <h2 id="decision-drivers">Decision Drivers<a class="headerlink" href="#decision-drivers" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Determinism: numeric answers must come from code we control, not from
   the LLM’s own arithmetic.</li>
-<li>Privacy: raw transaction-level data must not leave our infrastructure.</li>
+<li>Privacy: constrain transaction-level disclosure to two named, bounded MCP
+  tools in actor-authenticated Copilot Fusion sessions; never expose credentials,
+  raw source payloads, or arbitrary query access.</li>
 <li>Provider neutrality: usable from Claude Desktop, VS Code, or any other
   MCP host.</li>
 <li>Testability: LLM behavior must be evaluable against a golden-question
@@ -4036,7 +4042,7 @@ swappable across providers (Claude, GPT, local models).</p>
 </ul>
 <h2 id="considered-options">Considered Options<a class="headerlink" href="#considered-options" title="Permanent link">&para;</a></h2>
 <ol>
-<li><strong>MCP server with typed tools</strong> — TypeScript MCP server exposes a fixed set of typed tools (<code>query_net_worth</code>, <code>query_cashflow</code>, <code>run_scenario</code>, <code>search_documents</code>, <code>compute_tax_year</code>). The LLM only ever sees tool inputs/outputs.</li>
+<li><strong>MCP server with typed tools</strong> — TypeScript MCP server exposes a fixed set of typed tools (<code>query_net_worth</code>, <code>query_cashflow</code>, <code>run_scenario</code>, <code>search_documents</code>, <code>compute_tax_year</code>, <code>search_household_transactions</code>, <code>get_household_transaction_detail</code>). The model only sees tool inputs and schema-validated outputs.</li>
 <li><strong>Direct SQL access</strong> — give the LLM read-only Postgres credentials and let it write SQL.</li>
 <li><strong>Custom REST API + prompt-engineered LLM</strong> — bespoke HTTP API consumed by a prompt template per provider.</li>
 <li><strong>RAG over a Parquet dump</strong> — vector-search over a flattened export, LLM aggregates.</li>
@@ -4044,22 +4050,40 @@ swappable across providers (Claude, GPT, local models).</p>
 <h2 id="decision">Decision<a class="headerlink" href="#decision" title="Permanent link">&para;</a></h2>
 <p>We chose <strong>Option 1: MCP-only</strong>.</p>
 <p>The MCP server is the single LLM ingress. Each tool has a typed JSON Schema
-input and a deterministic numeric output. Numbers come from the same Python
-packages used by the dashboard (ADR-0002). A 20-question golden-eval suite
-gates releases.</p>
+input and a deterministic output. Numbers come from the same Python packages
+used by the dashboard (ADR-0002). A 20-question golden-eval suite gates
+releases.</p>
+<p>The default for financial questions remains aggregate-only. As a narrow
+exception, an actor-authenticated Copilot Fusion session using the exact
+<code>hydrafusion</code> model may invoke <code>search_household_transactions</code> and
+<code>get_household_transaction_detail</code> through the read-only local MCP server.
+The search tool returns a bounded page over a bounded date range; the detail
+tool returns one stable-ID transaction with schema-bounded allocations,
+classification, audit references, and linked PayPal enrichment. Both tools
+bound and redact free-text fields according to their MCP output schemas.</p>
+<p>This exception does not authorize account credentials, raw source files or
+payloads, arbitrary SQL, unbounded exports, other transaction-level tools, or
+transaction-level output to an unscoped model session. The allowed outputs
+still contain sensitive financial details; this decision records that privacy
+tradeoff but does not establish live actor entitlement, two-user isolation, or
+production readiness. Those remain separate gates in
+<a href="../0055-isolated-multi-user-chat-runtime/">ADR-0055</a>.</p>
 <h2 id="consequences">Consequences<a class="headerlink" href="#consequences" title="Permanent link">&para;</a></h2>
 <h3 id="positive">Positive<a class="headerlink" href="#positive" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Numeric correctness is enforced by code, not by prompt.</li>
 <li>Same answer regardless of LLM provider.</li>
-<li>Raw transactions never leave the host; the LLM only sees aggregated
-  tool outputs.</li>
+<li>Credentials and raw source payloads remain inaccessible to the model;
+  transaction-level fields are limited to the two named bounded MCP outputs.</li>
 <li>Eval suite makes regressions visible.</li>
 </ul>
 <h3 id="negative">Negative<a class="headerlink" href="#negative" title="Permanent link">&para;</a></h3>
 <ul>
 <li>Every new question class needs a new tool or tool extension.</li>
 <li>Initial cost to design typed tool schemas.</li>
+<li>Transaction-level output can reveal sensitive purchase details, so the two
+  tools remain limited to actor-authenticated <code>hydrafusion</code> sessions and
+  require the separate production acceptance gates in ADR-0055.</li>
 </ul>
 <h3 id="neutral">Neutral<a class="headerlink" href="#neutral" title="Permanent link">&para;</a></h3>
 <ul>
@@ -4077,7 +4101,9 @@ PII is a security regression.</p>
 <h2 id="links">Links<a class="headerlink" href="#links" title="Permanent link">&para;</a></h2>
 <ul>
 <li>ADR-0002 (monorepo)</li>
-<li><code>mcp/</code> (planned)</li>
+<li><code>apps/mcp/src/tools/searchHouseholdTransactions.ts</code></li>
+<li><code>apps/mcp/src/tools/getHouseholdTransactionDetail.ts</code></li>
+<li><a href="../0055-isolated-multi-user-chat-runtime/">ADR-0055 — Isolated multi-user chat runtime</a></li>
 <li>Issues #44–#49, #54</li>
 </ul>
 

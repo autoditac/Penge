@@ -43,8 +43,8 @@ names.
 
 ## Considered Options
 
-1. **Loopback chat service using empty-mode Copilot SDK sessions and local Penge
-   MCP** — chosen.
+1. **Host-private chat service using empty-mode Copilot SDK sessions and local
+   Penge MCP** — chosen.
 2. **Shared household Copilot identity or ambient logged-in runtime identity** —
    rejected.
 3. **HTTP/SSE MCP or direct database access from the chat service** — rejected.
@@ -52,7 +52,14 @@ names.
 
 ## Decision
 
-Issue #346 will own a loopback-only `apps/chat` service.
+Issue #346 will own an `apps/chat` service reachable only over a host-private
+transport: TCP loopback (`127.0.0.1`/`::1`) for development, or — proposed, not
+implemented by this ADR's feasibility layer — an owner-permissioned Unix domain
+socket in a dedicated directory for deployment.
+Deployment must not publish a container port or use host networking; the
+transport choice does not relax trusted-identity-header or proxy-secret checks.
+The Unix socket variant, including its permissions and negative network tests,
+is owned by #347 together with ADR-0054/ADR-0055 and requires owner acceptance.
 The WebUI may call that service through the authenticated reverse proxy, but no
 MCP, Copilot runtime, database, or raw tool endpoint is exposed.
 The chat service spawns `@penge/mcp` as a local stdio child and selects tools by
@@ -226,7 +233,7 @@ disabled, and no other model may substitute.
 | #344 | Landed in #350: `issue-344-v1` registration of `_meta` plus 16 tools, preserving schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields; model exposure still requires owner acceptance of the proposed ADR-0005 amendment. |
 | #346 | Own `apps/chat` and the SDK pin; keep production disabled until the proposed ADR-0005 amendment is owner-accepted or the transaction tools are removed, and preserve empty mode, actor/linked-identity-scoped entitlement and tokens, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
 | #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                                          |
-| #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists.                |
+| #342 | Keep chat on a host-private transport behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists.  |
 
 ## Links
 

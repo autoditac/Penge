@@ -63,11 +63,19 @@ validate_private_file "$approval" "approval manifest"
 validate_private_file "$approval_signature" "approval signature"
 umask 077
 contract_snapshot="$(mktemp)"
+approval_snapshot="$(mktemp)"
+approval_signature_snapshot="$(mktemp)"
 tmp="$(mktemp)"
 approved_tmp=""
-trap 'rm -f "$contract_snapshot" "$tmp" "${approved_tmp:-}"' EXIT
+trap 'rm -f "$contract_snapshot" "$approval_snapshot" "$approval_signature_snapshot" "$tmp" "${approved_tmp:-}"' EXIT
 cat "$contract_env" >"$contract_snapshot"
 contract_env="$contract_snapshot"
+# Signature verification and every approval check consume one private snapshot,
+# so later changes to the live manifest or signature cannot split their view.
+cat "$approval" >"$approval_snapshot"
+cat "$approval_signature" >"$approval_signature_snapshot"
+approval="$approval_snapshot"
+approval_signature="$approval_signature_snapshot"
 if [[ ! -f $trusted_reviewers || -L $trusted_reviewers || ! -r $trusted_reviewers ]]; then
   echo "deployment blocked: trusted reviewer keys must be a readable regular file" >&2
   exit 1

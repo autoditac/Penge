@@ -1548,6 +1548,57 @@ def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -
     assert (tmp_path / "systemctl.log").read_text().strip() == "--user daemon-reload"
 
 
+def test_installer_verifies_and_checks_one_approval_snapshot(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    contract_dir = Path(env["HOME"]) / ".config" / "penge"
+    approval = contract_dir / "private-ask-chat.approval.manifest"
+    signature = contract_dir / "private-ask-chat.approval.manifest.sig"
+    signed_bytes = approval.read_bytes()
+    signed_signature = signature.read_bytes()
+    _write_approval_manifest(installer.parents[2], Path(env["HOME"]), "b" * 64)
+    swap_dir = tmp_path / "swap"
+    swap_dir.mkdir()
+    (swap_dir / "manifest").write_bytes(approval.read_bytes())
+    (swap_dir / "manifest.sig").write_bytes(signature.read_bytes())
+    approval.write_bytes(signed_bytes)
+    signature.write_bytes(signed_signature)
+    fake_bin = Path(env["PATH"].split(os.pathsep)[0])
+    _write_executable(
+        fake_bin / "stat",
+        """#!/bin/sh
+if [ "$3" = "$TRUSTED_REVIEWERS_FILE" ] && [ "$1 $2" = "-c %u %a" ]; then
+  cat "$SWAP_DIR/manifest" >"$LIVE_APPROVAL"
+  cat "$SWAP_DIR/manifest.sig" >"$LIVE_APPROVAL.sig"
+  printf "0 644\\n"
+  exit 0
+fi
+exec /usr/bin/stat "$@"
+""",
+    )
+    verified_log = tmp_path / "verified-manifest"
+    _write_executable(
+        fake_bin / "ssh-keygen",
+        f'#!/bin/sh\ntee "$VERIFIED_LOG" | {SSH_KEYGEN} "$@"\n',
+    )
+
+    installed = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, "a" * 64],
+        capture_output=True,
+        check=False,
+        env={
+            **env,
+            "LIVE_APPROVAL": str(approval),
+            "SWAP_DIR": str(swap_dir),
+            "VERIFIED_LOG": str(verified_log),
+        },
+        text=True,
+    )
+
+    assert approval.read_bytes() != signed_bytes
+    assert installed.returncode == 0, installed.stderr
+    assert verified_log.read_bytes() == signed_bytes
+
+
 def test_installer_uses_approved_snapshot_if_source_changes_during_install(tmp_path: Path) -> None:
     installer, env = _installer_fixture(tmp_path, resolved=True)
     original = Path(env["HOME"]) / ".config" / "penge" / "private-ask-chat.contract.env"

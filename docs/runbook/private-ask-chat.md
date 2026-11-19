@@ -160,6 +160,7 @@ The installer rejects missing, duplicate, unknown, empty, malformed, or mismatch
 The private environment file must match the fully resolved, reviewed environment template byte for byte; missing, duplicate, reordered, or additional assignments are rejected even when their file hash appears in the manifest.
 The installer snapshots the source before validating it, verifies the copied bytes against the signed hash, and atomically places that copy at a private hash-addressed path.
 The rendered Quadlet references only that snapshot; the service account and its private directories must remain trusted against concurrent modification.
+The approval manifest and its detached signature are likewise copied once into private snapshots, and both signature verification and every approval check read those same bytes.
 
 Any image digest, environment, Quadlet, nginx, database, or environment-template change invalidates the manifest.
 Create a new manifest and obtain a new review; never update hashes under an old review reference.

@@ -202,3 +202,14 @@ def test_all_repository_apt_steps_coordinate_on_the_host_lock() -> None:
                     installers.append((path.name, step.get("name")))
                     assert "bash scripts/ci-package-setup.sh bash -euo pipefail -c" in command
     assert len(installers) == 3
+
+
+def test_alembic_cache_restore_stall_cannot_consume_job_budget() -> None:
+    workflow = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
+    job = workflow["jobs"]["alembic-roundtrip"]
+    steps = job["steps"]
+    uv = next(step for step in steps if "setup-uv@" in step.get("uses", ""))
+    assert uv["with"]["enable-cache"] is True
+    segment_timeout = int(uv["env"]["SEGMENT_DOWNLOAD_TIMEOUT_MINS"])
+    assert 0 < segment_timeout < job["timeout-minutes"] // 2
+    assert any(step.get("run") == "uv sync --group db --frozen" for step in steps)

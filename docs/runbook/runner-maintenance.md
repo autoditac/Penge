@@ -153,6 +153,12 @@ No apt locks are deleted and no package-manager processes are killed.
 Chromium archive installation runs separately, in the job-local browser directory.
 The existing 30-minute job timeout remains the overall execution bound.
 
+The CI Alembic round-trip job sets `SEGMENT_DOWNLOAD_TIMEOUT_MINS=2` on setup-uv.
+The bundled `@actions/cache` otherwise waits ten minutes per stalled archive
+segment, which equals that job's whole budget.
+setup-uv reports an aborted restore as a cache-miss warning,
+and the frozen `uv sync` then installs from the index as usual.
+
 Run `just ci-setup-test` for synthetic cache-wiring, concurrency, timeout and
 error-propagation regressions; these tests never invoke apt or change the host.
 This setup is independent of browser port allocation and does not permit server reuse.

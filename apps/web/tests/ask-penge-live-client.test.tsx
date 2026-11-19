@@ -697,13 +697,15 @@ describe("Ask Penge live page", () => {
       await userEvent.click(screen.getByRole("button", { name: "Ask" }));
       expect(await screen.findByText("Ask Penge status is unavailable")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
 
       await userEvent.click(screen.getByRole("button", { name: "Retry status" }));
       if (available) {
-        expect(await screen.findByRole("button", { name: "Ask" })).toBeEnabled();
+        await waitFor(() => expect(screen.getByRole("button", { name: "Ask" })).toBeEnabled());
       } else {
         expect(await screen.findByText("Exact Copilot Fusion unavailable")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
       }
       expect(fetchMock).toHaveBeenCalledTimes(4);
     },

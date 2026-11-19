@@ -24,9 +24,12 @@
 
 import { z } from "zod/v3";
 
+import { ToolDataError } from "../errors.js";
 import type { ToolDefinition } from "../registry.js";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_DATE_RANGE_DAYS = 367;
+const MAX_RESULT_ROWS = 367;
 
 /**
  * True iff `value` is a valid ISO `YYYY-MM-DD` calendar date. The
@@ -41,6 +44,10 @@ function isValidIsoDate(value: string): boolean {
   const ts = Date.UTC(y, m - 1, d);
   const round = new Date(ts);
   return round.getUTCFullYear() === y && round.getUTCMonth() === m - 1 && round.getUTCDate() === d;
+}
+
+function inclusiveDayCount(from: string, to: string): number {
+  return (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
 }
 
 const IsoDate = z.string().refine(isValidIsoDate, {
@@ -61,6 +68,10 @@ const InputSchema = z
       .refine((r) => r.from <= r.to, {
         message: "date_range.from must be on or before date_range.to",
         path: ["from"],
+      })
+      .refine((r) => r.from > r.to || inclusiveDayCount(r.from, r.to) <= MAX_DATE_RANGE_DAYS, {
+        message: `date_range must not exceed ${MAX_DATE_RANGE_DAYS} inclusive days`,
+        path: ["to"],
       }),
     granularity: Granularity,
     currency: Currency.optional(),
@@ -80,7 +91,7 @@ const OutputRowSchema = z
   })
   .strict();
 
-const OutputSchema = z.array(OutputRowSchema);
+const OutputSchema = z.array(OutputRowSchema).max(MAX_RESULT_ROWS);
 
 export type QueryCashflowOutput = z.infer<typeof OutputSchema>;
 
@@ -164,14 +175,15 @@ function buildSql(currency: z.infer<typeof Currency>, martTable: string): string
       WHERE m.as_of >= $1::date AND m.as_of <= $2::date
     )
     SELECT
-      GREATEST(bucket_start, $1::date) AS period_start,
-      LEAST(bucket_end, $2::date) AS period_end,
+      to_char(GREATEST(bucket_start, $1::date), 'YYYY-MM-DD') AS period_start,
+      to_char(LEAST(bucket_end, $2::date), 'YYYY-MM-DD') AS period_end,
       SUM(inflow)::float8 AS inflow,
       SUM(outflow)::float8 AS outflow,
       SUM(net)::float8 AS net
     FROM bucket
     GROUP BY bucket_start, bucket_end
     ORDER BY bucket_start ASC
+    LIMIT $4
   `;
 }
 
@@ -200,7 +212,14 @@ export function queryCashflowTool(
         args.date_range.from,
         args.date_range.to,
         args.granularity,
+        MAX_RESULT_ROWS + 1,
       ]);
+
+      if (result.rows.length > MAX_RESULT_ROWS) {
+        throw new ToolDataError(
+          `cashflow query exceeded the maximum of ${MAX_RESULT_ROWS} result rows`,
+        );
+      }
 
       return result.rows.map((row) => ({
         period_start: formatDate(row.period_start),

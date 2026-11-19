@@ -128,7 +128,7 @@ export interface QueryHouseholdReportOptions {
 }
 
 interface MartRow extends Record<string, unknown> {
-  as_of: Date | string;
+  as_of: string;
   treatment: "income" | "expense" | "refund" | "unclassified";
   reporting_treatment: "income" | "expense" | "refund" | "unclassified";
   known_allocation_amount_eur: string;
@@ -164,7 +164,7 @@ const REPORT_SQL = `
     INNER JOIN category_scope AS parent ON child.parent_id = parent.category_id
   )
   SELECT
-    m.as_of,
+    to_char(m.as_of, 'YYYY-MM-DD') AS as_of,
     m.treatment,
     m.reporting_treatment,
     m.allocation_known_amount_eur::text AS known_allocation_amount_eur,
@@ -201,10 +201,6 @@ const CHECK_CATEGORY_SQL = `
     WHERE category_id = $1::uuid
   ) AS found
 `;
-
-function parseDate(value: Date | string): string {
-  return value instanceof Date ? value.toISOString().slice(0, 10) : String(value).slice(0, 10);
-}
 
 function parseDecimal(value: unknown): bigint {
   if (typeof value !== "string" || !DECIMAL.test(value)) {
@@ -423,7 +419,7 @@ export function queryHouseholdReportTool(
       const prior = emptyTotals();
       const trend = new Map<string, TotalsAccumulator>();
       for (const row of result.rows) {
-        const asOf = parseDate(row.as_of);
+        const asOf = row.as_of;
         const target = asOf >= args.date_range.from && asOf <= args.date_range.to ? current : prior;
         addRow(target, row);
         if (target === current) {

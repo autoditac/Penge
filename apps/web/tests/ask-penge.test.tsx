@@ -532,6 +532,9 @@ describe("AskPengePage", () => {
       if (isMobile) {
         await userEvent.click(screen.getByRole("button", { name: /Open evidence sheet/i }));
       } else {
+        expect(
+          screen.queryByRole("button", { name: /Open evidence sheet/i }),
+        ).not.toBeInTheDocument();
         expect(screen.getByText("Answer incomplete")).toBeInTheDocument();
       }
       expect(screen.queryByText("Synthetic answer complete.")).not.toBeInTheDocument();
@@ -837,6 +840,8 @@ describe("AskPengePage", () => {
 
   it("flushes buffered text and releases the timer on protocol errors", () => {
     vi.useFakeTimers();
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
     try {
       const transport: AskTransport = {
         start() {
@@ -862,8 +867,14 @@ describe("AskPengePage", () => {
       fireEvent.click(screen.getByRole("button", { name: "Ask" }));
       expect(screen.getByText("Unsupported answer stream")).toBeInTheDocument();
       expect(screen.getByRole("status")).toHaveTextContent("Validated partial.");
-      expect(vi.getTimerCount()).toBe(0);
+      const bufferTimerIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 120);
+      expect(bufferTimerIndex).toBeGreaterThanOrEqual(0);
+      const bufferTimer = setTimeoutSpy.mock.results[bufferTimerIndex]?.value;
+      expect(bufferTimer).toBeDefined();
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(bufferTimer);
     } finally {
+      setTimeoutSpy.mockRestore();
+      clearTimeoutSpy.mockRestore();
       vi.useRealTimers();
     }
   });
@@ -937,6 +948,8 @@ describe("AskPengePage", () => {
 
   it("buffers answer announcements and flushes them when cancelled", async () => {
     vi.useFakeTimers();
+    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
+    const clearTimeoutSpy = vi.spyOn(globalThis, "clearTimeout");
     try {
       const { unmount } = render(
         <AskPengePage
@@ -963,13 +976,17 @@ describe("AskPengePage", () => {
         />,
       );
       fireEvent.click(screen.getByRole("button", { name: "Ask" }));
+      const bufferTimerIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 120);
+      expect(bufferTimerIndex).toBeGreaterThanOrEqual(0);
+      const bufferTimer = setTimeoutSpy.mock.results[bufferTimerIndex]?.value;
+      expect(bufferTimer).toBeDefined();
       expect(screen.getByRole("status")).toHaveTextContent(/^$/);
       act(() => vi.advanceTimersByTime(119));
       expect(screen.getByRole("status")).toHaveTextContent(/^$/);
 
       fireEvent.click(screen.getByRole("button", { name: "Stop" }));
       expect(screen.getByRole("status")).toHaveTextContent("Buffered answer.");
-      expect(vi.getTimerCount()).toBe(0);
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(bufferTimer);
       unmount();
 
       const timed = render(
@@ -1009,11 +1026,18 @@ describe("AskPengePage", () => {
           ])}
         />,
       );
+      setTimeoutSpy.mockClear();
+      clearTimeoutSpy.mockClear();
       fireEvent.click(screen.getByRole("button", { name: "Ask" }));
-      expect(vi.getTimerCount()).toBeGreaterThan(0);
+      const pendingTimerIndex = setTimeoutSpy.mock.calls.findIndex(([, delay]) => delay === 120);
+      expect(pendingTimerIndex).toBeGreaterThanOrEqual(0);
+      const pendingTimer = setTimeoutSpy.mock.results[pendingTimerIndex]?.value;
+      expect(pendingTimer).toBeDefined();
       pending.unmount();
-      expect(vi.getTimerCount()).toBe(0);
+      expect(clearTimeoutSpy).toHaveBeenCalledWith(pendingTimer);
     } finally {
+      setTimeoutSpy.mockRestore();
+      clearTimeoutSpy.mockRestore();
       vi.useRealTimers();
     }
   });

@@ -112,7 +112,9 @@ are recorded in ADR-0036.
   Missing configuration keeps the production route disabled, exposes no
   simulated OAuth success, and permits no model fallback.
   Exact-model errors refresh server-derived availability before another request
-  is enabled. A rejected stream cannot show a completion summary or ready badge,
+  is enabled. If that refresh is rate-limited while a session finishes, asking
+  stays disabled and **Retry status** lets the user check again. A rejected
+  stream cannot show a completion summary or ready badge,
   although validated partial answer text remains visible. Only completed answers
   with full, fresh evidence receive success styling; partial, stale, and
   cancelled results remain warnings. The account

@@ -2,7 +2,7 @@
 
 The MCP server is the only sanctioned LLM data path in Penge. Every
 new release of the tool layer is gated by a deterministic eval suite:
-twenty-six fixture-backed "golden questions" that exercise the real tool
+thirty fixture-backed "golden questions" that exercise the real tool
 handlers and assert structural and numeric invariants.
 
 The suite is **not** an LLM-in-the-loop test. It runs entirely in
@@ -42,22 +42,23 @@ apps/mcp/evals/
 │   ├── scenarioPayloads.ts # canned run_scenario payloads
 │   ├── taxPayloads.ts      # canned compute_tax_year payloads
 │   └── vaultDocs.ts        # synthetic vault layout + helpers
-├── goldens.ts              # the 26 golden questions
+├── goldens.ts              # the 30 golden questions
 └── runner.ts               # vitest harness (one it() per golden)
 ```
 
-## Coverage (26 goldens)
+## Coverage (30 goldens)
 
-| Area              | Count | Topics                                                                                                                                                |
-| ----------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DK tax            | 5     | lagerbeskatning mark-to-market; AKS 17 %; PAL-skat 15.3 %; årsopgørelse summary ↔ line-items consistency; loss carry-forward                          |
-| DE tax            | 3     | Vorabpauschale base = Basiszins × NAV; Teilfreistellung 70 % equity; mixed-depot line-item completeness                                               |
-| FIRE / sim        | 4     | p10 ≤ p50 ≤ p90 ordering; work-reduction shifts FIRE later; house-purchase keeps FIRE no earlier; fixed-seed determinism                              |
-| Planning surface  | 3     | direct retirement answer linked to risks; DK/DE tax answer docs + risk links; answer assumption keys resolve to returned assumptions                  |
-| Cashflow          | 3     | monthly ≡ Σ daily; year ↔ month rollup invariant; net sign preserved across EUR ↔ DKK                                                                 |
-| Net worth         | 3     | Σ per-account = total; asset_class rollup = total; cross-currency parity within 0.5 % under fixed FX                                                  |
-| Vault search      | 2     | classifier-typed lookup never leaks across types; excerpts never carry raw IBAN / CPR / long digit runs                                               |
-| Import mapping    | 3     | canonical kinds map to documented categories at 0.9; suggestion values/reasons never leak account numbers; identical runs are byte-identical          |
+| Area             | Count | Topics                                                                                                                                       |
+| ---------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| DK tax           | 5     | lagerbeskatning mark-to-market; AKS 17 %; PAL-skat 15.3 %; årsopgørelse summary ↔ line-items consistency; loss carry-forward                 |
+| DE tax           | 3     | Vorabpauschale base = Basiszins × NAV; Teilfreistellung 70 % equity; mixed-depot line-item completeness                                      |
+| FIRE / sim       | 4     | p10 ≤ p50 ≤ p90 ordering; work-reduction shifts FIRE later; house-purchase keeps FIRE no earlier; fixed-seed determinism                     |
+| Planning surface | 3     | direct retirement answer linked to risks; DK/DE tax answer docs + risk links; answer assumption keys resolve to returned assumptions         |
+| Cashflow         | 3     | monthly ≡ Σ daily; year ↔ month rollup invariant; net sign preserved across EUR ↔ DKK                                                        |
+| Net worth        | 3     | Σ per-account = total; asset_class rollup = total; cross-currency parity within 0.5 % under fixed FX                                         |
+| Vault search     | 2     | classifier-typed lookup never leaks across types; excerpts never carry raw IBAN / CPR / long digit runs                                      |
+| Import mapping   | 3     | canonical kinds map to documented categories at 0.9; suggestion values/reasons never leak account numbers; identical runs are byte-identical |
+| Source coverage  | 4     | stale ECB FX; explicit missing FX; PayPal non-duplication; exact signed allocation strings                                                   |
 
 ## Adding a new golden
 
@@ -91,7 +92,7 @@ apps/mcp/evals/
 
 3. Update the count in the dataset-shape check at the top of
    `runner.ts` if the new golden changes the total count (the runner
-   asserts `GOLDENS.length === 26`).
+   asserts `GOLDENS.length === 30`).
 
 4. Run the suite locally:
 
@@ -125,7 +126,7 @@ Issue #54 originally asked for "all 20 questions pass against the live
 LLM". That requirement is intentionally **out of scope for CI**: a
 live-model gate is non-deterministic and would block green builds on
 upstream model drift. What ships here is the deterministic tool-layer
-half of that contract — the half that *can* be a CI gate.
+half of that contract — the half that _can_ be a CI gate.
 
 The live-LLM walk-through is still expected as a manual pre-release
 check (see `docs/mcp/tools.md` for the question list and the local

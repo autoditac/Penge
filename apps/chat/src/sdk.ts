@@ -1,0 +1,357 @@
+import {
+  CopilotClient,
+  RuntimeConnection,
+  ToolSet,
+  type CopilotClientOptions,
+  type GitHubTokenProvider,
+  type SessionConfig,
+  type SessionEvent,
+} from "@github/copilot-sdk";
+import { z } from "zod/v3";
+
+import { HYDRAFUSION_MODEL, MCP_CHAT_TOOL_ALLOWLIST, type ChatConfig } from "./config.js";
+import {
+  CopilotRuntimeError,
+  FeatureDisabledError,
+  HydraFusionUnavailableError,
+  UpstreamResponseError,
+} from "./errors.js";
+import { BoundedMemorySessionFs } from "./memorySessionFs.js";
+import { buildMcpServerConfig } from "./mcp.js";
+
+export interface CopilotEventSink {
+  onEvent(event: SessionEvent): void;
+}
+
+export interface ActiveCopilotRun {
+  send(question: string): Promise<void>;
+  abort(): Promise<void>;
+  close(): Promise<void>;
+}
+
+export interface CopilotRuntime {
+  createRun(options: {
+    actorId: string;
+    sessionId: string;
+    tokenProvider: GitHubTokenProvider;
+    sink: CopilotEventSink;
+  }): Promise<ActiveCopilotRun>;
+}
+
+interface CopilotSessionLike {
+  readonly rpc: {
+    model: {
+      list(options: { skipCache: boolean }): Promise<unknown>;
+    };
+  };
+  send(options: { prompt: string }): Promise<unknown>;
+  abort(): Promise<void>;
+  disconnect(): Promise<void>;
+  on(handler: (event: SessionEvent) => void): () => void;
+}
+
+interface CopilotClientLike {
+  start(): Promise<void>;
+  createSession(config: SessionConfig): Promise<CopilotSessionLike>;
+  stop(): Promise<Error[]>;
+  forceStop(): Promise<void>;
+}
+
+export type CopilotClientFactory = (options: CopilotClientOptions) => CopilotClientLike;
+
+function safeRuntimeEnvironment(): Record<string, string> {
+  const environment: Record<string, string> = {};
+  for (const name of ["PATH", "TMPDIR", "XDG_RUNTIME_DIR", "LANG"] as const) {
+    const value = process.env[name];
+    if (value !== undefined) {
+      environment[name] = value;
+    }
+  }
+  return environment;
+}
+
+export function buildSessionConfig(
+  config: ChatConfig,
+  actorId: string,
+  sessionId: string,
+  tokenProvider: GitHubTokenProvider,
+): SessionConfig {
+  const availableTools = new ToolSet();
+  for (const tool of MCP_CHAT_TOOL_ALLOWLIST) {
+    availableTools.addMcp(`penge-${tool}`);
+  }
+  return {
+    sessionId,
+    model: HYDRAFUSION_MODEL,
+    allowedModels: [HYDRAFUSION_MODEL],
+    streaming: true,
+    enableSessionStore: false,
+    infiniteSessions: { enabled: false },
+    largeOutput: { enabled: false },
+    enableConfigDiscovery: false,
+    includedBuiltinSkills: [],
+    requestCanvasRenderer: false,
+    requestExtensions: false,
+    mcpOAuthTokenStorage: "in-memory",
+    gitHubTokenProvider: tokenProvider,
+    availableTools,
+    excludedTools: new ToolSet().addBuiltIn("*").addCustom("*"),
+    onPermissionRequest: (request) => {
+      if (
+        request.kind === "mcp" &&
+        (request.managedApprovalRequired === undefined ||
+          request.managedApprovalRequired === false) &&
+        request.serverName === "penge" &&
+        MCP_CHAT_TOOL_ALLOWLIST.some((tool) => tool === request.toolName)
+      ) {
+        return { kind: "approve-once" };
+      }
+      return {
+        kind: "reject",
+        feedback: "Penge chat denies this permission request",
+      };
+    },
+    mcpServers: {
+      penge: buildMcpServerConfig(config, actorId, sessionId),
+    },
+    createSessionFsProvider: () => new BoundedMemorySessionFs(),
+  };
+}
+
+async function stopClient(client: CopilotClientLike): Promise<void> {
+  const errors = await client.stop();
+  if (errors.length > 0) {
+    throw new CopilotRuntimeError(
+      "chat/copilot_cleanup",
+      `Copilot runtime cleanup failed with ${errors.length} error(s)`,
+    );
+  }
+}
+
+export async function terminateRuntimeProcessTree(runtimePid: number | undefined): Promise<void> {
+  if (runtimePid === undefined || process.platform === "win32") return;
+  const terminate = (): void => {
+    try {
+      process.kill(-runtimePid, "SIGKILL");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ESRCH") throw error;
+    }
+  };
+  terminate();
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  terminate();
+}
+
+async function forceStopClient(
+  client: CopilotClientLike,
+  runtimePid: number | undefined,
+): Promise<void> {
+  try {
+    await client.forceStop();
+  } finally {
+    await terminateRuntimeProcessTree(runtimePid);
+  }
+}
+
+async function withTimeout<T>(operation: Promise<T>, timeoutMs: number): Promise<T> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(
+      () =>
+        reject(
+          new CopilotRuntimeError(
+            "chat/copilot_timeout",
+            `Copilot runtime setup exceeded ${timeoutMs} ms`,
+          ),
+        ),
+      timeoutMs,
+    );
+    timer.unref();
+  });
+  try {
+    return await Promise.race([operation, timeout]);
+  } finally {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+    }
+  }
+}
+
+const SdkFailureSchema = z
+  .object({
+    code: z.string().optional(),
+    message: z.string().optional(),
+  })
+  .passthrough();
+
+const MODEL_FAILURE_CODES = new Set([
+  "model_not_found",
+  "model_not_supported",
+  "model_unavailable",
+  "model_access_denied",
+  "model_not_entitled",
+]);
+
+const SessionModelListSchema = z.object({
+  list: z.array(
+    z
+      .object({
+        id: z.string(),
+        policy: z.unknown().optional(),
+      })
+      .passthrough(),
+  ),
+});
+const EnabledModelPolicySchema = z.object({ state: z.literal("enabled") }).passthrough();
+
+function assertEnabledModelPolicy(response: unknown): void {
+  const parsed = SessionModelListSchema.safeParse(response);
+  if (!parsed.success) {
+    throw new UpstreamResponseError("session model list is malformed");
+  }
+  const matches = parsed.data.list.filter((model) => model.id === HYDRAFUSION_MODEL);
+  if (matches.length !== 1 || !EnabledModelPolicySchema.safeParse(matches[0]?.policy).success) {
+    throw new HydraFusionUnavailableError(
+      `linked GitHub identity does not have an enabled ${HYDRAFUSION_MODEL} policy`,
+    );
+  }
+}
+
+function classifySessionCreationError(error: unknown): unknown {
+  const parsed = SdkFailureSchema.safeParse(error);
+  if (!parsed.success) {
+    return error;
+  }
+  const code = parsed.data.code?.toLowerCase();
+  const message = parsed.data.message ?? "";
+  if (
+    (code !== undefined && MODEL_FAILURE_CODES.has(code)) ||
+    (/hydrafusion/i.test(message) &&
+      /\b(?:unavailable|unsupported|not found|not entitled|access denied)\b/i.test(message))
+  ) {
+    return new HydraFusionUnavailableError(
+      `linked GitHub identity cannot create an exact ${HYDRAFUSION_MODEL} session`,
+    );
+  }
+  return error;
+}
+
+export class GitHubCopilotRuntime implements CopilotRuntime {
+  constructor(
+    private readonly config: ChatConfig,
+    private readonly createClient: CopilotClientFactory = (options) => new CopilotClient(options),
+  ) {}
+
+  async createRun(options: {
+    actorId: string;
+    sessionId: string;
+    tokenProvider: GitHubTokenProvider;
+    sink: CopilotEventSink;
+  }): Promise<ActiveCopilotRun> {
+    if (!this.config.productionEnabled) {
+      throw new FeatureDisabledError(
+        "Ask Penge is disabled until production is explicitly enabled",
+      );
+    }
+
+    let runtimePid: number | undefined;
+    const client = this.createClient({
+      // Never inherit COPILOT_SDK_DEFAULT_CONNECTION; the runtime must stay an owned stdio child.
+      connection: RuntimeConnection.forStdio({ env: safeRuntimeEnvironment() }),
+      mode: "empty",
+      sessionFs: {
+        initialCwd: this.config.mcpWorkingDirectory,
+        sessionStatePath: "/sessions",
+        conventions: "posix",
+      },
+      workingDirectory: this.config.mcpWorkingDirectory,
+      useLoggedInUser: false,
+      logLevel: "none",
+      onRuntimeProcessSpawned: (pid) => {
+        runtimePid = pid;
+      },
+    });
+
+    let session: CopilotSessionLike | undefined;
+    let unsubscribe: (() => void) | undefined;
+    let closed = false;
+    try {
+      await withTimeout(client.start(), this.config.requestTimeoutMs);
+      try {
+        session = await withTimeout(
+          client.createSession(
+            buildSessionConfig(
+              this.config,
+              options.actorId,
+              options.sessionId,
+              options.tokenProvider,
+            ),
+          ),
+          this.config.requestTimeoutMs,
+        );
+      } catch (error) {
+        throw classifySessionCreationError(error);
+      }
+      const models = await withTimeout(
+        session.rpc.model.list({ skipCache: true }),
+        this.config.requestTimeoutMs,
+      );
+      assertEnabledModelPolicy(models);
+      unsubscribe = session.on((event) => options.sink.onEvent(event));
+    } catch (error) {
+      await withTimeout(forceStopClient(client, runtimePid), this.config.requestTimeoutMs);
+      throw error;
+    }
+
+    const currentSession = session;
+    return {
+      send: async (question) => {
+        await withTimeout(currentSession.send({ prompt: question }), this.config.requestTimeoutMs);
+      },
+      abort: async () => {
+        await withTimeout(currentSession.abort(), this.config.requestTimeoutMs);
+      },
+      close: async () => {
+        if (closed) {
+          return;
+        }
+        closed = true;
+        unsubscribe?.();
+        const cleanupErrors: Error[] = [];
+        try {
+          await withTimeout(currentSession.disconnect(), this.config.requestTimeoutMs);
+        } catch (error) {
+          cleanupErrors.push(
+            error instanceof Error
+              ? error
+              : new CopilotRuntimeError("chat/copilot_cleanup", "session disconnect failed"),
+          );
+        }
+        try {
+          await withTimeout(stopClient(client), this.config.requestTimeoutMs);
+        } catch (error) {
+          cleanupErrors.push(
+            error instanceof Error
+              ? error
+              : new CopilotRuntimeError("chat/copilot_cleanup", "client cleanup failed"),
+          );
+          try {
+            await withTimeout(forceStopClient(client, runtimePid), this.config.requestTimeoutMs);
+          } catch (forceStopError) {
+            cleanupErrors.push(
+              forceStopError instanceof Error
+                ? forceStopError
+                : new CopilotRuntimeError("chat/copilot_cleanup", "client force cleanup failed"),
+            );
+          }
+        }
+        if (cleanupErrors.length > 0) {
+          throw new CopilotRuntimeError(
+            "chat/copilot_cleanup",
+            `Copilot cleanup failed with ${cleanupErrors.length} error(s)`,
+          );
+        }
+      },
+    };
+  }
+}

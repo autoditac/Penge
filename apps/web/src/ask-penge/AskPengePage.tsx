@@ -558,15 +558,16 @@ function AskPengeWorkbench({
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, color: "text.secondary" }}>
                     Conversation
                   </Typography>
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => setDrawerOpen(true)}
-                    sx={{ display: { md: "none" } }}
-                    aria-label={`Open evidence sheet, ${evidenceItems.length} items`}
-                  >
-                    Evidence ({evidenceItems.length})
-                  </Button>
+                  {isMobile ? (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => setDrawerOpen(true)}
+                      aria-label={`Open evidence sheet, ${evidenceItems.length} items`}
+                    >
+                      Evidence ({evidenceItems.length})
+                    </Button>
+                  ) : null}
                 </Stack>
                 <List
                   disablePadding

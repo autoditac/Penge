@@ -672,6 +672,43 @@ describe("Ask Penge live page", () => {
     expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
   });
 
+  it.each([true, false])(
+    "keeps asking disabled when a model-status refresh is rate limited, then honors availability %s",
+    async (available) => {
+      const unavailable = JSON.stringify({
+        version: "1.0",
+        sessionId: "model-unavailable-session",
+        id: "error-0",
+        sequence: 0,
+        type: "error",
+        code: "hydrafusion_unavailable",
+        message: "Synthetic exact-model access loss.",
+        retryable: false,
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(statusResponse())
+        .mockResolvedValueOnce(streamResponse([`data: ${unavailable}\n\n`]))
+        .mockResolvedValueOnce(new Response(null, { status: 429 }))
+        .mockResolvedValueOnce(statusResponse({ available }));
+      render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+      await screen.findByText(/linked as @synthetic-user/i);
+      await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+      expect(await screen.findByText("Ask Penge status is unavailable")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Retry status" }));
+      if (available) {
+        expect(await screen.findByRole("button", { name: "Ask" })).toBeEnabled();
+      } else {
+        expect(await screen.findByText("Exact Copilot Fusion unavailable")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    },
+  );
+
   it("rejects a post-terminal live event at the protocol boundary", async () => {
     const completion = JSON.stringify({
       version: "1.0",

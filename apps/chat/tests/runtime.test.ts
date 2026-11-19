@@ -1,0 +1,1224 @@
+import type { GitHubTokenProvider, SessionEvent } from "@github/copilot-sdk";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { MCP_REGISTRATION_ALLOWLIST, MCP_SOURCE_ALLOWLIST } from "../src/config.js";
+import {
+  AuthenticationError,
+  HydraFusionUnavailableError,
+  ServiceShuttingDownError,
+  UpstreamResponseError,
+} from "../src/errors.js";
+import { ChatRuntime, projectEvidence, summarizeEvidence } from "../src/runtime.js";
+import type { ActiveCopilotRun, CopilotEventSink, CopilotRuntime } from "../src/sdk.js";
+import type { StreamEvent } from "../src/stream.js";
+import { MemoryChatStore, syntheticConfig } from "./helpers.js";
+
+class FakeCopilotRuntime implements CopilotRuntime {
+  readonly runs = new Map<
+    string,
+    {
+      sink: CopilotEventSink;
+      aborted: boolean;
+      closed: boolean;
+      prompt?: string;
+    }
+  >();
+  sendGate?: Promise<void>;
+  createGate?: Promise<void>;
+  createError?: Error;
+  acquireTokenOnCreate = false;
+  closeError?: Error;
+  closeGate: Promise<void> | undefined;
+  emitIdleOnAbort = false;
+
+  async createRun(options: {
+    actorId: string;
+    sessionId: string;
+    tokenProvider: GitHubTokenProvider;
+    sink: CopilotEventSink;
+  }): Promise<ActiveCopilotRun> {
+    await this.createGate;
+    if (this.acquireTokenOnCreate) {
+      try {
+        await options.tokenProvider({
+          host: "github.com",
+          sessionId: options.sessionId,
+          reason: "initial",
+        });
+      } catch {
+        // The SDK reports provider failures through its runtime RPC, not the original error.
+        throw new Error("synthetic session.create token acquisition failed");
+      }
+    }
+    if (this.createError !== undefined) throw this.createError;
+    const state = { sink: options.sink, aborted: false, closed: false };
+    this.runs.set(options.sessionId, state);
+    return {
+      send: async (prompt) => {
+        Object.assign(state, { prompt });
+        await this.sendGate;
+      },
+      abort: async () => {
+        state.aborted = true;
+        if (this.emitIdleOnAbort) {
+          state.sink.onEvent({
+            ...eventBase("session.idle"),
+            type: "session.idle",
+            ephemeral: true,
+            data: { aborted: true },
+          });
+        }
+      },
+      close: async () => {
+        await this.closeGate;
+        state.closed = true;
+        if (this.closeError !== undefined) {
+          throw this.closeError;
+        }
+      },
+    };
+  }
+
+  emit(sessionId: string, event: SessionEvent): void {
+    this.runs.get(sessionId)?.sink.onEvent(event);
+  }
+}
+
+const tokenService = {
+  providerFor: (): GitHubTokenProvider => async () => ({
+    kind: "token",
+    accessToken: "synthetic",
+    expiresIn: 7_200,
+  }),
+};
+
+function eventBase(type: SessionEvent["type"]): {
+  id: string;
+  parentId: null;
+  timestamp: string;
+  type: SessionEvent["type"];
+} {
+  return {
+    id: crypto.randomUUID(),
+    parentId: null,
+    timestamp: new Date().toISOString(),
+    type,
+  };
+}
+
+function completeSources(ids: readonly string[] = MCP_SOURCE_ALLOWLIST) {
+  return ids.map((id) => ({
+    id,
+    coverage: { completeness: "complete", freshness: "fresh" },
+  }));
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("chat runtime isolation and lifecycle", () => {
+  it("rejects new work while shutdown drains an existing readiness probe", async () => {
+    let releaseCreate: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    copilot.createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const readiness = runtime.ensureModelAvailable("actor-a");
+    const closing = runtime.close();
+    expect(runtime.close()).toBe(closing);
+    await expect(runtime.ensureModelAvailable("actor-a")).rejects.toBeInstanceOf(
+      ServiceShuttingDownError,
+    );
+    await expect(
+      runtime.start("actor-b", "After shutdown", () => undefined),
+    ).rejects.toBeInstanceOf(ServiceShuttingDownError);
+    releaseCreate?.();
+    await expect(readiness).resolves.toBe(false);
+    await closing;
+    expect(runtime.isModelAvailable("actor-a")).toBe(false);
+    expect([...copilot.runs.values()]).toEqual([
+      expect.objectContaining({ aborted: false, closed: true }),
+    ]);
+    await expect(runtime.start("actor-a", "After close", () => undefined)).rejects.toBeInstanceOf(
+      ServiceShuttingDownError,
+    );
+  });
+
+  it("probes actor-authenticated model readiness with normal teardown", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    await expect(runtime.ensureModelAvailable("actor-a")).resolves.toBe(true);
+    expect(runtime.isModelAvailable("actor-a")).toBe(true);
+    expect(copilot.runs.size).toBe(1);
+    const run = [...copilot.runs.values()][0];
+    expect(run).toMatchObject({ aborted: false, closed: true });
+    expect(run?.prompt).toBeUndefined();
+  });
+
+  it("rechecks readiness and denies a launch after actor model policy is disabled", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    await expect(runtime.ensureModelAvailable("actor-a")).resolves.toBe(true);
+
+    copilot.createError = new HydraFusionUnavailableError("synthetic disabled policy");
+    await expect(runtime.ensureModelAvailable("actor-a")).resolves.toBe(false);
+    expect(runtime.isModelAvailable("actor-a")).toBe(false);
+
+    const events: StreamEvent[] = [];
+    await runtime.start("actor-a", "Synthetic question", (event) => events.push(event));
+    await vi.waitFor(() =>
+      expect(events.at(-1)).toMatchObject({
+        type: "error",
+        code: "hydrafusion_unavailable",
+        retryable: false,
+      }),
+    );
+    expect(copilot.runs.size).toBe(1);
+    await runtime.close();
+  });
+
+  it("reports a rejected refresh during a status probe as an authentication failure", async () => {
+    const copilot = new FakeCopilotRuntime();
+    copilot.acquireTokenOnCreate = true;
+    const rejection = new AuthenticationError("GitHub rejected the refresh token");
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      { providerFor: (): GitHubTokenProvider => () => Promise.reject(rejection) },
+      new MemoryChatStore(),
+    );
+    await expect(runtime.ensureModelAvailable("actor-a")).rejects.toBe(rejection);
+    expect(runtime.isModelAvailable("actor-a")).toBe(false);
+    await runtime.close();
+  });
+
+  it.each([
+    {
+      name: "rejected refresh token",
+      error: new AuthenticationError("GitHub rejected the refresh token"),
+      expected: { code: "auth_expired", retryable: false },
+    },
+    {
+      name: "GitHub refresh outage",
+      error: new UpstreamResponseError("GitHub token endpoint is unavailable"),
+      expected: { code: "session_interrupted", retryable: true },
+    },
+  ])("classifies a $name during chat launch", async ({ error, expected }) => {
+    const copilot = new FakeCopilotRuntime();
+    copilot.acquireTokenOnCreate = true;
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      {
+        providerFor: (): GitHubTokenProvider => () => Promise.reject(error),
+      },
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    await runtime.start("actor-a", "Synthetic question", (event) => events.push(event));
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "error", ...expected }));
+    expect(copilot.runs.size).toBe(0);
+    await runtime.close();
+  });
+
+  it("isolates actors, propagates cancellation, and retains no transcript", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Explain my synthetic report", (event) =>
+      events.push(event),
+    );
+
+    await expect(runtime.cancel("actor-b", sessionId)).rejects.toThrow(/does not belong/);
+    await runtime.cancel("actor-a", sessionId);
+    await vi.waitFor(() =>
+      expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true }),
+    );
+    expect(events.filter((event) => event.type === "completion")).toHaveLength(1);
+    expect(events.at(-1)).toMatchObject({
+      type: "completion",
+      finishReason: "cancelled",
+      assumptions: [],
+    });
+    expect(runtime.hasSessionContent(sessionId)).toBe(false);
+    expect(JSON.stringify(store.audits)).not.toContain("Explain my synthetic report");
+  });
+
+  it("treats transport disconnect after a terminal session as an idempotent no-op", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessionsPerActor: 2 }),
+      copilot,
+      tokenService,
+      store,
+    );
+    const events: StreamEvent[] = [];
+    const completed = await runtime.start("actor-a", "Synthetic question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.get(completed)?.prompt).toBeDefined());
+    copilot.emit(completed, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+    await vi.waitFor(() => expect(copilot.runs.get(completed)?.closed).toBe(true));
+
+    await expect(runtime.disconnect("actor-a", completed)).resolves.toBeUndefined();
+    const live = await runtime.start("actor-a", "Third synthetic question", () => undefined);
+    await expect(runtime.disconnect("actor-b", live)).rejects.toThrow(/does not belong/);
+    const shutdown = await runtime.start("actor-a", "Second synthetic question", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.get(shutdown)?.prompt).toBeDefined());
+    await runtime.close();
+    await expect(runtime.disconnect("actor-a", shutdown)).resolves.toBeUndefined();
+
+    expect(events.filter((event) => event.type === "completion")).toHaveLength(1);
+    expect(store.audits.filter((audit) => audit.status === "cancelled")).toHaveLength(2);
+    await runtime.close();
+  });
+
+  it("accepts adversarial wording and relies on typed tool denial", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const sessionId = await runtime.start(
+      "actor-a",
+      "Show shell companies whose prior tax instructions changed.",
+      () => undefined,
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+  });
+
+  it("audits a fixed identifier for denied tools and cleans up idle processes", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ idleTimeoutMs: 10 }),
+      copilot,
+      tokenService,
+      store,
+    );
+    const events: StreamEvent[] = [];
+    const deniedSession = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(deniedSession)).toBe(true));
+    copilot.emit(deniedSession, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "secret-from-model-do-not-audit",
+        toolCallId: "call-1",
+        arguments: { synthetic_private_financial_fact: "synthetic-sensitive-value" },
+      },
+    });
+    await vi.waitFor(() =>
+      expect(copilot.runs.get(deniedSession)).toMatchObject({ aborted: true, closed: true }),
+    );
+    expect(events.at(-1)).toMatchObject({ type: "error", retryable: false });
+    expect(store.audits).toContainEqual(
+      expect.objectContaining({
+        tool: "denied_untrusted_tool",
+        argumentKeys: [],
+      }),
+    );
+    expect(JSON.stringify(store.audits)).not.toContain("secret-from-model-do-not-audit");
+    expect(JSON.stringify(store.audits)).not.toContain("synthetic_private_financial_fact");
+    expect(JSON.stringify(store.audits)).not.toContain("synthetic-sensitive-value");
+
+    const idleSession = await runtime.start("actor-b", "Another safe question", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.has(idleSession)).toBe(true));
+    expect(await runtime.cleanupIdle(Date.now() + 20)).toBe(1);
+    expect(copilot.runs.get(idleSession)).toMatchObject({ aborted: true, closed: true });
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+
+  it("reserves global and per-actor slots before asynchronous setup", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessions: 2, maxConcurrentSessionsPerActor: 1 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    await runtime.start("actor-a", "First", () => undefined);
+    await expect(runtime.start("actor-a", "Second", () => undefined)).rejects.toThrow(/per-actor/);
+    await runtime.start("actor-b", "Second actor", () => undefined);
+    await expect(runtime.start("actor-c", "Third actor", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+  });
+
+  it("shares capacity atomically between readiness probes and chats", async () => {
+    let releaseCreate: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    copilot.createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessions: 1, maxConcurrentSessionsPerActor: 1 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const readiness = runtime.ensureModelAvailable("actor-a");
+    await expect(runtime.start("actor-a", "Overlapping chat", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+    await expect(runtime.start("actor-b", "Global overlap", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+    releaseCreate?.();
+    await expect(readiness).resolves.toBe(true);
+
+    const sessionId = await runtime.start("actor-a", "After readiness", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+    await runtime.cancel("actor-a", sessionId);
+  });
+
+  it("holds capacity until a stopped setup settles and its late run is torn down", async () => {
+    let releaseCreate: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    copilot.createGate = new Promise<void>((resolve) => {
+      releaseCreate = resolve;
+    });
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessions: 1, maxConcurrentSessionsPerActor: 1 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const first = await runtime.start("actor-a", "First", () => undefined);
+    await runtime.cancel("actor-a", first);
+    await expect(runtime.start("actor-b", "During setup", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+    await expect(runtime.ensureModelAvailable("actor-b")).rejects.toThrow(/concurrency limit/);
+
+    releaseCreate?.();
+    await vi.waitFor(() =>
+      expect(copilot.runs.get(first)).toMatchObject({ aborted: true, closed: true }),
+    );
+    await vi.waitFor(async () => {
+      const next = await runtime.start("actor-b", "After setup", () => undefined);
+      await runtime.cancel("actor-b", next);
+    });
+  });
+
+  it("holds capacity until stop teardown completes", async () => {
+    let releaseClose: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ maxConcurrentSessions: 1, maxConcurrentSessionsPerActor: 1 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+
+    const first = await runtime.start("actor-a", "First", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.has(first)).toBe(true));
+    copilot.closeGate = new Promise<void>((resolve) => {
+      releaseClose = resolve;
+    });
+    const stopping = runtime.cancel("actor-a", first);
+    await vi.waitFor(() => expect(copilot.runs.get(first)?.aborted).toBe(true));
+    await expect(runtime.start("actor-b", "During teardown", () => undefined)).rejects.toThrow(
+      /concurrency limit/,
+    );
+
+    releaseClose?.();
+    await stopping;
+    copilot.closeGate = undefined;
+    const next = await runtime.start("actor-b", "After teardown", () => undefined);
+    await runtime.cancel("actor-b", next);
+  });
+
+  it("returns the session id before send admission and can cancel immediately", async () => {
+    let releaseSend: (() => void) | undefined;
+    const copilot = new FakeCopilotRuntime();
+    copilot.sendGate = new Promise<void>((resolve) => {
+      releaseSend = resolve;
+    });
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const sessionId = await Promise.race([
+      runtime.start("actor-a", "Safe question", () => undefined),
+      new Promise<never>((_resolve, reject) =>
+        setTimeout(() => reject(new Error("start waited for send")), 50),
+      ),
+    ]);
+    await runtime.cancel("actor-a", sessionId);
+    releaseSend?.();
+    await vi.waitFor(() =>
+      expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true }),
+    );
+  });
+
+  it("serializes evidence before one terminal event and ignores concurrent idle", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-get_source_coverage",
+        mcpToolName: "get_source_coverage",
+        mcpConfigServerName: "penge",
+        toolCallId: "call-1",
+        arguments: {},
+      },
+    });
+
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: {
+        success: true,
+        toolCallId: "call-1",
+        result: {
+          content: "redacted",
+          structuredContent: {
+            tool_allowlist: [
+              "_meta",
+              "query_net_worth",
+              "query_cashflow",
+              "query_household_report",
+              "search_household_transactions",
+              "get_household_transaction_detail",
+              "get_household_taxonomy_summary",
+              "get_household_rule_summary",
+              "get_household_merchant_summary",
+              "get_merchant_reference_status",
+              "search_merchant_reference",
+              "get_source_coverage",
+              "compute_tax_year",
+              "run_scenario",
+              "answer_planning_question",
+              "search_documents",
+              "suggest_import_mapping",
+            ],
+            sources: [
+              {
+                id: "nordnet",
+                coverage: { completeness: "partial", freshness: "fresh" },
+              },
+            ],
+            complete: false,
+          },
+        },
+      },
+    });
+    const idle: SessionEvent = {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    };
+    copilot.emit(sessionId, idle);
+    copilot.emit(sessionId, idle);
+
+    await vi.waitFor(() =>
+      expect(events.filter((event) => event.type === "completion")).toHaveLength(1),
+    );
+    expect(events.map((event) => event.type)).toEqual(["tool", "tool", "evidence", "completion"]);
+    expect(events[2]).toMatchObject({
+      type: "evidence",
+      source: "nordnet",
+      coverage: "partial",
+      freshness: "fresh",
+      currency: "mixed",
+    });
+    expect(events.at(-1)).toMatchObject({
+      summary: "Answer completed with partial evidence coverage.",
+      finishReason: "completed",
+    });
+  });
+
+  it("does not describe an SDK-aborted answer as completed", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: true },
+    });
+    await vi.waitFor(() =>
+      expect(events.at(-1)).toMatchObject({
+        type: "completion",
+        summary: "Answer stopped before completion.",
+        finishReason: "cancelled",
+      }),
+    );
+    await runtime.close();
+  });
+
+  it("does not let earlier full coverage mask a failed financial lookup", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-get_source_coverage",
+        mcpToolName: "get_source_coverage",
+        mcpConfigServerName: "penge",
+        toolCallId: "coverage",
+        arguments: {},
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: {
+        success: true,
+        toolCallId: "coverage",
+        result: {
+          content: "redacted",
+          structuredContent: {
+            tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+            sources: completeSources(),
+            complete: true,
+          },
+        },
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-query_net_worth",
+        mcpToolName: "query_net_worth",
+        mcpConfigServerName: "penge",
+        toolCallId: "failed-lookup",
+        arguments: {},
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: { success: false, toolCallId: "failed-lookup" },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "completion" }));
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "evidence", coverage: "full", freshness: "fresh" }),
+    );
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "tool", name: "query_net_worth", status: "failed" }),
+    );
+    expect(events.at(-1)).toMatchObject({
+      type: "completion",
+      coverage: "partial",
+      freshness: "stale",
+    });
+    expect(store.audits).toContainEqual(
+      expect.objectContaining({ tool: "query_net_worth", status: "error", argumentKeys: [] }),
+    );
+  });
+
+  it("does not promote an incomplete source-coverage flag to a full streamed completion", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-get_source_coverage",
+        mcpToolName: "get_source_coverage",
+        mcpConfigServerName: "penge",
+        toolCallId: "coverage",
+        arguments: {},
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: {
+        success: true,
+        toolCallId: "coverage",
+        result: {
+          content: "redacted",
+          structuredContent: {
+            tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+            sources: completeSources(),
+            complete: false,
+          },
+        },
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "completion" }));
+    expect(events).toContainEqual(
+      expect.objectContaining({ type: "evidence", coverage: "partial", freshness: "fresh" }),
+    );
+    expect(events.at(-1)).toMatchObject({ type: "completion", coverage: "partial" });
+    await runtime.close();
+  });
+
+  it("projects source completeness and Enable Banking freshness conservatively", () => {
+    const gls = {
+      id: "gls",
+      label: "GLS",
+      kind: "bank",
+      capabilities: ["transactions", "balances"],
+      evidence_paths: [{ tool: "search_household_transactions", evidence: "Synthetic evidence" }],
+      coverage: {
+        completeness: "complete",
+        freshness: "fresh",
+        latest_observed_at: "2026-01-01T00:00:00.000Z",
+        stale_after_days: 7,
+        account_count: 1,
+        transaction_count: 1,
+        holding_count: 0,
+        evidence_count: 1,
+      },
+    };
+    const enableBanking = {
+      id: "enable_banking",
+      label: "Enable Banking",
+      kind: "bank",
+      capabilities: ["transactions", "balances"],
+      evidence_paths: [{ tool: "search_household_transactions", evidence: "Synthetic evidence" }],
+      coverage: {
+        completeness: "partial",
+        freshness: "unknown",
+        latest_observed_at: null,
+        stale_after_days: 7,
+        account_count: 2,
+        transaction_count: 2,
+        holding_count: 0,
+        evidence_count: 2,
+      },
+    };
+    const base = {
+      generated_at: "2026-01-02T00:00:00.000Z",
+      transport: "stdio",
+      read_only: true,
+      source_allowlist: [...MCP_SOURCE_ALLOWLIST],
+      tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+    };
+
+    expect(
+      projectEvidence("get_source_coverage", { ...base, sources: [gls], complete: true }),
+    ).toMatchObject({ source: "gls", coverage: "partial", freshness: "fresh" });
+    expect(
+      projectEvidence(
+        "get_source_coverage",
+        { ...base, sources: completeSources(), complete: true },
+        true,
+      ),
+    ).toMatchObject({ coverage: "full", freshness: "fresh" });
+    expect(
+      projectEvidence("get_source_coverage", {
+        ...base,
+        sources: completeSources(),
+        complete: true,
+      }),
+    ).toMatchObject({ coverage: "partial", freshness: "fresh" });
+    expect(
+      projectEvidence(
+        "get_source_coverage",
+        {
+          ...base,
+          sources: completeSources().map((source) =>
+            source.id === "enable_banking" ? enableBanking : source,
+          ),
+          complete: true,
+        },
+        true,
+      ),
+    ).toMatchObject({ coverage: "partial", freshness: "stale" });
+    expect(
+      projectEvidence("get_source_coverage", {
+        ...base,
+        sources: [gls, enableBanking],
+        complete: false,
+      }),
+    ).toMatchObject({
+      source: "enable_banking, gls",
+      coverage: "partial",
+      freshness: "stale",
+    });
+    expect(
+      projectEvidence("get_source_coverage", {
+        ...base,
+        sources: [gls, enableBanking],
+        complete: true,
+      }),
+    ).toMatchObject({ coverage: "partial", freshness: "stale" });
+    expect(
+      projectEvidence("get_source_coverage", { ...base, sources: [], complete: true }),
+    ).toMatchObject({ coverage: "partial", freshness: "missing" });
+  });
+
+  it.each([
+    { name: "unfiltered request", args: {}, ids: [...MCP_SOURCE_ALLOWLIST], coverage: "full" },
+    {
+      name: "explicit all-source request in a different order",
+      args: { source_ids: [...MCP_SOURCE_ALLOWLIST].reverse() },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "full",
+    },
+    {
+      name: "complete requested subset",
+      args: { source_ids: ["gls"] },
+      ids: ["gls"],
+      coverage: "partial",
+    },
+    {
+      name: "missing source in an unfiltered response",
+      args: {},
+      ids: MCP_SOURCE_ALLOWLIST.slice(0, -1),
+      coverage: "partial",
+    },
+    {
+      name: "all-source response to a subset request",
+      args: { source_ids: ["gls"] },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+    {
+      name: "unavailable SDK request arguments",
+      args: undefined,
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+    {
+      name: "malformed request arguments",
+      args: { source_ids: "gls" },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+    {
+      name: "duplicate requested source IDs",
+      args: { source_ids: [...MCP_SOURCE_ALLOWLIST.slice(0, -1), "gls"] },
+      ids: [...MCP_SOURCE_ALLOWLIST],
+      coverage: "partial",
+    },
+  ])("requires the whole source set for $name", async ({ args, ids, coverage }) => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) =>
+      events.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_start"),
+      type: "tool.execution_start",
+      data: {
+        toolName: "penge-get_source_coverage",
+        mcpToolName: "get_source_coverage",
+        mcpConfigServerName: "penge",
+        toolCallId: "coverage",
+        ...(args === undefined ? {} : { arguments: args }),
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("tool.execution_complete"),
+      type: "tool.execution_complete",
+      data: {
+        success: true,
+        toolCallId: "coverage",
+        result: {
+          content: "redacted",
+          structuredContent: {
+            tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+            sources: completeSources(ids),
+            complete: true,
+          },
+        },
+      },
+    });
+    copilot.emit(sessionId, {
+      ...eventBase("session.idle"),
+      type: "session.idle",
+      ephemeral: true,
+      data: { aborted: false },
+    });
+
+    await vi.waitFor(() => expect(events.at(-1)).toMatchObject({ type: "completion" }));
+    expect(events).toContainEqual(expect.objectContaining({ type: "evidence", coverage }));
+    expect(events.at(-1)).toMatchObject({
+      type: "completion",
+      coverage,
+      summary:
+        coverage === "partial"
+          ? "Answer completed with partial evidence coverage."
+          : "Answer completed from bounded Penge evidence.",
+    });
+    if (coverage === "partial") {
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: "evidence",
+          summary: expect.stringContaining("Full source scope was not verified."),
+        }),
+      );
+    }
+    expect(JSON.stringify(store.audits)).not.toContain("source_ids");
+    await runtime.close();
+  });
+
+  it("does not share full-source verification between actors", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const firstEvents: StreamEvent[] = [];
+    const secondEvents: StreamEvent[] = [];
+    const first = await runtime.start("actor-a", "First question", (event) =>
+      firstEvents.push(event),
+    );
+    const second = await runtime.start("actor-b", "Second question", (event) =>
+      secondEvents.push(event),
+    );
+    await vi.waitFor(() => expect(copilot.runs.size).toBe(2));
+
+    for (const [sessionId, tool] of [
+      [first, "get_source_coverage"],
+      [second, "query_net_worth"],
+    ] as const) {
+      copilot.emit(sessionId, {
+        ...eventBase("tool.execution_start"),
+        type: "tool.execution_start",
+        data: {
+          toolName: `penge-${tool}`,
+          mcpToolName: tool,
+          mcpConfigServerName: "penge",
+          toolCallId: "call",
+          arguments: {},
+        },
+      });
+      copilot.emit(sessionId, {
+        ...eventBase("tool.execution_complete"),
+        type: "tool.execution_complete",
+        data: {
+          success: true,
+          toolCallId: "call",
+          result: {
+            content: "redacted",
+            structuredContent:
+              tool === "get_source_coverage"
+                ? {
+                    tool_allowlist: [...MCP_REGISTRATION_ALLOWLIST],
+                    sources: completeSources(),
+                    complete: true,
+                  }
+                : { completeness: "complete", freshness: "fresh" },
+          },
+        },
+      });
+      copilot.emit(sessionId, {
+        ...eventBase("session.idle"),
+        type: "session.idle",
+        ephemeral: true,
+        data: { aborted: false },
+      });
+    }
+
+    await vi.waitFor(() => {
+      expect(firstEvents.at(-1)).toMatchObject({ type: "completion", coverage: "full" });
+      expect(secondEvents.at(-1)).toMatchObject({ type: "completion", coverage: "partial" });
+    });
+    expect(secondEvents).toContainEqual(
+      expect.objectContaining({ type: "evidence", coverage: "full" }),
+    );
+    await runtime.close();
+  });
+
+  it("derives evidence only from declared metadata keys", () => {
+    expect(
+      projectEvidence("query_net_worth", {
+        result: [
+          {
+            description: "missing fresh nordnet DKK",
+            currency: "EUR",
+          },
+        ],
+      }),
+    ).toMatchObject({
+      source: "Penge MCP: query_net_worth",
+      coverage: "partial",
+      freshness: "missing",
+      currency: "EUR",
+    });
+  });
+
+  it.each([
+    ["no evidence", [], { coverage: "partial", freshness: "stale" }],
+    [
+      "all full and fresh",
+      [
+        {
+          tool: "get_source_coverage" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
+        {
+          tool: "query_net_worth" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
+      ],
+      { coverage: "full", freshness: "fresh" },
+    ],
+    [
+      "full local evidence without all-source verification",
+      [
+        {
+          tool: "query_net_worth" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
+      ],
+      { coverage: "partial", freshness: "fresh" },
+    ],
+    [
+      "mixed partial and stale",
+      [
+        {
+          tool: "get_source_coverage" as const,
+          coverage: "full" as const,
+          freshness: "fresh" as const,
+        },
+        {
+          tool: "query_net_worth" as const,
+          coverage: "partial" as const,
+          freshness: "stale" as const,
+        },
+      ],
+      { coverage: "partial", freshness: "stale" },
+    ],
+    [
+      "missing evidence",
+      [
+        {
+          tool: "query_net_worth" as const,
+          coverage: "missing" as const,
+          freshness: "missing" as const,
+        },
+      ],
+      { coverage: "partial", freshness: "stale" },
+    ],
+  ])("summarizes %s conservatively", (_name, evidence, expected) => {
+    expect(summarizeEvidence(evidence)).toEqual(expected);
+  });
+
+  it("continues close and audit when the terminal sink throws", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const store = new MemoryChatStore();
+    const runtime = new ChatRuntime(syntheticConfig(), copilot, tokenService, store);
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) => {
+      if (event.type === "completion") throw new Error("synthetic disconnected sink");
+    });
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+    await expect(runtime.cancel("actor-a", sessionId)).rejects.toThrow(/cleanup failed/);
+    expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true });
+    expect(store.audits.filter((event) => event.status === "cancelled")).toHaveLength(1);
+  });
+
+  it("emits one terminal event when abort concurrently reports idle", async () => {
+    const copilot = new FakeCopilotRuntime();
+    copilot.emitIdleOnAbort = true;
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) => {
+      events.push(event);
+    });
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    await runtime.cancel("actor-a", sessionId);
+    expect(events.filter((event) => event.type === "completion")).toHaveLength(1);
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+
+  it("emits a cancelled completion when link invalidation stops an active run", async () => {
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const events: StreamEvent[] = [];
+    const sessionId = await runtime.start("actor-a", "Safe question", (event) => {
+      events.push(event);
+    });
+    await vi.waitFor(() => expect(copilot.runs.has(sessionId)).toBe(true));
+
+    await runtime.invalidateActor("actor-a");
+    expect(events.filter((event) => event.type === "completion")).toEqual([
+      expect.objectContaining({ finishReason: "cancelled" }),
+    ]);
+    expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true });
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+
+  it("propagates request timeout to process cleanup", async () => {
+    vi.useFakeTimers();
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ requestTimeoutMs: 25 }),
+      copilot,
+      tokenService,
+      new MemoryChatStore(),
+    );
+    const sessionId = await runtime.start("actor-a", "Safe question", () => undefined);
+    await vi.advanceTimersByTimeAsync(25);
+    expect(copilot.runs.get(sessionId)).toMatchObject({ aborted: true, closed: true });
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+
+  it("does not start the SDK after a timed-out audit insert returns", async () => {
+    let releaseAudit: (() => void) | undefined;
+    const auditGate = new Promise<void>((resolve) => {
+      releaseAudit = resolve;
+    });
+    class StalledAuditStore extends MemoryChatStore {
+      override async appendAudit(
+        event: Parameters<MemoryChatStore["appendAudit"]>[0],
+      ): Promise<void> {
+        if (event.status === "started") {
+          await auditGate;
+        }
+        await super.appendAudit(event);
+      }
+    }
+    const copilot = new FakeCopilotRuntime();
+    const runtime = new ChatRuntime(
+      syntheticConfig({ requestTimeoutMs: 20 }),
+      copilot,
+      tokenService,
+      new StalledAuditStore(),
+    );
+
+    await runtime.start("actor-a", "Safe question", () => undefined);
+    await vi.waitFor(() => expect(runtime.activeSessionCount).toBe(0));
+    releaseAudit?.();
+    await runtime.close();
+    expect(copilot.runs.size).toBe(0);
+  });
+
+  it("drains every session when audit and run cleanup reject", async () => {
+    class RejectingAuditStore extends MemoryChatStore {
+      override async appendAudit(
+        event: Parameters<MemoryChatStore["appendAudit"]>[0],
+      ): Promise<void> {
+        if (event.status !== "started") {
+          throw new Error("synthetic audit failure");
+        }
+        await super.appendAudit(event);
+      }
+    }
+
+    const copilot = new FakeCopilotRuntime();
+    copilot.closeError = new Error("synthetic close failure");
+    const runtime = new ChatRuntime(
+      syntheticConfig(),
+      copilot,
+      tokenService,
+      new RejectingAuditStore(),
+    );
+    const first = await runtime.start("actor-a", "Safe question", () => undefined);
+    const second = await runtime.start("actor-b", "Another safe question", () => undefined);
+    await vi.waitFor(() => expect(copilot.runs.size).toBe(2));
+
+    await expect(runtime.close()).rejects.toThrow(/background lifecycle failures/);
+    expect(copilot.runs.get(first)).toMatchObject({ aborted: true, closed: true });
+    expect(copilot.runs.get(second)).toMatchObject({ aborted: true, closed: true });
+    expect(runtime.activeSessionCount).toBe(0);
+  });
+});

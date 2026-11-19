@@ -1,0 +1,115 @@
+# 0055 — Isolated multi-user chat runtime
+
+- **Status:** Proposed
+- **Date:** 2026-10-04
+- **Deciders:** @autoditac
+- **Tags:** security, mcp, chat, oauth
+
+## Context and Problem Statement
+
+Issue #346 implements the production service boundary approved by the Copilot Fusion feasibility work in issue #345.
+Two household members must be able to use their own GitHub and Copilot identities without sharing credentials, sessions, transcripts, or quotas.
+The chat service must preserve [ADR-0005](0005-llm-access-via-mcp-only.md) and [ADR-0023](0023-mcp-server-architecture.md): finance evidence reaches the model only through bounded read-only Penge MCP tools over process-local stdio.
+The reviewed issue #344 allowlist also includes bounded, redacted transaction search and detail records, which exceed ADR-0005's aggregate-only privacy boundary; see the production gate below.
+
+## Decision Drivers
+
+- Bind every request to an immutable Google subject supplied by the trusted reverse proxy.
+- Use a separate per-actor GitHub OAuth grant with state, PKCE, refresh, and key rotation.
+- Fail closed unless the linked actor is entitled to the exact experimental Copilot Fusion model ID `hydrafusion`.
+- Deny ambient tools, permissions, credentials, config discovery, and transcript storage.
+- Propagate stop, disconnect, timeout, concurrency limits, and idle cleanup to Copilot and MCP child processes.
+  A global and per-actor concurrency slot stays reserved until both the pending Copilot/MCP setup has settled (including tearing down a run created after a stop) and the stop's abort/close teardown has finished, so overlapping stop/start cannot exceed either limit.
+- Give the chat database role no finance-table privileges.
+
+## Considered Options
+
+1. **Loopback Node service with actor-scoped SDK clients and local MCP** — chosen.
+2. **Shared household GitHub/Copilot identity** — rejected because it breaks credential and quota isolation.
+3. **Network MCP or direct finance database queries** — rejected because it breaks the existing data boundary.
+4. **Fallback model when Copilot Fusion is unavailable** — rejected because it changes reviewed behavior.
+
+## Decision
+
+`apps/chat` is a strict TypeScript service listening only on a configured loopback address.
+The authenticated external browser origin is separate from the listener and must use HTTPS outside local development.
+The external API base is a trailing-slash URL so reverse-proxy path prefixes survive OAuth callback construction; the path-free app origin independently owns the `/ask` redirect.
+The reverse proxy must overwrite and supply `X-Penge-Auth-Issuer`, immutable Google `X-Penge-Auth-Subject`, and a mounted-secret-backed `X-Penge-Proxy-Secret`; direct or ambiguous headers are rejected.
+State-changing requests additionally require the configured application origin, chat/stop requests require `application/json`, and request bodies remain byte-bounded while accommodating every valid 8,000-code-unit question.
+SSE delivery has a bounded process buffer and drain deadline that remains active until terminal output finishes flushing; a stalled client is disconnected through the normal cancellation path.
+Transport disconnect is idempotent: a close that races a terminal event, idle cleanup, or shutdown is a no-op for an already-released session rather than a lifecycle failure.
+
+Each pseudonymous actor completes GitHub OAuth with one-time state and S256 PKCE.
+The database stores only an HMAC state lookup and an encrypted versioned state envelope, never raw state or a plaintext verifier.
+Access and refresh tokens use AES-256-GCM envelopes carrying a key ID.
+A mounted versioned keyring retains old keys for decryption while one current key encrypts new and refreshed credentials.
+Per-actor PostgreSQL advisory locks serialize refresh, relink, status, and unlink operations across service processes so rotating refresh tokens cannot be redeemed concurrently or overwrite a newer link.
+The same lock serializes OAuth state creation/consumption with unlink, which removes every pending state before it reports success.
+GitHub reports grant failures such as an expired or reused code (`bad_verification_code`) or a revoked refresh token (`bad_refresh_token`) as HTTP 200 error bodies; these are classified as authentication failures (HTTP 401, relink required) and only a reviewed error code is retained internally, never GitHub's free-text description.
+A token response that is neither a recognised error nor a valid bearer grant is an upstream failure (HTTP 502).
+Callback state deletion commits before token exchange while the session-level actor lock remains held, so a failed callback cannot redeem the same one-time state again.
+Pool acquisition, statements, transactions, and advisory-lock waits are bounded; OAuth transactions use a separate bound that covers the upstream refresh deadline, and idle pool failures initiate metadata-only controlled shutdown.
+
+The service uses `@github/copilot-sdk@1.0.16` with `mode: "empty"`, `useLoggedInUser: false`, actor-isolated storage, exact `hydrafusion`, no fallback, no session store, no config discovery, no skills, extensions, canvases, built-in tools, or custom tools.
+The SDK permission handler approves each invocation once only for the configured Penge server and an exact reviewed MCP tool name; all other permissions and requests requiring explicit managed approval are rejected.
+SDK session files use a bounded process-memory provider and persistent workspaces are disabled, so crashes cannot leave transcripts on disk.
+Large-output file spilling and runtime diagnostics are disabled; the pinned SDK transport captures child stderr without forwarding it into service logs and reports its process-group leader so forced cleanup can terminate all MCP descendants.
+The Copilot runtime transport is explicitly an owned stdio child with a minimal connection-level environment, so ambient SDK defaults such as `COPILOT_SDK_DEFAULT_CONNECTION` cannot select in-process or external transports.
+It supplies only an actor-owned token provider and the accepted issue #344 MCP contract.
+Each exact-model session checks a fresh session-scoped model list using that actor's authentication; exactly one `hydrafusion` entry with an explicit enabled policy is required.
+Missing or non-enabled policy and duplicate entries fail closed; client-global unauthenticated model listing is not used.
+A bounded, immediately closed exact-model session lets each authenticated status check establish readiness before the browser submits its first question.
+Readiness probes and chats share the same atomic global and per-actor admission limits; a full status probe returns `429 rate_limit` and releases its reservation after teardown.
+The MCP server is a local stdio child with a minimal explicit environment, a mounted finance database URL file, and allowlisted read-only tools.
+Each child receives only derived `actor_<ULID>` and `session_<ULID>` audit pseudonyms; trusted identity claims and internal identifiers are never forwarded.
+Startup probes the production MCP child with `connect`, `listTools`, and `close`, discarding child stderr; missing or extra registrations and missing output schemas disable production.
+The pinned registration order matches issue #350 exactly, and every successful `get_source_coverage` result must independently report that ordered allowlist, including `_meta`; missing, extra, reordered, or duplicate entries fail closed before evidence projection.
+Full `get_source_coverage` evidence and a full completion require a call that requested all independently pinned source IDs, returned every expected ID, and marked both the overall result and every source complete.
+An omitted `source_ids` filter or an explicit set of all source IDs requests the whole catalog; subset requests, absent or invalid SDK argument metadata, and missing coverage calls remain partial.
+Other tool evidence reports completeness for that tool's result, not for the entire source catalog.
+Unknown or duplicate source IDs and invalid completeness or freshness values are rejected, and unknown or stale freshness is never projected as fresh.
+
+The HTTP stream implements the issue #343/#349 Ask Penge `1.0` event contract.
+Events are zod-validated, ordered, session-bound, and terminal after completion or error.
+A failed lookup counts as missing evidence, so earlier successful coverage cannot make the final result appear full or fresh.
+Completion summaries explicitly state partial coverage, even when a client does not separately render the structured coverage field.
+Prompt and transcript content are process-memory-only and removed when a bounded request ends.
+Audit storage contains only pseudonymous actor/session IDs, fixed tool identifiers, status, and duration; model-controlled argument names and values are never retained.
+Request logging uses fixed recognized-route identifiers and never caller-controlled paths.
+
+OAuth/audit tables use a dedicated schema-only Alembic chain and database.
+Deployment owns database/role lifecycle and grants; the finance migration graph remains untouched.
+Startup inspects every table, partitioned table, view, materialized view, and foreign table in `pg_class` outside system schemas and fails closed if the service role holds any table- or column-level privilege on a relation other than the three chat tables.
+Postgres dependency `pg` is required for parameterized OAuth/audit persistence and startup privilege inspection.
+`pino` is required by the repository logging policy for structured redacted service logs.
+The official Copilot and MCP SDK dependencies are required to execute and verify their respective runtime protocols instead of maintaining incompatible local implementations.
+
+## Consequences
+
+### Positive
+
+- Cross-user credentials, sessions, and quotas are isolated.
+- Raw finance tables, arbitrary SQL, network MCP, and ambient agent tools remain unavailable.
+- OAuth credentials can be rotated without invalidating envelopes encrypted by retained keys.
+- Disconnects and all terminal paths clean up SDK and MCP processes without transcript persistence.
+
+### Negative
+
+- Chat remains unavailable unless exact `hydrafusion` session creation and the session-scoped enabled-policy check succeed with that actor's linked token.
+- Production requires coordinated reverse-proxy headers and mounted secrets from issue #342.
+- The accepted issue #344 MCP branch must land before the production readiness probe can pass.
+- Production enablement is blocked until the household owner accepts an amendment or superseding ADR for [ADR-0005](0005-llm-access-via-mcp-only.md) that permits bounded transaction-level records to reach `hydrafusion`, or removes `search_household_transactions` and `get_household_transaction_detail` from the chat allowlist.
+  This ADR does not grant that exception; the service remains disabled by default.
+
+### Neutral
+
+- Deployment creates the service role and supplies authentication using the versioned Postgres secret mechanism.
+
+## Links
+
+- Parent issue #341
+- Architecture issue #345 and ADR-0053
+- MCP source coverage issue #344
+- Web stream contract issue #343 and PR #349
+- Infrastructure issue #342
+- [Chat runtime operations](../runbook/chat-runtime.md)

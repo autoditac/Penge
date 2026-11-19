@@ -48,6 +48,20 @@ export class EntitlementProbeTimeoutError extends PengeError {
   }
 }
 
+export class EntitlementProbeInterruptedError extends PengeError {
+  constructor() {
+    super("Entitlement probe interrupted; no model conclusion was made");
+  }
+
+  override get name(): string {
+    return "EntitlementProbeInterruptedError";
+  }
+
+  override get code(): string {
+    return "chat/entitlement_probe_interrupted";
+  }
+}
+
 export interface EntitlementProbeClient {
   start: CopilotClient["start"];
   listModels: () => Promise<readonly Pick<ModelInfo, "id" | "policy">[]>;
@@ -124,10 +138,24 @@ async function withDeadline<T>(
   operation: Promise<T>,
   timeoutMs: number,
   phase: string,
+  signal?: AbortSignal,
 ): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let onAbort: (() => void) | undefined;
+  const interruption =
+    signal === undefined
+      ? undefined
+      : new Promise<never>((_, reject) => {
+          onAbort = () => reject(new EntitlementProbeInterruptedError());
+          if (signal.aborted) {
+            onAbort();
+          } else {
+            signal.addEventListener("abort", onAbort, { once: true });
+          }
+        });
   try {
     return await Promise.race([
+      ...(interruption === undefined ? [] : [interruption]),
       operation,
       new Promise<never>((_, reject) => {
         timer = setTimeout(
@@ -138,6 +166,9 @@ async function withDeadline<T>(
     ]);
   } finally {
     if (timer !== undefined) clearTimeout(timer);
+    if (signal !== undefined && onAbort !== undefined) {
+      signal.removeEventListener("abort", onAbort);
+    }
   }
 }
 
@@ -145,7 +176,9 @@ export async function probeEntitlement(
   client: EntitlementProbeClient,
   baseDirectory: string,
   timeouts: ProbeTimeouts = defaultTimeouts,
+  signal?: AbortSignal,
 ): Promise<EntitlementProbeResult> {
+  let startInvoked = false;
   let startCompleted = false;
   let probeActive = true;
   let probeFailed = false;
@@ -154,16 +187,19 @@ export async function probeEntitlement(
   let operation: Promise<readonly Pick<ModelInfo, "id" | "policy">[]> | undefined;
 
   try {
+    if (signal?.aborted) throw new EntitlementProbeInterruptedError();
+    startInvoked = true;
     operation = (async () => {
       await client.start();
-      if (!probeActive) {
+      if (!probeActive || signal?.aborted) {
         await withDeadline(client.forceStop(), timeouts.shutdownMs, "Late SDK shutdown");
+        if (signal?.aborted) throw new EntitlementProbeInterruptedError();
         throw new EntitlementProbeTimeoutError("SDK startup completed after the probe deadline");
       }
       startCompleted = true;
       return client.listModels();
     })();
-    const models = await withDeadline(operation, timeouts.probeMs, "Entitlement probe");
+    const models = await withDeadline(operation, timeouts.probeMs, "Entitlement probe", signal);
     result = { exactModel: hydraFusionModel, ...evaluateHydraFusionAvailability(models) };
   } catch (error) {
     probeFailed = true;
@@ -173,7 +209,7 @@ export async function probeEntitlement(
   }
 
   const cleanupErrors: unknown[] = [];
-  if (startCompleted) {
+  if (startCompleted || !startInvoked) {
     try {
       const errors = await withDeadline(client.stop(), timeouts.shutdownMs, "SDK shutdown");
       assertSdkCleanupSucceeded(errors);
@@ -207,6 +243,7 @@ export async function probeEntitlement(
 
   await rm(baseDirectory, { recursive: true, force: true });
   if (probeFailed) throw probeError;
+  if (signal?.aborted) throw new EntitlementProbeInterruptedError();
   if (result === undefined) throw new PengeError("Entitlement probe produced no result");
   return result;
 }

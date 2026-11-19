@@ -64,6 +64,12 @@ If startup still has not settled, the command sends a final synchronous forced
 stop and exits immediately, so no runtime can be spawned after the command ends.
 If termination cannot be confirmed, the command fails without a model result and
 retains its `penge-copilot-entitlement-*` temporary directory.
+On POSIX, `SIGINT` and `SIGTERM` interrupt the probe and trigger the same bounded
+cleanup without printing a model result; the exit status is `130` or `143` for
+the first signal received.
+Further signals do not interrupt cleanup.
+`SIGKILL` or abrupt host failure cannot be handled, so check for any surviving
+runtime before removing retained storage.
 After confirming that the corresponding runtime is no longer running, remove
 that isolated directory securely; never inspect or publish its contents.
 It never prints a token, login, prompt, or financial data.

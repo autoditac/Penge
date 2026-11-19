@@ -8,6 +8,7 @@ import { CopilotClient, RuntimeConnection } from "@github/copilot-sdk";
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  EntitlementProbeInterruptedError,
   EntitlementProbeTimeoutError,
   diagnosticClientOptions,
   probeEntitlement,
@@ -104,6 +105,62 @@ function trackStartup(client: CopilotClient): {
 }
 
 describe("bounded entitlement probe", () => {
+  it("does not start an already interrupted probe", async () => {
+    const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+    const controller = new AbortController();
+    controller.abort();
+    const start = vi.fn(async () => {});
+    const stop = vi.fn(async () => []);
+    const client: EntitlementProbeClient = {
+      start,
+      listModels: vi.fn(async () => [{ id: hydraFusionModel }]),
+      stop,
+      forceStop: async () => {},
+    };
+
+    await expect(
+      probeEntitlement(client, baseDirectory, undefined, controller.signal),
+    ).rejects.toBeInstanceOf(EntitlementProbeInterruptedError);
+    expect(start).not.toHaveBeenCalled();
+    expect(stop).toHaveBeenCalledOnce();
+    await expect(stat(baseDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("withholds a result when interrupted during graceful cleanup", async () => {
+    const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
+    const controller = new AbortController();
+    let markStopping: () => void = () => {};
+    let finishStopping: () => void = () => {};
+    const stopping = new Promise<void>((resolve) => {
+      markStopping = resolve;
+    });
+    const stopped = new Promise<void>((resolve) => {
+      finishStopping = resolve;
+    });
+    const client: EntitlementProbeClient = {
+      start: async () => {},
+      listModels: async () => [{ id: hydraFusionModel }],
+      stop: async () => {
+        markStopping();
+        await stopped;
+        return [];
+      },
+      forceStop: async () => {},
+    };
+
+    const result = probeEntitlement(client, baseDirectory, undefined, controller.signal);
+    try {
+      await stopping;
+      controller.abort();
+      finishStopping();
+      await expect(result).rejects.toBeInstanceOf(EntitlementProbeInterruptedError);
+      await expect(stat(baseDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      finishStopping();
+      await rm(baseDirectory, { recursive: true, force: true });
+    }
+  });
+
   it("reports a result only after graceful cleanup", async () => {
     const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
     const client: EntitlementProbeClient = {

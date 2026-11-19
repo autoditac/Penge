@@ -766,12 +766,28 @@ function AskPengeWorkbench({
                           <Stack
                             direction="row"
                             spacing={1}
-                            sx={{ alignItems: "center", justifyContent: "space-between" }}
+                            sx={{
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              "& > .MuiChip-root": { flexShrink: 0 },
+                            }}
                           >
-                            <Typography sx={{ fontWeight: 700 }}>{event.name}</Typography>
+                            <Typography
+                              sx={{
+                                fontWeight: 700,
+                                minWidth: 0,
+                                flex: 1,
+                                overflowWrap: "anywhere",
+                              }}
+                            >
+                              {event.name}
+                            </Typography>
                             <Pill tone={toolTone[event.status]}>{event.status}</Pill>
                           </Stack>
-                          <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: "0.86rem" }}>
+                          <Typography
+                            color="text.secondary"
+                            sx={{ mt: 0.5, fontSize: "0.86rem", overflowWrap: "anywhere" }}
+                          >
                             {event.detail}
                           </Typography>
                         </Paper>
@@ -802,19 +818,42 @@ function AskPengeWorkbench({
                           <Stack
                             direction="row"
                             spacing={1}
-                            sx={{ alignItems: "center", justifyContent: "space-between" }}
+                            sx={{
+                              alignItems: "center",
+                              justifyContent: "space-between",
+                              "& > .MuiChip-root": { flexShrink: 0 },
+                            }}
                           >
-                            <Typography sx={{ fontWeight: 700 }}>{event.title}</Typography>
+                            <Typography
+                              sx={{
+                                fontWeight: 700,
+                                minWidth: 0,
+                                flex: 1,
+                                overflowWrap: "anywhere",
+                              }}
+                            >
+                              {event.title}
+                            </Typography>
                             <Pill tone={evidenceTone[event.coverage]}>{event.coverage}</Pill>
                           </Stack>
-                          <Typography color="text.secondary" sx={{ mt: 0.5, fontSize: "0.82rem" }}>
+                          <Typography
+                            color="text.secondary"
+                            sx={{ mt: 0.5, fontSize: "0.82rem", overflowWrap: "anywhere" }}
+                          >
                             {event.source}
                           </Typography>
                           <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
                             <Pill tone={freshnessTone[event.freshness]}>{event.freshness}</Pill>
                             <Pill tone="info">{event.currency}</Pill>
                           </Stack>
-                          <Typography sx={{ mt: 1, fontSize: "0.87rem", whiteSpace: "pre-wrap" }}>
+                          <Typography
+                            sx={{
+                              mt: 1,
+                              fontSize: "0.87rem",
+                              whiteSpace: "pre-wrap",
+                              overflowWrap: "anywhere",
+                            }}
+                          >
                             {event.summary}
                           </Typography>
                         </Paper>
@@ -918,9 +957,17 @@ function AskPengeWorkbench({
                   <Stack
                     direction="row"
                     spacing={1}
-                    sx={{ justifyContent: "space-between", alignItems: "center" }}
+                    sx={{
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      "& > .MuiChip-root": { flexShrink: 0 },
+                    }}
                   >
-                    <Typography sx={{ fontWeight: 700 }}>{event.name}</Typography>
+                    <Typography
+                      sx={{ fontWeight: 700, minWidth: 0, flex: 1, overflowWrap: "anywhere" }}
+                    >
+                      {event.name}
+                    </Typography>
                     <Pill tone={toolTone[event.status]}>{event.status}</Pill>
                   </Stack>
                   <Typography color="text.secondary" sx={{ mt: 0.5, overflowWrap: "anywhere" }}>
@@ -940,8 +987,13 @@ function AskPengeWorkbench({
                   key={event.id}
                   sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 1.5 }}
                 >
-                  <Typography sx={{ fontWeight: 700 }}>{event.title}</Typography>
-                  <Typography color="text.secondary" sx={{ fontSize: "0.82rem", mt: 0.5 }}>
+                  <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
+                    {event.title}
+                  </Typography>
+                  <Typography
+                    color="text.secondary"
+                    sx={{ fontSize: "0.82rem", mt: 0.5, overflowWrap: "anywhere" }}
+                  >
                     {event.source}
                   </Typography>
                   <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
@@ -949,7 +1001,7 @@ function AskPengeWorkbench({
                     <Pill tone={freshnessTone[event.freshness]}>{event.freshness}</Pill>
                     <Pill tone="info">{event.currency}</Pill>
                   </Stack>
-                  <Typography sx={{ mt: 1 }}>{event.summary}</Typography>
+                  <Typography sx={{ mt: 1, overflowWrap: "anywhere" }}>{event.summary}</Typography>
                 </Box>
               ))
             )}

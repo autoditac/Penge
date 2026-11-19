@@ -100,3 +100,60 @@ test("exercises the isolated synthetic stream, cancellation, evidence, and assum
   );
   expect(hasHorizontalOverflow).toBe(false);
 });
+
+test("keeps long synthetic evidence labels and status pills within their cards", async ({
+  page,
+}, testInfo) => {
+  if (testInfo.project.name === "desktop") {
+    await page.setViewportSize({ width: 960, height: 900 });
+  }
+  await page.goto("/ask/e2e");
+  await page.getByRole("button", { name: "Ask", exact: true }).click();
+
+  if (testInfo.project.name === "mobile") {
+    await page.getByRole("button", { name: /Open evidence sheet/i }).click();
+  }
+  const evidence =
+    testInfo.project.name === "mobile"
+      ? page.getByRole("region", { name: "Answer evidence sheet" })
+      : page.getByRole("complementary", { name: "Answer evidence" });
+  const tool = evidence.getByText(
+    "synthetic_get_household_transaction_detail_with_long_source_identifier",
+    { exact: true },
+  );
+  const title = evidence.getByText(
+    "synthetic_get_household_transaction_detail_with_long_evidence_identifier",
+    { exact: true },
+  );
+  const source = evidence.getByText(
+    "synthetic_reporting_source_with_a_very_long_unbroken_identifier",
+    { exact: true },
+  );
+
+  for (const text of [tool, title, source]) {
+    await expect(text).toBeVisible();
+    expect(await text.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(
+      true,
+    );
+  }
+
+  const cardHeaders = testInfo.project.name === "mobile" ? [tool] : [tool, title];
+  for (const text of cardHeaders) {
+    const fits = await text.evaluate((element) => {
+      const row = element.parentElement;
+      const card = row?.parentElement;
+      const pill = row?.querySelector(".MuiChip-root");
+      if (card === null || card === undefined || pill === null || pill === undefined) {
+        throw new Error("Synthetic evidence card is missing its status pill.");
+      }
+      const cardBounds = card.getBoundingClientRect();
+      const textBounds = element.getBoundingClientRect();
+      const pillBounds = pill.getBoundingClientRect();
+      return textBounds.right <= cardBounds.right && pillBounds.right <= cardBounds.right;
+    });
+    expect(fits).toBe(true);
+  }
+  expect(await evidence.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(
+    true,
+  );
+});

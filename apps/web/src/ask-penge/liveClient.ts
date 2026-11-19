@@ -8,6 +8,8 @@ import type {
   AskTransportSession,
 } from "./contract";
 
+const STOP_CONFIRMATION_TIMEOUT_MS = 15_000;
+
 const githubAuthStatusSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("linked"), login: z.string().min(1) }).strict(),
   z.object({ state: z.literal("not-linked"), login: z.null() }).strict(),
@@ -186,6 +188,9 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
       let terminal = false;
 
       const emit = (event: unknown): void => {
+        if (userStopped) {
+          return;
+        }
         for (const listener of listeners) {
           listener(event);
         }
@@ -221,6 +226,9 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
       };
 
       const processPayload = (payload: string): boolean => {
+        if (userStopped) {
+          return true;
+        }
         let candidateEvent: unknown;
         try {
           candidateEvent = JSON.parse(payload);
@@ -326,22 +334,24 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
       return {
         stop: async () => {
           userStopped = true;
-          const stopRequest =
-            sessionId === null
-              ? null
-              : fetchFn(endpoint(baseUrl, "v1/chat/stop"), {
-                  method: "POST",
-                  credentials: "same-origin",
-                  headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({ sessionId }),
-                });
-          // Release the local stream before awaiting the server so a slow stop cannot keep it open.
-          close();
-          if (stopRequest !== null) {
-            const response = await stopRequest;
+          if (sessionId === null) {
+            close();
+            return;
+          }
+
+          const stopController = new AbortController();
+          const timeout = setTimeout(() => stopController.abort(), STOP_CONFIRMATION_TIMEOUT_MS);
+          try {
+            const response = await fetchFn(endpoint(baseUrl, "v1/chat/stop"), {
+              method: "POST",
+              credentials: "same-origin",
+              headers: {
+                Accept: "application/json",
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ sessionId }),
+              signal: stopController.signal,
+            });
             if (!response.ok) {
               throw httpError(
                 "chat_stop_failed",
@@ -349,6 +359,9 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
                 response,
               );
             }
+          } finally {
+            clearTimeout(timeout);
+            close();
           }
         },
         close,

@@ -105,8 +105,10 @@ are recorded in ADR-0036.
   unlinking uses `DELETE <base>/v1/auth/github`, and bounded questions (maximum 8,000
   characters) stream from `POST <base>/v1/chat`. Concurrent status refreshes
   cannot overwrite a newer unlink result. Unlink requests cannot overlap, and
-  a successful unlink is followed by a status refresh. User cancellation calls
-  `POST <base>/v1/chat/stop` only after a server session ID is observed; an
+  a successful unlink is followed by a status refresh. User cancellation stops
+  local updates immediately and calls `POST <base>/v1/chat/stop` only after a
+  server session ID is observed. The stream stays open until confirmation or a
+  15-second deadline, avoiding a race with server disconnect cleanup; an
   unconfirmed stop is identified as a cancellation failure, not a stream
   protocol error.
   Missing configuration keeps the production route disabled, exposes no

@@ -357,14 +357,22 @@ describe("Ask Penge live client", () => {
     });
   });
 
-  it("closes the local stream before awaiting a slow stop response", async () => {
+  it("suppresses further events and keeps the stream open until stop is confirmed", async () => {
     let resolveStop: ((response: Response) => void) | undefined;
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(new ReadableStream<Uint8Array>({}), {
-          headers: { "X-Penge-Chat-Session-Id": "slow-stop-session" },
-        }),
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              streamController = controller;
+            },
+          }),
+          {
+            headers: { "X-Penge-Chat-Session-Id": "slow-stop-session" },
+          },
+        ),
       )
       .mockImplementationOnce(
         () =>
@@ -374,17 +382,99 @@ describe("Ask Penge live client", () => {
       );
     const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
     const session = client.transport.start({ question: "Synthetic question" });
-    session.subscribe(() => undefined);
+    const listener = vi.fn();
+    session.subscribe(listener);
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     await Promise.resolve();
     const streamSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal;
 
     const stopping = session.stop();
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(streamSignal?.aborted).toBe(true);
+    expect(streamSignal?.aborted).toBe(false);
+    streamController?.enqueue(
+      new TextEncoder().encode(
+        `data: ${JSON.stringify({
+          version: "1.0",
+          sessionId: "slow-stop-session",
+          id: "after-stop",
+          sequence: 0,
+          type: "text",
+          stream: "answer",
+          delta: "Must not render after stop.",
+          source: "assistant",
+        })}\n\n`,
+      ),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(listener).not.toHaveBeenCalled();
 
     resolveStop?.(jsonResponse({ status: "cancelling" }, 202));
     await expect(stopping).resolves.toBeUndefined();
+    expect(streamSignal?.aborted).toBe(true);
+    streamController?.close();
+  });
+
+  it("bounds a stalled stop acknowledgement and closes both requests", async () => {
+    vi.useFakeTimers();
+    try {
+      let stopSignal: AbortSignal | undefined;
+      const fetchMock = vi
+        .fn<FetchLike>()
+        .mockResolvedValueOnce(
+          new Response(new ReadableStream<Uint8Array>({}), {
+            headers: { "X-Penge-Chat-Session-Id": "timeout-session" },
+          }),
+        )
+        .mockImplementationOnce((_input, init) => {
+          stopSignal = init?.signal ?? undefined;
+          return new Promise<Response>((_resolve, reject) => {
+            stopSignal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Stop timed out", "AbortError")),
+              { once: true },
+            );
+          });
+        });
+      const client = createAskChatClient(baseUrl, fetchMock, currentLocation);
+      const session = client.transport.start({ question: "Synthetic question" });
+      session.subscribe(() => undefined);
+      await Promise.resolve();
+      const streamSignal = fetchMock.mock.calls[0]?.[1]?.signal;
+
+      const stopping = session.stop();
+      const rejection = expect(stopping).rejects.toMatchObject({ name: "AbortError" });
+      expect(streamSignal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await rejection;
+      expect(stopSignal?.aborted).toBe(true);
+      expect(streamSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes without a stop request before the server session is known", async () => {
+    const fetchMock = vi.fn<FetchLike>().mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Stream aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    const client = createAskChatClient(baseUrl, fetchMock, currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const listener = vi.fn();
+    session.subscribe(listener);
+
+    await session.stop();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it("rejects a stream session that differs from the response session header", async () => {

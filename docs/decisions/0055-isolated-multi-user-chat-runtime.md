@@ -99,8 +99,9 @@ The official Copilot and MCP SDK dependencies are required to execute and verify
 - Chat remains unavailable unless exact `hydrafusion` session creation and the session-scoped enabled-policy check succeed with that actor's linked token.
 - Production requires coordinated reverse-proxy headers and mounted secrets from issue #342.
 - The accepted issue #344 MCP branch must land before the production readiness probe can pass.
-- Production remains disabled until human security/privacy review and live acceptance establish actor-specific `hydrafusion` entitlement, two-user isolation, and child-process cleanup.
-  The ADR-0005 amendment permits only the two bounded transaction tools; it does not prove those runtime controls, waive proxy/secret review, or enable deployment.
+- Production remains disabled until the household owner accepts the ADR-0005 amendment through repository review, or the transaction tools are removed from the chat allowlist.
+  Human security/privacy review, proxy/secret approval, and live acceptance must also establish actor-specific `hydrafusion` entitlement, two-user isolation, and child-process cleanup.
+  Even after acceptance, the ADR-0005 amendment permits only the two bounded transaction tools; it does not prove those runtime controls or enable deployment.
 
 ### Neutral
 

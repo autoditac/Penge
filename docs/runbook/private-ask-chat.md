@@ -232,7 +232,7 @@ The resolved SQL may grant only:
 - `USAGE` and `SELECT` only on `chat_audit_event_id_seq`.
 
 It must not grant schema creation, default privileges, sequence-wide access, finance or analytics reads, transcript storage, MCP access, ownership, role inheritance, or superuser capabilities.
-The resolved role creation must target the same role that receives `CONNECT` and explicitly specify `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`.
+The resolved role creation must target the same role that receives `CONNECT`, which must be the backend's fixed runtime role `penge_chat_oauth`, and explicitly specify `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`.
 An optional `PASSWORD` must be a single-quoted `SCRAM-SHA-256` verifier that ends the statement; plaintext passwords, comments, and any further role options such as `REPLICATION`, `IN ROLE`, or `CONNECTION LIMIT` are rejected.
 Its `PUBLIC` revocations apply only inside that dedicated database.
 Chat deployment must not change the shared Penge finance database or any API, dbt, ingestion, migration, backup, or maintenance role privileges.
@@ -243,9 +243,10 @@ Never mount or inherit the migration-owner credential in the long-lived chat con
 
 The deployment order is:
 
-1. Create the dedicated database and `penge_chat_oauth` runtime role.
+1. Create the dedicated database and its one-shot migration owner.
 2. Run the dedicated Alembic upgrade with the one-shot migration-owner credential.
-3. Grant only the approved DML on the three backend-owned application tables to the runtime role.
+3. Apply the reviewed role SQL, which creates the `penge_chat_oauth` runtime role and grants only the approved DML on the three backend-owned application tables in one transaction.
+   Applying it before the migration fails on the missing tables and rolls back without creating the role.
 4. Destroy the one-shot migration environment, verify its credential is absent from the Quadlet, and only then launch the service.
 
 Test upgrade and downgrade through `apps/chat/alembic.ini`; downgrade must not delete the database or either role.
@@ -395,6 +396,7 @@ contain live-service acceptance evidence.
 - [ ] `validate-private-ask-chat.sh --ready` passes.
 - [ ] Chat package and lockfile pin `@github/copilot-sdk` `1.0.16`.
 - [ ] Chat image CI, SBOM, provenance, vulnerability checks, and exact GHCR digest pass.
+- [ ] Inspection of the approved image digest shows `@github/copilot-sdk` `1.0.16` and its matching Linux native package installed as runtime dependencies.
 - [ ] Source-coverage startup gate includes every source required by #344.
 - [ ] An approved nginx-to-socket transport works, with no published chat port or host networking and no TCP access from a peer container on the named network.
 - [ ] Socket UID/GID mapping, nginx group access, and any host-specific SELinux labeling are verified.

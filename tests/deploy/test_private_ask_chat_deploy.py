@@ -872,6 +872,19 @@ def test_ready_validator_rejects_host_network_and_privileged_role(
     assert "created chat role and database grant target differ" in mismatched_role.stderr
 
 
+def test_ready_validator_rejects_role_other_than_backend_runtime_role(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    database.write_text(database.read_text().replace("penge_chat_oauth", "other_chat_role"))
+
+    rejected = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+
+    assert rejected.returncode != 0
+    assert "must be the backend runtime role penge_chat_oauth" in rejected.stderr
+
+
 _SAFE_ROLE_CREATION = (
     "CREATE ROLE penge_chat_oauth LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
 )

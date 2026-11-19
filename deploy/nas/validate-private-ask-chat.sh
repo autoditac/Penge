@@ -410,6 +410,10 @@ connect_role="$(
 )"
 [[ -n $connect_role && $created_role == "$connect_role" ]] \
   || fail "created chat role and database grant target differ"
+# The backend configuration accepts only this runtime role and verifies it as
+# current_user at startup, so any other consistently substituted role is unusable.
+[[ $created_role == "penge_chat_oauth" ]] \
+  || fail "chat database role must be the backend runtime role penge_chat_oauth"
 mapfile -t privilege_roles < <(
   sed -n 's/.* TO \([a-z_][a-z0-9_]*\);/\1/p' "$db_template"
 )

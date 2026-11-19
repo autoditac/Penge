@@ -22,9 +22,10 @@ It does not start the production entrypoint or a Copilot session.
 The landed `issue-344-v1` registration contract is independently checked by
 the stdio `tools/list` test against the exact 17-name set.
 Registration does not authorize exposing transaction search or detail to a
-model: those proposed tools conflict with ADR-0005's aggregate-only boundary.
-Production also remains blocked until the policy conflict is resolved as
-described in ADR-0053 and the selected contract is independently verified.
+model: those tools require owner acceptance of the proposed ADR-0005
+amendment from #390.
+Production also remains blocked until that gate is cleared as described in
+ADR-0053 and the selected contract is independently verified.
 
 The SDK base directory is derived from the validated actor ID below a trusted
 absolute root.

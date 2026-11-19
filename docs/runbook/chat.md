@@ -3,8 +3,8 @@
 Issue #345 supplies a synthetic architecture proof, not a live chat service.
 Production remains disabled because the currently authenticated user's
 `listModels()` response did not contain the exact `hydrafusion` ID and the
-proposed transaction-level tools conflict with ADR-0005's aggregate-only model
-boundary.
+transaction-level tools require owner acceptance of the proposed ADR-0005
+amendment from #390.
 
 ## Validate the synthetic proof
 
@@ -31,9 +31,10 @@ the same tool factory as the production entrypoint, including output schemas.
 This proves registration, not permission to expose the 16 tools to a model.
 The synthetic SDK configuration includes all 16 tools, but production must
 remain disabled: `search_household_transactions` and
-`get_household_transaction_detail` must not reach a live model while their
-conflict with [ADR-0005](../decisions/0005-llm-access-via-mcp-only.md) is
-unresolved; `_meta` remains protocol-only.
+`get_household_transaction_detail` must not reach a live model until the
+owner accepts the proposed
+[ADR-0005](../decisions/0005-llm-access-via-mcp-only.md) amendment or those
+tools are removed; `_meta` remains protocol-only.
 
 ## Run the token-safe entitlement check
 
@@ -119,12 +120,11 @@ Issue #346 may enable a linked actor only after all checks pass:
    GitHub login, and `hydrafusion` model ID.
    A record for another actor or linked identity is rejected.
 4. SDK and MCP child environments exclude ambient authentication variables.
-5. The ADR-0005 conflict is resolved by an owner-approved amendment or
-   superseding decision explicitly permitting the relevant transaction-level
-   outputs, or by removing the transaction search and detail tools from the
-   model-facing allowlist and verifying an updated contract against the
-   aggregate-only boundary.
-   No policy exception has been granted.
+5. The owner accepts the proposed ADR-0005 amendment from #390 through
+   repository review, or the transaction search and detail tools are removed
+   from the model-facing allowlist and an updated contract is verified against
+   the aggregate-only boundary.
+   Merging the proposal is not owner acceptance.
 6. Real stdio `tools/list` evidence matches the selected, policy-compliant
    contract; registration alone does not authorize model exposure.
 7. `PENGE_CHAT_MODEL=hydrafusion` and

@@ -11,9 +11,11 @@ Issue #345 is the architecture and feasibility gate for the private Ask Penge
 feature in parent issue #341.
 Penge needs an explanation-first chat service without weakening ADR-0005's
 MCP-only data boundary or ADR-0023's process-local stdio transport.
-ADR-0005 permits the model to see aggregate tool outputs, not raw transactions.
-The proposed #344 contract includes transaction search and detail tools, so its
-model-facing allowlist is not yet approved under that boundary.
+ADR-0005's default model boundary is aggregate tool outputs, not raw
+transactions.
+The #344 contract includes transaction search and detail tools; a proposed
+ADR-0005 amendment (#390) would narrowly permit those two bounded outputs for
+actor-authenticated `hydrafusion` sessions, but it is not yet owner-accepted.
 This decision grants no exception to ADR-0005.
 
 The service eventually implemented by issue #346 must support two household
@@ -136,13 +138,12 @@ merchant-reference status/search.
 The proposed model-facing allowlist contains those 16 tools; `_meta` remains
 registered for MCP protocol discovery and is never exposed to the model.
 In particular, `search_household_transactions` and
-`get_household_transaction_detail` conflict with ADR-0005's aggregate-only
-model boundary.
-They must not be exposed to a model while that conflict is unresolved.
-Before production enablement, the owner must approve an ADR-0005 amendment or
-superseding decision explicitly permitting the relevant transaction-level
-outputs, or the transaction search and detail tools must be removed from the
-model-facing allowlist in an updated contract that is verified to satisfy the
+`get_household_transaction_detail` exceed ADR-0005's aggregate-only default.
+The proposed ADR-0005 amendment from #390 would permit only those two bounded
+tools; merging that proposal is not owner acceptance.
+They must not be exposed to a live model until the owner accepts that
+amendment through repository review, or until they are removed from the
+model-facing allowlist in an updated contract verified to satisfy the
 aggregate-only boundary.
 After integration of #350, repository source defines all 17 registered tools.
 The synthetic harness configures the 16 model tools, excluding `_meta`, but does not start the MCP child,
@@ -195,8 +196,8 @@ disabled, and no other model may substitute.
 
 ### Positive
 
-- MCP remains the intended data ingress; the proposed transaction-level tools'
-  compatibility with ADR-0005 remains unresolved.
+- MCP remains the intended data ingress; the transaction-level tools depend on
+  owner acceptance of the proposed ADR-0005 amendment.
 - Actor/token isolation and deny-by-default tools are executable contracts.
 - Downstream work has versioned seams instead of inferred tool names.
 - Missing Copilot Fusion entitlement fails explicitly.
@@ -205,8 +206,8 @@ disabled, and no other model may substitute.
 
 - Live chat cannot ship until each authorized user independently passes the
   exact model check.
-- Live chat cannot ship until the ADR-0005 conflict is resolved as described
-  above and the real stdio server's `tools/list` response proves the selected
+- Live chat cannot ship until the proposed ADR-0005 amendment is
+  owner-accepted or the transaction tools are removed, as described above, and the real stdio server's `tools/list` response proves the selected
   contract.
 - Changes to the #344 tool set require a new explicit contract
   version; registration alone never grants model access.
@@ -222,8 +223,8 @@ disabled, and no other model may substitute.
 
 | PBI  | Contract provided by this decision                                                                                                                                                                                                                        |
 | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #344 | Landed in #350: `issue-344-v1` registration of `_meta` plus 16 tools, preserving schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields; model exposure still requires resolving ADR-0005. |
-| #346 | Own `apps/chat` and the SDK pin; keep production disabled until the ADR-0005 conflict is resolved, and preserve empty mode, actor/linked-identity-scoped entitlement and tokens, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
+| #344 | Landed in #350: `issue-344-v1` registration of `_meta` plus 16 tools, preserving schemas, bounds, evidence metadata, freshness, EUR/DKK behavior, and audit fields; model exposure still requires owner acceptance of the proposed ADR-0005 amendment. |
+| #346 | Own `apps/chat` and the SDK pin; keep production disabled until the proposed ADR-0005 amendment is owner-accepted or the transaction tools are removed, and preserve empty mode, actor/linked-identity-scoped entitlement and tokens, exact model/no fallback, deny-by-default tools, stdio-only MCP, ephemeral transcript, typed stream/errors, cancellation, and cleanup. |
 | #343 | Consume a versioned stream contract; render buffered answer deltas and sanitized tool/evidence states, never raw arguments/JSON or chain-of-thought; expose explicit unavailable-model/auth/cancel/error states.                                          |
 | #342 | Keep chat loopback-only behind trusted identity headers; expose no MCP/runtime port; mount encryption keys as secrets; add quota-free health, redacted observability, cleanup, rollback, and two-user acceptance after entitlement exists.                |
 

@@ -62,10 +62,10 @@ tools.
 The separate synthetic stdio test proves the exact 17-name registration set
 using the production tool factory; the SDK harness configures only the 16 model
 tools and makes no live model call.
-Registration does not authorize model exposure: the proposed transaction
-search and detail tools conflict with ADR-0005's aggregate-only boundary.
-Production and complete-source claims remain blocked until that conflict is
-resolved under [ADR-0053](../decisions/0053-hydrafusion-chat-security-boundary.md)
+Registration does not authorize model exposure: the transaction search and
+detail tools require owner acceptance of the proposed ADR-0005 amendment.
+Production and complete-source claims remain blocked until that gate clears
+under [ADR-0053](../decisions/0053-hydrafusion-chat-security-boundary.md)
 and the selected contract is independently verified.
 Only tools in the resulting policy-compliant allowlist may be model-accessible;
 `_meta` remains protocol-only.

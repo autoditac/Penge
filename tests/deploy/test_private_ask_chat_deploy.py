@@ -105,7 +105,7 @@ def test_unresolved_chat_contract_is_non_deployable() -> None:
         assert not (NAS / "penge-chat.container").exists()
 
 
-def test_quadlet_template_is_rootless_immutable_and_loopback_only() -> None:
+def test_quadlet_template_is_rootless_immutable_and_has_no_published_port() -> None:
     quadlet = _read("penge-chat.container.in")
     installer = _read("install-private-ask-chat-quadlet.sh")
 
@@ -115,11 +115,7 @@ def test_quadlet_template_is_rootless_immutable_and_loopback_only() -> None:
     assert ":latest" not in quadlet
     assert len(re.findall(r"^Image=", quadlet, re.MULTILINE)) == 1
     published = re.findall(r"^PublishPort=(.+)$", quadlet, re.MULTILINE)
-    assert len(published) == 1
-    if CONTRACTS_RESOLVED:
-        assert re.fullmatch(r"127\.0\.0\.1:8123:[0-9]{1,5}", published[0])
-    else:
-        assert published == ["127.0.0.1:8123:@@CHAT_HTTP_PORT@@"]
+    assert not published
     assert "SecurityLabelDisable" not in quadlet
     assert "ReadOnly=true" in quadlet
     assert "NoNewPrivileges=true" in quadlet
@@ -147,10 +143,14 @@ def test_quadlet_has_only_versioned_secrets_and_no_transcript_volume() -> None:
         assert all(",type=mount,target=@@" in secret for secret in secrets)
     assert "Volume=/var/lib/penge/chat" not in quadlet
     volumes = re.findall(r"^Volume=(.+)$", quadlet, re.MULTILINE)
-    assert len(volumes) == 1
-    assert volumes[0].endswith(":ro")
+    assert len(volumes) == 2
+    assert any(volume.endswith(":ro") for volume in volumes)
     if not CONTRACTS_RESOLVED:
-        assert volumes == ["@@MCP_READ_ONLY_SOURCE@@:@@MCP_READ_ONLY_TARGET@@:ro"]
+        assert "@@MCP_READ_ONLY_SOURCE@@:@@MCP_READ_ONLY_TARGET@@:ro" in volumes
+        assert (
+            "@@CHAT_SOCKET_HOST_DIR@@:/run/penge-chat/transport:@@CHAT_SOCKET_VOLUME_OPTIONS@@"
+            in volumes
+        )
 
 
 def test_live_nginx_fails_closed_on_only_bounded_ask_paths() -> None:
@@ -167,7 +167,7 @@ def test_live_nginx_fails_closed_on_only_bounded_ask_paths() -> None:
 def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     nginx = _read("penge-chat.nginx.conf.in")
     location = re.search(r"location \^~ (?P<prefix>/[^ ]+) \{", nginx)
-    proxy_pass = re.search(r"proxy_pass (?P<upstream>http://127\.0\.0\.1:8123/);", nginx)
+    proxy_pass = re.search(r"proxy_pass (?P<upstream>http://unix:[^;]+/chat\.sock:/);", nginx)
 
     assert location is not None
     assert proxy_pass is not None
@@ -186,7 +186,7 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     assert nginx.count("error_log /dev/null emerg;") == 2
     assert "auth_request /_penge_chat_auth;" in nginx
     assert "error_page 401" not in nginx
-    assert "proxy_pass http://127.0.0.1:8123/;" in nginx
+    assert "proxy_pass http://unix:@@CHAT_SOCKET_HOST_DIR@@/chat.sock:/;" in nginx
     assert 'proxy_set_header X-Forwarded-User "";' in nginx
     assert 'proxy_set_header X-Forwarded-Email "";' in nginx
     assert 'proxy_set_header X-Forwarded-Client-Id "";' in nginx
@@ -209,11 +209,11 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
         assert "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@" in nginx
 
 
-def _nginx_test_config(tmp_path: Path, auth_port: int, upstream_port: int, port: int) -> Path:
+def _nginx_test_config(tmp_path: Path, auth_port: int, port: int) -> Path:
     template = _read("penge-chat.nginx.conf.in")
     replacements = {
         "127.0.0.1:4180": f"127.0.0.1:{auth_port}",
-        "127.0.0.1:8123": f"127.0.0.1:{upstream_port}",
+        "@@CHAT_SOCKET_HOST_DIR@@": str(tmp_path),
         "@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@": "synthetic-subject",
         "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@": "synthetic-proxy-secret",
         "@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@": "synthetic-issuer",
@@ -256,11 +256,8 @@ def test_nginx_callback_failure_never_logs_oauth_parameters(
     assert nginx is not None
     with (
         ThreadingHTTPServer(("127.0.0.1", 0), AuthHandler) as auth,
-        socket.socket() as unavailable_upstream,
         socket.socket() as listener,
     ):
-        unavailable_upstream.bind(("127.0.0.1", 0))
-        upstream_port = unavailable_upstream.getsockname()[1]
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
         listener.close()
@@ -268,7 +265,7 @@ def test_nginx_callback_failure_never_logs_oauth_parameters(
         auth_thread.start()
         access_log = tmp_path / "access.log"
         error_log = tmp_path / "error.log"
-        config = _nginx_test_config(tmp_path, auth.server_port, upstream_port, port)
+        config = _nginx_test_config(tmp_path, auth.server_port, port)
         process = subprocess.Popen(  # noqa: S603  # Located nginx binary with synthetic config.
             [nginx, "-p", str(tmp_path), "-c", str(config)],
             stdout=subprocess.DEVNULL,
@@ -386,8 +383,7 @@ def test_no_chat_mcp_or_runtime_listener_is_publicly_configured() -> None:
     )
 
     published = re.findall(r"^PublishPort=(.+)$", public_config, re.MULTILINE)
-    assert len(published) == 1
-    assert published[0].startswith("127.0.0.1:8123:")
+    assert not published
     assert "0.0.0.0:" not in public_config
     assert "[::]:" not in public_config
     assert "mcp_pass" not in public_config.lower()
@@ -428,7 +424,8 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
         "@@CHAT_CONTAINER_UID@@": "1000",
         "@@CHAT_HEALTH_COMMAND@@": "/usr/bin/true",
         "@@CHAT_HEALTH_START_PERIOD@@": "10s",
-        "@@CHAT_HTTP_PORT@@": "3000",
+        "@@CHAT_SOCKET_HOST_DIR@@": "/srv/penge/chat-socket",
+        "@@CHAT_SOCKET_VOLUME_OPTIONS@@": "rw",
         "@@CHAT_ROOTLESS_NETWORK@@": "private-ask",
         "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/chat-database-url",
         "@@DATABASE_URL_SECRET_VERSION@@": "v1",
@@ -451,6 +448,7 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
 
     nginx = _read("penge-chat.nginx.conf.in")
     nginx_replacements = {
+        "@@CHAT_SOCKET_HOST_DIR@@": "/srv/penge/chat-socket",
         "@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@": "$penge_auth_subject",
         "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@": "$penge_proxy_secret",
         "@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@": "penge-oauth2-proxy",
@@ -512,7 +510,7 @@ packages:
     }
 
 
-def test_ready_validator_blocks_unreachable_transport_even_when_other_contracts_resolve(
+def test_ready_validator_blocks_unreviewed_transport_even_when_other_contracts_resolve(
     tmp_path: Path,
 ) -> None:
     validator, env = _ready_validator_fixture(tmp_path)
@@ -535,7 +533,7 @@ def test_ready_validator_blocks_unreachable_transport_even_when_other_contracts_
     )
 
     assert ready.returncode != 0
-    assert "loopback-only chat listener is unreachable" in ready.stderr
+    assert "socket transport requires reviewed container connectivity" in ready.stderr
     assert mutable.returncode != 0
     assert "external base image is not digest-pinned: alpine:3.22" in mutable.stderr
 
@@ -715,6 +713,35 @@ def test_ready_validator_rejects_quadlet_boot_activation(tmp_path: Path) -> None
     )
     assert rejected.returncode != 0
     assert "must not enable boot activation" in rejected.stderr
+
+
+def test_ready_validator_rejects_published_tcp_and_mismatched_socket(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    quadlet = validator.parent / "penge-chat.container.in"
+    safe = quadlet.read_text()
+    quadlet.write_text(f"{safe}\nPublishPort=127.0.0.1:8123:3000\n")
+    published = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+    assert published.returncode != 0
+    assert "must not publish TCP ports" in published.stderr
+    quadlet.write_text(safe.replace("/srv/penge/chat-socket", "/srv/penge/other"))
+    mismatch = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+    assert mismatch.returncode != 0
+    assert "socket path must match" in mismatch.stderr
+
+
+def test_ready_validator_rejects_overlong_host_socket_path(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    quadlet = validator.parent / "penge-chat.container.in"
+    quadlet.write_text(quadlet.read_text().replace("/srv/penge/chat-socket", f"/srv/{'a' * 100}"))
+    rejected = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+    assert rejected.returncode != 0
+    assert "socket path exceeds the Unix socket length limit" in rejected.stderr
 
 
 def test_ready_validator_rejects_host_network_and_privileged_role(
@@ -1016,12 +1043,20 @@ def _installer_fixture(tmp_path: Path, *, resolved: bool) -> tuple[Path, dict[st
     )
     template = _read("penge-chat.container.in")
     if resolved:
+        socket_dir = tmp_path / "socket"
+        socket_dir.mkdir()
+        socket_dir.chmod(0o2750)
+        nginx_template = nas / "penge-chat.nginx.conf.in"
+        nginx_template.write_text(
+            nginx_template.read_text().replace("@@CHAT_SOCKET_HOST_DIR@@", str(socket_dir))
+        )
         replacements = {
             "@@CHAT_CONTAINER_GID@@": "1000",
             "@@CHAT_CONTAINER_UID@@": "1000",
             "@@CHAT_HEALTH_COMMAND@@": "/usr/bin/true",
             "@@CHAT_HEALTH_START_PERIOD@@": "10s",
-            "@@CHAT_HTTP_PORT@@": "3000",
+            "@@CHAT_SOCKET_HOST_DIR@@": str(socket_dir),
+            "@@CHAT_SOCKET_VOLUME_OPTIONS@@": "rw",
             "@@CHAT_ROOTLESS_NETWORK@@": "private-ask",
             "@@DATABASE_URL_SECRET_TARGET@@": "/run/secrets/chat-database-url",
             "@@DATABASE_URL_SECRET_VERSION@@": "v1",
@@ -1389,6 +1424,39 @@ def test_installer_rejects_signed_quadlet_with_boot_activation(tmp_path: Path) -
     assert not (tmp_path / "systemctl.log").exists()
 
 
+def test_installer_rejects_unsafe_socket_directory_and_existing_path(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    socket_dir = tmp_path / "socket"
+    socket_dir.chmod(0o2770)
+    unsafe = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, "a" * 64], capture_output=True, check=False, env=env, text=True
+    )
+    socket_dir.chmod(0o2750)
+    (socket_dir / "chat.sock").write_text("synthetic")
+    existing = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, "a" * 64], capture_output=True, check=False, env=env, text=True
+    )
+    assert unsafe.returncode != 0
+    assert existing.returncode != 0
+    assert "socket directory ownership, mode, or existing path is unsafe" in unsafe.stderr
+    assert "socket directory ownership, mode, or existing path is unsafe" in existing.stderr
+    assert not (tmp_path / "systemctl.log").exists()
+
+
+def test_installer_rejects_writable_socket_host_ancestor(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    tmp_path.chmod(0o770)
+    try:
+        rejected = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+            [installer, "a" * 64], capture_output=True, check=False, env=env, text=True
+        )
+    finally:
+        tmp_path.chmod(0o700)
+    assert rejected.returncode != 0
+    assert "socket directory has an unsafe host ancestor" in rejected.stderr
+    assert not (tmp_path / "systemctl.log").exists()
+
+
 def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -> None:
     installer, env = _installer_fixture(tmp_path, resolved=True)
     digest = "a" * 64
@@ -1425,3 +1493,30 @@ def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -
     assert unit.read_text().count("Image=") == 1
     assert f"@sha256:{digest}" in unit.read_text()
     assert (tmp_path / "systemctl.log").read_text().strip() == "--user daemon-reload"
+
+
+def test_installer_uses_approved_snapshot_if_source_changes_during_install(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    original = Path(env["HOME"]) / ".config" / "penge" / "private-ask-chat.contract.env"
+    approved_bytes = original.read_bytes()
+    fake_podman = Path(env["PATH"].split(os.pathsep)[0]) / "podman"
+    _write_executable(
+        fake_podman,
+        '#!/bin/sh\nif [ "$1 $2" = "network exists" ]; then\n'
+        '  printf "PENGE_CHAT_MODEL=unapproved\\n" >"$CONTRACT_SOURCE"\nfi\nexit 0\n',
+    )
+
+    installed = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, "a" * 64],
+        capture_output=True,
+        check=False,
+        env={**env, "CONTRACT_SOURCE": str(original)},
+        text=True,
+    )
+    assert installed.returncode == 0, installed.stderr
+    assert original.read_bytes() != approved_bytes
+    unit_dir = Path(env["HOME"]) / ".config" / "containers" / "systemd"
+    contracts = list((Path(env["HOME"]) / ".config" / "penge" / "approved").glob("*.env"))
+    assert len(contracts) == 1
+    assert contracts[0].read_bytes() == approved_bytes
+    assert _sha256(contracts[0]) in (unit_dir / "penge-chat.container").read_text()

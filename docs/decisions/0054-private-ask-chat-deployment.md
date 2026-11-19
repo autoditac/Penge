@@ -31,10 +31,11 @@ This ADR covers only the deployment boundary and remains proposed until those co
 
 We chose **non-loadable templates and readiness gates**.
 
-The tracked rootless Quadlet uses an immutable digest placeholder, loopback-only publishing, read-only mounts, dropped capabilities, secret mounts, and a runtime-owned health-command placeholder.
+The tracked rootless Quadlet uses an immutable digest placeholder, no published TCP ports, a dedicated socket-directory mount, read-only data mounts, dropped capabilities, secret mounts, and a runtime-owned health-command placeholder.
 It has a `.container.in` suffix, and the installer refuses to create a user unit while any contract token remains.
 It has no `[Install]` section, so generating the unit does not activate it at boot.
-The named network's published port cannot reach the backend's loopback-only container listener; readiness remains blocked until an approved transport and connectivity test exist.
+The proposed Unix socket transport avoids exposing a chat TCP listener on the named network.
+Readiness remains blocked until container connectivity, peer isolation, UID/GID mapping, SELinux policy, and the proposed amendment to ADR-0055 are reviewed and verified.
 
 The active nginx configuration explicitly returns `404` for only `/ask` and `/ask/…`.
 A separate non-loadable nginx template contains the OAuth trust-boundary and identity-header overwrite contract, but it cannot be enabled until the integrated proxy, immutable subject, secret injection, and streaming behavior are demonstrated and reviewed.

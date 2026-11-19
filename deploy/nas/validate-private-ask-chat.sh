@@ -78,13 +78,14 @@ mapfile -t image_lines < <(grep '^Image=' "$quadlet" || true)
   "Image=ghcr.io/autoditac/penge/chat@sha256:@@CHAT_IMAGE_DIGEST@@" ]] \
   || fail "chat image template is not the immutable GHCR reference"
 mapfile -t publish_lines < <(grep '^PublishPort=' "$quadlet" || true)
-[[ ${#publish_lines[@]} -eq 1 ]] || fail "exactly one chat publish directive is required"
+[[ ${#publish_lines[@]} -eq 0 ]] || fail "chat must not publish TCP ports"
 mapfile -t network_lines < <(grep '^Network=' "$quadlet" || true)
 [[ ${#network_lines[@]} -eq 1 ]] || fail "exactly one chat network directive is required"
 if grep -q 'SecurityLabelDisable' "$quadlet"; then
   fail "chat Quadlet must retain default SELinux confinement"
 fi
-if grep -Eq '^Volume=.*chat.*:rw([,:]|$)' "$quadlet"; then
+if grep -E '^Volume=.*chat.*:rw([,:]|$)' "$quadlet" \
+  | grep -Ev '^Volume=/[a-zA-Z0-9_./-]+:/run/penge-chat/transport:(rw|rw,z)$' >/dev/null; then
   fail "chat Quadlet must not persist transcripts"
 fi
 if grep -Eiq \
@@ -103,7 +104,7 @@ fi
 
 grep -q 'location = /ask {' "$nginx_live"
 grep -q 'location ^~ /ask/ {' "$nginx_live"
-if grep -q 'proxy_pass http://127.0.0.1:8123' "$nginx_live"; then
+if grep -Eq 'proxy_pass http://(127\.0\.0\.1:8123|unix:.*chat\.sock)' "$nginx_live"; then
   fail "live nginx must not activate the unresolved chat upstream"
 fi
 grep -q 'return 404;' "$nginx_live"
@@ -148,7 +149,7 @@ if grep -Eq '^location[[:space:]]+(=[[:space:]]+/ask|\^~[[:space:]]+/ask/)[[:spa
   "$nginx_template"; then
   fail "chat nginx template must leave /ask frontend routing to the web SPA"
 fi
-grep -q 'proxy_pass http://127.0.0.1:8123/;' "$nginx_template"
+grep -q 'proxy_pass http://unix:.*/chat\.sock:/;' "$nginx_template"
 if grep -Eq 'script-src[^;]*unsafe-inline' "$nginx_template"; then
   fail "chat CSP must not allow inline scripts"
 fi
@@ -195,8 +196,9 @@ unresolved="$(
 )"
 
 if [[ $mode == "--seam" ]]; then
-  [[ ${publish_lines[0]} == "PublishPort=127.0.0.1:8123:@@CHAT_HTTP_PORT@@" ]] \
-    || fail "unresolved seam publish contract changed unexpectedly"
+  grep -q '^Volume=@@CHAT_SOCKET_HOST_DIR@@:/run/penge-chat/transport:@@CHAT_SOCKET_VOLUME_OPTIONS@@$' \
+    "$quadlet"
+  grep -q 'proxy_pass http://unix:@@CHAT_SOCKET_HOST_DIR@@/chat.sock:/;' "$nginx_template"
   [[ ${network_lines[0]} == "Network=@@CHAT_ROOTLESS_NETWORK@@" ]] \
     || fail "unresolved seam network contract changed unexpectedly"
   grep -q '@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@' "$nginx_template"
@@ -290,11 +292,21 @@ then
   fail "resolved security assignments violate the fixed architecture contract"
 fi
 
-[[ ${publish_lines[0]} =~ ^PublishPort=127\.0\.0\.1:8123:[0-9]{1,5}$ ]] \
-  || fail "resolved publish must remain loopback-only with a numeric container port"
-container_port="${publish_lines[0]##*:}"
-((container_port >= 1 && container_port <= 65535)) \
-  || fail "resolved container port is outside the valid range"
+mapfile -t socket_mounts < <(grep '^Volume=.*:/run/penge-chat/transport:' "$quadlet" || true)
+[[ ${#socket_mounts[@]} -eq 1 ]] || fail "exactly one chat socket directory mount is required"
+[[ ${socket_mounts[0]} =~ ^Volume=(/[a-zA-Z0-9_./-]+):/run/penge-chat/transport:(rw|rw,z)$ ]] \
+  || fail "invalid chat socket directory mount"
+socket_dir="${BASH_REMATCH[1]}"
+[[ $socket_dir != *'..'* && $socket_dir != */ && $socket_dir != *'//'* ]] \
+  || fail "chat socket directory must be a normalized absolute path"
+((${#socket_dir} <= 97)) || fail "chat socket path exceeds the Unix socket length limit"
+grep -Fqx "    proxy_pass http://unix:$socket_dir/chat.sock:/;" "$nginx_template" \
+  || fail "nginx socket path must match the mounted directory"
+[[ $(grep -c '^PENGE_CHAT_HTTP_SOCKET_PATH=/run/penge-chat/transport/chat.sock$' "$contract_env_template") -eq 1 ]] \
+  || fail "runtime must use the dedicated chat socket path"
+if grep -Eq '^PENGE_CHAT_HTTP_(HOST|PORT)=' "$contract_env_template"; then
+  fail "socket transport must not configure a TCP listener"
+fi
 network="${network_lines[0]#Network=}"
 [[ $network =~ ^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$ ]] \
   || fail "resolved rootless network name is invalid"
@@ -558,4 +570,4 @@ then
 fi
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/ci.yml"
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/release.yml"
-fail "loopback-only chat listener is unreachable through the published container port; an approved and tested transport is required"
+fail "socket transport requires reviewed container connectivity and isolation evidence"

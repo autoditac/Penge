@@ -1,5 +1,6 @@
 import { z } from "zod/v3";
 import { readFileSync, statSync } from "node:fs";
+import { basename, isAbsolute, normalize } from "node:path";
 
 import { ChatConfigError } from "./errors.js";
 
@@ -75,6 +76,17 @@ export const ChatConfigSchema = z
   .object({
     httpHost: z.string().refine(isLoopbackHost, "must be a loopback host"),
     httpPort: z.number().int().positive().max(65535),
+    httpSocketPath: z
+      .string()
+      .refine(
+        (path) =>
+          isAbsolute(path) &&
+          normalize(path) === path &&
+          basename(path) === "chat.sock" &&
+          Buffer.byteLength(path) <= 100,
+        "must be an absolute normalized chat.sock path of at most 100 bytes",
+      )
+      .optional(),
     publicApiBase: z.string().url(),
     publicAppOrigin: z.string().url(),
     trustedProxyIssuer: z.string().min(1),
@@ -115,6 +127,13 @@ export const ChatConfigSchema = z
     maxConcurrentSessionsPerActor: z.number().int().positive().max(4),
   })
   .superRefine((config, context) => {
+    if (config.productionEnabled && config.httpSocketPath === undefined) {
+      context.addIssue({
+        code: "custom",
+        path: ["httpSocketPath"],
+        message: "production requires the Unix socket transport",
+      });
+    }
     for (const [path, value] of [
       ["publicApiBase", config.publicApiBase],
       ["publicAppOrigin", config.publicAppOrigin],
@@ -223,10 +242,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ChatConfig {
   if (env.PENGE_CHAT_FALLBACK_MODEL !== undefined) {
     throw new ChatConfigError("PENGE_CHAT_FALLBACK_MODEL must be unset");
   }
+  if (
+    env.PENGE_CHAT_HTTP_SOCKET_PATH !== undefined &&
+    (env.PENGE_CHAT_HTTP_HOST !== undefined || env.PENGE_CHAT_HTTP_PORT !== undefined)
+  ) {
+    throw new ChatConfigError("Unix socket and TCP listener configuration are mutually exclusive");
+  }
 
   const raw = {
     httpHost: env.PENGE_CHAT_HTTP_HOST ?? "127.0.0.1",
     httpPort: integer(env, "PENGE_CHAT_HTTP_PORT", 3000),
+    httpSocketPath: env.PENGE_CHAT_HTTP_SOCKET_PATH,
     publicApiBase: required(env, "PENGE_CHAT_PUBLIC_API_BASE"),
     publicAppOrigin: required(env, "PENGE_CHAT_PUBLIC_APP_ORIGIN"),
     trustedProxyIssuer: required(env, "PENGE_CHAT_TRUSTED_PROXY_ISSUER"),

@@ -1,6 +1,6 @@
 # Penge chat service
 
-`@penge/chat` is the loopback-only multi-user Ask Penge backend from issue #346.
+`@penge/chat` is the private multi-user Ask Penge backend from issue #346.
 It binds an immutable Google oauth2-proxy subject to a separate per-user GitHub OAuth grant, runs the Copilot SDK in `mode: "empty"` with exact model `hydrafusion`, and exposes only accepted read-only Penge MCP tools over a local stdio child.
 
 Production is deliberately disabled unless `PENGE_CHAT_ENABLE_PRODUCTION=1`.
@@ -9,7 +9,8 @@ Missing, disabled, unconfigured, or ambiguous policy fails closed; no fallback i
 
 ## Trust boundaries
 
-- The HTTP listener accepts only `127.0.0.1`, `localhost`, or `::1`.
+- Development TCP accepts only `127.0.0.1`, `localhost`, or `::1`; production requires the mutually exclusive Unix socket transport.
+- The socket directory must be service-owned with mode `2750`, and the socket uses mode `0660`; any pre-existing path blocks startup.
 - The reverse proxy must overwrite `X-Penge-Auth-Issuer`, `X-Penge-Auth-Subject`, and `X-Penge-Proxy-Secret`.
 - State-changing requests require the configured application origin; chat and stop bodies require `application/json`.
 - `X-Penge-Auth-Subject` is the immutable Google subject, not email or display name.
@@ -57,6 +58,10 @@ Required values include `PENGE_CHAT_MODEL=hydrafusion`, proxy issuer, GitHub cli
 `PENGE_CHAT_PUBLIC_API_BASE` is the trailing-slash external HTTPS API base and may contain a proxy prefix such as `https://host/ask/api/`.
 `PENGE_CHAT_PUBLIC_APP_ORIGIN` contains only the external browser origin used to redirect to `/ask`.
 Both are intentionally separate from the loopback-only `PENGE_CHAT_HTTP_HOST`.
+For the proposed production socket transport, set `PENGE_CHAT_HTTP_SOCKET_PATH` to an absolute normalized path ending in `chat.sock` and leave `PENGE_CHAT_HTTP_HOST` and `PENGE_CHAT_HTTP_PORT` unset.
+The socket parent and its ancestors must not be symlinks or replaceable by untrusted users.
+Only the trusted service identity may write the socket directory, including throughout shutdown; nginx and untrusted processes must not share that UID.
+Do not delete an existing path automatically; verify the service is stopped and follow the reviewed operator recovery procedure.
 
 ## Browser API
 

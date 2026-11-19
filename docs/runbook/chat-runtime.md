@@ -51,7 +51,11 @@ The infrastructure from issue #342 must remove client-supplied identity headers 
 - `X-Penge-Auth-Subject` to the immutable Google `sub`.
 - `X-Penge-Proxy-Secret` from the same mounted secret consumed by the chat service.
 
-The proxy routes the authenticated external HTTPS callback to the loopback listener.
+For development, the proxy may reach the loopback TCP listener.
+The proposed production transport uses a permissioned Unix socket in a dedicated bind-mounted directory and no published chat TCP port.
+Verify host/container UID and GID mapping, nginx group access, SELinux policy, and peer-container TCP isolation before activation; `keep-id` alone is not proof.
+The backend rejects every existing socket path, whether stale or live.
+Only after verifying the service and every listener are stopped may an authorized operator remove an identified stale socket and retry.
 MCP, Copilot runtime, database, and raw tool ports remain unexposed.
 
 The proxy must preserve the configured trailing-slash `PENGE_CHAT_PUBLIC_API_BASE`, including any path prefix.

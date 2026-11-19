@@ -1,5 +1,19 @@
-import { ServerResponse } from "node:http";
-import { createConnection } from "node:net";
+import { spawn } from "node:child_process";
+import { once } from "node:events";
+import {
+  chmodSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { createServer, request, ServerResponse } from "node:http";
+import { createConnection, createServer as createTcpServer } from "node:net";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { Writable } from "node:stream";
 
 import pino from "pino";
@@ -11,9 +25,9 @@ import {
   PengeError,
   SessionLimitError,
 } from "../src/errors.js";
-import { exchangeGitHubCode, generateOAuthState } from "../src/identity.js";
+import { bindTrustedIdentity, exchangeGitHubCode, generateOAuthState } from "../src/identity.js";
 import { closeServiceResources } from "../src/lifecycle.js";
-import { startChatServer } from "../src/server.js";
+import { startChatServer, type ChatServerDependencies } from "../src/server.js";
 import type { StreamEvent } from "../src/stream.js";
 import { syntheticConfig } from "./helpers.js";
 
@@ -24,6 +38,233 @@ const headers = {
   "x-penge-auth-issuer": "https://accounts.google.com",
   "x-penge-auth-subject": "synthetic-google-subject",
 };
+
+function socketDependencies(): ChatServerDependencies {
+  return {
+    runtime: {
+      start: async () => "00000000-0000-4000-8000-000000000001",
+      cancel: async () => undefined,
+      disconnect: async () => undefined,
+      cleanupIdle: async () => 0,
+      close: async () => undefined,
+      isModelAvailable: () => true,
+      ensureModelAvailable: async () => true,
+      invalidateActor: async () => undefined,
+    },
+    oauth: {
+      begin: async () => "https://github.com/login/oauth/authorize",
+      complete: async () => "synthetic-user",
+      status: async () => ({ state: "linked" as const, login: "synthetic-user" }),
+      unlink: async () => undefined,
+    },
+  };
+}
+
+function socketStatus(socketPath: string, requestHeaders: Record<string, string>): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const req = request({ socketPath, path: "/v1/auth/status", headers: requestHeaders }, (res) => {
+      res.resume();
+      res.once("end", () => resolve(res.statusCode ?? 0));
+    });
+    req.once("error", reject);
+    req.end();
+  });
+}
+
+describe("Unix socket service", () => {
+  it("uses only the permissioned socket and still authenticates proxy headers", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "penge-chat-socket-"));
+    chmodSync(directory, 0o2750);
+    const socketPath = join(directory, "chat.sock");
+    const sentinel = createTcpServer();
+    await new Promise<void>((resolve) => sentinel.listen(0, "127.0.0.1", resolve));
+    const address = sentinel.address();
+    if (address === null || typeof address === "string") throw new Error("no test TCP port");
+    const port = address.port;
+    await new Promise<void>((resolve, reject) =>
+      sentinel.close((error) => (error ? reject(error) : resolve())),
+    );
+    const server = await startChatServer(
+      syntheticConfig({ httpSocketPath: socketPath, httpPort: port }),
+      socketDependencies(),
+    );
+    try {
+      expect(server.origin).toMatch(/^http\+unix:/);
+      expect(lstatSync(socketPath).mode & 0o777).toBe(0o660);
+      expect(lstatSync(socketPath).gid).toBe(lstatSync(directory).gid);
+      expect(await socketStatus(socketPath, {})).toBe(401);
+      expect(await socketStatus(socketPath, { ...headers, "x-penge-proxy-secret": "wrong" })).toBe(
+        401,
+      );
+      expect(await socketStatus(socketPath, headers)).toBe(200);
+      await expect(
+        fetch(`http://127.0.0.1:${port}/health`, { signal: AbortSignal.timeout(200) }),
+      ).rejects.toThrow();
+    } finally {
+      await server.close();
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects unsafe directories and existing files, symlinks, and live sockets", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "penge-chat-socket-"));
+    const socketPath = join(directory, "chat.sock");
+    const config = syntheticConfig({ httpSocketPath: socketPath });
+    try {
+      await expect(startChatServer(config, socketDependencies())).rejects.toThrow(/mode 2750/);
+      chmodSync(directory, 0o2750);
+      writeFileSync(socketPath, "synthetic");
+      await expect(startChatServer(config, socketDependencies())).rejects.toThrow(/already exists/);
+      expect(lstatSync(socketPath).isFile()).toBe(true);
+      rmSync(socketPath);
+      symlinkSync("/nonexistent", socketPath);
+      await expect(startChatServer(config, socketDependencies())).rejects.toThrow(/already exists/);
+      expect(lstatSync(socketPath).isSymbolicLink()).toBe(true);
+      rmSync(socketPath);
+      const live = createTcpServer();
+      await new Promise<void>((resolve) => live.listen(socketPath, resolve));
+      try {
+        await expect(startChatServer(config, socketDependencies())).rejects.toThrow(
+          /already exists/,
+        );
+        expect(lstatSync(socketPath).isSocket()).toBe(true);
+      } finally {
+        await new Promise<void>((resolve, reject) =>
+          live.close((error) => (error ? reject(error) : resolve())),
+        );
+      }
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("does not remove a stale socket left by an abruptly stopped process", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "penge-chat-stale-"));
+    chmodSync(directory, 0o2750);
+    const socketPath = join(directory, "chat.sock");
+    const child = spawn(
+      process.execPath,
+      [
+        "-e",
+        "require('node:net').createServer().listen(process.argv[1], () => process.stdout.write('ready'))",
+        socketPath,
+      ],
+      { stdio: ["ignore", "pipe", "pipe"] },
+    );
+    try {
+      await once(child.stdout, "data");
+      child.kill("SIGKILL");
+      await once(child, "exit");
+      expect(lstatSync(socketPath).isSocket()).toBe(true);
+      await expect(
+        startChatServer(syntheticConfig({ httpSocketPath: socketPath }), socketDependencies()),
+      ).rejects.toThrow(/already exists/);
+      expect(lstatSync(socketPath).isSocket()).toBe(true);
+    } finally {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+        await once(child, "exit");
+      }
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it.skipIf(process.env.PENGE_TEST_NGINX === undefined)(
+    "routes nginx to the socket and overwrites spoofed identity headers",
+    async () => {
+      const directory = mkdtempSync(join(tmpdir(), "penge-chat-proxy-"));
+      chmodSync(directory, 0o2750);
+      mkdirSync(join(directory, "logs"));
+      const socketPath = join(directory, "chat.sock");
+      const config = syntheticConfig({ httpSocketPath: socketPath });
+      const dependencies = socketDependencies();
+      let actualActor = "";
+      dependencies.oauth.status = async (actorId) => {
+        actualActor = actorId;
+        return { state: "linked", login: "synthetic-user" };
+      };
+      const chat = await startChatServer(config, dependencies);
+      const auth = createServer((_req, res) => {
+        res.writeHead(204);
+        res.end();
+      });
+      await new Promise<void>((done) => auth.listen(0, "127.0.0.1", done));
+      const authAddress = auth.address();
+      if (authAddress === null || typeof authAddress === "string") throw new Error("no auth port");
+      const portProbe = createTcpServer();
+      await new Promise<void>((done) => portProbe.listen(0, "127.0.0.1", done));
+      const portAddress = portProbe.address();
+      if (portAddress === null || typeof portAddress === "string") throw new Error("no proxy port");
+      await new Promise<void>((done, reject) =>
+        portProbe.close((error) => (error ? reject(error) : done())),
+      );
+      let template = readFileSync(
+        resolve(process.cwd(), "../../deploy/nas/penge-chat.nginx.conf.in"),
+        "utf8",
+      );
+      for (const [from, to] of Object.entries({
+        "127.0.0.1:4180": `127.0.0.1:${authAddress.port}`,
+        "@@CHAT_SOCKET_HOST_DIR@@": directory,
+        "@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@": headers["x-penge-auth-subject"],
+        "@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@": headers["x-penge-auth-issuer"],
+        "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@": headers["x-penge-proxy-secret"],
+        "@@STREAMING_READ_TIMEOUT@@": "30s",
+        "@@STREAMING_REQUEST_BUFFERING@@": "off",
+        "@@STREAMING_RESPONSE_BUFFERING@@": "off",
+        "@@STREAMING_SEND_TIMEOUT@@": "30s",
+      })) {
+        template = template.replaceAll(from, to);
+      }
+      const nginxConfig = join(directory, "nginx.conf");
+      writeFileSync(
+        nginxConfig,
+        `daemon off;\nmaster_process off;\npid ${directory}/nginx.pid;\nerror_log ${directory}/error.log;\nevents {}\nhttp { server { listen 127.0.0.1:${portAddress.port};\n${template}\n} }\n`,
+      );
+      const nginx = spawn(process.env.PENGE_TEST_NGINX!, ["-p", directory, "-c", nginxConfig], {
+        stdio: "ignore",
+      });
+      try {
+        let response: Response | undefined;
+        for (let attempt = 0; attempt < 100; attempt++) {
+          try {
+            response = await fetch(`http://127.0.0.1:${portAddress.port}/ask/api/v1/auth/status`, {
+              headers: {
+                ...headers,
+                "x-penge-auth-subject": "spoofed-subject",
+                "x-penge-auth-issuer": "spoofed-issuer",
+                "x-penge-proxy-secret": "spoofed-secret",
+              },
+            });
+            break;
+          } catch {
+            if (nginx.exitCode !== null) throw new Error("synthetic nginx exited");
+            await new Promise((done) => setTimeout(done, 20));
+          }
+        }
+        expect(response?.status).toBe(200);
+        expect(actualActor).toBe(
+          bindTrustedIdentity(
+            headers,
+            config.trustedProxyIssuer,
+            config.identityPepper,
+            config.proxySharedSecret,
+          ).actorId,
+        );
+        expect(await socketStatus(socketPath, {})).toBe(401);
+      } finally {
+        if (nginx.exitCode === null && nginx.signalCode === null) {
+          nginx.kill("SIGTERM");
+          await once(nginx, "exit");
+        }
+        await new Promise<void>((done, reject) =>
+          auth.close((error) => (error ? reject(error) : done())),
+        );
+        await chat.close();
+        rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
+});
 
 describe("loopback HTTP service", () => {
   it("binds loopback, rejects direct requests, and streams terminal events", async () => {

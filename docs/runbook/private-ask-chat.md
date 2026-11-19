@@ -14,7 +14,7 @@ Do not deploy the chat from this branch.
 - `deploy/nas/penge-chat-db-role.sql.in` is intentionally non-executable.
 - The active nginx configuration returns `404` for exactly `/ask` and the bounded `/ask/` prefix.
 - `deploy/nas/validate-private-ask-chat.sh --ready` must fail while any `@@...@@` token remains.
-- Even with all tokens resolved, `--ready` fails: the named network's published port cannot reach the backend's loopback-only listener.
+- Even with all tokens resolved, `--ready` fails until container connectivity and isolation evidence are reviewed.
 - #346 has fixed the backend environment and credential-file names recorded below; immutable oauth2-proxy subject extraction and the nginx mounted-secret include mechanism remain unproven, so their activation tokens stay unresolved.
 - The agreed external API base is `/ask/api/`, with `VITE_PENGE_CHAT_BASE_URL=/ask/api/`; `PENGE_CHAT_PUBLIC_API_BASE` is the external HTTPS URL ending in `/ask/api/`, while `PENGE_CHAT_PUBLIC_APP_ORIGIN` is the HTTPS origin only.
 - Internal routes are `GET /v1/auth/status`, `GET /oauth/github/start`, `GET /oauth/github/callback`, `DELETE /v1/auth/github`, `POST /v1/chat` (SSE), `POST /v1/chat/stop`, and quota-free `/health`.
@@ -90,11 +90,18 @@ The final rendered unit belongs at:
 ~/.config/containers/systemd/penge-chat.container
 ```
 
-The template publishes only `127.0.0.1:8123`.
+The template publishes no TCP port and mounts a dedicated host directory for the chat Unix socket.
 It requires exactly one reviewed, dedicated rootless Podman network; host, none, default, bridge, and the shared Podman network names are rejected.
 Create and verify that network as the rootless service account before installation.
-The current port mapping cannot reach the backend's container-loopback listener.
-Do not install or activate until an approved transport is implemented and connectivity through the published host port is demonstrated.
+The socket directory must be service-owned, mode `2750`, with a group shared only with the intended nginx identity; the socket is mode `0660`.
+Only the trusted service identity may modify the socket directory; nginx has traversal and connect permission, never directory write permission.
+The host bind-mount source and all ancestors must prevent untrusted replacement of the directory, and no untrusted process may share the service UID.
+Node removes its bound pathname during normal shutdown, so this exclusive-writer invariant must hold for the entire service lifetime, not just at startup.
+Verify actual rootless UID/GID mapping and nginx group access; `keep-id` alone does not establish either.
+Use SELinux `:z` only if required and approved by the host policy; verify effective access and isolation without disabling confinement.
+Do not install or activate until nginx-to-socket connectivity, same-network peer TCP denial, and absence of published ports are demonstrated.
+Startup and installation reject any existing socket path, including a live listener; do not infer staleness from its owner or file type.
+For recovery, first verify all service processes and listeners are stopped, then have an authorized operator remove the identified stale socket before retrying.
 It has no public MCP, Copilot runtime, database, raw-tool, health, or metrics port.
 It uses a read-only root filesystem, a bounded temporary filesystem, default SELinux confinement, no new privileges, and no Linux capabilities.
 There is no persistent transcript volume; OAuth data belongs in the separate chat database.
@@ -151,7 +158,8 @@ ssh-keygen -Y sign \
 
 The installer rejects missing, duplicate, unknown, empty, malformed, or mismatched fields.
 The private environment file must match the fully resolved, reviewed environment template byte for byte; missing, duplicate, reordered, or additional assignments are rejected even when their file hash appears in the manifest.
-It copies the approved environment to a private hash-addressed path, and the rendered Quadlet references only that snapshot.
+The installer snapshots the source before validating it, verifies the copied bytes against the signed hash, and atomically places that copy at a private hash-addressed path.
+The rendered Quadlet references only that snapshot; the service account and its private directories must remain trusted against concurrent modification.
 
 Any image digest, environment, Quadlet, nginx, database, or environment-template change invalidates the manifest.
 Create a new manifest and obtain a new review; never update hashes under an old review reference.
@@ -253,7 +261,7 @@ The candidate route template:
 - uses the existing Google oauth2-proxy `auth_request` boundary;
 - uses a dedicated internal auth subrequest with access and error logging disabled;
 - leaves `/ask` and all frontend routing with the web SPA;
-- proxies only bounded `/ask/api/` to the loopback chat service and strips that prefix;
+- proxies only bounded `/ask/api/` to the permissioned chat socket and strips that prefix;
 - overwrites only the trusted issuer, immutable subject, and mounted proxy-secret headers;
 - does not forward mutable user, email, login, or client-ID identity;
 - disables access and error logging for the entire API route, including the OAuth callback query string;
@@ -351,7 +359,7 @@ The signed acceptance record must include pass/fail, timestamp, image digest, te
 5. Streaming order, cancellation propagation, disconnect cleanup, and reconnect semantics.
 6. OAuth state, PKCE, callback mismatch, expiry, refresh failure, unlink, and revoked-grant failures.
 7. Local stdio MCP only, absent default tools, and rejected mutation, shell, filesystem, web-fetch, arbitrary SQL, and raw-statement access.
-8. External-port scan showing only the intended HTTPS edge and loopback chat port.
+8. External-port scan showing only the intended HTTPS edge and no chat TCP port.
 9. Restart showing no transcript persistence and no orphan SDK or MCP process.
 10. Quota-free liveness, fail-closed readiness, privacy-safe metrics, and redacted logs.
 11. Backup/restore, key rotation, unlink, digest rollback, and rollback-compatible keyring.
@@ -373,7 +381,8 @@ contain live-service acceptance evidence.
 - [ ] Chat package and lockfile pin `@github/copilot-sdk` `1.0.16`.
 - [ ] Chat image CI, SBOM, provenance, vulnerability checks, and exact GHCR digest pass.
 - [ ] Source-coverage startup gate includes every source required by #344.
-- [ ] An approved transport reaches the loopback-only backend through the published host port without exposing it publicly.
+- [ ] An approved nginx-to-socket transport works, with no published chat port or host networking and no TCP access from a peer container on the named network.
+- [ ] Socket UID/GID mapping, nginx group access, and any host-specific SELinux labeling are verified.
 - [ ] Dedicated OAuth database migration round-trip and explicit OAuth-table grants pass
       without changing finance-database or global-role privileges.
 - [ ] Versioned rootless secrets exist and encrypted backups are verified.
@@ -406,13 +415,13 @@ podman diff penge-chat
 
 The evidence must show:
 
-- host port `8123` bound only to `127.0.0.1`;
-- no host bind for the container HTTP target, MCP, Copilot runtime, database, health, or metrics;
+- no published chat TCP port or host networking;
+- no host bind for MCP, Copilot runtime, database, health, or metrics;
 - no writable persistent mount for transcripts;
 - only the declared read-only MCP mount and secret mounts; and
 - no transcript file created before or after a service restart.
 
-From a separate machine, scan the NAS and prove that `8123`, the container HTTP target, and all MCP/runtime candidate ports are closed.
+From a separate machine, scan the NAS and prove that chat and all MCP/runtime candidate ports are closed.
 Record only port numbers and open/closed state.
 
 ## NAS deployment checklist
@@ -421,7 +430,7 @@ Complete the pre-deployment artifact approval section before installation, then
 complete this live checklist after the service is running:
 
 - [ ] HydraFusion entitlement is externally verified for both authorized identities with no fallback.
-- [ ] Container runs rootless with loopback-only publishing and default SELinux confinement.
+- [ ] Container runs rootless with no published chat port and default SELinux confinement.
 - [ ] `loginctl show-user penge-chat --property=Linger --value` returns `yes`.
 - [ ] Liveness/readiness, logs, and metrics meet the privacy contract.
 - [ ] Synthetic two-user, OAuth failure, streaming, cancel, reconnect, and cleanup tests pass.

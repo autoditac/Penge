@@ -61,6 +61,13 @@ sha256_file() {
 validate_private_file "$contract_env" "contract environment"
 validate_private_file "$approval" "approval manifest"
 validate_private_file "$approval_signature" "approval signature"
+umask 077
+contract_snapshot="$(mktemp)"
+tmp="$(mktemp)"
+approved_tmp=""
+trap 'rm -f "$contract_snapshot" "$tmp" "${approved_tmp:-}"' EXIT
+cat "$contract_env" >"$contract_snapshot"
+contract_env="$contract_snapshot"
 if [[ ! -f $trusted_reviewers || -L $trusted_reviewers || ! -r $trusted_reviewers ]]; then
   echo "deployment blocked: trusted reviewer keys must be a readable regular file" >&2
   exit 1
@@ -159,9 +166,6 @@ for key in "${!expected_hashes[@]}"; do
   fi
 done
 
-umask 077
-tmp="$(mktemp)"
-trap 'rm -f "$tmp"' EXIT
 sed \
   -e "s/@@CHAT_IMAGE_DIGEST@@/$1/g" \
   -e "s/@@CONTRACT_ENV_SHA256@@/$contract_env_sha256/g" \
@@ -184,14 +188,41 @@ if [[ ${#image_lines[@]} -ne 1 || ${image_lines[0]} != "$expected_image" ]]; the
 fi
 
 mapfile -t publish_lines < <(grep '^PublishPort=' "$tmp" || true)
-if [[ ${#publish_lines[@]} -ne 1 ]] \
-  || [[ ! ${publish_lines[0]} =~ ^PublishPort=127\.0\.0\.1:8123:[0-9]{1,5}$ ]]; then
-  echo "deployment blocked: exactly one loopback-only publish is required" >&2
+if [[ ${#publish_lines[@]} -ne 0 ]]; then
+  echo "deployment blocked: chat must not publish TCP ports" >&2
   exit 1
 fi
-container_port="${publish_lines[0]##*:}"
-if ((container_port < 1 || container_port > 65535)); then
-  echo "deployment blocked: container port is outside the valid range" >&2
+mapfile -t socket_mounts < <(grep '^Volume=.*:/run/penge-chat/transport:' "$tmp" || true)
+if [[ ${#socket_mounts[@]} -ne 1 ]] \
+  || [[ ! ${socket_mounts[0]} =~ ^Volume=(/[a-zA-Z0-9_./-]+):/run/penge-chat/transport:(rw|rw,z)$ ]]; then
+  echo "deployment blocked: exactly one safe chat socket directory mount is required" >&2
+  exit 1
+fi
+socket_dir="${BASH_REMATCH[1]}"
+if [[ $socket_dir == *'..'* || $socket_dir == */ || $socket_dir == *'//'* ]] \
+  || ((${#socket_dir} > 97)) \
+  || [[ ! -d $socket_dir || -L $socket_dir ]] \
+  || [[ $(realpath -e "$socket_dir") != "$socket_dir" ]] \
+  || [[ $(stat -c '%u %a' "$socket_dir") != "$runtime_uid 2750" ]] \
+  || [[ -e "$socket_dir/chat.sock" || -L "$socket_dir/chat.sock" ]]; then
+  echo "deployment blocked: socket directory ownership, mode, or existing path is unsafe" >&2
+  exit 1
+fi
+ancestor="$socket_dir"
+while [[ $ancestor != / ]]; do
+  ancestor="${ancestor%/*}"
+  [[ -n $ancestor ]] || ancestor=/
+  read -r ancestor_uid ancestor_mode < <(stat -c '%u %a' "$ancestor")
+  if [[ $ancestor_uid != 0 && $ancestor_uid != "$runtime_uid" ]] \
+    || (((8#$ancestor_mode & 0022) != 0 && (8#$ancestor_mode & 01000) == 0)); then
+    echo "deployment blocked: socket directory has an unsafe host ancestor" >&2
+    exit 1
+  fi
+done
+if ! grep -Fqx "    proxy_pass http://unix:$socket_dir/chat.sock:/;" "$nginx_template" \
+  || [[ $(grep -c '^PENGE_CHAT_HTTP_SOCKET_PATH=/run/penge-chat/transport/chat.sock$' "$contract_env") -ne 1 ]] \
+  || grep -Eq '^PENGE_CHAT_HTTP_(HOST|PORT)=' "$contract_env"; then
+  echo "deployment blocked: proxy and runtime socket configuration must match" >&2
   exit 1
 fi
 mapfile -t network_lines < <(grep '^Network=' "$tmp" || true)
@@ -280,9 +311,14 @@ done < <(sed -n 's/^Secret=\([^,]*\),.*/\1/p' "$tmp")
 
 install -d -m 0700 "$approved_dir"
 install -d -m 0700 "$unit_dir"
-install -m 0600 \
-  "$contract_env" \
-  "$approved_dir/private-ask-chat.contract-$contract_env_sha256.env"
+approved_tmp="$(mktemp "$approved_dir/.contract.XXXXXXXX")"
+install -m 0600 "$contract_env" "$approved_tmp"
+if [[ $(sha256_file "$approved_tmp") != "$contract_env_sha256" ]]; then
+  echo "deployment blocked: installed contract bytes differ from the approved snapshot" >&2
+  exit 1
+fi
+mv -f "$approved_tmp" "$approved_dir/private-ask-chat.contract-$contract_env_sha256.env"
+approved_tmp=""
 install -m 0600 "$tmp" "$target"
 systemctl --user daemon-reload
 echo "rendered $target; inspect it before explicitly enabling the user service"

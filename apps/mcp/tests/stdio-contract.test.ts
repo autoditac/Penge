@@ -1,0 +1,65 @@
+import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { fileURLToPath } from "node:url";
+import { describe, expect, it } from "vitest";
+
+const packageRoot = fileURLToPath(new URL("../", import.meta.url));
+const fixturePath = fileURLToPath(new URL("fixtures/stdio-server.ts", import.meta.url));
+const expectedTools = [
+  "_meta",
+  "query_net_worth",
+  "query_cashflow",
+  "query_household_report",
+  "search_household_transactions",
+  "get_household_transaction_detail",
+  "get_household_taxonomy_summary",
+  "get_household_rule_summary",
+  "get_household_merchant_summary",
+  "get_merchant_reference_status",
+  "search_merchant_reference",
+  "get_source_coverage",
+  "compute_tax_year",
+  "run_scenario",
+  "answer_planning_question",
+  "search_documents",
+  "suggest_import_mapping",
+];
+
+describe("MCP stdio tools/list contract", () => {
+  it("lists read-only Penge tools and invokes one with synthetic data", async () => {
+    const transport = new StdioClientTransport({
+      command: "pnpm",
+      args: ["exec", "tsx", fixturePath],
+      cwd: packageRoot,
+      stderr: "pipe",
+    });
+    const client = new Client(
+      { name: "penge-mcp-stdio-contract-client", version: "0.0.0-test" },
+      { capabilities: {} },
+    );
+
+    try {
+      await client.connect(transport);
+      const list = await client.listTools();
+
+      expect(list.tools.map((tool) => tool.name)).toEqual(expectedTools);
+      expect(list.tools).toHaveLength(17);
+      expect(list.tools.every((tool) => tool.annotations?.readOnlyHint === true)).toBe(true);
+      expect(list.tools.every((tool) => tool.outputSchema?.type === "object")).toBe(true);
+
+      const result = await client.callTool({
+        name: "query_net_worth",
+        arguments: {
+          date_range: { from: "2024-01-01", to: "2024-01-31" },
+          currency: "EUR",
+          breakdown_by: "none",
+        },
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.content).toEqual([{ type: "text", text: "[]" }]);
+    } finally {
+      await client.close();
+    }
+  }, 60_000);
+});

@@ -71,6 +71,7 @@ nav:
       - "Returns engine (TWR/MWR)": analytics/returns.md
   - Web:
       - "Modern WebUI": web/modern-webui.md
+      - "Ask Penge product brief": web/ask-penge-product-brief.md
       - "Read API": api/index.md
       - "Household categorization API": api/household.md
       - "Household reporting API": api/household-reporting.md

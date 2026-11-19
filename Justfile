@@ -224,6 +224,18 @@ mcp-dev:
 mcp-test:
     pnpm --filter @penge/mcp test
 
+# Build, test, and lint the bounded Copilot Fusion architecture proof.
+chat-feasibility:
+    pnpm --filter @penge/chat-feasibility build
+    pnpm --filter @penge/chat-feasibility test
+    pnpm --filter @penge/chat-feasibility lint
+
+# Require your own PENGE_CHAT_DIAGNOSTIC_GITHUB_TOKEN; query only model availability.
+# Exit 2 means the exact `hydrafusion` ID is unavailable; no token is printed.
+chat-entitlement-check:
+    pnpm --filter @penge/chat-feasibility build
+    pnpm --filter @penge/chat-feasibility check:entitlement
+
 # Lint + format-check the MCP TS package.
 mcp-lint:
     pnpm --filter @penge/mcp lint

@@ -4,6 +4,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { z } from "zod/v3";
 
 import type { AuditLogger } from "../src/audit.js";
+import type { ToolDefinition } from "../src/registry.js";
 import { AuditWriteError } from "../src/errors.js";
 import {
   assertRegisteredToolAllowlist,
@@ -54,11 +55,20 @@ function createCollectingAudit(): AuditLogger & { entries: Array<Record<string, 
   };
 }
 
+const readOnlyTool: ToolDefinition = {
+  name: "query_net_worth",
+  description: "Synthetic read-only tool",
+  inputSchema: z.object({}).strict(),
+  outputSchema: z.object({}).strict(),
+  handler: () => ({}),
+};
+
 async function newConnectedClient(audit: AuditLogger) {
   const { server } = buildServer({
     name: "penge-mcp-test",
     version: "0.0.0-test",
     audit,
+    extraTools: [readOnlyTool],
   });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await server.connect(serverTransport);
@@ -71,13 +81,26 @@ async function newConnectedClient(audit: AuditLogger) {
 }
 
 describe("MCP server skeleton", () => {
-  it("starts up and lists the _meta tool", async () => {
+  it("publishes read-only annotations on the tools/list contract", async () => {
     const audit = createCollectingAudit();
     const { client, server } = await newConnectedClient(audit);
     try {
       const list = await client.listTools();
       const names = list.tools.map((t) => t.name);
       expect(names).toContain("_meta");
+      expect(names).toContain("query_net_worth");
+      expect(list.tools).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            name: "_meta",
+            annotations: { readOnlyHint: true },
+          }),
+          expect.objectContaining({
+            name: "query_net_worth",
+            annotations: { readOnlyHint: true },
+          }),
+        ]),
+      );
       const meta = list.tools.find((t) => t.name === "_meta");
       expect(meta?.inputSchema.type).toBe("object");
       expect(meta?.outputSchema?.type).toBe("object");
@@ -98,7 +121,7 @@ describe("MCP server skeleton", () => {
       const payload = JSON.parse(content[0]!.text) as Record<string, unknown>;
       expect(payload.serverName).toBe("penge-mcp-test");
       expect(payload.serverVersion).toBe("0.0.0-test");
-      expect(payload.tools).toEqual(["_meta"]);
+      expect(payload.tools).toEqual(["_meta", "query_net_worth"]);
       expect(typeof payload.ts).toBe("string");
       expect(result.structuredContent).toEqual(payload);
 

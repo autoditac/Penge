@@ -81,6 +81,7 @@ export function buildServer(opts: BuildServerOptions): BuiltServer {
     const tools: Tool[] = registry.list().map((tool) => ({
       name: tool.name,
       description: tool.description,
+      annotations: { readOnlyHint: true },
       inputSchema: inputJsonSchema(tool),
       outputSchema: outputJsonSchema(tool),
     }));

@@ -10,23 +10,8 @@ import { createAuditLogger } from "./audit.js";
 import { loadConfig } from "./config.js";
 import { connect } from "./db.js";
 import { buildServer } from "./server.js";
+import { createPengeTools } from "./tools/index.js";
 import { assertRegisteredToolAllowlist, assertSourceCatalogCoverage } from "./sources.js";
-import { answerPlanningQuestionTool } from "./tools/answerPlanningQuestion.js";
-import { computeTaxYearTool } from "./tools/computeTaxYear.js";
-import { getHouseholdMerchantSummaryTool } from "./tools/getHouseholdMerchantSummary.js";
-import { getHouseholdRuleSummaryTool } from "./tools/getHouseholdRuleSummary.js";
-import { getHouseholdTaxonomySummaryTool } from "./tools/getHouseholdTaxonomySummary.js";
-import { getHouseholdTransactionDetailTool } from "./tools/getHouseholdTransactionDetail.js";
-import { getMerchantReferenceStatusTool } from "./tools/getMerchantReferenceStatus.js";
-import { getSourceCoverageTool } from "./tools/getSourceCoverage.js";
-import { queryCashflowTool } from "./tools/queryCashflow.js";
-import { queryHouseholdReportTool } from "./tools/queryHouseholdReport.js";
-import { queryNetWorthTool } from "./tools/queryNetWorth.js";
-import { runScenarioTool } from "./tools/runScenario.js";
-import { searchDocumentsTool } from "./tools/searchDocuments.js";
-import { searchHouseholdTransactionsTool } from "./tools/searchHouseholdTransactions.js";
-import { searchMerchantReferenceTool } from "./tools/searchMerchantReference.js";
-import { suggestImportMappingTool } from "./tools/suggestImportMapping.js";
 import type { HouseholdTransactionQueryRunner } from "./tools/searchHouseholdTransactions.js";
 
 const SERVER_NAME = "penge-mcp";
@@ -84,48 +69,7 @@ async function main(): Promise<void> {
     name: SERVER_NAME,
     version: SERVER_VERSION,
     audit,
-    extraTools: [
-      queryNetWorthTool({
-        runner,
-      }),
-      queryCashflowTool({
-        runner,
-      }),
-      queryHouseholdReportTool({
-        runner,
-      }),
-      searchHouseholdTransactionsTool({
-        runner,
-      }),
-      getHouseholdTransactionDetailTool({
-        runner: snapshotRunner,
-      }),
-      getHouseholdTaxonomySummaryTool({
-        runner,
-      }),
-      getHouseholdRuleSummaryTool({
-        runner,
-      }),
-      getHouseholdMerchantSummaryTool({
-        runner,
-      }),
-      getMerchantReferenceStatusTool({
-        runner,
-      }),
-      searchMerchantReferenceTool({
-        runner,
-      }),
-      getSourceCoverageTool({
-        runner,
-      }),
-      computeTaxYearTool(),
-      runScenarioTool(),
-      answerPlanningQuestionTool(),
-      searchDocumentsTool({ vaultRoot: config.vaultRoot }),
-      suggestImportMappingTool({
-        runner,
-      }),
-    ],
+    extraTools: createPengeTools({ runner: snapshotRunner, vaultRoot: config.vaultRoot }),
   });
   assertSourceCatalogCoverage();
   assertRegisteredToolAllowlist(registry.list().map((tool) => tool.name));

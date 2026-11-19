@@ -801,6 +801,59 @@ def test_ready_validator_rejects_host_network_and_privileged_role(
     assert "created chat role and database grant target differ" in mismatched_role.stderr
 
 
+_SAFE_ROLE_CREATION = (
+    "CREATE ROLE penge_chat_oauth LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS"
+)
+_SYNTHETIC_SCRAM = "'SCRAM-SHA-256$4096:c3ludGhldGlj$c3RvcmVk:c2VydmVy'"
+
+
+@pytest.mark.parametrize(
+    "password_clause",
+    [
+        "PASSWORD 'plaintext'",
+        f"PASSWORD {_SYNTHETIC_SCRAM}REPLICATION",
+        "PASSWORD 'x'IN/**/ROLE/**/pg_write_all_data",
+        f"PASSWORD {_SYNTHETIC_SCRAM}/**/CONNECTION/**/LIMIT/**/-1",
+        "PASSWORD NULL",
+    ],
+)
+def test_ready_validator_rejects_role_options_smuggled_through_password(
+    tmp_path: Path, password_clause: str
+) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    database.write_text(
+        database.read_text().replace(
+            f"{_SAFE_ROLE_CREATION};", f"{_SAFE_ROLE_CREATION} {password_clause};"
+        )
+    )
+
+    rejected = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+
+    assert rejected.returncode != 0
+    assert "explicitly deny privileged and inherited attributes" in rejected.stderr
+
+
+def test_ready_validator_allows_role_password_as_scram_verifier(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    database.write_text(
+        database.read_text().replace(
+            f"{_SAFE_ROLE_CREATION};", f"{_SAFE_ROLE_CREATION} PASSWORD {_SYNTHETIC_SCRAM};"
+        )
+    )
+
+    accepted = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+
+    assert "explicitly deny privileged and inherited attributes" not in accepted.stderr
+    assert "exact approved database privilege shape" not in accepted.stderr
+    assert "requires reviewed container connectivity and isolation evidence" in accepted.stderr
+
+
 def test_ready_validator_rejects_shared_or_migration_database_credential(
     tmp_path: Path,
 ) -> None:

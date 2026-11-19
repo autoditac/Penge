@@ -231,6 +231,7 @@ The resolved SQL may grant only:
 
 It must not grant schema creation, default privileges, sequence-wide access, finance or analytics reads, transcript storage, MCP access, ownership, role inheritance, or superuser capabilities.
 The resolved role creation must target the same role that receives `CONNECT` and explicitly specify `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`.
+An optional `PASSWORD` must be a single-quoted `SCRAM-SHA-256` verifier that ends the statement; plaintext passwords, comments, and any further role options such as `REPLICATION`, `IN ROLE`, or `CONNECTION LIMIT` are rejected.
 Its `PUBLIC` revocations apply only inside that dedicated database.
 Chat deployment must not change the shared Penge finance database or any API, dbt, ingestion, migration, backup, or maintenance role privileges.
 Provision, migrate, back up, restore, and roll back this dedicated OAuth database outside the finance Alembic chain.

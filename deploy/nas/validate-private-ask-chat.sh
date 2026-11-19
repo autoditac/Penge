@@ -396,7 +396,11 @@ mapfile -t role_creation_lines < <(
 [[ ${#role_creation_lines[@]} -eq 1 ]] \
   || fail "exactly one explicit chat role creation statement is required"
 role_creation="${role_creation_lines[0]}"
-if [[ ! $role_creation =~ ^CREATE[[:space:]]+ROLE[[:space:]]+([a-z_][a-z0-9_]*)[[:space:]]+LOGIN[[:space:]]+NOSUPERUSER[[:space:]]+NOCREATEDB[[:space:]]+NOCREATEROLE[[:space:]]+NOINHERIT[[:space:]]+NOBYPASSRLS([[:space:]]+PASSWORD[[:space:]]+[^[:space:]\;]+)?\;$ ]]; then
+# An optional password must be a quoted SCRAM verifier ending the statement, so
+# no plaintext secret, comment, or additional role option can follow it.
+scram_verifier="'SCRAM-SHA-256[$][0-9]+:[A-Za-z0-9+/=]+[$][A-Za-z0-9+/=]+:[A-Za-z0-9+/=]+'"
+role_creation_shape="^CREATE[[:space:]]+ROLE[[:space:]]+([a-z_][a-z0-9_]*)[[:space:]]+LOGIN[[:space:]]+NOSUPERUSER[[:space:]]+NOCREATEDB[[:space:]]+NOCREATEROLE[[:space:]]+NOINHERIT[[:space:]]+NOBYPASSRLS([[:space:]]+PASSWORD[[:space:]]+${scram_verifier})?;$"
+if [[ ! $role_creation =~ $role_creation_shape ]]; then
   fail "chat role creation must explicitly deny privileged and inherited attributes"
 fi
 created_role="${BASH_REMATCH[1]}"

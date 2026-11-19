@@ -1,4 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { chmodSync, lstatSync, realpathSync } from "node:fs";
+import { basename, dirname, isAbsolute, normalize } from "node:path";
 
 import pino, { type Logger } from "pino";
 import { z } from "zod/v3";
@@ -70,6 +72,49 @@ export interface ChatServerDependencies {
 export interface RunningChatServer {
   origin: string;
   close(): Promise<void>;
+}
+
+function validateSocketDirectory(socketPath: string): void {
+  if (
+    !isAbsolute(socketPath) ||
+    normalize(socketPath) !== socketPath ||
+    basename(socketPath) !== "chat.sock" ||
+    Buffer.byteLength(socketPath) > 100
+  ) {
+    throw new ServerStartupError("invalid chat socket path");
+  }
+  const directory = dirname(socketPath);
+  const directoryStat = lstatSync(directory);
+  const uid = process.getuid?.();
+  if (
+    uid === undefined ||
+    !directoryStat.isDirectory() ||
+    directoryStat.uid !== uid ||
+    (directoryStat.mode & 0o7777) !== 0o2750 ||
+    realpathSync(directory) !== directory
+  ) {
+    throw new ServerStartupError(
+      "chat socket directory must be owned by the service with mode 2750",
+    );
+  }
+  for (let ancestor = dirname(directory); ; ancestor = dirname(ancestor)) {
+    const stat = lstatSync(ancestor);
+    if (
+      !stat.isDirectory() ||
+      (stat.uid !== 0 && stat.uid !== uid) ||
+      ((stat.mode & 0o022) !== 0 && (stat.mode & 0o1000) === 0)
+    ) {
+      throw new ServerStartupError("chat socket directory has an unsafe ancestor");
+    }
+    if (ancestor === "/") break;
+  }
+  try {
+    lstatSync(socketPath);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return;
+    throw error;
+  }
+  throw new ServerStartupError("chat socket path already exists; operator recovery is required");
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -460,16 +505,32 @@ export async function startChatServer(
   server.headersTimeout = config.httpRequestTimeoutMs;
   server.keepAliveTimeout = Math.min(config.httpRequestTimeoutMs, 5_000);
 
+  if (config.httpSocketPath !== undefined) validateSocketDirectory(config.httpSocketPath);
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(config.httpPort, config.httpHost, () => {
+    const listening = (): void => {
       server.off("error", reject);
       resolve();
-    });
+    };
+    if (config.httpSocketPath !== undefined) server.listen(config.httpSocketPath, listening);
+    else server.listen(config.httpPort, config.httpHost, listening);
   });
   const address = server.address();
-  if (address === null || typeof address === "string") {
-    throw new ServerStartupError("chat server did not bind a TCP loopback address");
+  if (address === null) {
+    throw new ServerStartupError("chat server did not bind a listener");
+  }
+  if (typeof address === "string") {
+    try {
+      chmodSync(address, 0o660);
+      const socket = lstatSync(address);
+      const directory = lstatSync(dirname(address));
+      if (!socket.isSocket() || socket.uid !== process.getuid?.() || socket.gid !== directory.gid) {
+        throw new ServerStartupError("chat socket ownership does not match the reviewed directory");
+      }
+    } catch (error) {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      throw error;
+    }
   }
   const idleTimer = setInterval(
     () => {
@@ -481,10 +542,15 @@ export async function startChatServer(
     Math.min(config.idleTimeoutMs, 30_000),
   );
   idleTimer.unref();
-  logger.info({ host: address.address, port: address.port }, "chat server listening");
+  const origin =
+    typeof address === "string"
+      ? `http+unix://${encodeURIComponent(address)}`
+      : `http://${address.address.includes(":") ? `[${address.address}]` : address.address}:${address.port}`;
+  if (typeof address === "string") logger.info({ transport: "unix" }, "chat server listening");
+  else logger.info({ host: address.address, port: address.port }, "chat server listening");
 
   return {
-    origin: `http://${address.address.includes(":") ? `[${address.address}]` : address.address}:${address.port}`,
+    origin,
     close: () => {
       if (closePromise !== undefined) return closePromise;
       closing = true;

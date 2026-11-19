@@ -48,6 +48,15 @@ ci-browser-deps:
 test:
     uv run pytest tests/ -q
 
+# Validate the fail-closed private Ask Penge deployment seam.
+# This intentionally does not claim image, NAS, HydraFusion, or two-user
+# readiness while #343-#346 integration and production contracts remain incomplete.
+private-ask-chat-deploy-check:
+    ./deploy/nas/validate-private-ask-chat.sh --seam
+    uv run --group dev pytest \
+        tests/deploy/test_private_ask_chat_deploy.py \
+        tests/deploy/test_nas_deploy.py -q
+
 # Validate the isolated chat package without starting external services.
 chat-check:
     pnpm --filter @penge/chat test

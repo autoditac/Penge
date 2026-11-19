@@ -32,6 +32,20 @@ The proposed amendment to [ADR-0005](0005-llm-access-via-mcp-only.md) permits th
 
 ## Decision
 
+### Proposed transport amendment — 2026-11-19
+
+The existing loopback TCP listener remains available for development.
+For production, propose a mutually exclusive Unix-domain socket in a dedicated bind-mounted directory instead of a published container port.
+The directory is owned by the service, restricts traversal to the service and intended nginx group, and uses setgid so the socket is accessible only to that group.
+Only the trusted service identity may modify that directory or replace it through its host ancestors; nginx must not have directory write access and no untrusted process may share the service UID.
+This invariant must hold throughout the service lifetime because Node removes the pathname on shutdown.
+The service rejects any existing socket path, including a live or stale socket, rather than unlinking it automatically.
+Actual rootless UID/GID mapping, nginx group access, SELinux policy, no published port or host networking, and denial of same-network peer TCP access require explicit verification.
+The proxy-secret and immutable identity-header boundary, owner decision, human security/privacy review, and live entitlement and isolation gates are unchanged.
+This amendment is proposed and does not constitute owner approval.
+
+### Existing decision
+
 `apps/chat` is a strict TypeScript service listening only on a configured loopback address.
 The authenticated external browser origin is separate from the listener and must use HTTPS outside local development.
 The external API base is a trailing-slash URL so reverse-proxy path prefixes survive OAuth callback construction; the path-free app origin independently owns the `/ask` redirect.

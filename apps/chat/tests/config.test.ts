@@ -77,6 +77,23 @@ describe("chat config", () => {
     );
   });
 
+  it("uses a Unix socket only when TCP listener variables are absent", () => {
+    const env = validEnv();
+    const socket = "/run/penge-chat/transport/chat.sock";
+    expect(loadConfig({ ...env, PENGE_CHAT_HTTP_SOCKET_PATH: socket }).httpSocketPath).toBe(socket);
+    expect(() => loadConfig({ ...env, PENGE_CHAT_ENABLE_PRODUCTION: "1" })).toThrow(
+      /production requires the Unix socket/,
+    );
+    expect(() =>
+      loadConfig({ ...env, PENGE_CHAT_HTTP_SOCKET_PATH: socket, PENGE_CHAT_HTTP_PORT: "3000" }),
+    ).toThrow(/mutually exclusive/);
+    for (const path of ["relative/chat.sock", "/run/../chat.sock", "/run/other.sock"]) {
+      expect(() => loadConfig({ ...env, PENGE_CHAT_HTTP_SOCKET_PATH: path })).toThrow(
+        /absolute normalized chat.sock/,
+      );
+    }
+  });
+
   it("rejects insecure public origins and permissive secret files", () => {
     expect(() =>
       loadConfig({ ...validEnv(), PENGE_CHAT_PUBLIC_API_BASE: "http://penge.example.test/" }),

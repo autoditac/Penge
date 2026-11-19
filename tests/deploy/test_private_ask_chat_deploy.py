@@ -160,8 +160,79 @@ def test_live_nginx_fails_closed_on_only_bounded_ask_paths() -> None:
     assert nginx.count("location = /ask {") == 1
     assert nginx.count("location ^~ /ask/ {") == 1
     assert "proxy_pass http://127.0.0.1:8123" not in nginx
-    assert "location = /ask {\n        return 404;" in nginx
-    assert "location ^~ /ask/ {\n        return 404;" in nginx
+    closed = "        access_log off;\n        error_log /dev/null emerg;\n        return 404;\n"
+    assert f"location = /ask {{\n{closed}" in nginx
+    assert f"location ^~ /ask/ {{\n{closed}" in nginx
+
+
+def _closed_ask_locations() -> str:
+    nginx = _read("penge.eigmueller.de.conf")
+    blocks = re.findall(r"(?m)^    location (?:= /ask|\^~ /ask/) \{\n.*?^    \}\n", nginx, re.S)
+    assert len(blocks) == 2
+    return "".join(blocks)
+
+
+@pytest.mark.skipif(shutil.which("nginx") is None, reason="nginx binary is unavailable")
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/ask/api/oauth/github/callback?code=synthetic_code&state=synthetic_state",
+        "/ask?code=synthetic_code&state=synthetic_state",
+        "//ask/api/oauth/github/callback?code=synthetic_code&state=synthetic_state",
+    ],
+)
+def test_closed_ask_route_never_logs_late_oauth_callback(tmp_path: Path, path: str) -> None:
+    nginx = shutil.which("nginx")
+    assert nginx is not None
+    (tmp_path / "logs").mkdir()
+    (tmp_path / "probe").write_text("ok")
+    access_log = tmp_path / "access.log"
+    error_log = tmp_path / "error.log"
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    config = tmp_path / "nginx.conf"
+    config.write_text(
+        f"daemon off;\nmaster_process off;\npid {tmp_path}/nginx.pid;\n"
+        f"error_log {error_log} info;\nevents {{}}\nhttp {{\n"
+        f"access_log {access_log};\nserver {{\nlisten 127.0.0.1:{port};\n"
+        f"location = /probe {{ root {tmp_path}; }}\n{_closed_ask_locations()}}}\n}}\n"
+    )
+    process = subprocess.Popen(  # noqa: S603  # Located nginx binary with synthetic config.
+        [nginx, "-p", str(tmp_path), "-c", str(config)],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                connection = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
+                connection.request("GET", "/probe")
+                assert connection.getresponse().status == 200
+                connection.close()
+                break
+            except OSError:
+                if process.poll() is not None:
+                    _, stderr = process.communicate(timeout=5)
+                    pytest.fail(f"nginx failed to start: {stderr.decode()}")
+                if time.monotonic() >= deadline:
+                    raise
+                time.sleep(0.05)
+        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        connection.request("GET", path)
+        response = connection.getresponse()
+        assert response.status == 404
+        response.read()
+        connection.close()
+    finally:
+        process.terminate()
+        process.communicate(timeout=5)
+
+    assert "/probe" in access_log.read_text()
+    logs = access_log.read_text() + error_log.read_text()
+    assert "synthetic_code" not in logs
+    assert "synthetic_state" not in logs
 
 
 def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:

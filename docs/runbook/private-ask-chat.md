@@ -13,6 +13,7 @@ Do not deploy the chat from this branch.
 - `deploy/nas/penge-chat.nginx.conf.in` is intentionally non-loadable.
 - `deploy/nas/penge-chat-db-role.sql.in` is intentionally non-executable.
 - The active nginx configuration returns `404` for exactly `/ask` and the bounded `/ask/` prefix.
+  Both closed blocks disable access and error logging, so a late or replayed OAuth callback cannot write its `code` or `state` to nginx logs while the route is closed.
 - `deploy/nas/validate-private-ask-chat.sh --ready` must fail while any `@@...@@` token remains.
 - Even with all tokens resolved, `--ready` fails until container connectivity and isolation evidence are reviewed.
 - #346 has fixed the backend environment and credential-file names recorded below; immutable oauth2-proxy subject extraction and the nginx mounted-secret include mechanism remain unproven, so their activation tokens stay unresolved.
@@ -402,7 +403,7 @@ contain live-service acceptance evidence.
 - [ ] Versioned rootless secrets exist and encrypted backups are verified.
 - [ ] Immutable Google subject extraction and mounted proxy-secret injection are demonstrated and approved; client-provided identity headers are cleared or overwritten.
 - [ ] Nginx exact/bounded routes pass `nginx -t` behind oauth2-proxy.
-- [ ] Callback authorization failures and unavailable upstreams retain no OAuth code or state in access or error logs.
+- [ ] Callback authorization failures, unavailable upstreams, and requests to the closed `/ask` routes retain no OAuth code or state in access or error logs.
 - [ ] The exact rendered Quadlet, environment, nginx, and database templates are reviewed.
 - [ ] The detached reviewer signature covers the complete manifest and all template hashes.
 
@@ -456,7 +457,7 @@ complete this live checklist after the service is running:
 
 ## Incident response
 
-Keep the route closed or restore the nginx `404` blocks first.
+Keep the route closed or restore the nginx `404` blocks, including their disabled access and error logging, first.
 Then stop the rootless user service:
 
 ```bash

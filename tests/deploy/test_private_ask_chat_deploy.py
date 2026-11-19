@@ -1,10 +1,17 @@
 import hashlib
+import http.client
 import os
 import re
 import shutil
+import socket
 import stat
 import subprocess
+import threading
+import time
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).parents[2]
 NAS = ROOT / "deploy" / "nas"
@@ -84,7 +91,7 @@ def test_unresolved_chat_contract_is_non_deployable() -> None:
     if CONTRACTS_RESOLVED:
         assert seam.returncode != 0
         if CHAT_APP_PRESENT:
-            assert contracted.returncode == 0, contracted.stderr
+            assert contracted.returncode != 0
         else:
             assert contracted.returncode != 0
             assert "missing backend packaging contract" in contracted.stderr
@@ -121,8 +128,7 @@ def test_quadlet_template_is_rootless_immutable_and_loopback_only() -> None:
         "EnvironmentFile=%h/.config/penge/approved/"
         "private-ask-chat.contract-@@CONTRACT_ENV_SHA256@@.env"
     ) in quadlet
-    assert "WantedBy=default.target" in quadlet
-    assert "WantedBy=multi-user.target" not in quadlet
+    assert "[Install]" not in quadlet
     assert "systemctl --user daemon-reload" in installer
     assert "refusing root execution" in installer
     assert "/etc/containers/systemd" not in installer
@@ -176,6 +182,10 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
     assert "location ^~ /ask/ {" not in nginx
     assert "location ^~ /ask/api/ {" in nginx
     assert "location ^~ /ask/api/ {\n    access_log off;" in nginx
+    assert "location = /_penge_chat_auth {\n    internal;\n    access_log off;" in nginx
+    assert nginx.count("error_log /dev/null emerg;") == 2
+    assert "auth_request /_penge_chat_auth;" in nginx
+    assert "error_page 401" not in nginx
     assert "proxy_pass http://127.0.0.1:8123/;" in nginx
     assert 'proxy_set_header X-Forwarded-User "";' in nginx
     assert 'proxy_set_header X-Forwarded-Email "";' in nginx
@@ -197,6 +207,109 @@ def test_candidate_nginx_overwrites_identity_without_weak_csp() -> None:
         assert "@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@" in nginx
         assert "@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@" in nginx
         assert "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@" in nginx
+
+
+def _nginx_test_config(tmp_path: Path, auth_port: int, upstream_port: int, port: int) -> Path:
+    template = _read("penge-chat.nginx.conf.in")
+    replacements = {
+        "127.0.0.1:4180": f"127.0.0.1:{auth_port}",
+        "127.0.0.1:8123": f"127.0.0.1:{upstream_port}",
+        "@@IMMUTABLE_AUTH_SUBJECT_NGINX_VALUE@@": "synthetic-subject",
+        "@@MOUNTED_PROXY_SECRET_NGINX_VALUE@@": "synthetic-proxy-secret",
+        "@@TRUSTED_PROXY_ISSUER_NGINX_VALUE@@": "synthetic-issuer",
+        "@@STREAMING_READ_TIMEOUT@@": "30s",
+        "@@STREAMING_REQUEST_BUFFERING@@": "off",
+        "@@STREAMING_RESPONSE_BUFFERING@@": "off",
+        "@@STREAMING_SEND_TIMEOUT@@": "30s",
+    }
+    for token, value in replacements.items():
+        template = template.replace(token, value)
+    (tmp_path / "logs").mkdir()
+    (tmp_path / "probe").write_text("ok")
+    config = tmp_path / "nginx.conf"
+    config.write_text(
+        f"daemon off;\nmaster_process off;\npid {tmp_path}/nginx.pid;\n"
+        f"error_log {tmp_path}/error.log info;\nevents {{}}\nhttp {{\n"
+        f"access_log {tmp_path}/access.log;\nserver {{\nlisten 127.0.0.1:{port};\n"
+        f"location = /probe {{ root {tmp_path}; }}\n{template}\n}}\n}}\n"
+    )
+    return config
+
+
+@pytest.mark.skipif(shutil.which("nginx") is None, reason="nginx binary is unavailable")
+@pytest.mark.parametrize(("auth_status", "expected_status"), [(204, 502), (401, 401)])
+def test_nginx_callback_failure_never_logs_oauth_parameters(
+    tmp_path: Path, auth_status: int, expected_status: int
+) -> None:
+    auth_paths: list[str] = []
+
+    class AuthHandler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            auth_paths.append(self.path)
+            self.send_response(auth_status)
+            self.end_headers()
+
+        def log_message(self, _format: str, *_args: object) -> None:
+            pass
+
+    nginx = shutil.which("nginx")
+    assert nginx is not None
+    with (
+        ThreadingHTTPServer(("127.0.0.1", 0), AuthHandler) as auth,
+        socket.socket() as unavailable_upstream,
+        socket.socket() as listener,
+    ):
+        unavailable_upstream.bind(("127.0.0.1", 0))
+        upstream_port = unavailable_upstream.getsockname()[1]
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+        listener.close()
+        auth_thread = threading.Thread(target=auth.serve_forever, daemon=True)
+        auth_thread.start()
+        access_log = tmp_path / "access.log"
+        error_log = tmp_path / "error.log"
+        config = _nginx_test_config(tmp_path, auth.server_port, upstream_port, port)
+        process = subprocess.Popen(  # noqa: S603  # Located nginx binary with synthetic config.
+            [nginx, "-p", str(tmp_path), "-c", str(config)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+        )
+        try:
+            deadline = time.monotonic() + 5
+            while True:
+                try:
+                    connection = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
+                    connection.request("GET", "/probe")
+                    assert connection.getresponse().status == 200
+                    connection.close()
+                    break
+                except OSError:
+                    if process.poll() is not None:
+                        _, stderr = process.communicate(timeout=5)
+                        pytest.fail(f"nginx failed to start: {stderr.decode()}")
+                    if time.monotonic() >= deadline:
+                        raise
+                    time.sleep(0.05)
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+            connection.request(
+                "GET",
+                "/ask/api/oauth/github/callback?code=synthetic_code&state=synthetic_state",
+            )
+            response = connection.getresponse()
+            assert response.status == expected_status
+            response.read()
+            connection.close()
+        finally:
+            process.terminate()
+            process.communicate(timeout=5)
+            auth.shutdown()
+            auth_thread.join(timeout=5)
+
+        assert "/probe" in access_log.read_text()
+        logs = access_log.read_text() + error_log.read_text()
+        assert "synthetic_code" not in logs
+        assert "synthetic_state" not in logs
+        assert auth_paths == ["/oauth2/auth"]
 
 
 def test_database_template_cannot_grant_non_oauth_data_access() -> None:
@@ -358,7 +471,7 @@ def _ready_validator_fixture(tmp_path: Path) -> tuple[Path, dict[str, str]]:
             "CREATE ROLE penge_chat_oauth LOGIN NOSUPERUSER NOCREATEDB "
             "NOCREATEROLE NOINHERIT NOBYPASSRLS;"
         ),
-        "@@OAUTH_LINK_SCHEMA@@": "oauth",
+        "@@OAUTH_LINK_SCHEMA@@": "public",
     }
     for token, value in database_replacements.items():
         database = database.replace(token, value)
@@ -399,7 +512,7 @@ packages:
     }
 
 
-def test_ready_validator_accepts_resolved_contracts_and_all_pinned_bases(
+def test_ready_validator_blocks_unreachable_transport_even_when_other_contracts_resolve(
     tmp_path: Path,
 ) -> None:
     validator, env = _ready_validator_fixture(tmp_path)
@@ -421,8 +534,8 @@ def test_ready_validator_accepts_resolved_contracts_and_all_pinned_bases(
         text=True,
     )
 
-    assert ready.returncode == 0, ready.stderr
-    assert "packaging is ready" in ready.stdout
+    assert ready.returncode != 0
+    assert "loopback-only chat listener is unreachable" in ready.stderr
     assert mutable.returncode != 0
     assert "external base image is not digest-pinned: alpine:3.22" in mutable.stderr
 
@@ -494,13 +607,28 @@ def test_ready_validator_rejects_mismatched_database_privilege_target(
     assert "database guard and privilege target differ" in mismatched.stderr
 
 
+def test_ready_validator_rejects_non_public_oauth_schema(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    database = validator.parent / "penge-chat-db-role.sql.in"
+    database.write_text(
+        database.read_text()
+        .replace("GRANT USAGE ON SCHEMA public TO", "GRANT USAGE ON SCHEMA oauth TO")
+        .replace("public.chat_", "oauth.chat_")
+    )
+    rejected = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+    assert rejected.returncode != 0
+    assert "OAuth schema must be public" in rejected.stderr
+
+
 def test_ready_validator_rejects_additional_database_grant(tmp_path: Path) -> None:
     validator, env = _ready_validator_fixture(tmp_path)
     database = validator.parent / "penge-chat-db-role.sql.in"
     database.write_text(
         database.read_text().replace(
             "COMMIT;",
-            "GRANT SELECT ON TABLE oauth.other_table TO penge_chat_oauth;\n\nCOMMIT;",
+            "GRANT SELECT ON TABLE public.other_table TO penge_chat_oauth;\n\nCOMMIT;",
         )
     )
 
@@ -522,18 +650,18 @@ def test_ready_validator_rejects_widened_existing_database_grants(tmp_path: Path
     safe_database = database.read_text()
     mutations = (
         (
-            "GRANT INSERT\n    ON TABLE oauth.chat_audit_event",
-            "GRANT SELECT, INSERT, UPDATE, DELETE\n    ON TABLE oauth.chat_audit_event",
+            "GRANT INSERT\n    ON TABLE public.chat_audit_event",
+            "GRANT SELECT, INSERT, UPDATE, DELETE\n    ON TABLE public.chat_audit_event",
             "exact approved database privilege shape",
         ),
         (
-            "oauth.chat_oauth_state\n",
-            "oauth.chat_oauth_state,\n        oauth.other_table\n",
+            "public.chat_oauth_state\n",
+            "public.chat_oauth_state,\n        public.other_table\n",
             "exact approved database privilege shape",
         ),
         (
             "COMMIT;",
-            "ALTER TABLE oauth.chat_audit_event OWNER TO penge_chat_oauth;\nCOMMIT;",
+            "ALTER TABLE public.chat_audit_event OWNER TO penge_chat_oauth;\nCOMMIT;",
             "chat database privilege targets are incomplete",
         ),
     )
@@ -558,6 +686,14 @@ def test_ready_validator_rejects_nginx_request_logging(tmp_path: Path) -> None:
         safe_nginx.replace(
             "    access_log off;\n", "    access_log off;\n    access_log /tmp/chat-access.log;\n"
         ),
+        safe_nginx.replace("    error_log /dev/null emerg;\n", "", 1),
+        safe_nginx.replace(
+            "    error_log /dev/null emerg;\n", "    error_log /tmp/chat-error.log;\n", 1
+        ),
+        safe_nginx.replace(
+            "    auth_request /_penge_chat_auth;",
+            "    auth_request /_penge_chat_auth;\n    error_page 401 = /oauth2/sign_in;",
+        ),
     )
 
     for mutated in mutations:
@@ -567,7 +703,18 @@ def test_ready_validator_rejects_nginx_request_logging(tmp_path: Path) -> None:
             [validator, "--ready"], capture_output=True, check=False, env=env, text=True
         )
         assert rejected.returncode != 0
-        assert "disable chat API access logging" in rejected.stderr
+        assert "disable chat API and auth logging and redirects" in rejected.stderr
+
+
+def test_ready_validator_rejects_quadlet_boot_activation(tmp_path: Path) -> None:
+    validator, env = _ready_validator_fixture(tmp_path)
+    quadlet = validator.parent / "penge-chat.container.in"
+    quadlet.write_text(f"{quadlet.read_text()}\n[Install]\nWantedBy=default.target\n")
+    rejected = subprocess.run(  # noqa: S603  # Temporary validator copy under test.
+        [validator, "--ready"], capture_output=True, check=False, env=env, text=True
+    )
+    assert rejected.returncode != 0
+    assert "must not enable boot activation" in rejected.stderr
 
 
 def test_ready_validator_rejects_host_network_and_privileged_role(
@@ -1225,6 +1372,21 @@ def test_installer_invalidates_stale_artifact_and_digest_approval(tmp_path: Path
     assert "image digest is not approved" in wrong_digest.stderr
     assert "contract environment is not the exact reviewed template" in changed_contract.stderr
     assert "approval hash mismatch for quadlet_template_sha256" in changed_template.stderr
+
+
+def test_installer_rejects_signed_quadlet_with_boot_activation(tmp_path: Path) -> None:
+    installer, env = _installer_fixture(tmp_path, resolved=True)
+    repo = installer.parents[2]
+    template = installer.parent / "penge-chat.container.in"
+    template.write_text(f"{template.read_text()}\n[Install]\nWantedBy=default.target\n")
+    _write_approval_manifest(repo, Path(env["HOME"]), "a" * 64)
+
+    rejected = subprocess.run(  # noqa: S603  # Temporary installer copy under test.
+        [installer, "a" * 64], capture_output=True, check=False, env=env, text=True
+    )
+    assert rejected.returncode != 0
+    assert "must not enable boot activation" in rejected.stderr
+    assert not (tmp_path / "systemctl.log").exists()
 
 
 def test_installer_checks_secrets_and_writes_private_user_unit(tmp_path: Path) -> None:

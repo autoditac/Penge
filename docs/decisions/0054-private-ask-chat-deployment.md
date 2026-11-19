@@ -33,9 +33,12 @@ We chose **non-loadable templates and readiness gates**.
 
 The tracked rootless Quadlet uses an immutable digest placeholder, loopback-only publishing, read-only mounts, dropped capabilities, secret mounts, and a runtime-owned health-command placeholder.
 It has a `.container.in` suffix, and the installer refuses to create a user unit while any contract token remains.
+It has no `[Install]` section, so generating the unit does not activate it at boot.
+The named network's published port cannot reach the backend's loopback-only container listener; readiness remains blocked until an approved transport and connectivity test exist.
 
 The active nginx configuration explicitly returns `404` for only `/ask` and `/ask/…`.
 A separate non-loadable nginx template contains the OAuth trust-boundary and identity-header overwrite contract, but it cannot be enabled until the integrated proxy, immutable subject, secret injection, and streaming behavior are demonstrated and reviewed.
+The API and its dedicated auth subrequest suppress access and error logs so OAuth callback parameters do not reach nginx logs.
 
 The OAuth database role is likewise represented by a non-executable SQL template.
 It targets a dedicated chat OAuth database, refuses execution against any other database, and permits only connect, schema usage, and row operations on migration-owned OAuth-link tables.

@@ -171,6 +171,10 @@ if grep -n '@@[A-Z0-9_]\+@@' "$tmp" >&2; then
   echo "deployment blocked: unresolved private Ask contract tokens" >&2
   exit 1
 fi
+if grep -Eiq '^[[:space:]]*\[Install\][[:space:]]*(#.*)?$' "$tmp"; then
+  echo "deployment blocked: chat Quadlet must not enable boot activation during generation" >&2
+  exit 1
+fi
 
 mapfile -t image_lines < <(grep '^Image=' "$tmp" || true)
 expected_image="Image=ghcr.io/autoditac/penge/chat@sha256:$1"

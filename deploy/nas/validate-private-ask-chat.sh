@@ -92,7 +92,9 @@ if grep -Eiq \
   "$quadlet"; then
   fail "migration-owner database credential must not enter the runtime container"
 fi
-grep -q '^WantedBy=default.target$' "$quadlet"
+if grep -Eiq '^[[:space:]]*\[Install\][[:space:]]*(#.*)?$' "$quadlet"; then
+  fail "chat Quadlet must not enable boot activation during generation"
+fi
 grep -q 'systemctl --user daemon-reload' "$root/deploy/nas/install-private-ask-chat-quadlet.sh"
 if grep -Eq 'sudo|/etc/containers/systemd|systemctl daemon-reload' \
   "$root/deploy/nas/install-private-ask-chat-quadlet.sh"; then
@@ -107,8 +109,18 @@ fi
 grep -q 'return 404;' "$nginx_live"
 grep -q 'location ^~ /ask/api/ {' "$nginx_template"
 if ! awk '
-  /^location \^~ \/ask\/api\/ \{$/ { routes++; in_route = 1; next }
-  in_route && /^}/ { in_route = 0; next }
+  /^location (= \/_penge_chat_auth|\^~ \/ask\/api\/) \{$/ {
+    routes++
+    in_route = 1
+    disabled = 0
+    error_disabled = 0
+    next
+  }
+  in_route && /^}/ {
+    if (disabled != 1 || error_disabled != 1) unsafe = 1
+    in_route = 0
+    next
+  }
   in_route && /^[[:space:]]*#/ { next }
   in_route && /access_log/ {
     if ($0 ~ /^[[:space:]]*access_log[[:space:]]+off;[[:space:]]*$/) {
@@ -117,10 +129,21 @@ if ! awk '
       unsafe = 1
     }
   }
-  END { exit !(routes == 1 && disabled == 1 && !unsafe) }
+  in_route && /error_log/ {
+    if ($0 ~ /^[[:space:]]*error_log[[:space:]]+\/dev\/null[[:space:]]+emerg;[[:space:]]*$/) {
+      error_disabled++
+    } else {
+      unsafe = 1
+    }
+  }
+  in_route && /^[[:space:]]*error_page[[:space:]]/ { unsafe = 1 }
+  END { exit !(routes == 2 && !in_route && !unsafe) }
 ' "$nginx_template"; then
-  fail "candidate nginx must disable chat API access logging"
+  fail "candidate nginx must disable chat API and auth logging and redirects"
 fi
+grep -q '^    auth_request /_penge_chat_auth;$' "$nginx_template"
+grep -q '^    internal;$' "$nginx_template"
+grep -q '^    proxy_pass http://127.0.0.1:4180/oauth2/auth;$' "$nginx_template"
 if grep -Eq '^location[[:space:]]+(=[[:space:]]+/ask|\^~[[:space:]]+/ask/)[[:space:]]*\{' \
   "$nginx_template"; then
   fail "chat nginx template must leave /ask frontend routing to the web SPA"
@@ -395,8 +418,8 @@ schemas = re.findall(
     rf"(?m)^GRANT USAGE ON SCHEMA ([a-z_][a-z0-9_]*) TO {re.escape(role)};$",
     sql,
 )
-if len(schemas) != 1:
-    raise SystemExit("expected exactly one OAuth schema usage grant")
+if schemas != ["public"]:
+    raise SystemExit("OAuth schema must be public")
 schema = schemas[0]
 expected = f"""\\set ON_ERROR_STOP on
 BEGIN;
@@ -535,4 +558,4 @@ then
 fi
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/ci.yml"
 grep -Eq 'app:[[:space:]]*\[[^]]*chat' "$root/.github/workflows/release.yml"
-echo "private Ask deployment contracts are resolved and packaging is ready"
+fail "loopback-only chat listener is unreachable through the published container port; an approved and tested transport is required"

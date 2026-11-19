@@ -39,6 +39,3 @@ Restart=always
 TimeoutStartSec=120
 ExecStartPre=/usr/bin/test -r %h/.config/penge/approved/private-ask-chat.contract-@@CONTRACT_ENV_SHA256@@.env
 ExecStartPost=/bin/sh -c 'set -eu; image_id=$(podman inspect penge-chat --format "{{.Image}}"); digest=$(podman image inspect "$image_id" --format "{{.Digest}}"); test -n "$digest"; echo "penge-chat deploy: $(date -Iseconds) digest=$digest"'
-
-[Install]
-WantedBy=default.target

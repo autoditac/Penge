@@ -14,6 +14,7 @@ Do not deploy the chat from this branch.
 - `deploy/nas/penge-chat-db-role.sql.in` is intentionally non-executable.
 - The active nginx configuration returns `404` for exactly `/ask` and the bounded `/ask/` prefix.
 - `deploy/nas/validate-private-ask-chat.sh --ready` must fail while any `@@...@@` token remains.
+- Even with all tokens resolved, `--ready` fails: the named network's published port cannot reach the backend's loopback-only listener.
 - #346 has fixed the backend environment and credential-file names recorded below; immutable oauth2-proxy subject extraction and the nginx mounted-secret include mechanism remain unproven, so their activation tokens stay unresolved.
 - The agreed external API base is `/ask/api/`, with `VITE_PENGE_CHAT_BASE_URL=/ask/api/`; `PENGE_CHAT_PUBLIC_API_BASE` is the external HTTPS URL ending in `/ask/api/`, while `PENGE_CHAT_PUBLIC_APP_ORIGIN` is the HTTPS origin only.
 - Internal routes are `GET /v1/auth/status`, `GET /oauth/github/start`, `GET /oauth/github/callback`, `DELETE /v1/auth/github`, `POST /v1/chat` (SSE), `POST /v1/chat/stop`, and quota-free `/health`.
@@ -92,6 +93,8 @@ The final rendered unit belongs at:
 The template publishes only `127.0.0.1:8123`.
 It requires exactly one reviewed, dedicated rootless Podman network; host, none, default, bridge, and the shared Podman network names are rejected.
 Create and verify that network as the rootless service account before installation.
+The current port mapping cannot reach the backend's container-loopback listener.
+Do not install or activate until an approved transport is implemented and connectivity through the published host port is demonstrated.
 It has no public MCP, Copilot runtime, database, raw-tool, health, or metrics port.
 It uses a read-only root filesystem, a bounded temporary filesystem, default SELinux confinement, no new privileges, and no Linux capabilities.
 There is no persistent transcript volume; OAuth data belongs in the separate chat database.
@@ -105,7 +108,8 @@ deploy/nas/install-private-ask-chat-quadlet.sh \
 ```
 
 This example digest is synthetic and must never be deployed.
-The installer only renders and reloads the user service; it does not enable or start it.
+The installer only renders the unit and reloads the user manager; the template has no `[Install]` section and does not enable or start the service.
+Any future boot wiring requires a separately reviewed template and a newly signed approval manifest.
 
 ### Reviewed approval manifest
 
@@ -212,7 +216,7 @@ The resolved template must target a dedicated chat OAuth database and abort when
 The resolved SQL may grant only:
 
 - `CONNECT` on the dedicated chat OAuth database.
-- `USAGE` on the OAuth-link schema.
+- `USAGE` on the `public` OAuth-link schema.
 - `SELECT`, `INSERT`, `UPDATE`, and `DELETE` on `chat_oauth_link` and `chat_oauth_state`.
 - `INSERT` only on `chat_audit_event`.
 - `USAGE` and `SELECT` only on `chat_audit_event_id_seq`.
@@ -247,16 +251,20 @@ It does not prefix-match `/askevil`.
 The candidate route template:
 
 - uses the existing Google oauth2-proxy `auth_request` boundary;
+- uses a dedicated internal auth subrequest with access and error logging disabled;
 - leaves `/ask` and all frontend routing with the web SPA;
 - proxies only bounded `/ask/api/` to the loopback chat service and strips that prefix;
 - overwrites only the trusted issuer, immutable subject, and mounted proxy-secret headers;
 - does not forward mutable user, email, login, or client-ID identity;
-- disables access logging for the entire API route, including the OAuth callback query string;
+- disables access and error logging for the entire API route, including the OAuth callback query string;
+- returns an unauthenticated API request directly rather than redirecting it to a logged sign-in location;
 - contains no `script-src 'unsafe-inline'`;
 - disables caching of private responses; and
 - leaves immutable-subject extraction, proxy-secret loading, and streaming values unresolved until the integrated behavior is demonstrated and reviewed.
 
 Do not copy the candidate into the live nginx config while any token remains.
+Verify that the enclosing nginx configuration does not inherit error-page redirects into either location.
+API and auth-subrequest nginx errors are discarded to prevent credential leakage; use the separately reviewed privacy-safe readiness and metrics signals for diagnostics.
 Validate with `nginx -t` before every reload.
 
 ## Health, readiness, metrics, and logs
@@ -365,11 +373,13 @@ contain live-service acceptance evidence.
 - [ ] Chat package and lockfile pin `@github/copilot-sdk` `1.0.16`.
 - [ ] Chat image CI, SBOM, provenance, vulnerability checks, and exact GHCR digest pass.
 - [ ] Source-coverage startup gate includes every source required by #344.
+- [ ] An approved transport reaches the loopback-only backend through the published host port without exposing it publicly.
 - [ ] Dedicated OAuth database migration round-trip and explicit OAuth-table grants pass
       without changing finance-database or global-role privileges.
 - [ ] Versioned rootless secrets exist and encrypted backups are verified.
 - [ ] Immutable Google subject extraction and mounted proxy-secret injection are demonstrated and approved; client-provided identity headers are cleared or overwritten.
 - [ ] Nginx exact/bounded routes pass `nginx -t` behind oauth2-proxy.
+- [ ] Callback authorization failures and unavailable upstreams retain no OAuth code or state in access or error logs.
 - [ ] The exact rendered Quadlet, environment, nginx, and database templates are reviewed.
 - [ ] The detached reviewer signature covers the complete manifest and all template hashes.
 

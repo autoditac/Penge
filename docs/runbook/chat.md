@@ -19,6 +19,9 @@ schemas, local stdio MCP configuration for the 16 implemented model tools,
 ambient-tool denial, actor/token/storage ownership, sanitized child
 environments, and typed unavailable-model errors.
 It uses synthetic values and makes no external model call.
+The model-list timeout regression waits for the synthetic runtime handshake
+before measuring its deadline and verifies process exit and storage removal.
+Separate regressions cover startup deadlines and never-completing handshakes.
 It does not start the MCP child, request `tools/list`, or invoke a tool.
 The MCP test separately spawns a synthetic stdio server using the production
 registry and a fake query runner, lists its read-only tools, and invokes

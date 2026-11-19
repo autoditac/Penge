@@ -237,12 +237,25 @@ describe("bounded entitlement probe", () => {
   it("times out a nonresponding runtime and cleans up after graceful exit", async () => {
     const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));
     const client = syntheticClient(baseDirectory, "graceful");
+    const listModels = vi.spyOn(client, "listModels");
 
-    await expect(
-      probeEntitlement(client, baseDirectory, { probeMs: 2_000, shutdownMs: 3_000 }),
-    ).rejects.toBeInstanceOf(EntitlementProbeTimeoutError);
-    await expect(stat(baseDirectory)).rejects.toMatchObject({ code: "ENOENT" });
-  }, 10_000);
+    try {
+      // Exercise model-list timeout, independently of child startup speed on shared runners.
+      await client.start();
+      const pid = Number(await readFile(join(baseDirectory, "runtime.pid"), "utf8"));
+      expect(Number.isInteger(pid) && pid > 0).toBe(true);
+
+      await expect(
+        probeEntitlement(client, baseDirectory, { probeMs: 100, shutdownMs: 3_000 }),
+      ).rejects.toBeInstanceOf(EntitlementProbeTimeoutError);
+      expect(listModels).toHaveBeenCalledOnce();
+      await expectProcessGone(pid);
+      await expect(stat(baseDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+    } finally {
+      await client.forceStop();
+      await rm(baseDirectory, { recursive: true, force: true });
+    }
+  }, 15_000);
 
   it("forces an unresponsive runtime to stop and retains unverified storage", async () => {
     const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));

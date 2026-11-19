@@ -4,11 +4,13 @@ import { ASK_STREAM_PROTOCOL_VERSION, askRequestSchema, askStreamEventSchema } f
 import type {
   AskRequest,
   AskStreamErrorEvent,
+  AskStreamEvent,
   AskTransport,
   AskTransportSession,
 } from "./contract";
 
 const STOP_CONFIRMATION_TIMEOUT_MS = 15_000;
+const TERMINAL_CLOSE_TIMEOUT_MS = 15_000;
 
 const githubAuthStatusSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("linked"), login: z.string().min(1) }).strict(),
@@ -136,11 +138,17 @@ export class SseDataParser {
 
   finish(): string[] {
     const payloads: string[] = [];
-    if (this.lineBuffer.length > 0) {
-      this.processLine(this.lineBuffer.replace(/\r$/, ""), payloads);
+    if (this.lineBuffer.endsWith("\r")) {
+      this.processLine(this.lineBuffer.slice(0, -1), payloads);
       this.lineBuffer = "";
     }
-    this.dispatch(payloads);
+    if (
+      (this.lineBuffer.length > 0 && !this.lineBuffer.startsWith(":")) ||
+      this.dataLines.length > 0
+    ) {
+      throw new AskChatClientError("stream_incomplete", "The answer stream ended mid-event.");
+    }
+    this.lineBuffer = "";
     return payloads;
   }
 
@@ -186,6 +194,15 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
       let sessionId: string | null = null;
       let nextSequence = 0;
       let terminal = false;
+      let pendingTerminal: AskStreamEvent | null = null;
+      let terminalCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+      const clearTerminalCloseTimer = (): void => {
+        if (terminalCloseTimer !== null) {
+          clearTimeout(terminalCloseTimer);
+          terminalCloseTimer = null;
+        }
+      };
 
       const emit = (event: unknown): void => {
         if (userStopped) {
@@ -222,12 +239,18 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
           return;
         }
         closed = true;
+        clearTerminalCloseTimer();
         controller.abort();
       };
 
       const processPayload = (payload: string): boolean => {
         if (userStopped) {
           return true;
+        }
+        if (pendingTerminal !== null) {
+          emit({ postTerminalEvent: true });
+          close();
+          return false;
         }
         let candidateEvent: unknown;
         try {
@@ -255,10 +278,21 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
           return false;
         }
 
-        emit(parsed.data);
         sessionId = parsed.data.sessionId;
-        nextSequence = parsed.data.sequence + 1;
-        terminal = parsed.data.type === "completion" || parsed.data.type === "error";
+        if (parsed.data.type === "completion" || parsed.data.type === "error") {
+          pendingTerminal = parsed.data;
+          terminalCloseTimer = setTimeout(() => {
+            emitClientError(
+              "session_interrupted",
+              "The answer stream did not close after its final event. Reconnect to try again.",
+              true,
+            );
+            close();
+          }, TERMINAL_CLOSE_TIMEOUT_MS);
+        } else {
+          nextSequence = parsed.data.sequence + 1;
+          emit(parsed.data);
+        }
         return true;
       };
 
@@ -293,12 +327,12 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
           }
 
           const reader = response.body.getReader();
-          const decoder = new TextDecoder();
+          const decoder = new TextDecoder("utf-8", { fatal: true });
           const parser = new SseDataParser();
           while (!closed) {
             const result = await reader.read();
             const payloads = result.done
-              ? parser.finish()
+              ? [...parser.push(decoder.decode()), ...parser.finish()]
               : parser.push(decoder.decode(result.value, { stream: true }));
             for (const payload of payloads) {
               if (!processPayload(payload)) {
@@ -306,11 +340,16 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
               }
             }
             if (result.done) {
+              clearTerminalCloseTimer();
+              if (!closed && !userStopped && pendingTerminal !== null) {
+                terminal = true;
+                emit(pendingTerminal);
+              }
               break;
             }
           }
 
-          if (!terminal && !closed) {
+          if (!terminal && !closed && !userStopped) {
             emitClientError(
               "session_interrupted",
               "The Ask Penge connection ended before the answer completed.",
@@ -328,12 +367,15 @@ function createFetchAskTransport(baseUrl: URL, fetchFn: FetchLike): AskTransport
               true,
             );
           }
+        } finally {
+          clearTerminalCloseTimer();
         }
       };
 
       return {
         stop: async () => {
           userStopped = true;
+          clearTerminalCloseTimer();
           if (sessionId === null) {
             close();
             return;

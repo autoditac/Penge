@@ -102,8 +102,9 @@ are recorded in ADR-0036.
   from `GET <base>/v1/auth/status`; the interface labels Copilot Fusion as
   experimental and shows its exact model ID. It never derives identity or
   entitlement in the browser. Linking navigates to `<base>/oauth/github/start`,
-  unlinking uses `DELETE <base>/v1/auth/github`, and bounded questions (maximum 8,000
-  characters) stream from `POST <base>/v1/chat`. Concurrent status refreshes
+  and linked or expired accounts can be unlinked without reauthorization using
+  `DELETE <base>/v1/auth/github`. Bounded questions (maximum 8,000 characters)
+  stream from `POST <base>/v1/chat`. Concurrent status refreshes
   cannot overwrite a newer unlink result. Unlink requests cannot overlap, and
   a successful unlink is followed by a status refresh. User cancellation stops
   local updates immediately and calls `POST <base>/v1/chat/stop` only after a
@@ -122,8 +123,11 @@ are recorded in ADR-0036.
   cancelled results remain warnings. The account
   panel describes EUR and DKK support, while each evidence card identifies the
   currencies actually present in that source.
-  The incremental SSE parser handles chunk boundaries and CRLF/LF framing;
-  malformed, out-of-order, cross-session, and post-terminal events fail closed.
+  The incremental SSE parser handles chunk boundaries and CRLF/LF/CR framing;
+  incomplete, malformed, out-of-order, cross-session, and post-terminal events
+  fail closed. Terminal events are delivered only after a clean stream end;
+  a stream that remains open for 15 seconds after its terminal event is treated
+  as interrupted.
   Synthetic streams are available only through injected transports in tests.
   The fixed #346 protocol requires contiguous per-session sequence numbers,
   stable session/event IDs, and no events after a terminal completion/error;

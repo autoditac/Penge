@@ -1093,6 +1093,11 @@ export function GitHubStatusCard({
                 GitHub linking unavailable
               </Button>
             )}
+            {authState === "expired" && onUnlink ? (
+              <Link component="button" type="button" onClick={onUnlink} sx={{ textAlign: "left" }}>
+                Unlink GitHub account
+              </Link>
+            ) : null}
           </>
         )}
       </Stack>

@@ -131,7 +131,9 @@ function ConfiguredAskPengePage({
       onRetryStatus={refreshStatusUnlessUnlinking}
       onAuthExpired={refreshStatusUnlessUnlinking}
       onModelUnavailable={refreshStatusUnlessUnlinking}
-      {...(status?.github.state === "linked" ? { onUnlinkGitHub: unlinkGitHub } : {})}
+      {...(status?.github.state === "linked" || status?.github.state === "expired"
+        ? { onUnlinkGitHub: unlinkGitHub }
+        : {})}
     />
   );
 }

@@ -82,7 +82,7 @@ describe("Ask Penge live client", () => {
 
   it("loads strict status, exposes the OAuth URL, and unlinks with same-origin credentials", async () => {
     const fetchMock = vi
-      .fn()
+      .fn<FetchLike>()
       .mockResolvedValueOnce(statusResponse())
       .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }));
     const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
@@ -149,13 +149,21 @@ describe("Ask Penge live client", () => {
     });
   });
 
-  it("parses split CRLF, multiline data, comments, and final unterminated events", () => {
+  it("parses split CRLF and multiline data without accepting an unfinished event", () => {
     const parser = new SseDataParser();
 
     expect(parser.push(': keepalive\r\ndata: {"one":\r')).toEqual([]);
     expect(parser.push("\ndata: true}\r\n\r")).toEqual([]);
     expect(parser.push("\ndata: trailing")).toEqual(['{"one":\ntrue}']);
-    expect(parser.finish()).toEqual(["trailing"]);
+    expect(() => parser.finish()).toThrow();
+
+    const carriageReturns = new SseDataParser();
+    expect(carriageReturns.push("data: complete\r\r")).toEqual([]);
+    expect(carriageReturns.finish()).toEqual(["complete"]);
+
+    const comment = new SseDataParser();
+    expect(comment.push("data: complete\n\n: keepalive")).toEqual(["complete"]);
+    expect(comment.finish()).toEqual([]);
   });
 
   it("streams chunk-split events and sends no client member identity", async () => {
@@ -195,6 +203,230 @@ describe("Ask Penge live client", () => {
       body: JSON.stringify({ question: "Synthetic question" }),
     });
     expect(String(fetchMock.mock.calls[0]?.[1]?.body)).not.toContain("member");
+  });
+
+  it("does not deliver a terminal event until the stream ends cleanly", async () => {
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const text = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "text-0",
+      sequence: 0,
+      type: "text",
+      stream: "answer",
+      delta: "Synthetic answer",
+      source: "assistant",
+    });
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-1",
+      sequence: 1,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            streamController = controller;
+            controller.enqueue(
+              new TextEncoder().encode(`data: ${text}\n\ndata: ${completion}\n\n`),
+            );
+          },
+        }),
+      ),
+    );
+    const client = createAskChatClient(baseUrl, fetchMock, currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const listener = vi.fn();
+    session.subscribe(listener);
+    await waitFor(() => expect(listener).toHaveBeenCalledOnce());
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ type: "text" }));
+
+    streamController?.close();
+    await waitFor(() => expect(listener).toHaveBeenCalledTimes(2));
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ type: "completion" }));
+  });
+
+  it("reports an interruption when the stream stays open after a terminal event", async () => {
+    vi.useFakeTimers();
+    try {
+      const completion = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "completion-0",
+        sequence: 0,
+        type: "completion",
+        summary: "Synthetic completion",
+        coverage: "full",
+        freshness: "fresh",
+        finishReason: "completed",
+        assumptions: [],
+      });
+      const fetchMock = vi.fn<FetchLike>().mockResolvedValue(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+            },
+          }),
+        ),
+      );
+      const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+        question: "Synthetic question",
+      });
+      const listener = vi.fn();
+      session.subscribe(listener);
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(listener).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(listener).toHaveBeenCalledOnce();
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "error", code: "session_interrupted", sequence: 0 }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the stream open while stop is awaiting confirmation after a terminal event", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolveStop!: (response: Response) => void;
+      const pendingStop = new Promise<Response>((resolve) => {
+        resolveStop = resolve;
+      });
+      const completion = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "completion-0",
+        sequence: 0,
+        type: "completion",
+        summary: "Synthetic completion",
+        coverage: "full",
+        freshness: "fresh",
+        finishReason: "completed",
+        assumptions: [],
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+              },
+            }),
+          ),
+        )
+        .mockReturnValueOnce(pendingStop);
+      const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+        question: "Synthetic question",
+      });
+      const listener = vi.fn();
+      session.subscribe(listener);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      const stop = session.stop();
+      const streamSignal = fetchMock.mock.calls[0]?.[1]?.signal;
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(streamSignal?.aborted).toBe(false);
+      expect(listener).not.toHaveBeenCalled();
+
+      resolveStop(jsonResponse({ status: "stopped" }));
+      await stop;
+      expect(streamSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not accept an unterminated completion event", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(streamResponse([`data: ${completion}`]));
+    const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+      question: "Synthetic question",
+    });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({ type: "error", code: "session_interrupted" });
+  });
+
+  it("does not accept a terminal event followed by a truncated frame", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi
+      .fn<FetchLike>()
+      .mockResolvedValue(streamResponse([`data: ${completion}\n\ndata: {"type":"text"`]));
+    const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+      question: "Synthetic question",
+    });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({ type: "error", code: "session_interrupted", sequence: 0 });
+  });
+
+  it("does not accept invalid trailing UTF-8 after a terminal frame", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+            controller.enqueue(new Uint8Array([0xc3]));
+            controller.close();
+          },
+        }),
+      ),
+    );
+    const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+      question: "Synthetic question",
+    });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({ type: "error", code: "session_interrupted", sequence: 0 });
   });
 
   it("rejects questions over 8,000 characters before fetching", () => {
@@ -596,15 +828,26 @@ describe("Ask Penge live page", () => {
     expect(await screen.findByText(/authorization expired/i)).toBeInTheDocument();
   });
 
-  it("unlinks a linked account and refreshes status", async () => {
+  it.each([
+    ["linked", "synthetic-user"],
+    ["expired", null],
+    ["expired", "synthetic-user"],
+  ] as const)("unlinks a %s account and refreshes status", async (state, login) => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(statusResponse({ login: "synthetic-user" }))
+      .mockResolvedValueOnce(statusResponse({ state, login }))
       .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }))
       .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
     render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
 
-    expect(await screen.findByText(/linked as @synthetic-user/i)).toBeInTheDocument();
+    expect(
+      await screen.findByRole("button", { name: "Unlink GitHub account" }),
+    ).toBeInTheDocument();
+    if (state === "expired") {
+      expect(
+        screen.getByRole("button", { name: "Reauthenticate GitHub account" }),
+      ).toBeInTheDocument();
+    }
     await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
     await waitFor(() => expect(screen.getByText(/connect your own account/i)).toBeInTheDocument());
     expect(String(fetchMock.mock.calls[1]?.[0])).toBe("http://localhost:3000/chat/v1/auth/github");
@@ -686,6 +929,7 @@ describe("Ask Penge live page", () => {
       retryable: false,
     };
     streamController.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(expired)}\n\n`));
+    streamController.close();
 
     expect(await screen.findByText("GitHub session expired")).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(3);
@@ -801,41 +1045,50 @@ describe("Ask Penge live page", () => {
     },
   );
 
-  it("rejects a post-terminal live event at the protocol boundary", async () => {
-    const completion = JSON.stringify({
-      version: "1.0",
-      sessionId: "live-session",
-      id: "completion-0",
-      sequence: 0,
-      type: "completion",
-      summary: "Synthetic completion",
-      coverage: "full",
-      freshness: "fresh",
-      finishReason: "completed",
-      assumptions: [],
-    });
-    const postTerminal = JSON.stringify({
-      version: "1.0",
-      sessionId: "live-session",
-      id: "text-1",
-      sequence: 1,
-      type: "text",
-      stream: "answer",
-      delta: "Must not render",
-      source: "assistant",
-    });
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(statusResponse())
-      .mockResolvedValueOnce(streamResponse([`data: ${completion}\n\ndata: ${postTerminal}\n\n`]));
-    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+  it.each(["same chunk", "separate chunks"])(
+    "rejects a post-terminal live event in %s",
+    async (delivery) => {
+      const completion = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "completion-0",
+        sequence: 0,
+        type: "completion",
+        summary: "Synthetic completion",
+        coverage: "full",
+        freshness: "fresh",
+        finishReason: "completed",
+        assumptions: [],
+      });
+      const postTerminal = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "text-1",
+        sequence: 1,
+        type: "text",
+        stream: "answer",
+        delta: "Must not render",
+        source: "assistant",
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(statusResponse())
+        .mockResolvedValueOnce(
+          streamResponse(
+            delivery === "same chunk"
+              ? [`data: ${completion}\n\ndata: ${postTerminal}\n\n`]
+              : [`data: ${completion}\n\n`, `data: ${postTerminal}\n\n`],
+          ),
+        );
+      render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
 
-    await screen.findByText(/linked as @synthetic-user/i);
-    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+      await screen.findByText(/linked as @synthetic-user/i);
+      await userEvent.click(screen.getByRole("button", { name: "Ask" }));
 
-    expect(await screen.findByText("Unsupported answer stream")).toBeInTheDocument();
-    expect(screen.queryByText("Must not render")).not.toBeInTheDocument();
-    expect(screen.queryByText("Synthetic completion")).not.toBeInTheDocument();
-    expect(screen.queryByText("Answer ready")).not.toBeInTheDocument();
-  });
+      expect(await screen.findByText("Unsupported answer stream")).toBeInTheDocument();
+      expect(screen.queryByText("Must not render")).not.toBeInTheDocument();
+      expect(screen.queryByText("Synthetic completion")).not.toBeInTheDocument();
+      expect(screen.queryByText("Answer ready")).not.toBeInTheDocument();
+    },
+  );
 });

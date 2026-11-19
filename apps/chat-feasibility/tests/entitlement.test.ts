@@ -283,17 +283,20 @@ describe("bounded entitlement probe", () => {
     );
 
     try {
+      // The window must outlast child Node startup on a loaded host so the runtime records its PID
+      // before the deadline; a never-completing handshake still makes the deadline fire.
       await expect(
-        probeEntitlement(probeClient, baseDirectory, { probeMs: 300, shutdownMs: 1_000 }),
+        probeEntitlement(probeClient, baseDirectory, { probeMs: 2_000, shutdownMs: 1_000 }),
       ).rejects.toBeInstanceOf(SdkCleanupError);
       await expect(startup()).rejects.toBeDefined();
       const pid = Number(await readFile(join(baseDirectory, "runtime.pid"), "utf8"));
+      expect(Number.isInteger(pid) && pid > 0).toBe(true);
       await expectProcessGone(pid);
       await expect(stat(baseDirectory)).resolves.toBeDefined();
     } finally {
       await rm(baseDirectory, { recursive: true, force: true });
     }
-  }, 10_000);
+  }, 15_000);
 
   it("kills a runtime spawned after the deadline whose handshake never completes", async () => {
     const baseDirectory = await mkdtemp(join(tmpdir(), "penge-entitlement-test-"));

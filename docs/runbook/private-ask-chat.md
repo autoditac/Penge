@@ -8,7 +8,7 @@ See [ADR-0054](../decisions/0054-private-ask-chat-deployment.md).
 
 Do not deploy the chat from this branch.
 
-- `apps/chat` and its image do not exist on this branch.
+- `apps/chat` exists, but its container image and `apps/chat/Containerfile` do not.
 - `deploy/nas/penge-chat.container.in` is intentionally non-loadable.
 - `deploy/nas/penge-chat.nginx.conf.in` is intentionally non-loadable.
 - `deploy/nas/penge-chat-db-role.sql.in` is intentionally non-executable.
@@ -18,8 +18,8 @@ Do not deploy the chat from this branch.
 - The agreed external API base is `/ask/api/`, with `VITE_PENGE_CHAT_BASE_URL=/ask/api/`; `PENGE_CHAT_PUBLIC_API_BASE` is the external HTTPS URL ending in `/ask/api/`, while `PENGE_CHAT_PUBLIC_APP_ORIGIN` is the HTTPS origin only.
 - Internal routes are `GET /v1/auth/status`, `GET /oauth/github/start`, `GET /oauth/github/callback`, `DELETE /v1/auth/github`, `POST /v1/chat` (SSE), `POST /v1/chat/stop`, and quota-free `/health`.
 - The external OAuth callback must remain `/ask/api/oauth/github/callback`; the web SPA retains `/ask`, only `/ask/api/` proxies to chat with the prefix stripped, and no root-level OAuth route may be exposed.
-- Nginx must overwrite lowercase-equivalent `x-penge-auth-issuer`, `x-penge-auth-subject`, and `x-penge-proxy-secret`; mutable user, email, login, and client-ID forwarding is not an identity contract. Keep immutable-subject extraction and the proxy-secret include tokens unresolved until #346 and #349 publish matching tests.
-- No NAS deployment, real account linking, HydraFusion call, or two-account acceptance has been performed.
+- Nginx must overwrite lowercase-equivalent `x-penge-auth-issuer`, `x-penge-auth-subject`, and `x-penge-proxy-secret`; mutable user, email, login, and client-ID forwarding is not an identity contract. Keep immutable-subject extraction and proxy-secret include tokens unresolved until the integrated proxy, backend, and WebUI behavior is demonstrated and reviewed.
+- No NAS deployment or authorized two-account live acceptance has been performed for this deployment seam.
 
 The secure seam check is available through the repository task runner:
 
@@ -94,7 +94,7 @@ It requires exactly one reviewed, dedicated rootless Podman network; host, none,
 Create and verify that network as the rootless service account before installation.
 It has no public MCP, Copilot runtime, database, raw-tool, health, or metrics port.
 It uses a read-only root filesystem, a bounded temporary filesystem, default SELinux confinement, no new privileges, and no Linux capabilities.
-There is no persistent chat volume while the backend storage contract is unknown.
+There is no persistent transcript volume; OAuth data belongs in the separate chat database.
 
 The installer refuses root execution, mutable tags, wildcard binds, missing secrets, missing or stale approval, unsafe ownership or permissions, and unresolved contract tokens.
 Once the contracts are resolved and reviewed, render an exact image digest without the `sha256:` prefix:
@@ -166,9 +166,9 @@ The final unit requires six distinct rootless secrets:
 - The least-privilege chat database URL.
 - The read-only finance MCP database URL.
 
-Exact payload formats and mount targets come from #346 and remain unresolved tokens.
+The backend's secret payload formats are documented in `apps/chat/README.md`; deployment-specific mount targets remain unresolved tokens.
 The image-owned container UID/GID and rootless network topology also remain unresolved rather than assuming UID `1000` or host-loopback database access.
-Create secrets only as the dedicated chat account and only after that contract lands:
+Create secrets only as the dedicated chat account and only after those contracts are reviewed:
 
 ```bash
 umask 077
@@ -203,11 +203,11 @@ Keep the previous secret until callback, state, PKCE, refresh, and separate-user
 
 Account unlinking must revoke the GitHub grant where supported and delete only that identity's OAuth-link rows.
 It must not remove another user's link, finance data, audits, or shared source data.
-Use the backend-owned unlink operation once #346 provides it; do not manipulate ciphertext manually.
+Use the backend-owned unlink operation; do not manipulate ciphertext manually.
 
 ## Dedicated OAuth database and least-privilege role
 
-`deploy/nas/penge-chat-db-role.sql.in` is non-executable until #346 supplies migration-owned identifiers.
+`deploy/nas/penge-chat-db-role.sql.in` remains non-executable while deployment-specific identifiers are unresolved.
 The resolved template must target a dedicated chat OAuth database and abort when connected to any other database.
 The resolved SQL may grant only:
 
@@ -254,14 +254,15 @@ The candidate route template:
 - disables access logging for the entire API route, including the OAuth callback query string;
 - contains no `script-src 'unsafe-inline'`;
 - disables caching of private responses; and
-- leaves immutable-subject extraction, proxy-secret loading, and streaming values unresolved until #346 and #349 publish matching tests.
+- leaves immutable-subject extraction, proxy-secret loading, and streaming values unresolved until the integrated behavior is demonstrated and reviewed.
 
 Do not copy the candidate into the live nginx config while any token remains.
 Validate with `nginx -t` before every reload.
 
 ## Health, readiness, metrics, and logs
 
-The container health command remains unresolved because the runtime image and endpoints are not yet defined.
+The backend defines quota-free `/health`, but the container health command remains unresolved until the image and its execution mechanism are reviewed.
+The `/health` endpoint alone is not proof of production readiness.
 The final contract must distinguish:
 
 - liveness that consumes no model quota;
@@ -358,6 +359,8 @@ This is a pre-deployment gate for the exact artifact to be installed; it does no
 contain live-service acceptance evidence.
 
 - [ ] #343–#346 exact contracts are merged into this branch.
+- [ ] The household owner accepts the proposed ADR-0005 transaction-tool amendment through repository review, or the transaction-level tools are removed from the chat allowlist.
+- [ ] Human security/privacy review approves the integrated deployment and evidence boundary.
 - [ ] `validate-private-ask-chat.sh --ready` passes.
 - [ ] Chat package and lockfile pin `@github/copilot-sdk` `1.0.16`.
 - [ ] Chat image CI, SBOM, provenance, vulnerability checks, and exact GHCR digest pass.
@@ -365,6 +368,7 @@ contain live-service acceptance evidence.
 - [ ] Dedicated OAuth database migration round-trip and explicit OAuth-table grants pass
       without changing finance-database or global-role privileges.
 - [ ] Versioned rootless secrets exist and encrypted backups are verified.
+- [ ] Immutable Google subject extraction and mounted proxy-secret injection are demonstrated and approved; client-provided identity headers are cleared or overwritten.
 - [ ] Nginx exact/bounded routes pass `nginx -t` behind oauth2-proxy.
 - [ ] The exact rendered Quadlet, environment, nginx, and database templates are reviewed.
 - [ ] The detached reviewer signature covers the complete manifest and all template hashes.

@@ -18,8 +18,9 @@ def upgrade_isolated_database(database_url: str) -> None:
     )
     env = dict(os.environ)
     env["DATABASE_URL"] = validated_url
+    command = [sys.executable, "-m", "alembic", "upgrade", "head"]
     subprocess.run(  # noqa: S603 - fixed Python/Alembic argv; validated URL passed only via env
-        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        command,
         env=env,
         cwd=Path(__file__).resolve().parents[2],
         check=True,

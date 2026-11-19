@@ -35,7 +35,7 @@ The tracked rootless Quadlet uses an immutable digest placeholder, loopback-only
 It has a `.container.in` suffix, and the installer refuses to create a user unit while any contract token remains.
 
 The active nginx configuration explicitly returns `404` for only `/ask` and `/ask/…`.
-A separate non-loadable nginx template contains the OAuth trust-boundary and identity-header overwrite contract, but it cannot be enabled until exact base-path, callback, and streaming semantics are known.
+A separate non-loadable nginx template contains the OAuth trust-boundary and identity-header overwrite contract, but it cannot be enabled until the integrated proxy, immutable subject, secret injection, and streaming behavior are demonstrated and reviewed.
 
 The OAuth database role is likewise represented by a non-executable SQL template.
 It targets a dedicated chat OAuth database, refuses execution against any other database, and permits only connect, schema usage, and row operations on migration-owned OAuth-link tables.
@@ -46,14 +46,14 @@ The manifest binds the reviewer decision and reference to the exact image digest
 The approved environment is copied to a hash-addressed private path used by the rendered unit, so changing any input requires a new review manifest.
 
 ADR-0053 fixes `@github/copilot-sdk` at `1.0.16`, Copilot mode `empty`, the exact model `hydrafusion`, separate per-user identities, process-local stdio MCP, and no default tools or fallback.
-Production activation still requires external, privacy-safe entitlement evidence and the source-coverage startup contract.
+Production activation still requires the ADR-0005 owner decision or removal of the transaction tools, human security/privacy and proxy/secret approval, external privacy-safe entitlement evidence, and the source-coverage startup contract.
 
 ## Consequences
 
 ### Positive
 
 - The repository cannot accidentally install or start an unresolved chat unit.
-- Public routes remain closed while dependent contracts are absent.
+- Public routes remain closed while deployment contracts are unresolved.
 - Image, secret, dedicated-database, identity, and approval boundaries are reviewable before NAS changes.
 - Later integration failures become explicit CI/readiness failures instead of permissive defaults.
 
@@ -61,7 +61,7 @@ Production activation still requires external, privacy-safe entitlement evidence
 
 - No chat image is built or deployed by this change alone.
 - Live HydraFusion, two-user isolation, streaming, cancellation, and reconnect acceptance remain blocked.
-- A follow-up is required after #343–#346 publish their exact contracts.
+- A follow-up is required to integrate and accept the remaining #343–#346 contracts.
 
 ### Neutral
 

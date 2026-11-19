@@ -50,12 +50,22 @@ test:
 
 # Validate the fail-closed private Ask Penge deployment seam.
 # This intentionally does not claim image, NAS, HydraFusion, or two-user
-# readiness while the dependent #343-#346 contracts are unresolved.
+# readiness while #343-#346 integration and production contracts remain incomplete.
 private-ask-chat-deploy-check:
     ./deploy/nas/validate-private-ask-chat.sh --seam
     uv run --group dev pytest \
         tests/deploy/test_private_ask_chat_deploy.py \
         tests/deploy/test_nas_deploy.py -q
+
+# Validate the isolated chat package without starting external services.
+chat-check:
+    pnpm --filter @penge/chat test
+    pnpm --filter @penge/chat build
+    pnpm --filter @penge/chat lint
+
+# Run the dedicated chat OAuth migration integration test against disposable databases.
+chat-migration-integration:
+    uv run --group db --group dev --group http pytest tests/chat/test_chat_migration_roundtrip.py -q
 
 # --- Migrations ---------------------------------------------------------------
 
@@ -231,7 +241,7 @@ mcp-lint:
 mcp-build:
     pnpm --filter @penge/mcp build
 
-# Run the MCP golden-question eval suite. Twenty deterministic checks
+# Run the MCP golden-question eval suite. Thirty deterministic checks
 # of the tool layer (tax, sim, cashflow, net worth, vault) backed by
 # synthetic fixtures. See docs/mcp/evals.md for how to add a golden.
 mcp-evals:
@@ -297,7 +307,7 @@ household-browser-seed:
     time uv run --group dbt dbt build --project-dir dbt --profiles-dir dbt
 
 household-mcp-postgres-test:
-    pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts
+    pnpm --filter @penge/mcp exec vitest run tests/queryHouseholdReport.postgres.test.ts tests/sourceCoverageTools.postgres.test.ts
 
 household-browser-test:
     VITE_PENGE_DEMO=false VITE_PENGE_API_URL="http://127.0.0.1:${PENGE_E2E_API_PORT:-8000}" pnpm --filter @penge/web build

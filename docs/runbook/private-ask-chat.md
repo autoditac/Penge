@@ -335,10 +335,22 @@ Keep the previous image digest, compatible secret versions, complete signed appr
 Restore that complete reviewed artifact set before invoking the installer; a digest alone cannot satisfy approval.
 If current compatible artifacts differ, obtain a new detached reviewer signature approving the old digest and every current artifact hash instead of reusing the old manifest.
 
+Before invoking the installer, stop `penge-chat.service` as the dedicated rootless chat service account, not another user's manager or a system-level unit:
+
+```bash
+systemctl --user stop penge-chat.service
+```
+
+Verify that the unit is inactive, its container and any separately started chat processes have exited, and no listener remains on the configured chat socket.
+The installer deliberately rejects every existing socket path, including one left by a running service.
+If a path remains after verified shutdown, follow the operator-recovery procedure in [Rootless ownership model](#rootless-ownership-model); never remove it automatically or infer staleness from ownership or file type.
+If listener shutdown cannot be verified, stop the rollback rather than invoking the installer or removing the path.
+Only after these checks may the approved rollback artifacts be installed and the service started:
+
 ```bash
 deploy/nas/install-private-ask-chat-quadlet.sh \
   aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-systemctl --user restart penge-chat.service
+systemctl --user start penge-chat.service
 ```
 
 The example is synthetic.

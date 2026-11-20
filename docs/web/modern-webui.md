@@ -82,6 +82,56 @@ are recorded in ADR-0036.
   wizard says so and falls back to manual review.
 - **Planning** — labelled synthetic preview of the MCP
   `answer_planning_question` surface until live wiring lands.
+- **Ask Penge** — fail-closed evidence-first workbench for the private chat
+  backend in #346.
+  The route consumes a strict `1.0` zod-validated event envelope for ordered
+  text, sanitized tool activity, evidence, completion, and typed errors behind
+  an injectable transport.
+  Text deltas are buffered into bounded live-region updates, while terminal
+  completion flushes remaining text and exposes typed assumptions and limits.
+  The screen-reader live region exists before the first delta, and retry or
+  reconnect resends the last submitted question rather than the editable draft.
+  It keeps GitHub account linkage separate from model availability, rejects
+  unknown major contracts and extra event fields, never persists transcripts,
+  and does not call finance endpoints directly.
+  Desktop uses a collapsible evidence rail; mobile moves tool and source details
+  into a bounded bottom sheet.
+  Production enables the fetch-stream adapter only when
+  `VITE_PENGE_CHAT_BASE_URL` is set to a same-origin base path. The adapter reads
+  GitHub linkage, the backend feature gate, and exact `hydrafusion` availability
+  from `GET <base>/v1/auth/status`; the interface labels Copilot Fusion as
+  experimental and shows its exact model ID. It never derives identity or
+  entitlement in the browser. Linking navigates to `<base>/oauth/github/start`,
+  and linked or expired accounts can be unlinked without reauthorization using
+  `DELETE <base>/v1/auth/github`. Bounded questions (maximum 8,000 characters)
+  stream from `POST <base>/v1/chat`. Concurrent status refreshes
+  cannot overwrite a newer unlink result. Unlink requests cannot overlap, and
+  a successful unlink is followed by a status refresh. User cancellation stops
+  local updates immediately and calls `POST <base>/v1/chat/stop` only after a
+  server session ID is observed. The stream stays open until confirmation or a
+  15-second deadline, avoiding a race with server disconnect cleanup; an
+  unconfirmed stop is identified as a cancellation failure, not a stream
+  protocol error.
+  Missing configuration keeps the production route disabled, exposes no
+  simulated OAuth success, and permits no model fallback.
+  Exact-model errors refresh server-derived availability before another request
+  is enabled. If that refresh is rate-limited while a session finishes, asking
+  stays disabled and **Retry status** lets the user check again. A rejected
+  stream cannot show a completion summary or ready badge,
+  although validated partial answer text remains visible. Only completed answers
+  with full, fresh evidence receive success styling; partial, stale, and
+  cancelled results remain warnings. The account
+  panel describes EUR and DKK support, while each evidence card identifies the
+  currencies actually present in that source.
+  The incremental SSE parser handles chunk boundaries and CRLF/LF/CR framing;
+  incomplete, malformed, out-of-order, cross-session, and post-terminal events
+  fail closed. Terminal events are delivered only after a clean stream end;
+  a stream that remains open for 15 seconds after its terminal event is treated
+  as interrupted.
+  Synthetic streams are available only through injected transports in tests.
+  The fixed #346 protocol requires contiguous per-session sequence numbers,
+  stable session/event IDs, and no events after a terminal completion/error;
+  contract adaptation remains isolated in `src/ask-penge/contract.ts`.
 
 ## Design system (ADR-0045)
 

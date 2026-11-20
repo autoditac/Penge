@@ -1,0 +1,1094 @@
+/** Tests for the production Ask Penge fetch/SSE adapter.
+ * @vitest-environment jsdom
+ */
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+
+import { AskPengeLivePage } from "../src/ask-penge/AskPengeLivePage";
+import {
+  AskChatClientError,
+  SseDataParser,
+  createAskChatClient,
+  resolveSameOriginBaseUrl,
+} from "../src/ask-penge/liveClient";
+import type { FetchLike } from "../src/ask-penge/liveClient";
+
+const currentLocation = "https://penge.example/app/ask";
+const baseUrl = "/chat/";
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+function streamResponse(chunks: readonly string[], status = 200): Response {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+      },
+    }),
+    {
+      status,
+      headers: { "Content-Type": "text/event-stream" },
+    },
+  );
+}
+
+function statusResponse(
+  overrides: {
+    state?: "linked" | "not-linked" | "expired";
+    login?: string | null;
+    available?: boolean;
+    featureEnabled?: boolean;
+  } = {},
+): Response {
+  return jsonResponse({
+    github: {
+      state: overrides.state ?? "linked",
+      login: overrides.login === undefined ? "synthetic-user" : overrides.login,
+    },
+    model: {
+      id: "hydrafusion",
+      available: overrides.available ?? true,
+    },
+    featureEnabled: overrides.featureEnabled ?? true,
+  });
+}
+
+function asFetch(mock: ReturnType<typeof vi.fn>): FetchLike {
+  return mock as unknown as FetchLike;
+}
+
+describe("Ask Penge live client", () => {
+  it("normalizes same-origin base URLs and rejects cross-origin configuration", () => {
+    expect(
+      resolveSameOriginBaseUrl("/chat?ignored=true#fragment", currentLocation).toString(),
+    ).toBe("https://penge.example/chat/");
+    expect(resolveSameOriginBaseUrl("/ask/api/", currentLocation).toString()).toBe(
+      "https://penge.example/ask/api/",
+    );
+    expect(() =>
+      resolveSameOriginBaseUrl("https://attacker.example/chat", currentLocation),
+    ).toThrowError(AskChatClientError);
+  });
+
+  it("loads strict status, exposes the OAuth URL, and unlinks with same-origin credentials", async () => {
+    const fetchMock = vi
+      .fn<FetchLike>()
+      .mockResolvedValueOnce(statusResponse())
+      .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+
+    await expect(client.getStatus()).resolves.toMatchObject({
+      github: { state: "linked", login: "synthetic-user" },
+      model: { id: "hydrafusion", available: true },
+      featureEnabled: true,
+    });
+    expect(client.githubStartUrl).toBe("https://penge.example/chat/oauth/github/start");
+    await client.unlinkGitHub();
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe("https://penge.example/chat/v1/auth/status");
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ credentials: "same-origin" });
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe("https://penge.example/chat/v1/auth/github");
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+  });
+
+  it("rejects malformed or expanded status responses", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        github: { state: "linked", login: "synthetic-user" },
+        model: { id: "fallback-model", available: true },
+        featureEnabled: true,
+        clientEntitlement: true,
+      }),
+    );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+
+    await expect(client.getStatus()).rejects.toThrow();
+  });
+
+  it.each([
+    [{ state: "linked", login: null }, "linked without a login"],
+    [{ state: "not-linked", login: "synthetic-user" }, "unlinked with a login"],
+  ])("rejects semantically inconsistent GitHub status: %s", async (github, _description) => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse({
+        github,
+        model: { id: "hydrafusion", available: true },
+        featureEnabled: true,
+      }),
+    );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+
+    await expect(client.getStatus()).rejects.toThrow();
+  });
+
+  it("accepts expired status with or without the last known login", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse({ state: "expired", login: null }))
+      .mockResolvedValueOnce(statusResponse({ state: "expired", login: "synthetic-user" }));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+
+    await expect(client.getStatus()).resolves.toMatchObject({
+      github: { state: "expired", login: null },
+    });
+    await expect(client.getStatus()).resolves.toMatchObject({
+      github: { state: "expired", login: "synthetic-user" },
+    });
+  });
+
+  it("parses split CRLF and multiline data without accepting an unfinished event", () => {
+    const parser = new SseDataParser();
+
+    expect(parser.push(': keepalive\r\ndata: {"one":\r')).toEqual([]);
+    expect(parser.push("\ndata: true}\r\n\r")).toEqual([]);
+    expect(parser.push("\ndata: trailing")).toEqual(['{"one":\ntrue}']);
+    expect(() => parser.finish()).toThrow();
+
+    const carriageReturns = new SseDataParser();
+    expect(carriageReturns.push("data: complete\r\r")).toEqual([]);
+    expect(carriageReturns.finish()).toEqual(["complete"]);
+
+    const comment = new SseDataParser();
+    expect(comment.push("data: complete\n\n: keepalive")).toEqual(["complete"]);
+    expect(comment.finish()).toEqual([]);
+  });
+
+  it("streams chunk-split events and sends no client member identity", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        streamResponse([`da`, `ta: ${completion.slice(0, 44)}`, `${completion.slice(44)}\n\n`]),
+      );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const received: unknown[] = [];
+
+    await new Promise<void>((resolve) => {
+      session.subscribe((event) => {
+        received.push(event);
+        resolve();
+      });
+    });
+
+    expect(received).toHaveLength(1);
+    expect(received[0]).toMatchObject({ type: "completion", sessionId: "live-session" });
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+      method: "POST",
+      credentials: "same-origin",
+      body: JSON.stringify({ question: "Synthetic question" }),
+    });
+    expect(String(fetchMock.mock.calls[0]?.[1]?.body)).not.toContain("member");
+  });
+
+  it("does not deliver a terminal event until the stream ends cleanly", async () => {
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const text = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "text-0",
+      sequence: 0,
+      type: "text",
+      stream: "answer",
+      delta: "Synthetic answer",
+      source: "assistant",
+    });
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-1",
+      sequence: 1,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            streamController = controller;
+            controller.enqueue(
+              new TextEncoder().encode(`data: ${text}\n\ndata: ${completion}\n\n`),
+            );
+          },
+        }),
+      ),
+    );
+    const client = createAskChatClient(baseUrl, fetchMock, currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const listener = vi.fn();
+    session.subscribe(listener);
+    await waitFor(() => expect(listener).toHaveBeenCalledOnce());
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ type: "text" }));
+
+    streamController?.close();
+    await waitFor(() => expect(listener).toHaveBeenCalledTimes(2));
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ type: "completion" }));
+  });
+
+  it("reports an interruption when the stream stays open after a terminal event", async () => {
+    vi.useFakeTimers();
+    try {
+      const completion = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "completion-0",
+        sequence: 0,
+        type: "completion",
+        summary: "Synthetic completion",
+        coverage: "full",
+        freshness: "fresh",
+        finishReason: "completed",
+        assumptions: [],
+      });
+      const fetchMock = vi.fn<FetchLike>().mockResolvedValue(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+            },
+          }),
+        ),
+      );
+      const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+        question: "Synthetic question",
+      });
+      const listener = vi.fn();
+      session.subscribe(listener);
+
+      await vi.advanceTimersByTimeAsync(0);
+      expect(listener).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(15_000);
+      expect(listener).toHaveBeenCalledOnce();
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({ type: "error", code: "session_interrupted", sequence: 0 }),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the stream open while stop is awaiting confirmation after a terminal event", async () => {
+    vi.useFakeTimers();
+    try {
+      let resolveStop!: (response: Response) => void;
+      const pendingStop = new Promise<Response>((resolve) => {
+        resolveStop = resolve;
+      });
+      const completion = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "completion-0",
+        sequence: 0,
+        type: "completion",
+        summary: "Synthetic completion",
+        coverage: "full",
+        freshness: "fresh",
+        finishReason: "completed",
+        assumptions: [],
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+              },
+            }),
+          ),
+        )
+        .mockReturnValueOnce(pendingStop);
+      const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+        question: "Synthetic question",
+      });
+      const listener = vi.fn();
+      session.subscribe(listener);
+      await vi.advanceTimersByTimeAsync(10_000);
+
+      const stop = session.stop();
+      const streamSignal = fetchMock.mock.calls[0]?.[1]?.signal;
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(streamSignal?.aborted).toBe(false);
+      expect(listener).not.toHaveBeenCalled();
+
+      resolveStop(jsonResponse({ status: "stopped" }));
+      await stop;
+      expect(streamSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not accept an unterminated completion event", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(streamResponse([`data: ${completion}`]));
+    const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+      question: "Synthetic question",
+    });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({ type: "error", code: "session_interrupted" });
+  });
+
+  it("does not accept a terminal event followed by a truncated frame", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi
+      .fn<FetchLike>()
+      .mockResolvedValue(streamResponse([`data: ${completion}\n\ndata: {"type":"text"`]));
+    const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+      question: "Synthetic question",
+    });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({ type: "error", code: "session_interrupted", sequence: 0 });
+  });
+
+  it("does not accept invalid trailing UTF-8 after a terminal frame", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "live-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi.fn<FetchLike>().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+            controller.enqueue(new Uint8Array([0xc3]));
+            controller.close();
+          },
+        }),
+      ),
+    );
+    const session = createAskChatClient(baseUrl, fetchMock, currentLocation).transport.start({
+      question: "Synthetic question",
+    });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({ type: "error", code: "session_interrupted", sequence: 0 });
+  });
+
+  it("rejects questions over 8,000 characters before fetching", () => {
+    const fetchMock = vi.fn();
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+
+    expect(() => client.transport.start({ question: "x".repeat(8_001) })).toThrow();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [401, "auth_expired", false],
+    [403, "auth_expired", false],
+    [429, "rate_limit", true],
+    [504, "tool_timeout", true],
+    [404, "session_interrupted", true],
+    [503, "session_interrupted", true],
+    [500, "session_interrupted", true],
+  ] as const)("maps chat HTTP %i to %s", async (status, code, retryable) => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status }));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+
+    const event = await new Promise<unknown>((resolve) => session.subscribe(resolve));
+
+    expect(event).toMatchObject({ type: "error", code, retryable });
+  });
+
+  it("maps only an explicit bounded backend code to exact-model unavailability", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ code: "hydrafusion_unavailable", message: "Synthetic server detail" }, 503),
+      );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({
+      type: "error",
+      code: "hydrafusion_unavailable",
+      message: "Exact Copilot Fusion (hydrafusion) is unavailable for the linked GitHub account.",
+      retryable: false,
+    });
+  });
+
+  it("does not trust an oversized backend error body", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      jsonResponse(
+        {
+          code: "hydrafusion_unavailable",
+          message: "x".repeat(4_097),
+        },
+        503,
+      ),
+    );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+
+    await expect(
+      new Promise<unknown>((resolve) => session.subscribe(resolve)),
+    ).resolves.toMatchObject({
+      type: "error",
+      code: "session_interrupted",
+    });
+  });
+
+  it("reports disconnects before a terminal event but not local aborts", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse([]));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const disconnectedSession = client.transport.start({ question: "Synthetic question" });
+
+    await expect(
+      new Promise<unknown>((resolve) => disconnectedSession.subscribe(resolve)),
+    ).resolves.toMatchObject({ type: "error", code: "session_interrupted" });
+
+    let resolveFetch: ((response: Response) => void) | undefined;
+    const pendingFetch = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+    const abortingClient = createAskChatClient(baseUrl, asFetch(pendingFetch), currentLocation);
+    const abortedSession = abortingClient.transport.start({ question: "Synthetic question" });
+    const listener = vi.fn();
+    abortedSession.subscribe(listener);
+    abortedSession.close();
+    resolveFetch?.(streamResponse([]));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("posts stop only after observing the server session and surfaces stop failure", async () => {
+    const text = JSON.stringify({
+      version: "1.0",
+      sessionId: "server-session",
+      id: "text-0",
+      sequence: 0,
+      type: "text",
+      stream: "answer",
+      delta: "Synthetic",
+      source: "assistant",
+    });
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const encoder = new TextEncoder();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              streamController = controller;
+              controller.enqueue(encoder.encode(`data: ${text}\n\n`));
+            },
+          }),
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 500 }));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    await new Promise<void>((resolve) => {
+      session.subscribe(() => resolve());
+    });
+
+    await expect(session.stop()).rejects.toMatchObject({
+      code: "chat_stop_failed",
+      status: 500,
+    });
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ sessionId: "server-session" }),
+    });
+    session.close();
+    streamController?.close();
+  });
+
+  it("uses the response session header to stop before the first event", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(new ReadableStream<Uint8Array>({}), {
+          headers: { "X-Penge-Chat-Session-Id": "header-session" },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ status: "cancelling" }, 202));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    session.subscribe(() => undefined);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+
+    await session.stop();
+
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      method: "POST",
+      body: JSON.stringify({ sessionId: "header-session" }),
+    });
+  });
+
+  it("suppresses further events and keeps the stream open until stop is confirmed", async () => {
+    let resolveStop: ((response: Response) => void) | undefined;
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              streamController = controller;
+            },
+          }),
+          {
+            headers: { "X-Penge-Chat-Session-Id": "slow-stop-session" },
+          },
+        ),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveStop = resolve;
+          }),
+      );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const listener = vi.fn();
+    session.subscribe(listener);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    const streamSignal = (fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.signal;
+
+    const stopping = session.stop();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(streamSignal?.aborted).toBe(false);
+    streamController?.enqueue(
+      new TextEncoder().encode(
+        `data: ${JSON.stringify({
+          version: "1.0",
+          sessionId: "slow-stop-session",
+          id: "after-stop",
+          sequence: 0,
+          type: "text",
+          stream: "answer",
+          delta: "Must not render after stop.",
+          source: "assistant",
+        })}\n\n`,
+      ),
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(listener).not.toHaveBeenCalled();
+
+    resolveStop?.(jsonResponse({ status: "cancelling" }, 202));
+    await expect(stopping).resolves.toBeUndefined();
+    expect(streamSignal?.aborted).toBe(true);
+    streamController?.close();
+  });
+
+  it("bounds a stalled stop acknowledgement and closes both requests", async () => {
+    vi.useFakeTimers();
+    try {
+      let stopSignal: AbortSignal | undefined;
+      const fetchMock = vi
+        .fn<FetchLike>()
+        .mockResolvedValueOnce(
+          new Response(new ReadableStream<Uint8Array>({}), {
+            headers: { "X-Penge-Chat-Session-Id": "timeout-session" },
+          }),
+        )
+        .mockImplementationOnce((_input, init) => {
+          stopSignal = init?.signal ?? undefined;
+          return new Promise<Response>((_resolve, reject) => {
+            stopSignal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Stop timed out", "AbortError")),
+              { once: true },
+            );
+          });
+        });
+      const client = createAskChatClient(baseUrl, fetchMock, currentLocation);
+      const session = client.transport.start({ question: "Synthetic question" });
+      session.subscribe(() => undefined);
+      await Promise.resolve();
+      const streamSignal = fetchMock.mock.calls[0]?.[1]?.signal;
+
+      const stopping = session.stop();
+      const rejection = expect(stopping).rejects.toMatchObject({ name: "AbortError" });
+      expect(streamSignal?.aborted).toBe(false);
+      await vi.advanceTimersByTimeAsync(15_000);
+      await rejection;
+      expect(stopSignal?.aborted).toBe(true);
+      expect(streamSignal?.aborted).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes without a stop request before the server session is known", async () => {
+    const fetchMock = vi.fn<FetchLike>().mockImplementation(
+      (_input, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Stream aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    const client = createAskChatClient(baseUrl, fetchMock, currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const listener = vi.fn();
+    session.subscribe(listener);
+
+    await session.stop();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("rejects a stream session that differs from the response session header", async () => {
+    const completion = JSON.stringify({
+      version: "1.0",
+      sessionId: "event-session",
+      id: "completion-0",
+      sequence: 0,
+      type: "completion",
+      summary: "Synthetic completion",
+      coverage: "full",
+      freshness: "fresh",
+      finishReason: "completed",
+      assumptions: [],
+    });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(`data: ${completion}\n\n`));
+            controller.close();
+          },
+        }),
+        { headers: { "X-Penge-Chat-Session-Id": "header-session" } },
+      ),
+    );
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+    const received: unknown[] = [];
+
+    await new Promise<void>((resolve) => {
+      session.subscribe((event) => {
+        received.push(event);
+        resolve();
+      });
+    });
+
+    expect(received).toEqual([
+      {
+        sessionIdMismatch: { expected: "header-session", received: "event-session" },
+      },
+    ]);
+  });
+
+  it("passes malformed SSE data to the strict UI boundary", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse(["data: {not-json}\n\n"]));
+    const client = createAskChatClient(baseUrl, asFetch(fetchMock), currentLocation);
+    const session = client.transport.start({ question: "Synthetic question" });
+
+    await expect(new Promise<unknown>((resolve) => session.subscribe(resolve))).resolves.toEqual({
+      malformedSseData: "{not-json}",
+    });
+  });
+});
+
+describe("Ask Penge live page", () => {
+  it("stays fail closed without configuration and performs no fetch", () => {
+    const fetchMock = vi.fn();
+
+    render(<AskPengeLivePage configuredBaseUrl="" fetchFn={asFetch(fetchMock)} />);
+
+    expect(screen.getByText("Exact Copilot Fusion is unavailable")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("renders loading then server-derived linked status and OAuth navigation", async () => {
+    let resolveStatus: ((response: Response) => void) | undefined;
+    const fetchMock = vi.fn(
+      () =>
+        new Promise<Response>((resolve) => {
+          resolveStatus = resolve;
+        }),
+    );
+    const navigate = vi.fn();
+    render(
+      <AskPengeLivePage
+        configuredBaseUrl="/chat"
+        fetchFn={asFetch(fetchMock)}
+        navigate={navigate}
+      />,
+    );
+
+    expect(screen.getByText("Checking Ask Penge status")).toBeInTheDocument();
+    resolveStatus?.(statusResponse({ state: "not-linked", login: null }));
+    expect(await screen.findByText(/connect your own account/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Link GitHub account" }));
+    expect(navigate).toHaveBeenCalledWith("http://localhost:3000/chat/oauth/github/start");
+  });
+
+  it("shows strict model, feature, and retry states from status", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse({ available: false }))
+      .mockResolvedValueOnce(statusResponse({ featureEnabled: false }))
+      .mockRejectedValueOnce(new TypeError("synthetic disconnect"))
+      .mockResolvedValueOnce(statusResponse({ state: "expired", login: null }));
+    const { rerender } = render(
+      <AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />,
+    );
+
+    expect(await screen.findByText("Exact Copilot Fusion is unavailable")).toBeInTheDocument();
+    rerender(
+      <AskPengeLivePage
+        key="feature-disabled"
+        configuredBaseUrl="/chat"
+        fetchFn={asFetch(fetchMock)}
+      />,
+    );
+    expect(await screen.findByText("Ask Penge is disabled by the service")).toBeInTheDocument();
+    rerender(
+      <AskPengeLivePage
+        key="status-error"
+        configuredBaseUrl="/chat"
+        fetchFn={asFetch(fetchMock)}
+      />,
+    );
+    expect(await screen.findByText("Ask Penge status is unavailable")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retry status" }));
+    expect(await screen.findByText(/authorization expired/i)).toBeInTheDocument();
+  });
+
+  it.each([
+    ["linked", "synthetic-user"],
+    ["expired", null],
+    ["expired", "synthetic-user"],
+  ] as const)("unlinks a %s account and refreshes status", async (state, login) => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse({ state, login }))
+      .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }))
+      .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    expect(
+      await screen.findByRole("button", { name: "Unlink GitHub account" }),
+    ).toBeInTheDocument();
+    if (state === "expired") {
+      expect(
+        screen.getByRole("button", { name: "Reauthenticate GitHub account" }),
+      ).toBeInTheDocument();
+    }
+    await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    await waitFor(() => expect(screen.getByText(/connect your own account/i)).toBeInTheDocument());
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe("http://localhost:3000/chat/v1/auth/github");
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "DELETE" });
+  });
+
+  it("allows only one unlink at a time and refreshes after it succeeds", async () => {
+    let resolveUnlink!: (response: Response) => void;
+    const pendingUnlink = new Promise<Response>((resolve) => {
+      resolveUnlink = resolve;
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockReturnValueOnce(pendingUnlink)
+      .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    const unlink = screen.getByRole("button", { name: "Unlink GitHub account" });
+    fireEvent.click(unlink);
+    fireEvent.click(unlink);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
+
+    resolveUnlink(jsonResponse({ status: "unlinked" }));
+    expect(await screen.findByRole("button", { name: "Link GitHub account" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.queryByText(/could not be unlinked/i)).not.toBeInTheDocument();
+  });
+
+  it("allows unlinking to be retried after a failure", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockRejectedValueOnce(new TypeError("synthetic unlink failure"))
+      .mockResolvedValueOnce(jsonResponse({ status: "unlinked" }))
+      .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    expect(await screen.findByText(/could not be unlinked/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    expect(await screen.findByRole("button", { name: "Link GitHub account" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("does not refresh status from a stream error while unlinking is pending", async () => {
+    let resolveUnlink!: (response: Response) => void;
+    const pendingUnlink = new Promise<Response>((resolve) => {
+      resolveUnlink = resolve;
+    });
+    let streamController!: ReadableStreamDefaultController<Uint8Array>;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        streamController = controller;
+      },
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockResolvedValueOnce(new Response(stream))
+      .mockReturnValueOnce(pendingUnlink)
+      .mockResolvedValueOnce(statusResponse({ state: "not-linked", login: null }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+    await userEvent.click(screen.getByRole("button", { name: "Unlink GitHub account" }));
+    const expired = {
+      version: "1.0",
+      sessionId: "synthetic-session",
+      id: "expired",
+      sequence: 0,
+      type: "error",
+      code: "auth_expired",
+      message: "Synthetic expired authorization.",
+      retryable: false,
+    };
+    streamController.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(expired)}\n\n`));
+    streamController.close();
+
+    expect(await screen.findByText("GitHub session expired")).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
+
+    resolveUnlink(jsonResponse({ status: "unlinked" }));
+    expect(await screen.findByRole("button", { name: "Link GitHub account" })).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("refreshes authoritative status after a streamed auth_expired error", async () => {
+    const expired = JSON.stringify({
+      version: "1.0",
+      sessionId: "expired-session",
+      id: "error-0",
+      sequence: 0,
+      type: "error",
+      code: "auth_expired",
+      message: "Synthetic expired authorization.",
+      retryable: false,
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockResolvedValueOnce(streamResponse([`data: ${expired}\n\n`]))
+      .mockResolvedValueOnce(statusResponse({ state: "expired" }));
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(await screen.findByText("GitHub session expired")).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(String(fetchMock.mock.calls[2]?.[0])).toContain("/chat/v1/auth/status");
+    expect(await screen.findByRole("button", { name: /Reauthenticate/i })).toBeInTheDocument();
+  });
+
+  it("refreshes and gates requests after exact Copilot Fusion becomes unavailable", async () => {
+    const unavailable = JSON.stringify({
+      version: "1.0",
+      sessionId: "model-unavailable-session",
+      id: "error-0",
+      sequence: 0,
+      type: "error",
+      code: "hydrafusion_unavailable",
+      message: "Synthetic exact-model access loss.",
+      retryable: false,
+    });
+    let resolveRefresh: ((response: Response) => void) | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(statusResponse())
+      .mockResolvedValueOnce(streamResponse([`data: ${unavailable}\n\n`]))
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveRefresh = resolve;
+          }),
+      );
+    render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+    await screen.findByText(/linked as @synthetic-user/i);
+    await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+    expect(
+      await screen.findByText("Exact Copilot Fusion model is unavailable"),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3));
+    expect(screen.getByText("Checking Ask Penge status")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+
+    resolveRefresh?.(statusResponse({ available: false }));
+    expect(await screen.findByText("Exact Copilot Fusion unavailable")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+  });
+
+  it.each([true, false])(
+    "keeps asking disabled when a model-status refresh is rate limited, then honors availability %s",
+    async (available) => {
+      const unavailable = JSON.stringify({
+        version: "1.0",
+        sessionId: "model-unavailable-session",
+        id: "error-0",
+        sequence: 0,
+        type: "error",
+        code: "hydrafusion_unavailable",
+        message: "Synthetic exact-model access loss.",
+        retryable: false,
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(statusResponse())
+        .mockResolvedValueOnce(streamResponse([`data: ${unavailable}\n\n`]))
+        .mockResolvedValueOnce(new Response(null, { status: 429 }))
+        .mockResolvedValueOnce(statusResponse({ available }));
+      render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+      await screen.findByText(/linked as @synthetic-user/i);
+      await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+      expect(await screen.findByText("Ask Penge status is unavailable")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+      expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
+
+      await userEvent.click(screen.getByRole("button", { name: "Retry status" }));
+      if (available) {
+        await waitFor(() => expect(screen.getByRole("button", { name: "Ask" })).toBeEnabled());
+      } else {
+        expect(await screen.findByText("Exact Copilot Fusion unavailable")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Ask unavailable" })).toBeDisabled();
+        expect(screen.getByRole("button", { name: "Ask" })).toBeDisabled();
+      }
+      expect(fetchMock).toHaveBeenCalledTimes(4);
+    },
+  );
+
+  it.each(["same chunk", "separate chunks"])(
+    "rejects a post-terminal live event in %s",
+    async (delivery) => {
+      const completion = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "completion-0",
+        sequence: 0,
+        type: "completion",
+        summary: "Synthetic completion",
+        coverage: "full",
+        freshness: "fresh",
+        finishReason: "completed",
+        assumptions: [],
+      });
+      const postTerminal = JSON.stringify({
+        version: "1.0",
+        sessionId: "live-session",
+        id: "text-1",
+        sequence: 1,
+        type: "text",
+        stream: "answer",
+        delta: "Must not render",
+        source: "assistant",
+      });
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValueOnce(statusResponse())
+        .mockResolvedValueOnce(
+          streamResponse(
+            delivery === "same chunk"
+              ? [`data: ${completion}\n\ndata: ${postTerminal}\n\n`]
+              : [`data: ${completion}\n\n`, `data: ${postTerminal}\n\n`],
+          ),
+        );
+      render(<AskPengeLivePage configuredBaseUrl="/chat" fetchFn={asFetch(fetchMock)} />);
+
+      await screen.findByText(/linked as @synthetic-user/i);
+      await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+
+      expect(await screen.findByText("Unsupported answer stream")).toBeInTheDocument();
+      expect(screen.queryByText("Must not render")).not.toBeInTheDocument();
+      expect(screen.queryByText("Synthetic completion")).not.toBeInTheDocument();
+      expect(screen.queryByText("Answer ready")).not.toBeInTheDocument();
+    },
+  );
+});

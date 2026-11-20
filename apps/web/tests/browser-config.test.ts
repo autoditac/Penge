@@ -30,7 +30,7 @@ test.each([
       env: { PENGE_API_CORS_ORIGINS: origins.webUrl },
     }),
     expect.objectContaining({
-      command: `pnpm exec vite preview --host 127.0.0.1 --port ${webPort} --strictPort`,
+      command: `pnpm exec vite build --mode e2e && pnpm exec vite preview --host 127.0.0.1 --port ${webPort} --strictPort`,
       url: origins.webUrl,
       reuseExistingServer: false,
       env: { VITE_PENGE_DEMO: "false", VITE_PENGE_API_URL: origins.apiUrl },

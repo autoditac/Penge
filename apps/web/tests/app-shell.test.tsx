@@ -82,9 +82,9 @@ describe("AppShell", () => {
     renderShell();
     expect(screen.queryByRole("navigation", { name: "Primary" })).not.toBeInTheDocument();
     const links = screen.getAllByRole("link", {
-      name: /Overview|Performance|Imports|Connections|Planning/,
+      name: /Overview|Performance|Imports|Connections|Planning|Ask Penge/,
     });
-    expect(links.length).toBeGreaterThanOrEqual(5);
+    expect(links.length).toBeGreaterThanOrEqual(6);
     expect(screen.getByText("page body")).toBeInTheDocument();
   });
 

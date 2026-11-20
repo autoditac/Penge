@@ -121,6 +121,21 @@ def test_runner_gc_units_are_scheduled_within_the_age_threshold() -> None:
     assert "Persistent=true" in timer
 
 
+def test_web_ui_job_has_budget_for_build_test_and_lint() -> None:
+    ci = (ROOT / ".github/workflows/ci.yml").read_text()
+    job = ci.split("\n  web-ui:\n", 1)[1].split("\n  mcp:\n", 1)[0]
+
+    assert re.search(r"^    timeout-minutes: 20$", job, re.MULTILINE)
+    assert "pnpm install --frozen-lockfile" in job
+    steps = [
+        "pnpm --filter @penge/web build",
+        "pnpm --filter @penge/web test --maxWorkers=2 --testTimeout=60000",
+        "pnpm --filter @penge/web lint",
+    ]
+    positions = [job.index(step) for step in steps]
+    assert positions == sorted(positions)
+
+
 def test_image_matrix_jobs_isolate_docker_configuration() -> None:
     ci = (ROOT / ".github/workflows/ci.yml").read_text()
     release = (ROOT / ".github/workflows/release.yml").read_text()
